@@ -1,0 +1,1590 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <title>Nufarul — Приём заказов в зале</title>
+    <style>
+        :root {
+            --primary: #0d9488;
+            --accent: #10b981;
+            --bg: #f0fdfa;
+            --card-bg: #fff;
+            --text: #134e4a;
+            --text-muted: #64748b;
+            --border: #99f6e4;
+            --danger: #dc2626;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 16px;
+            padding-bottom: 80px;
+            max-width: 768px;
+            margin: 0 auto;
+        }
+        .screen { display: none; }
+        .screen.active { display: block; animation: fadeIn .25s ease; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,.06);
+            padding: 20px;
+            margin-bottom: 16px;
+        }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity .2s, transform .05s;
+            min-height: 48px;
+        }
+        .btn:active { transform: scale(0.98); }
+        .btn-primary { background: var(--primary); color: #fff; width: 100%; }
+        .btn-success { background: var(--accent); color: #fff; width: 100%; }
+        .btn-ghost { background: #ccfbf1; color: var(--text); }
+        .input-wrap { margin-bottom: 16px; }
+        .input-wrap label { display: block; font-size: 14px; color: var(--text-muted); margin-bottom: 6px; }
+        .input-wrap input {
+            width: 100%;
+            padding: 14px 16px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            font-size: 16px;
+        }
+        h1 { font-size: 22px; margin-bottom: 8px; color: var(--text); }
+        .service-list { display: flex; flex-direction: column; gap: 8px; max-height: 65vh; overflow-y: auto; -webkit-overflow-scrolling: touch; padding-right: 4px; }
+        .service-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px 10px;
+            padding: 12px 14px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            transition: border-color .15s, box-shadow .15s;
+        }
+        .service-row:active { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(13,148,136,.12); }
+        .service-row .name-wrap { flex: 1 1 55%; min-width: 0; }
+        .service-row .name-primary { font-weight: 600; display: block; line-height: 1.3; font-size: 15px; overflow: hidden; text-overflow: ellipsis; }
+        .service-row .name-secondary { font-size: 12px; color: var(--text-muted); display: block; line-height: 1.3; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; }
+        .service-row .controls { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+        .service-row .price { color: var(--primary); font-weight: 600; font-size: 14px; white-space: nowrap; }
+        .service-row .qty { width: 48px; padding: 6px 4px; text-align: center; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; }
+        .service-row .add { padding: 6px 14px; background: var(--accent); color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 16px; -webkit-tap-highlight-color: transparent; }
+        .service-row .add:active { transform: scale(.92); }
+        @media (max-width: 420px) {
+            .service-row { padding: 10px 10px; gap: 4px 8px; }
+            .service-row .name-wrap { flex: 1 1 100%; }
+            .service-row .controls { width: 100%; justify-content: space-between; }
+            .service-row .price { font-size: 13px; }
+            .service-row .qty { width: 44px; padding: 6px 2px; }
+            .service-row .add { padding: 6px 12px; }
+        }
+        .result-icon { font-size: 64px; text-align: center; margin-bottom: 16px; }
+        .result-icon.ok { color: var(--accent); }
+        .result-msg { font-size: 18px; text-align: center; margin-bottom: 16px; line-height: 1.4; }
+        .barcode-box {
+            text-align: center;
+            padding: 24px;
+            background: #f0fdfa;
+            border: 2px dashed var(--primary);
+            border-radius: 12px;
+            margin: 16px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 24px;
+            letter-spacing: 4px;
+        }
+        .print-btn { margin-top: 16px; }
+        .history { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .history h3 { font-size: 16px; margin-bottom: 12px; color: var(--text-muted); }
+        .history-item {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--border);
+            font-size: 14px;
+        }
+        .history-item .status { font-size: 12px; padding: 2px 8px; border-radius: 6px; background: #ccfbf1; color: #0f766e; }
+        .search-row { display: flex; gap: 12px; margin-bottom: 16px; }
+        .search-row input { flex: 1; padding: 14px; border: 1px solid var(--border); border-radius: 12px; font-size: 16px; }
+        .link-admin { font-size: 14px; margin-bottom: 16px; }
+        .link-admin a { color: var(--primary); }
+        .service-group { margin-bottom: 20px; }
+        .service-group-title { font-size: 13px; font-weight: 700; color: var(--primary); margin-bottom: 10px; padding: 8px 12px; background: #ccfbf1; border-radius: 8px; position: sticky; top: 0; z-index: 5; }
+        .service-group-count { font-weight: 400; color: var(--text-muted); font-size: 11px; margin-left: 6px; }
+        .lang-bar { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+        .lang-bar button { padding: 8px 14px; border: 1px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text-muted); font-size: 13px; cursor: pointer; }
+        .lang-bar button.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+        .load-err { padding: 20px; text-align: center; color: var(--danger); background: #fef2f2; border-radius: 12px; margin-bottom: 16px; }
+        .service-row .name-primary mark, .service-row .name-secondary mark { background: #fef08a; border-radius: 3px; padding: 0 2px; }
+        /* ===== Fixed Cart Widget ===== */
+        .cart-widget {
+            position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+            width: 100%; max-width: 768px; z-index: 900;
+            background: var(--card-bg); box-shadow: 0 -4px 20px rgba(0,0,0,.12);
+            border-radius: 16px 16px 0 0;
+        }
+        .cart-widget__bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 14px 20px; cursor: pointer; user-select: none; min-height: 56px;
+        }
+        .cart-widget__summary { display: flex; align-items: center; gap: 10px; }
+        .cart-widget__icon { font-size: 20px; }
+        .cart-widget__count {
+            background: var(--primary); color: #fff; font-size: 13px; font-weight: 700;
+            width: 24px; height: 24px; border-radius: 50%;
+            display: inline-flex; align-items: center; justify-content: center;
+        }
+        .cart-widget--empty .cart-widget__count { background: var(--text-muted); }
+        .cart-widget__label { font-size: 14px; font-weight: 600; color: var(--text); }
+        .cart-widget__total { font-size: 16px; font-weight: 700; color: var(--primary); }
+        .cart-widget--empty .cart-widget__total { display: none; }
+        .cart-widget__toggle {
+            background: none; border: none; font-size: 18px; color: var(--text-muted);
+            cursor: pointer; padding: 4px 8px; transition: transform .3s ease;
+        }
+        .cart-widget.expanded .cart-widget__toggle { transform: rotate(180deg); }
+        .cart-widget__body {
+            max-height: 0; overflow: hidden;
+            transition: max-height .35s ease, padding .35s ease; padding: 0 20px;
+        }
+        .cart-widget.expanded .cart-widget__body {
+            max-height: 50vh; padding: 0 20px 16px 20px; overflow-y: auto;
+        }
+        .cart-widget__item-row {
+            display: grid; grid-template-columns: 24px 1fr auto auto auto 32px 32px;
+            gap: 6px; align-items: center; padding: 10px 0;
+            border-bottom: 1px solid var(--border); font-size: 13px;
+        }
+        .cart-widget__item-row .col-num { color: var(--text-muted); font-size: 12px; }
+        .cart-widget__item-row .col-name { min-width: 0; }
+        .cart-widget__item-row .col-name-primary {
+            font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .cart-widget__item-row .col-name-secondary {
+            font-size: 11px; color: var(--text-muted);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .cart-widget__item-row .col-qty { text-align: center; font-weight: 600; min-width: 28px; }
+        .cart-widget__item-row .col-price { text-align: right; color: var(--text-muted); min-width: 50px; }
+        .cart-widget__item-row .col-sum { text-align: right; font-weight: 600; color: var(--primary); min-width: 60px; }
+        .cart-widget__item-row .col-remove button {
+            background: none; border: none; color: var(--danger); font-size: 16px; cursor: pointer; padding: 4px; line-height: 1;
+        }
+        .cart-widget__footer {
+            padding-top: 12px; border-top: 2px solid var(--primary);
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+        }
+        .cart-widget__total-row { font-size: 16px; color: var(--text); }
+        .cart-widget__total-row strong { color: var(--primary); font-size: 18px; }
+        .cart-widget__checkout { white-space: nowrap; padding: 12px 24px; min-width: 120px; }
+        /* ===== Photo capture ===== */
+        .photo-capture-area { margin-top: 12px; }
+        .photo-capture-area .photo-label { font-size: 14px; color: var(--text-muted); margin-bottom: 6px; display: block; }
+        .photo-capture-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 10px 18px; border: 1px dashed var(--border); border-radius: 10px;
+            background: #f0fdfa; color: var(--primary); font-size: 14px; font-weight: 600;
+            cursor: pointer;
+        }
+        .photo-capture-btn:active { opacity: .7; }
+        .photo-preview-strip { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+        .photo-thumb {
+            position: relative; width: 72px; height: 72px; border-radius: 10px;
+            overflow: hidden; border: 2px solid var(--border); flex-shrink: 0;
+        }
+        .photo-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .photo-thumb .photo-remove {
+            position: absolute; top: 2px; right: 2px;
+            background: rgba(220,38,38,.85); color: #fff; border: none; border-radius: 50%;
+            width: 20px; height: 20px; font-size: 14px; line-height: 20px; text-align: center;
+            cursor: pointer;
+        }
+        .cart-widget__item-row .col-photo-btn button {
+            background: none; border: none; font-size: 16px; cursor: pointer; padding: 4px; line-height: 1; color: var(--primary);
+        }
+        .cart-widget__item-row .col-photo-count { font-size: 11px; color: var(--primary); margin-left: 2px; }
+        .photo-upload-status { margin-top: 8px; font-size: 13px; color: var(--text-muted); }
+        /* ===== Camera modal ===== */
+        .camera-modal {
+            display: none; position: fixed; inset: 0; z-index: 9999;
+            background: #000; flex-direction: column; align-items: center; justify-content: center;
+        }
+        .camera-modal.open { display: flex; }
+        .camera-modal video { width: 100%; max-height: 70vh; object-fit: contain; background: #111; border-radius: 8px; }
+        .camera-modal canvas { display: none; }
+        .camera-modal__controls { display: flex; gap: 16px; margin-top: 16px; }
+        .camera-modal__btn {
+            padding: 14px 32px; border: none; border-radius: 50px; font-size: 16px; font-weight: 700;
+            cursor: pointer; min-width: 100px; text-align: center;
+        }
+        .camera-modal__btn--snap { background: #fff; color: #000; }
+        .camera-modal__btn--close { background: rgba(255,255,255,.2); color: #fff; }
+        .camera-modal__btn--switch { background: rgba(255,255,255,.2); color: #fff; font-size: 20px; padding: 14px 18px; }
+        .camera-modal__hint { color: rgba(255,255,255,.6); font-size: 13px; margin-top: 10px; text-align: center; }
+        /* ===== AI command bar ===== */
+        .ai-bar {
+            margin-bottom: 16px; background: var(--card-bg); border-radius: 14px;
+            box-shadow: 0 2px 12px rgba(0,0,0,.06); padding: 14px 16px;
+        }
+        .ai-bar__label { font-size: 13px; color: var(--text-muted); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+        .ai-bar__label .ai-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; }
+        .ai-bar__row { display: flex; gap: 8px; }
+        .ai-bar__input {
+            flex: 1; padding: 12px 16px; border: 1px solid var(--border); border-radius: 10px;
+            font-size: 15px; outline: none;
+        }
+        .ai-bar__input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(13,148,136,.12); }
+        .ai-bar__send {
+            padding: 12px 18px; background: var(--primary); color: #fff; border: none;
+            border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; white-space: nowrap;
+        }
+        .ai-bar__send:disabled { opacity: .5; cursor: not-allowed; }
+        .ai-bar__voice {
+            padding: 12px 14px; background: #f0fdfa; color: var(--primary); border: 1px solid var(--border);
+            border-radius: 10px; font-size: 18px; cursor: pointer; white-space: nowrap;
+            transition: all .2s; line-height: 1;
+        }
+        .ai-bar__voice:active { transform: scale(.9); }
+        .ai-bar__voice.recording {
+            background: #fef2f2; color: var(--danger); border-color: var(--danger);
+            animation: pulse-rec 1s infinite;
+        }
+        .ai-bar__voice.unavailable { display: none; }
+        @keyframes pulse-rec { 0%,100% { opacity: 1; } 50% { opacity: .5; } }
+        .ai-bar__result {
+            margin-top: 10px; font-size: 13px; color: var(--text); display: none;
+            background: #f0fdfa; border-radius: 10px; padding: 10px 14px; line-height: 1.5;
+        }
+        .ai-bar__result.visible { display: block; }
+        .ai-bar__result .ai-match { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); }
+        .ai-bar__result .ai-match:last-child { border: none; }
+        .ai-bar__result .ai-match-name { font-weight: 600; }
+        .ai-bar__result .ai-match-qty { color: var(--primary); font-weight: 700; }
+        .ai-bar__result .ai-match-add { background: var(--accent); color: #fff; border: none; border-radius: 6px; padding: 4px 12px; font-size: 12px; cursor: pointer; font-weight: 600; }
+        .ai-bar__confirm { margin-top: 8px; display: flex; gap: 8px; }
+        .ai-bar__confirm button { padding: 8px 18px; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+        .ai-bar__confirm .ai-ok { background: var(--accent); color: #fff; }
+        .ai-bar__confirm .ai-cancel { background: #f1f5f9; color: var(--text-muted); }
+        .ai-bar__status { margin-top: 6px; font-size: 12px; color: var(--text-muted); }
+        .ai-bar__toggle { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 11px; color: var(--text-muted); }
+        .ai-bar__toggle select { font-size: 11px; padding: 2px 6px; border-radius: 6px; border: 1px solid var(--border); background: #fff; color: var(--text); cursor: pointer; }
+        .ai-bar__toggle .toggle-label { white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <div id="screen-home" class="screen active">
+        <h1 id="pageTitle">Nufarul — Приём заказов</h1>
+        <p class="link-admin">
+            <a href="/UNA.md/orasldev/nufarul-admin" id="linkAdmin">Админка</a>
+            &nbsp;·&nbsp;
+            <a href="/UNA.md/orasldev/nufarul-operator/document/jurnal" target="_blank" id="linkJournal">Jurnal / Журнал регистраций</a>
+        </p>
+        <div class="ai-bar" id="aiBar">
+            <div class="ai-bar__label" id="aiBarLabel"><span class="ai-dot"></span> AI — набор заказа (RU / RO / mix)</div>
+            <div class="ai-bar__row">
+                <input type="text" class="ai-bar__input" id="aiInput"
+                       placeholder="Напр.: 2 рубашки, palton, 3 perne / 2 cămăși, пальто...">
+                <button type="button" class="ai-bar__voice" id="aiVoice" title="Голосовой ввод">🎙</button>
+                <button type="button" class="ai-bar__send" id="aiSend">➜</button>
+            </div>
+            <div class="ai-bar__result" id="aiResult"></div>
+            <div class="ai-bar__status" id="aiStatus"></div>
+            <div class="ai-bar__toggle">
+                <span class="toggle-label" id="backendLabel">⚙ Бэкенд:</span>
+                <select id="aiBackend">
+                    <option value="local">🐍 Local (rapidfuzz)</option>
+                    <option value="oracle" selected>🔮 Oracle AI (PL/SQL)</option>
+                </select>
+            </div>
+        </div>
+        <div class="card">
+            <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 8px;" id="servicesLabel">Услуги (добавить в заказ)</p>
+            <div class="lang-bar">
+                <button type="button" class="lang-btn active" data-lang="ru">RU</button>
+                <button type="button" class="lang-btn" data-lang="ro">RO</button>
+                <button type="button" class="lang-btn" data-lang="en">EN</button>
+            </div>
+            <div class="filter-bar" style="display:flex; gap:10px; margin-bottom:12px; flex-wrap:wrap;">
+                <input type="text" id="svcSearch" placeholder="Поиск услуги..."
+                       style="flex:1; min-width:180px; padding:12px 16px; border:1px solid var(--border); border-radius:10px; font-size:15px;">
+                <select id="svcGroupFilter"
+                        style="padding:12px 16px; border:1px solid var(--border); border-radius:10px; font-size:15px; background:#fff; min-width:140px;">
+                    <option value="">Все группы</option>
+                </select>
+                <button type="button" id="svcFilterReset" class="btn-ghost"
+                        style="padding:10px 16px; border:1px solid var(--border); border-radius:10px; font-size:14px; cursor:pointer; display:none;">
+                    Сбросить
+                </button>
+            </div>
+            <div id="svcFilterInfo" style="font-size:13px; color:var(--text-muted); margin-bottom:8px; display:none;"></div>
+            <div class="service-list" id="serviceList"></div>
+        </div>
+        <div class="card" id="clientCard" style="display: none;">
+            <div class="input-wrap">
+                <label id="labelClientName">Имя клиента</label>
+                <input type="text" id="clientName" placeholder="Иванов Иван">
+            </div>
+            <div class="input-wrap">
+                <label id="labelClientPhone">Телефон</label>
+                <input type="tel" id="clientPhone" placeholder="+373 69 123 456">
+            </div>
+            <div class="input-wrap">
+                <label id="labelOrderNotes">Примечание</label>
+                <input type="text" id="orderNotes" placeholder="Опционально">
+            </div>
+            <div class="photo-capture-area">
+                <span class="photo-label" id="labelOrderPhotos">Фото заказа</span>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                    <button type="button" class="photo-capture-btn" id="orderCameraBtn">📸 Камера</button>
+                    <label class="photo-capture-btn" for="orderPhotoInput">📁 Файл</label>
+                </div>
+                <input type="file" id="orderPhotoInput" accept="image/*" capture="environment" multiple
+                       style="display:none;">
+                <div class="photo-preview-strip" id="orderPhotoStrip"></div>
+            </div>
+            <button type="button" class="btn btn-success" id="btnCreateOrder" style="margin-top:16px;">Оформить заказ</button>
+        </div>
+        <div class="history">
+            <h3 id="historyTitle">Последние заказы</h3>
+            <div id="historyList"></div>
+        </div>
+    </div>
+
+    <div id="screen-result" class="screen">
+        <div id="resultContent"></div>
+        <button type="button" class="btn btn-primary" id="resultBtn">Новый заказ</button>
+    </div>
+
+    <div id="screen-search" class="screen">
+        <h1>Поиск заказа по штрихкоду</h1>
+        <div class="search-row">
+            <input type="text" id="barcodeInput" placeholder="Штрихкод или номер заказа">
+            <button type="button" class="btn btn-primary" id="btnSearchBarcode" style="width: auto;">Найти</button>
+        </div>
+        <div id="orderDetail"></div>
+        <p style="margin-top: 16px;"><a href="#" id="backFromSearch">← Назад</a></p>
+    </div>
+
+    <!-- Fixed Cart Widget -->
+    <div id="cartWidget" class="cart-widget cart-widget--empty">
+        <div class="cart-widget__bar" id="cartWidgetBar">
+            <div class="cart-widget__summary">
+                <span class="cart-widget__icon">🛒</span>
+                <span class="cart-widget__count" id="cartWidgetCount">0</span>
+                <span class="cart-widget__label" id="cartWidgetLabel">Корзина пуста</span>
+            </div>
+            <div class="cart-widget__total" id="cartWidgetTotal">0 MDL</div>
+            <button type="button" class="cart-widget__toggle" id="cartWidgetToggle" style="display:none;">
+                <span id="cartWidgetArrow">&#9650;</span>
+            </button>
+        </div>
+        <div class="cart-widget__body" id="cartWidgetBody">
+            <div class="cart-widget__items" id="cartWidgetItems"></div>
+            <div class="cart-widget__footer">
+                <div class="cart-widget__total-row">
+                    <span>Итого:</span>
+                    <strong id="cartWidgetTotalExpanded">0 MDL</strong>
+                </div>
+                <button type="button" class="btn btn-success cart-widget__checkout" id="cartWidgetCheckout">
+                    Оформить
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Modal -->
+    <div class="camera-modal" id="cameraModal">
+        <video id="cameraVideo" autoplay playsinline></video>
+        <canvas id="cameraCanvas"></canvas>
+        <div style="margin-top:10px;">
+            <select id="cameraDeviceSelect" style="padding:8px 12px;border-radius:8px;border:1px solid #555;background:#222;color:#fff;font-size:14px;max-width:90vw;"></select>
+        </div>
+        <div class="camera-modal__controls">
+            <button type="button" class="camera-modal__btn camera-modal__btn--close" id="cameraCancelBtn">✕ Закрыть</button>
+            <button type="button" class="camera-modal__btn camera-modal__btn--snap" id="cameraSnapBtn">📸 Снимок</button>
+        </div>
+        <div class="camera-modal__hint" id="cameraHint">Выберите камеру iPhone из списка</div>
+    </div>
+
+    <script>
+        const API = '/api/nufarul-operator';
+        const GROUP_ORDER = ['delivery','dry_cleaning','carpets','pillows_cleaning','laundry','leather_dyeing','conditions','silicone_pillows'];
+        let services = [];
+        let cart = [];
+        let groupLabelsRu = {}, groupLabelsRo = {}, groupLabelsEn = {};
+        let orderPhotos = []; // {base64, mime_type, name} — фото всего заказа
+        let cameraStream = null;
+        let cameraTarget = null; // 'order' | cartIndex
+        let cameraFacingMode = 'environment';
+
+        // ===== i18n: Translations =====
+        const TRANSLATIONS = {
+            ru: {
+                'order_title': 'Nufarul — Приём заказов',
+                'admin': 'Админка',
+                'journal': 'Jurnal / Журнал регистраций',
+                'ai_label': 'AI — набор заказа (RU / RO / mix)',
+                'ai_placeholder': 'Напр.: 2 рубашки, palton, 3 perne / 2 cămăși, пальто...',
+                'ai_voice': '🎙',
+                'ai_send': '➜',
+                'services': 'Услуги (добавить в заказ)',
+                'search_service': 'Поиск услуги...',
+                'all_groups': 'Все группы',
+                'reset': 'Сбросить',
+                'client_name': 'Имя клиента',
+                'client_phone': 'Телефон',
+                'order_notes': 'Примечание',
+                'order_photos': 'Фото заказа',
+                'camera_btn': '📸 Камера',
+                'file_btn': '📁 Файл',
+                'create_order': 'Оформить заказ',
+                'recent_orders': 'Последние заказы',
+                'cart_empty': 'Корзина пуста',
+                'add_to_cart': 'Добавить в корзину',
+                'confirm_btn': 'Добавить',
+                'cancel': 'Отмена',
+                'close': 'Закрыть',
+                'analysis': 'Анализ...',
+                'found': 'Найдено',
+                'not_found': 'не найдено',
+                'items': 'позиций',
+                'backend': '⚙ Бэкенд:',
+                'local_backend': '🐍 Local (rapidfuzz)',
+                'oracle_backend': '🔮 Oracle AI (PL/SQL)',
+                'total': 'ИТОГО',
+                'clear_cart': '🗑 Очистить',
+                'nothing_found': 'Услуги не найдены'
+            },
+            ro: {
+                'order_title': 'Nufarul — Primire comenzi',
+                'admin': 'Admin',
+                'journal': 'Jurnal / Jurnal înregistrări',
+                'ai_label': 'AI — intrare comenză (RU / RO / mix)',
+                'ai_placeholder': 'Ex: 2 cămăși, palton, 3 perne / 2 рубашки, paltoc...',
+                'ai_voice': '🎙',
+                'ai_send': '➜',
+                'services': 'Servicii (adaugă în comandă)',
+                'search_service': 'Căutare serviciu...',
+                'all_groups': 'Toate grupurile',
+                'reset': 'Resetează',
+                'client_name': 'Nume client',
+                'client_phone': 'Telefon',
+                'order_notes': 'Notă',
+                'order_photos': 'Foto comandă',
+                'camera_btn': '📸 Cameră',
+                'file_btn': '📁 Fișier',
+                'create_order': 'Confirmă comanda',
+                'recent_orders': 'Comenzi recente',
+                'cart_empty': 'Coș gol',
+                'add_to_cart': 'Adaugă în coș',
+                'confirm_btn': 'Adaugă',
+                'cancel': 'Anulare',
+                'close': 'Închide',
+                'analysis': 'Analiză...',
+                'found': 'Găsite',
+                'not_found': 'negăsite',
+                'items': 'articole',
+                'backend': '⚙ Backend:',
+                'local_backend': '🐍 Local (rapidfuzz)',
+                'oracle_backend': '🔮 Oracle AI (PL/SQL)',
+                'total': 'TOTAL',
+                'clear_cart': '🗑 Gol',
+                'nothing_found': 'Servicii nu găsite'
+            },
+            en: {
+                'order_title': 'Nufarul — Order Reception',
+                'admin': 'Admin',
+                'journal': 'Journal / Registration Log',
+                'ai_label': 'AI — order input (RU / RO / mix)',
+                'ai_placeholder': 'E.g: 2 shirts, coat, 3 pillows / 2 cămăși, palton...',
+                'ai_voice': '🎙',
+                'ai_send': '➜',
+                'services': 'Services (add to order)',
+                'search_service': 'Search service...',
+                'all_groups': 'All groups',
+                'reset': 'Reset',
+                'client_name': 'Client name',
+                'client_phone': 'Phone',
+                'order_notes': 'Note',
+                'order_photos': 'Order photos',
+                'camera_btn': '📸 Camera',
+                'file_btn': '📁 File',
+                'create_order': 'Create order',
+                'recent_orders': 'Recent orders',
+                'cart_empty': 'Cart is empty',
+                'add_to_cart': 'Add to cart',
+                'confirm_btn': 'Add',
+                'cancel': 'Cancel',
+                'close': 'Close',
+                'analysis': 'Analyzing...',
+                'found': 'Found',
+                'not_found': 'not found',
+                'items': 'items',
+                'backend': '⚙ Backend:',
+                'local_backend': '🐍 Local (rapidfuzz)',
+                'oracle_backend': '🔮 Oracle AI (PL/SQL)',
+                'total': 'TOTAL',
+                'clear_cart': '🗑 Clear',
+                'nothing_found': 'No services found'
+            }
+        };
+
+        // ===== i18n helper =====
+        function t(key) {
+            const lang = getLang();
+            return (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) || (TRANSLATIONS['ru'] && TRANSLATIONS['ru'][key]) || key;
+        }
+
+        // ===== Camera modal =====
+        const PREFERRED_CAMERA_KEY = 'nufarul_camera_device';
+
+        async function openCamera(target) {
+            cameraTarget = target;
+            const modal = document.getElementById('cameraModal');
+            const video = document.getElementById('cameraVideo');
+            const hint = document.getElementById('cameraHint');
+            const sel = document.getElementById('cameraDeviceSelect');
+            
+            // Camera only works on localhost or HTTPS (not on remote HTTP)
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const isHttps = window.location.protocol === 'https:';
+            if (!isLocalhost && !isHttps) {
+                hint.textContent = '❌ Видеокамера недоступна на удаленном сервере без HTTPS. Используйте localhost или https.';
+                modal.classList.add('open');
+                return;
+            }
+            
+            try {
+                // Request camera permission first (needed to get labels)
+                await navigator.mediaDevices.getUserMedia({ video: true });
+                // Enumerate all video devices
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const videoDevices = devices.filter(d => d.kind === 'videoinput');
+                if (videoDevices.length === 0) throw new Error('Нет камер');
+
+                // Fill device selector
+                sel.innerHTML = '';
+                videoDevices.forEach((d, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = d.deviceId;
+                    const label = d.label || ('Камера ' + (i + 1));
+                    // Highlight iPhone cameras
+                    const isIphone = /iphone|continuity/i.test(label);
+                    opt.textContent = (isIphone ? '📱 ' : '💻 ') + label;
+                    sel.appendChild(opt);
+                });
+
+                // Select preferred or iPhone camera
+                const savedId = localStorage.getItem(PREFERRED_CAMERA_KEY);
+                const iphoneDevice = videoDevices.find(d => /iphone|continuity/i.test(d.label));
+                if (savedId && videoDevices.some(d => d.deviceId === savedId)) {
+                    sel.value = savedId;
+                } else if (iphoneDevice) {
+                    sel.value = iphoneDevice.deviceId;
+                } else {
+                    sel.value = videoDevices[0].deviceId;
+                }
+
+                await startCameraStream(sel.value);
+                modal.classList.add('open');
+
+                if (iphoneDevice) {
+                    hint.textContent = '📱 iPhone обнаружен — выбран автоматически';
+                } else {
+                    hint.innerHTML = '⚠️ iPhone не найден. <a href="#" style="color:#5eead4;" onclick="event.preventDefault();showCameraSetup();">Как подключить?</a>';
+                }
+            } catch (err) {
+                console.warn('Camera error:', err);
+                hint.textContent = '';
+                // Show setup guide on error
+                if (err.name === 'NotAllowedError') {
+                    alert('Доступ к камере запрещён. Разрешите камеру в настройках браузера.');
+                } else {
+                    // Fallback: file input
+                    if (target === 'order') document.getElementById('orderPhotoInput').click();
+                }
+            }
+        }
+
+        async function startCameraStream(deviceId) {
+            const video = document.getElementById('cameraVideo');
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(t => t.stop());
+            }
+            cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: { deviceId: { exact: deviceId }, width: { ideal: 1920 }, height: { ideal: 1080 } }
+            });
+            video.srcObject = cameraStream;
+            localStorage.setItem(PREFERRED_CAMERA_KEY, deviceId);
+        }
+
+        function snapPhoto() {
+            const video = document.getElementById('cameraVideo');
+            const canvas = document.getElementById('cameraCanvas');
+            if (!video.videoWidth) return;
+            canvas.width = Math.min(video.videoWidth, 1920);
+            canvas.height = Math.round(canvas.width * video.videoHeight / video.videoWidth);
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+            const base64 = dataUrl.split(',')[1];
+            const photo = { base64, mime_type: 'image/jpeg', name: 'camera_' + Date.now() + '.jpg', size: Math.round(base64.length * 0.75) };
+            if (cameraTarget === 'order') {
+                orderPhotos.push(photo);
+                renderOrderPhotoStrip();
+            } else if (typeof cameraTarget === 'number' && cart[cameraTarget]) {
+                if (!cart[cameraTarget].photos) cart[cameraTarget].photos = [];
+                cart[cameraTarget].photos.push(photo);
+                renderCart();
+            }
+            closeCamera();
+        }
+
+        function closeCamera() {
+            document.getElementById('cameraModal').classList.remove('open');
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(t => t.stop());
+                cameraStream = null;
+            }
+        }
+
+        function showCameraSetup() {
+            const hint = document.getElementById('cameraHint');
+            hint.innerHTML = `
+                <div style="text-align:left;max-width:400px;margin:0 auto;font-size:13px;line-height:1.6;">
+                    <strong>Настройка iPhone как камеры (Continuity Camera):</strong><br>
+                    1. iPhone и Mac — один Apple ID, iCloud включён<br>
+                    2. На iPhone: Настройки → Основные → AirPlay и Handoff → <b>Камера Continuity ✓</b><br>
+                    3. На Mac: тот же Wi-Fi + Bluetooth включён<br>
+                    4. В <b>Safari</b>: откройте эту страницу → камера iPhone появится в списке<br>
+                    5. В <b>Chrome</b>: Настройки → Конфиденциальность → Камера → выберите iPhone<br>
+                    <br>
+                    <em>iPhone должен быть заблокирован и рядом с Mac.</em><br>
+                    <a href="#" style="color:#5eead4;" onclick="event.preventDefault();document.getElementById('cameraHint').textContent='Выберите камеру из списка';">Закрыть</a>
+                </div>`;
+        }
+
+        // ===== AI command bar: local fuzzy matching =====
+        function removeDiacritics(s) {
+            return s.replace(/[ăĂ]/g,'a').replace(/[âÂ]/g,'a').replace(/[îÎ]/g,'i').replace(/[șȘ]/g,'s').replace(/[țȚ]/g,'t');
+        }
+        function fuzzyMatchServices(text) {
+            if (!text || !text.trim()) return [];
+            // Parse "2 рубашки, palton, 3 perne" → [{query, qty}, ...]
+            // Split on ,  ;  \n  «и» (RU)  «și/si» (RO)
+            let normalized = text.replace(/\s+и\s+/g, ', ').replace(/\s+[sș]i\s+/gi, ', ');
+            const parts = normalized.split(/[,;\n]+/).map(s => s.trim()).filter(Boolean);
+            const unitRe = /(?:шт\.?|штук[иа]?|buc\.?|bucăț[ia]?|bucata|bucati)/i;
+            const results = [];
+            for (const part of parts) {
+                let qty = 1;
+                let query = part;
+                // 1. Number + unit at start: "2 buc camasa" / "2шт рубашка"
+                const m1 = part.match(new RegExp('^(\\d+)\\s*' + unitRe.source + '\\s+(.+)', 'i'));
+                if (m1) {
+                    qty = parseInt(m1[1], 10) || 1;
+                    query = m1[2];
+                } else {
+                    // 2. Unit at end: "camasa 2 buc" / "рубашка 2 шт"
+                    const m2 = part.match(new RegExp('^(.+?)\\s+(\\d+)\\s*' + unitRe.source + '$', 'i'));
+                    if (m2) {
+                        query = m2[1];
+                        qty = parseInt(m2[2], 10) || 1;
+                    } else {
+                        // 3. Leading number
+                        const numMatch = part.match(/^(\d+)\s+(.+)/);
+                        if (numMatch) {
+                            qty = parseInt(numMatch[1], 10) || 1;
+                            query = numMatch[2];
+                        } else {
+                            // 4. Trailing number
+                            const numTrail = query.match(/^(.+?)\s+(\d+)$/);
+                            if (numTrail) {
+                                qty = parseInt(numTrail[2], 10) || qty;
+                                query = numTrail[1];
+                            }
+                        }
+                    }
+                }
+                query = query.toLowerCase().trim();
+                if (!query) continue;
+                const queryNoDia = removeDiacritics(query);
+                // Score each service against all language names
+                const scored = services.map(s => {
+                    const names = [
+                        (s.name_ru || '').toLowerCase(),
+                        (s.name_ro || '').toLowerCase(),
+                        (s.name_en || '').toLowerCase(),
+                        (s.name || '').toLowerCase()
+                    ].filter(Boolean);
+                    let best = 0;
+                    for (const rawName of names) {
+                        const name = rawName;
+                        const nameNoDia = removeDiacritics(name);
+                        // Check both with and without diacritics
+                        for (const [q, n] of [[query, name], [queryNoDia, nameNoDia]]) {
+                            if (n === q) { best = Math.max(best, 100); continue; }
+                            if (n.includes(q)) { best = Math.max(best, 80); continue; }
+                            if (q.includes(n)) { best = Math.max(best, 60); continue; }
+                            const qWords = q.split(/\s+/);
+                            const nWords = n.split(/\s+/);
+                            let matched = 0;
+                            for (const qw of qWords) {
+                                if (nWords.some(nw => nw.includes(qw) || qw.includes(nw))) matched++;
+                            }
+                            if (matched > 0) best = Math.max(best, 30 + (matched / qWords.length) * 40);
+                        }
+                    }
+                    return { service: s, score: best };
+                }).filter(x => x.score >= 30).sort((a, b) => b.score - a.score);
+                if (scored.length > 0) {
+                    results.push({ service: scored[0].service, qty, score: scored[0].score, query: part });
+                } else {
+                    results.push({ service: null, qty, score: 0, query: part });
+                }
+            }
+            return results;
+        }
+
+        async function aiParseOrder(text) {
+            const statusEl = document.getElementById('aiStatus');
+            const resultEl = document.getElementById('aiResult');
+            const sendBtn = document.getElementById('aiSend');
+            statusEl.textContent = 'Анализ...';
+            sendBtn.disabled = true;
+
+            try {
+                const backend = document.getElementById('aiBackend').value || 'local';
+                const resp = await api('/ai-parse-order', {
+                    method: 'POST',
+                    body: JSON.stringify({ text, backend })
+                });
+                if (resp.success && resp.matches && resp.matches.length > 0) {
+                    const results = resp.matches.map(m => {
+                        let svc = m.service_id ? services.find(s => s.id === m.service_id) : null;
+                        // Oracle backend may return service_name/ro directly
+                        if (!svc && m.service_id && m.service_name) {
+                            svc = { id: m.service_id, name: m.service_name, name_ro: m.service_name_ro || '',
+                                    price: m.price || 0 };
+                        }
+                        return {
+                            service: svc || null,
+                            qty: m.qty || 1,
+                            score: m.confidence || 0,
+                            query: m.original || text,
+                            serverName: m.service_name || '',
+                            serverNameRo: m.service_name_ro || ''
+                        };
+                    });
+                    const found = results.filter(r => r.service);
+                    const missed = results.filter(r => !r.service);
+                    const bkLabel = resp.backend === 'oracle' ? '🔮 Oracle' : '🐍 Local';
+                    statusEl.textContent = missed.length
+                        ? `${bkLabel} → Найдено ${found.length}, не найдено ${missed.length}`
+                        : `${bkLabel} → Найдено ${found.length} позиций`;
+                    renderAiResults(results);
+                } else {
+                    statusEl.textContent = resp.error || 'Ничего не найдено';
+                    resultEl.classList.remove('visible');
+                }
+            } catch (e) {
+                // Fallback: local fuzzy
+                const localMatches = fuzzyMatchServices(text);
+                if (localMatches.length > 0) {
+                    statusEl.textContent = 'Найдено (локально)';
+                    renderAiResults(localMatches);
+                } else {
+                    statusEl.textContent = 'Ошибка: ' + (e.message || '');
+                    resultEl.classList.remove('visible');
+                }
+            } finally {
+                sendBtn.disabled = false;
+            }
+        }
+
+        function renderAiResults(matches) {
+            const resultEl = document.getElementById('aiResult');
+            let html = '';
+            matches.forEach((m, i) => {
+                if (m.service) {
+                    const name = serviceNamePrimary(m.service);
+                    const showSec = shouldShowSecondary(m.service);
+                    const secName = showSec ? serviceNameSecondary(m.service) : '';
+                    const confColor = m.score >= 90 ? 'var(--success)' : m.score >= 70 ? 'var(--warning, #f59e0b)' : 'var(--danger)';
+                    html += `<div class="ai-match">
+                        <span class="ai-match-name">${escapeHtml(name)}${secName ? '<br><small style="color:var(--text-muted);font-size:0.8em">' + escapeHtml(secName) + '</small>' : ''}</span>
+                        <span class="ai-match-qty">× ${m.qty}</span>
+                        <span style="display:flex;align-items:center;gap:6px;">
+                            ${Number(m.service.price || 0).toLocaleString('ru')} MDL
+                            <span style="font-size:0.75em;color:${confColor}" title="Уверенность совпадения">${m.score}%</span>
+                        </span>
+                    </div>`;
+                } else {
+                    html += `<div class="ai-match" style="color:var(--danger);">
+                        <span>❓ «${escapeHtml(m.query)}» — не найдено</span>
+                    </div>`;
+                }
+            });
+            const found = matches.filter(m => m.service);
+            if (found.length > 0) {
+                html += `<div class="ai-bar__confirm">
+                    <button type="button" class="ai-ok" id="aiConfirm">✓ Добавить ${found.length} шт. в корзину</button>
+                    <button type="button" class="ai-cancel" id="aiDismiss">Отмена</button>
+                </div>`;
+            }
+            resultEl.innerHTML = html;
+            resultEl.classList.add('visible');
+            // Bind confirm
+            const confirmBtn = document.getElementById('aiConfirm');
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', () => {
+                    found.forEach(m => {
+                        const existing = cart.find(c => c.service_id === m.service.id);
+                        if (existing) existing.qty += m.qty;
+                        else cart.push({ service_id: m.service.id, price: m.service.price, qty: m.qty });
+                    });
+                    renderCart();
+                    resultEl.classList.remove('visible');
+                    document.getElementById('aiInput').value = '';
+                    document.getElementById('aiStatus').textContent = `Добавлено ${found.length} позиций`;
+                });
+            }
+            const dismissBtn = document.getElementById('aiDismiss');
+            if (dismissBtn) {
+                dismissBtn.addEventListener('click', () => {
+                    resultEl.classList.remove('visible');
+                    document.getElementById('aiStatus').textContent = '';
+                });
+            }
+        }
+
+        function compressPhoto(file, maxWidth = 1200, quality = 0.7) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let w = img.width, h = img.height;
+                        if (w > maxWidth) { h = Math.round(h * maxWidth / w); w = maxWidth; }
+                        canvas.width = w; canvas.height = h;
+                        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+                        const base64 = dataUrl.split(',')[1];
+                        resolve({ base64, mime_type: 'image/jpeg', name: file.name, size: Math.round(base64.length * 0.75) });
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderOrderPhotoStrip() {
+            const strip = document.getElementById('orderPhotoStrip');
+            if (!strip) return;
+            strip.innerHTML = orderPhotos.map((p, i) => `
+                <div class="photo-thumb">
+                    <img src="data:${p.mime_type};base64,${p.base64}" alt="photo">
+                    <button type="button" class="photo-remove" data-i="${i}">&times;</button>
+                </div>
+            `).join('');
+            strip.querySelectorAll('.photo-remove').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    orderPhotos.splice(parseInt(btn.dataset.i, 10), 1);
+                    renderOrderPhotoStrip();
+                });
+            });
+        }
+
+        function renderItemPhotoStrip(cartIndex) {
+            const strip = document.getElementById('itemPhotoStrip_' + cartIndex);
+            if (!strip) return;
+            const photos = cart[cartIndex].photos || [];
+            strip.innerHTML = photos.map((p, i) => `
+                <div class="photo-thumb">
+                    <img src="data:${p.mime_type};base64,${p.base64}" alt="photo">
+                    <button type="button" class="photo-remove" data-ci="${cartIndex}" data-pi="${i}">&times;</button>
+                </div>
+            `).join('');
+            strip.querySelectorAll('.photo-remove').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const ci = parseInt(btn.dataset.ci, 10);
+                    const pi = parseInt(btn.dataset.pi, 10);
+                    cart[ci].photos.splice(pi, 1);
+                    renderCart();
+                });
+            });
+        }
+
+        async function uploadPhotosAfterOrder(orderId, itemIds) {
+            const statusEl = document.getElementById('photoUploadStatus');
+            const allPhotos = [];
+            orderPhotos.forEach(p => allPhotos.push({ ...p, item_id: null }));
+            cart.forEach((it, i) => {
+                const mapping = itemIds.find(m => m.service_id === it.service_id);
+                const itemId = mapping ? mapping.item_id : null;
+                (it.photos || []).forEach(p => allPhotos.push({ ...p, item_id: itemId }));
+            });
+            if (allPhotos.length === 0) return;
+            if (statusEl) statusEl.textContent = `Загрузка фото: 0 / ${allPhotos.length}...`;
+            let ok = 0, fail = 0;
+            for (let i = 0; i < allPhotos.length; i++) {
+                const p = allPhotos[i];
+                if (statusEl) statusEl.textContent = `Загрузка фото: ${i + 1} / ${allPhotos.length}...`;
+                try {
+                    await api('/order/' + orderId + '/photo', {
+                        method: 'POST',
+                        body: JSON.stringify({ photo: p.base64, item_id: p.item_id, mime_type: p.mime_type, photo_name: p.name })
+                    });
+                    ok++;
+                } catch (e) { fail++; }
+            }
+            if (statusEl) statusEl.textContent = fail
+                ? `Фото загружено: ${ok}, ошибок: ${fail}`
+                : `Все фото загружены (${ok})`;
+        }
+
+        function getLang() {
+            // Try to get from localStorage first
+            let lang = localStorage.getItem('nufarul_lang');
+            if (lang) return lang.toLowerCase();
+            
+            // Try to get from cookies
+            const cookieMatch = document.cookie.match(/nufarul_lang=([a-z]+)/i);
+            if (cookieMatch) {
+                lang = cookieMatch[1].toLowerCase();
+                localStorage.setItem('nufarul_lang', lang);
+                return lang;
+            }
+            
+            // Default to Russian
+            return 'ru';
+        }
+        
+        function setCookie(name, value, days = 365) {
+            const date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            const expires = 'expires=' + date.toUTCString();
+            document.cookie = name + '=' + value + ';' + expires + ';path=/;SameSite=Lax';
+        }
+        
+        function setLang(lang) {
+            lang = lang.toLowerCase();
+            localStorage.setItem('nufarul_lang', lang);
+            setCookie('nufarul_lang', lang);
+            document.querySelectorAll('.lang-btn').forEach(b => {
+                b.classList.toggle('active', b.dataset.lang === lang);
+            });
+            populateGroupFilter();
+            renderServicesInList();
+            renderCart();
+            // Update page title
+            const titleEl = document.querySelector('h1');
+            if (titleEl) titleEl.textContent = t('order_title');
+        }
+        function serviceName(s) {
+            const lang = getLang();
+            if (lang === 'ro') return (s.name_ro || s.name_ru || s.name_en || '').trim() || s.name;
+            if (lang === 'en') return (s.name_en || s.name_ru || s.name_ro || '').trim() || s.name;
+            return (s.name_ru || s.name_ro || s.name_en || '').trim() || s.name;
+        }
+        function serviceNamePrimary(s) {
+            return serviceName(s);
+        }
+        function serviceNameSecondary(s) {
+            const lang = getLang();
+            if (lang === 'ro') return (s.name_ru || '').trim();
+            if (lang === 'en') return (s.name_ro || '').trim();
+            return (s.name_ro || '').trim();
+        }
+        function shouldShowSecondary(s) {
+            const primary = serviceNamePrimary(s);
+            const secondary = serviceNameSecondary(s);
+            return secondary && secondary !== primary;
+        }
+        function groupLabels() {
+            const lang = getLang();
+            if (lang === 'ro') return groupLabelsRo;
+            if (lang === 'en') return groupLabelsEn;
+            return groupLabelsRu;
+        }
+
+        function showScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            const el = document.getElementById('screen-' + id);
+            if (el) el.classList.add('active');
+        }
+
+        async function api(path, opts = {}) {
+            const r = await fetch(API + path, { headers: { 'Content-Type': 'application/json' }, ...opts });
+            const j = await r.json().catch(() => ({}));
+            if (!r.ok) throw new Error(j.error || r.statusText);
+            return j;
+        }
+
+        function populateGroupFilter() {
+            const sel = document.getElementById('svcGroupFilter');
+            if (!sel) return;
+            const labels = groupLabels();
+            const curVal = sel.value;
+            sel.innerHTML = '<option value="">Все группы</option>';
+            GROUP_ORDER.forEach(code => {
+                const has = services.some(s => (s.service_group || 'dry_cleaning') === code);
+                if (has) {
+                    const opt = document.createElement('option');
+                    opt.value = code;
+                    opt.textContent = labels[code] || code;
+                    sel.appendChild(opt);
+                }
+            });
+            sel.value = curVal || '';
+        }
+
+        function highlightText(text, query) {
+            if (!query) return escapeHtml(text);
+            const escaped = escapeHtml(text);
+            const qEsc = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            const re = new RegExp('(' + qEsc + ')', 'gi');
+            return escaped.replace(re, '<mark>$1</mark>');
+        }
+
+        function renderServicesInList() {
+            const wrap = document.getElementById('serviceList');
+            if (!wrap) return;
+            const labels = groupLabels();
+
+            const searchEl = document.getElementById('svcSearch');
+            const groupEl = document.getElementById('svcGroupFilter');
+            const resetBtn = document.getElementById('svcFilterReset');
+            const infoEl = document.getElementById('svcFilterInfo');
+            const searchText = (searchEl ? searchEl.value.trim().toLowerCase() : '');
+            const filterGroup = (groupEl ? groupEl.value : '');
+            const hasFilter = searchText.length > 0 || filterGroup.length > 0;
+
+            if (resetBtn) resetBtn.style.display = hasFilter ? 'inline-block' : 'none';
+
+            let filtered = services;
+            if (searchText) {
+                filtered = filtered.filter(s => {
+                    const p = serviceNamePrimary(s).toLowerCase();
+                    const sec = serviceNameSecondary(s).toLowerCase();
+                    const en = (s.name_en || '').toLowerCase();
+                    return p.includes(searchText) || sec.includes(searchText) || en.includes(searchText);
+                });
+            }
+            if (filterGroup) {
+                filtered = filtered.filter(s => (s.service_group || 'dry_cleaning') === filterGroup);
+            }
+
+            if (infoEl) {
+                if (hasFilter) {
+                    infoEl.style.display = 'block';
+                    infoEl.textContent = `Найдено ${filtered.length} из ${services.length} услуг`;
+                } else {
+                    infoEl.style.display = 'none';
+                }
+            }
+
+            const byGroup = {};
+            filtered.forEach(s => {
+                const g = s.service_group || 'dry_cleaning';
+                if (!byGroup[g]) byGroup[g] = [];
+                byGroup[g].push(s);
+            });
+            let html = '';
+            GROUP_ORDER.forEach(code => {
+                const rows = byGroup[code] || [];
+                if (rows.length === 0) return;
+                const gPrimary = labels[code] || code;
+                const lang = getLang();
+                const gSecondary = (lang === 'ro') ? (groupLabelsRu[code] || '') : (groupLabelsRo[code] || '');
+                const gShowSec = gSecondary && gSecondary !== gPrimary;
+                const gTitle = gShowSec ? `${escapeHtml(gPrimary)} / ${escapeHtml(gSecondary)}` : escapeHtml(gPrimary);
+                html += `<div class="service-group"><div class="service-group-title">${gTitle}<span class="service-group-count">(${rows.length})</span></div>`;
+                html += rows.map(s => {
+                    const showSec = shouldShowSecondary(s);
+                    const secHtml = showSec
+                        ? `<span class="name-secondary">${highlightText(serviceNameSecondary(s), searchText)}</span>`
+                        : '';
+                    return `
+                    <div class="service-row" data-id="${s.id}">
+                        <div class="name-wrap">
+                            <span class="name-primary">${highlightText(serviceNamePrimary(s), searchText)}</span>
+                            ${secHtml}
+                        </div>
+                        <div class="controls">
+                            <span class="price">${Number(s.price || 0).toLocaleString('ru')} MDL</span>
+                            <input type="number" class="qty" value="1" min="1" data-id="${s.id}">
+                            <button type="button" class="add" data-id="${s.id}">+</button>
+                        </div>
+                    </div>`;
+                }).join('');
+                html += '</div>';
+            });
+            wrap.innerHTML = html || (hasFilter
+                ? '<div style="color:var(--text-muted); padding:20px; text-align:center;">Услуги не найдены</div>'
+                : '<div style="color:var(--text-muted);">Нет услуг</div>');
+            wrap.querySelectorAll('.add').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = parseInt(btn.dataset.id, 10);
+                    const row = btn.closest('.service-row');
+                    const qtyInput = row.querySelector('.qty');
+                    const qty = parseInt(qtyInput.value, 10) || 1;
+                    const svc = services.find(x => x.id === id);
+                    if (svc) {
+                        const existing = cart.find(x => x.service_id === id);
+                        if (existing) existing.qty += qty; else cart.push({ service_id: id, price: svc.price, qty });
+                        renderCart();
+                    }
+                });
+            });
+        }
+
+        async function loadServices() {
+            const wrap = document.getElementById('serviceList');
+            try {
+                const j = await api('/services');
+                if (!j.success && j.error) throw new Error(j.error);
+                services = j.data || [];
+                groupLabelsRu = j.group_labels_ru || {};
+                groupLabelsRo = j.group_labels_ro || {};
+                groupLabelsEn = j.group_labels_en || {};
+                populateGroupFilter();
+                renderServicesInList();
+            } catch (e) {
+                const msg = e.message || 'Ошибка загрузки';
+                wrap.innerHTML = `<div class="load-err"><strong>${escapeHtml(msg)}</strong><br><small>Проверьте авторизацию и наличие данных. Для загрузки услуг: python import_nufarul_services.py --clear</small></div>`;
+            }
+        }
+
+        let cartExpanded = false;
+
+        function toggleCartWidget() {
+            if (cart.length === 0) return;
+            const widget = document.getElementById('cartWidget');
+            cartExpanded = !cartExpanded;
+            widget.classList.toggle('expanded', cartExpanded);
+            document.body.style.paddingBottom = cartExpanded ? '360px' : '80px';
+        }
+
+        function renderCart() {
+            const widget = document.getElementById('cartWidget');
+            const countEl = document.getElementById('cartWidgetCount');
+            const labelEl = document.getElementById('cartWidgetLabel');
+            const totalBarEl = document.getElementById('cartWidgetTotal');
+            const toggleEl = document.getElementById('cartWidgetToggle');
+            const itemsEl = document.getElementById('cartWidgetItems');
+            const totalExpEl = document.getElementById('cartWidgetTotalExpanded');
+            const clientCard = document.getElementById('clientCard');
+
+            const itemCount = cart.reduce((sum, it) => sum + (it.qty || 1), 0);
+            let total = 0;
+
+            if (cart.length === 0) {
+                widget.classList.add('cart-widget--empty');
+                widget.classList.remove('expanded');
+                cartExpanded = false;
+                countEl.textContent = '0';
+                labelEl.textContent = 'Корзина пуста';
+                totalBarEl.textContent = '';
+                toggleEl.style.display = 'none';
+                itemsEl.innerHTML = '';
+                totalExpEl.textContent = '0 MDL';
+                clientCard.style.display = 'none';
+                document.body.style.paddingBottom = '80px';
+                return;
+            }
+
+            widget.classList.remove('cart-widget--empty');
+            toggleEl.style.display = 'inline-flex';
+            clientCard.style.display = 'block';
+
+            countEl.textContent = itemCount;
+            labelEl.textContent = cart.length + ' позиц.';
+
+            itemsEl.innerHTML = cart.map((it, i) => {
+                const svc = services.find(x => x.id === it.service_id);
+                const primary = svc ? serviceNamePrimary(svc) : ('Услуга #' + it.service_id);
+                const secondary = svc && shouldShowSecondary(svc) ? serviceNameSecondary(svc) : '';
+                const sum = (it.price || 0) * (it.qty || 1);
+                total += sum;
+                const secHtml = secondary
+                    ? `<div class="col-name-secondary">${escapeHtml(secondary)}</div>` : '';
+                const photoCnt = (it.photos || []).length;
+                const photoLabel = photoCnt > 0 ? `<span class="col-photo-count">${photoCnt}</span>` : '';
+                return `
+                    <div class="cart-widget__item-row">
+                        <span class="col-num">${i + 1}</span>
+                        <div class="col-name">
+                            <div class="col-name-primary">${escapeHtml(primary)}</div>
+                            ${secHtml}
+                            <div class="photo-preview-strip" id="itemPhotoStrip_${i}" style="margin-top:4px;"></div>
+                        </div>
+                        <span class="col-qty">${it.qty}</span>
+                        <span class="col-price">${Number(it.price || 0).toLocaleString('ru')}</span>
+                        <span class="col-sum">${sum.toLocaleString('ru')}</span>
+                        <span class="col-photo-btn">
+                            <button type="button" data-i="${i}" class="cart-photo-btn">📷${photoLabel}</button>
+                        </span>
+                        <span class="col-remove">
+                            <button type="button" data-i="${i}" class="cart-rmv-btn">&times;</button>
+                        </span>
+                    </div>`;
+            }).join('');
+
+            const totalStr = total.toLocaleString('ru') + ' MDL';
+            totalBarEl.textContent = totalStr;
+            totalExpEl.textContent = totalStr;
+
+            itemsEl.querySelectorAll('.cart-rmv-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    cart.splice(parseInt(btn.dataset.i, 10), 1);
+                    renderCart();
+                });
+            });
+
+            // Photo buttons per cart item — open camera modal
+            itemsEl.querySelectorAll('.cart-photo-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const ci = parseInt(btn.dataset.i, 10);
+                    openCamera(ci);
+                });
+            });
+
+            // Render item photo strips
+            cart.forEach((it, i) => { if ((it.photos || []).length) renderItemPhotoStrip(i); });
+
+            document.body.style.paddingBottom = cartExpanded ? '360px' : '80px';
+        }
+
+        function escapeHtml(s) {
+            if (!s) return '';
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        async function loadRecent() {
+            try {
+                const j = await api('/recent-orders?limit=10');
+                const list = j.data || [];
+                const docBase = '/UNA.md/orasldev/nufarul-operator/document/';
+                document.getElementById('historyList').innerHTML = list.map(o => `
+                    <div class="history-item">
+                        <div>
+                            <strong>${escapeHtml(o.order_number)}</strong><br>
+                            <span style="font-size:12px;color:var(--text-muted);">${escapeHtml(o.client_name)} · ${escapeHtml(o.created_time || '')}</span>
+                            ${o.id ? `<br><a href="${docBase}${o.id}?type=bon_comanda" target="_blank" style="font-size:12px;color:var(--primary);">Bon de Comandă</a> · <a href="${docBase}${o.id}?type=comanda" target="_blank" style="font-size:12px;color:var(--primary);">Comandă</a>` : ''}
+                        </div>
+                        <span class="status">${escapeHtml(o.status_name || o.status_code)}</span>
+                    </div>
+                `).join('');
+            } catch (_) {
+                document.getElementById('historyList').innerHTML = '<p style="color:var(--text-muted);">Нет данных</p>';
+            }
+        }
+
+        document.getElementById('btnCreateOrder').addEventListener('click', async () => {
+            const clientName = document.getElementById('clientName').value.trim();
+            const clientPhone = document.getElementById('clientPhone').value.trim();
+            const notes = document.getElementById('orderNotes').value.trim();
+            if (!clientName || !clientPhone) {
+                alert('Укажите имя и телефон клиента.');
+                return;
+            }
+            if (cart.length === 0) {
+                alert('Добавьте хотя бы одну услугу.');
+                return;
+            }
+            const items = cart.map(it => ({ service_id: it.service_id, qty: it.qty, price: it.price }));
+            try {
+                const j = await api('/order', { method: 'POST', body: JSON.stringify({ client_name: clientName, client_phone: clientPhone, items, notes }) });
+                if (!j.success) throw new Error(j.error);
+                const docUrl = '/UNA.md/orasldev/nufarul-operator/document/' + (j.order_id || '');
+                document.getElementById('resultContent').innerHTML = `
+                    <div class="result-icon ok">✓</div>
+                    <div class="result-msg">Заказ создан</div>
+                    <div class="barcode-box" id="barcodePrint">${escapeHtml(j.order_number)}</div>
+                    <p style="text-align:center;color:var(--text-muted);">Номер заказа и штрихкод: <strong>${escapeHtml(j.order_number)}</strong></p>
+                    <p style="text-align:center;margin-top:8px;">Сумма: <strong>${Number(j.total_amount || 0).toLocaleString('ru')} MDL</strong></p>
+                    <div id="photoUploadStatus" class="photo-upload-status" style="text-align:center;"></div>
+                    <div class="print-btn" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:16px;">
+                        <button type="button" class="btn btn-ghost" onclick="window.print();">Печать штрихкода</button>
+                        <a href="${docUrl}?type=bon_comanda" target="_blank" class="btn btn-ghost" style="text-decoration:none;">Bon de Comandă</a>
+                        <a href="${docUrl}?type=comanda" target="_blank" class="btn btn-ghost" style="text-decoration:none;">Comandă / Заказ</a>
+                    </div>
+                `;
+                // Upload photos
+                if (orderPhotos.length > 0 || cart.some(it => (it.photos || []).length > 0)) {
+                    await uploadPhotosAfterOrder(j.order_id, j.item_ids || []);
+                }
+                document.getElementById('resultBtn').textContent = 'Новый заказ';
+                document.getElementById('resultBtn').onclick = () => { cart = []; orderPhotos = []; renderCart(); renderOrderPhotoStrip(); document.getElementById('clientName').value = ''; document.getElementById('clientPhone').value = ''; document.getElementById('orderNotes').value = ''; showScreen('home'); loadRecent(); };
+                showScreen('result');
+                loadRecent();
+            } catch (e) {
+                alert('Ошибка: ' + (e.message || ''));
+            }
+        });
+
+        document.getElementById('resultBtn').onclick = () => { showScreen('home'); loadRecent(); };
+
+        document.getElementById('btnSearchBarcode').addEventListener('click', async () => {
+            const barcode = document.getElementById('barcodeInput').value.trim();
+            if (!barcode) return;
+            try {
+                const j = await api('/order-by-barcode?barcode=' + encodeURIComponent(barcode));
+                const detail = document.getElementById('orderDetail');
+                if (!j.success || !j.data) {
+                    detail.innerHTML = '<p style="color:var(--danger);">Заказ не найден</p>';
+                    return;
+                }
+                const o = j.data;
+                const docBase = '/UNA.md/orasldev/nufarul-operator/document/';
+                const docLinks = o.id ? `<p style="margin-top:12px;"><a href="${docBase}${o.id}?type=bon_comanda" target="_blank" style="color:var(--primary);margin-right:12px;">Bon de Comandă</a> <a href="${docBase}${o.id}?type=comanda" target="_blank" style="color:var(--primary);">Comandă / Заказ</a></p>` : '';
+                detail.innerHTML = `
+                    <div class="card">
+                        <p><strong>№ ${escapeHtml(o.order_number)}</strong> · ${escapeHtml(o.status_name)}</p>
+                        <p>${escapeHtml(o.client_name)} · ${escapeHtml(o.client_phone || '')}</p>
+                        <p>Сумма: ${Number(o.total_amount || 0).toLocaleString('ru')} MDL</p>
+                        ${(o.items || []).length ? '<p>Позиции: ' + (o.items || []).map(i => escapeHtml(i.service_name) + ' × ' + i.qty).join(', ') + '</p>' : ''}
+                        ${docLinks}
+                        <div id="orderSearchPhotos" style="margin-top:12px;"></div>
+                    </div>
+                `;
+                // Load photos
+                if (o.id) {
+                    try {
+                        const ph = await api('/order/' + o.id + '/photos?include_data=1');
+                        const photos = ph.data || [];
+                        if (photos.length > 0) {
+                            document.getElementById('orderSearchPhotos').innerHTML =
+                                '<p style="font-size:13px;color:var(--text-muted);margin-bottom:6px;">Фото (' + photos.length + '):</p>' +
+                                '<div class="photo-preview-strip">' +
+                                photos.map(p => `<div class="photo-thumb" style="width:96px;height:96px;">
+                                    <img src="data:${p.photo_mime || 'image/jpeg'};base64,${p.photo_blob}" alt="photo">
+                                </div>`).join('') + '</div>';
+                        }
+                    } catch (_) {}
+                }
+            } catch (e) {
+                document.getElementById('orderDetail').innerHTML = '<p style="color:var(--danger);">Ошибка: ' + escapeHtml(e.message) + '</p>';
+            }
+        });
+
+        document.getElementById('backFromSearch').addEventListener('click', (e) => { e.preventDefault(); showScreen('home'); });
+
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => setLang(btn.dataset.lang));
+        });
+        const savedLang = getLang();
+        document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === savedLang));
+
+        let filterTimer = null;
+        document.getElementById('svcSearch').addEventListener('input', () => {
+            clearTimeout(filterTimer);
+            filterTimer = setTimeout(renderServicesInList, 250);
+        });
+        document.getElementById('svcGroupFilter').addEventListener('change', renderServicesInList);
+        document.getElementById('svcFilterReset').addEventListener('click', () => {
+            document.getElementById('svcSearch').value = '';
+            document.getElementById('svcGroupFilter').value = '';
+            renderServicesInList();
+        });
+
+        // Camera modal events
+        document.getElementById('orderCameraBtn').addEventListener('click', () => openCamera('order'));
+        document.getElementById('cameraSnapBtn').addEventListener('click', snapPhoto);
+        document.getElementById('cameraCancelBtn').addEventListener('click', closeCamera);
+        document.getElementById('cameraDeviceSelect').addEventListener('change', function() {
+            if (this.value) startCameraStream(this.value).catch(e => console.warn('Switch camera:', e));
+        });
+
+        // AI command bar events
+        document.getElementById('aiSend').addEventListener('click', () => {
+            const text = document.getElementById('aiInput').value.trim();
+            if (text) aiParseOrder(text);
+        });
+        document.getElementById('aiInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const text = e.target.value.trim();
+                if (text) aiParseOrder(text);
+            }
+        });
+
+        // ===== Voice input (Web Speech API — Safari / Chrome) =====
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const voiceBtn = document.getElementById('aiVoice');
+        let recognition = null;
+        let isRecording = false;
+
+        if (SpeechRecognition) {
+            recognition = new SpeechRecognition();
+            recognition.continuous = false;
+            recognition.interimResults = true;
+            recognition.maxAlternatives = 1;
+            // Auto-detect: ru-RU by default, switch based on content
+            recognition.lang = 'ru-RU';
+
+            recognition.onresult = (event) => {
+                const input = document.getElementById('aiInput');
+                const statusEl = document.getElementById('aiStatus');
+                let finalTranscript = '';
+                let interimTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const result = event.results[i];
+                    if (result.isFinal) {
+                        finalTranscript += result[0].transcript;
+                    } else {
+                        interimTranscript += result[0].transcript;
+                    }
+                }
+                if (finalTranscript) {
+                    // Append to existing text (allows multi-phrase input)
+                    const existing = input.value.trim();
+                    input.value = existing ? existing + ', ' + finalTranscript.trim() : finalTranscript.trim();
+                    statusEl.textContent = '🎙 Распознано: «' + finalTranscript.trim() + '»';
+                } else if (interimTranscript) {
+                    statusEl.textContent = '🎙 ...' + interimTranscript;
+                }
+            };
+
+            recognition.onend = () => {
+                isRecording = false;
+                voiceBtn.classList.remove('recording');
+                voiceBtn.textContent = '🎙';
+                const input = document.getElementById('aiInput');
+                const text = input.value.trim();
+                if (text) {
+                    // Auto-send after voice recognition ends
+                    aiParseOrder(text);
+                }
+            };
+
+            recognition.onerror = (event) => {
+                isRecording = false;
+                voiceBtn.classList.remove('recording');
+                voiceBtn.textContent = '🎙';
+                const statusEl = document.getElementById('aiStatus');
+                if (event.error === 'no-speech') {
+                    statusEl.textContent = '🎙 Не услышал. Попробуйте ещё раз.';
+                } else if (event.error === 'not-allowed') {
+                    statusEl.textContent = '🎙 Микрофон запрещён. Разрешите в настройках браузера.';
+                } else {
+                    statusEl.textContent = '🎙 Ошибка: ' + event.error;
+                }
+            };
+
+            voiceBtn.addEventListener('click', () => {
+                if (isRecording) {
+                    recognition.stop();
+                    return;
+                }
+                // Detect language preference: if input has Cyrillic → ru, Latin → ro
+                const currentText = document.getElementById('aiInput').value;
+                if (/[a-zA-ZăâîșțĂÂÎȘȚ]/.test(currentText) && !/[а-яёА-ЯЁ]/.test(currentText)) {
+                    recognition.lang = 'ro-RO';
+                } else {
+                    recognition.lang = 'ru-RU';
+                }
+                isRecording = true;
+                voiceBtn.classList.add('recording');
+                voiceBtn.textContent = '⏹';
+                document.getElementById('aiStatus').textContent = '🎙 Говорите...';
+                recognition.start();
+            });
+        } else {
+            // Speech API not available
+            voiceBtn.classList.add('unavailable');
+        }
+
+        // Order photo input
+        document.getElementById('orderPhotoInput').addEventListener('change', async function() {
+            for (const f of this.files) {
+                try {
+                    const compressed = await compressPhoto(f);
+                    orderPhotos.push(compressed);
+                } catch (_) {}
+            }
+            this.value = '';
+            renderOrderPhotoStrip();
+        });
+
+        // Language selector
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const lang = btn.dataset.lang;
+                setLang(lang);
+                updateUIText();
+            });
+        });
+        
+        // Update UI text based on language (safe: ?. prevents crash on missing elements)
+        function updateUIText() {
+            const _t = (id, prop, key) => { const el = document.getElementById(id); if (el) el[prop] = t(key); };
+            _t('pageTitle', 'textContent', 'order_title');
+            _t('linkAdmin', 'textContent', 'admin');
+            _t('linkJournal', 'textContent', 'journal');
+            _t('aiBarLabel', 'textContent', 'ai_label');
+            _t('aiInput', 'placeholder', 'ai_placeholder');
+            _t('aiVoice', 'title', 'ai_voice');
+            _t('aiSend', 'textContent', 'ai_send');
+            _t('servicesLabel', 'textContent', 'services');
+            _t('svcSearch', 'placeholder', 'search_service');
+            _t('svcFilterReset', 'textContent', 'reset');
+            _t('labelClientName', 'textContent', 'client_name');
+            _t('labelClientPhone', 'textContent', 'client_phone');
+            _t('labelOrderNotes', 'textContent', 'order_notes');
+            _t('labelOrderPhotos', 'textContent', 'order_photos');
+            _t('orderCameraBtn', 'textContent', 'camera_btn');
+            _t('btnCreateOrder', 'textContent', 'create_order');
+            _t('historyTitle', 'textContent', 'recent_orders');
+            _t('backendLabel', 'textContent', 'backend');
+            const allGroupsOpt = document.querySelector('#svcGroupFilter option[value=""]');
+            if (allGroupsOpt) allGroupsOpt.textContent = t('all_groups');
+        }
+
+        // Cart widget events
+        document.getElementById('cartWidgetBar').addEventListener('click', toggleCartWidget);
+        document.getElementById('cartWidgetCheckout').addEventListener('click', () => {
+            const clientName = document.getElementById('clientName').value.trim();
+            const clientPhone = document.getElementById('clientPhone').value.trim();
+            if (!clientName || !clientPhone) {
+                document.getElementById('clientCard').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                setTimeout(() => {
+                    if (!clientName) document.getElementById('clientName').focus();
+                    else document.getElementById('clientPhone').focus();
+                }, 400);
+                return;
+            }
+            document.getElementById('btnCreateOrder').click();
+        });
+
+        (async () => {
+            // Initialize language from localStorage/cookies
+            const savedLang = getLang();
+            setLang(savedLang);
+            updateUIText();
+            
+            await loadServices();
+            loadRecent();
+        })();
+    </script>
+</body>
+</html>

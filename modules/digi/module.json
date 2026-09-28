@@ -1,0 +1,8 @@
+{
+  "title": {"ru": "DIGI — весы и маркетинг", "ro": "DIGI — cântare și marketing", "en": "DIGI — scales & marketing"},
+  "icon": "⚖️",
+  "order": 110,
+  "url": "/UNA.md/orasldev/digi-sm",
+  "sql_prefix": "DIGI_",
+  "descr": "DIGI SM и маркетинговые материалы"
+}

@@ -1,0 +1,9 @@
+{
+  "title": {"ru": "TBControl — контроль оборудования", "ro": "TBControl — control echipamente", "en": "TBControl — device control"},
+  "icon": "🛰️",
+  "order": 40,
+  "url": "/UNA.md/orasldev/tbcontrol",
+  "docs": "docs/TBControl",
+  "sql_prefix": "TBC_",
+  "descr": "Heartbeat устройств, NOC-консоль, обработка, инвайты"
+}

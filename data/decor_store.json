@@ -1,0 +1,4916 @@
+{
+  "materials": [
+    {
+      "code": "17360000802.0",
+      "name": "KARE SOMUN M8 25x25x6 -A2",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1000,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "KARE SOMUN M8 25x25x6 -A2",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Piuliță pătrată M8 25x25x6 A2",
+      "image_url": "/static/decor/materials/021_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r15_c6.png"
+    },
+    {
+      "code": "93350801202.0",
+      "name": "FLANŞLI-SİLİNDİR CIVATA M8X12-A2",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1005,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "FLANŞLI-SİLİNDİR CIVATA M8X12-A2",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Șurub cilindric cu flanșă M8x12 A2",
+      "image_url": "/static/decor/materials/023_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r16_c6.png"
+    },
+    {
+      "code": "CHERUBINI 1 KANALLI",
+      "name": "A530086L",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "Veri Sayfası-2",
+      "active": "Y",
+      "id": 1012,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "CHERUBINI 1 KANALLI",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Telecomandă Cherubini 1 canal",
+      "image_url": "/static/decor/materials/008_huun_new_veranda_material_base_price_list_2024__accessory_2_r7_c4.png"
+    },
+    {
+      "code": "CHERUBINI 7 KANALLI",
+      "name": "A530073L",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "Veri Sayfası-2",
+      "active": "Y",
+      "id": 1013,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "CHERUBINI 7 KANALLI",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Telecomandă Cherubini 7 canale",
+      "image_url": "/static/decor/materials/008_huun_new_veranda_material_base_price_list_2024__accessory_2_r7_c4.png"
+    },
+    {
+      "code": "EM07100026",
+      "name": "Triangle Profile Connection Version II",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "ACCESSORY (2)",
+      "active": "Y",
+      "id": 1028,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "YAN KAYIT BAĞLANTI SACI",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Placă de conexiune traversă laterală",
+      "image_url": "/static/decor/materials/013_huun_new_veranda_material_base_price_list_2024__accessory_2_r12_c4.png"
+    },
+    {
+      "code": "EM07100088",
+      "name": "Pillar bottom profile connection",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "ACCESSORY (2)",
+      "active": "Y",
+      "id": 1029,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "VERANDA AYAK ALT PROFİL BAĞLANTI V1",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Conector bază profil stâlp verandă V1",
+      "image_url": "/static/decor/materials/006_huun_new_veranda_material_base_price_list_2024__accessory_2_r8_c4.png"
+    },
+    {
+      "code": "EM07100090",
+      "name": "Veranda Rear Cover R+L",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 14.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "ACCESSORY (2)",
+      "active": "Y",
+      "id": 6,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "Veranda Rear Cover R+L",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Capac spate verandă D+S",
+      "image_url": "/static/decor/materials/008_huun_new_veranda_material_base_price_list_2024__accessory_2_r7_c4.png"
+    },
+    {
+      "code": "EM07100091",
+      "name": "Veranda Gutter Cover R+L",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 14.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "ACCESSORY (2)",
+      "active": "Y",
+      "id": 5,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "Veranda Gutter Cover R+L",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Capac jgheab verandă D+S",
+      "image_url": "/static/decor/materials/007_huun_new_veranda_material_base_price_list_2024__accessory_2_r6_c4.png"
+    },
+    {
+      "code": "EM07200019",
+      "name": "Connection",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "ACCESSORY (2)",
+      "active": "Y",
+      "id": 1030,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "DELİKLİ KÖŞEBENT",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Colțar perforat",
+      "image_url": "/static/decor/materials/010_huun_new_veranda_material_base_price_list_2024__accessory_2_r16_c4.png"
+    },
+    {
+      "code": "EM10100008",
+      "name": "YHB SÜRME VİDASI 3,9X25",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "ACCESSORY (2)",
+      "active": "Y",
+      "id": 1038,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "YHB SÜRME VİDASI 3,9X25",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Șurub autofiletant YHB 3,9x25",
+      "image_url": "/static/decor/materials/009_huun_new_veranda_material_base_price_list_2024__accessory_2_r15_c4.png"
+    },
+    {
+      "code": "EM10200006",
+      "name": "Screw DIN 7991 M8X12-A2",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "ACCESSORY (2)",
+      "active": "Y",
+      "id": 1039,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "Screw DIN 7991 M8X12-A2",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Șurub DIN 7991 M8x12 A2",
+      "image_url": "/static/decor/materials/011_huun_new_veranda_material_base_price_list_2024__accessory_2_r18_c4.png"
+    },
+    {
+      "code": "EM10300003",
+      "name": "Square Nut",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "ACCESSORY (2)",
+      "active": "Y",
+      "id": 1040,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "Square Nut",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Piuliță pătrată",
+      "image_url": "/static/decor/materials/009_huun_new_veranda_material_base_price_list_2024__accessory_2_r15_c4.png"
+    },
+    {
+      "code": "PRG-0019",
+      "name": "YAN KAYIT BAĞLANTI SACI",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1049,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "YAN KAYIT BAĞLANTI SACI",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Placă de conexiune traversă laterală",
+      "image_url": "/static/decor/materials/021_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r15_c6.png"
+    },
+    {
+      "code": "PRG-0019-B",
+      "name": "YAN KAYIT BAĞLANTI SACI BOYALI",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1050,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "YAN KAYIT BAĞLANTI SACI BOYALI",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Placă de conexiune traversă laterală - vopsită",
+      "image_url": "/static/decor/materials/008_huun_new_veranda_material_base_price_list_2024__accessory_2_r7_c4.png"
+    },
+    {
+      "code": "RTS TELİS 1",
+      "name": "1870405",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "Veri Sayfası-2",
+      "active": "Y",
+      "id": 1059,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "RTS TELİS 1",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Telecomandă RTS Télis 1",
+      "image_url": "/static/decor/materials/008_huun_new_veranda_material_base_price_list_2024__accessory_2_r7_c4.png"
+    },
+    {
+      "code": "RTS TELİS 16",
+      "name": "1811079",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "Veri Sayfası-2",
+      "active": "Y",
+      "id": 1060,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "RTS TELİS 16",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Telecomandă RTS Télis 16",
+      "image_url": "/static/decor/materials/008_huun_new_veranda_material_base_price_list_2024__accessory_2_r7_c4.png"
+    },
+    {
+      "code": "RTS TELİS 4",
+      "name": "1870421",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "Veri Sayfası-2",
+      "active": "Y",
+      "id": 1061,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "RTS TELİS 4",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Telecomandă RTS Télis 4",
+      "image_url": "/static/decor/materials/008_huun_new_veranda_material_base_price_list_2024__accessory_2_r7_c4.png"
+    },
+    {
+      "code": "VRD-0017",
+      "name": "VERANDA AYAK ALT PROFİL BAĞLANTI V1",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1063,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "VERANDA AYAK ALT PROFİL BAĞLANTI V1",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Conector profil bază stâlp verandă V1",
+      "image_url": "/static/decor/materials/025_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r12_c6.png"
+    },
+    {
+      "code": "VRD-0017-B",
+      "name": "VERANDA AYAK ALT PROFİL BAĞLANTI V1 BOYALI",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1064,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "VERANDA AYAK ALT PROFİL BAĞLANTI V1 BOYALI",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Conector profil bază stâlp verandă V1 - vopsit",
+      "image_url": "/static/decor/materials/008_huun_new_veranda_material_base_price_list_2024__accessory_2_r7_c4.png"
+    },
+    {
+      "code": "VRD-0037",
+      "name": "VERANDA ARKA BAĞLANTI SACI",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1065,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "VERANDA ARKA BAĞLANTI SACI",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Placă spate conexiune verandă",
+      "image_url": "/static/decor/materials/025_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r12_c6.png"
+    },
+    {
+      "code": "VRD-0037-B",
+      "name": "VERANDA ARKA BAĞLANTI SACI - BOYALI",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1066,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "VERANDA ARKA BAĞLANTI SACI - BOYALI",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Placă spate conexiune verandă - vopsită",
+      "image_url": "/static/decor/materials/008_huun_new_veranda_material_base_price_list_2024__accessory_2_r7_c4.png"
+    },
+    {
+      "code": "VRD-0038",
+      "name": "VERANDA ARKA BAĞLANTI SACI OLUK UZATMALI",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1067,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "VERANDA ARKA BAĞLANTI SACI OLUK UZATMALI",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Placă spate conexiune verandă cu extensie jgheab",
+      "image_url": "/static/decor/materials/025_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r12_c6.png"
+    },
+    {
+      "code": "VRD-0038-B",
+      "name": "VERANDA ARKA BAĞLANTI SACI OLUK UZATMALI- BOYALI",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1068,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "VERANDA ARKA BAĞLANTI SACI OLUK UZATMALI - BOYALI",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Placă spate conexiune verandă cu extensie jgheab - vopsită",
+      "image_url": "/static/decor/materials/008_huun_new_veranda_material_base_price_list_2024__accessory_2_r7_c4.png"
+    },
+    {
+      "code": "VRD-0042",
+      "name": "DELİKLİ KÖŞEBENT",
+      "category": "accessory",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1069,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "DELİKLİ KÖŞEBENT",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Colțar perforat",
+      "image_url": "/static/decor/materials/024_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r17_c6.png"
+    },
+    {
+      "code": "EM06200040",
+      "name": "CF-03 EPDM Cord-250 MT-15 KG",
+      "category": "consumable",
+      "unit": "kg",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "ACCESSORY (2)",
+      "active": "Y",
+      "id": 1024,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "CF-03 VERANDA EPDM FİTİL",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Garnitură EPDM verandă CF-03",
+      "image_url": "/static/decor/materials/016_huun_new_veranda_material_base_price_list_2024__accessory_2_r22_c4.png"
+    },
+    {
+      "code": "EM06200041",
+      "name": "HL60 Veranda Fitili-53 MT-15 KG",
+      "category": "consumable",
+      "unit": "kg",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "ACCESSORY (2)",
+      "active": "Y",
+      "id": 1025,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "TNT / HL60 VERANDA EPDM FİTİL",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Garnitură EPDM verandă TNT / HL60",
+      "image_url": "/static/decor/materials/015_huun_new_veranda_material_base_price_list_2024__accessory_2_r24_c4.png"
+    },
+    {
+      "code": "EM06200042",
+      "name": "CF-09 EPDM Cord-125 MT-15 KG",
+      "category": "consumable",
+      "unit": "kg",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "ACCESSORY (2)",
+      "active": "Y",
+      "id": 1026,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "CF-09 VERANDA EPDM FİTİL",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Garnitură EPDM verandă CF-09",
+      "image_url": "/static/decor/materials/015_huun_new_veranda_material_base_price_list_2024__accessory_2_r24_c4.png"
+    },
+    {
+      "code": "EM06200053",
+      "name": "SC0410",
+      "category": "consumable",
+      "unit": "kg",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "ACCESSORY (2)",
+      "active": "Y",
+      "id": 1027,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "SC0410",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "SC0410 (consumabil / etanșare)",
+      "image_url": "/static/decor/materials/016_huun_new_veranda_material_base_price_list_2024__accessory_2_r22_c4.png"
+    },
+    {
+      "code": "VRD-0004",
+      "name": "CF-03 VERANDA EPDM FİTİL",
+      "category": "consumable",
+      "unit": "kg",
+      "unit_price": 5.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 8,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "CF-03 VERANDA EPDM FİTİL",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Garnitură EPDM verandă CF-03",
+      "image_url": "/static/decor/materials/016_huun_new_veranda_material_base_price_list_2024__accessory_2_r22_c4.png"
+    },
+    {
+      "code": "VRD-0006",
+      "name": "TNT VERANDA EPDM FİTİL",
+      "category": "consumable",
+      "unit": "kg",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1062,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "TNT VERANDA EPDM FİTİL",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Garnitură EPDM verandă TNT",
+      "image_url": "/static/decor/materials/016_huun_new_veranda_material_base_price_list_2024__accessory_2_r22_c4.png"
+    },
+    {
+      "code": "VRD-0007",
+      "name": "CF-09 VERANDA EPDM FİTİL",
+      "category": "consumable",
+      "unit": "kg",
+      "unit_price": 5.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 9,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "CF-09 VERANDA EPDM FİTİL",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Garnitură EPDM verandă CF-09",
+      "image_url": "/static/decor/materials/017_huun_new_veranda_material_base_price_list_2024__accessory_2_r23_c4.png"
+    },
+    {
+      "code": "BIO-0018",
+      "name": "BIOCLİMATİC OLUK SU GİDERİ SÜZGEÇ PLASTİK",
+      "category": "drainage",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1009,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "BIOCLİMATİC OLUK SU GİDERİ SÜZGEÇ PLASTİK",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Sită plastic pentru scurgere jgheab bioclimatic",
+      "image_url": "/static/decor/materials/021_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r15_c6.png"
+    },
+    {
+      "code": "EM06100001",
+      "name": "Gutter Water Drainage Plastic",
+      "category": "drainage",
+      "unit": "pc",
+      "unit_price": 8.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "ACCESSORY (2)",
+      "active": "Y",
+      "id": 7,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "Gutter Water Drainage Plastic",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Scurgere apă jgheab (plastic)",
+      "image_url": "/static/decor/materials/012_huun_new_veranda_material_base_price_list_2024__accessory_2_r9_c4.png"
+    },
+    {
+      "code": "CAM.175",
+      "name": "C TR Ö LAM H.LAM CL 4 MR +0.38cl+H.LAM CL 4  MR",
+      "category": "glass",
+      "unit": "m2",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1010,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "C TR Ö LAM H.LAM CL 4 MR +0.38cl+H.LAM CL 4 MR",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Sticlă laminată (specificație CAM.175)",
+      "image_url": "/static/decor/materials/029_yeni_veranda_u_reti_m_mali_yet_hesaplama__veranda_cam_r2_c1.png"
+    },
+    {
+      "code": "CAM.967",
+      "name": "C TR Ö IS.K KP. CP.62/44 5 ZR-TMP+12hbst.pu+H.LAM",
+      "category": "glass",
+      "unit": "m2",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1011,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "C TR Ö IS.K KP. CP.62/44 5 ZR-TMP+12hbst.pu+H.LAM",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Pachet sticlă termoizolantă laminată (specificație CAM.967)",
+      "image_url": "/static/decor/materials/029_yeni_veranda_u_reti_m_mali_yet_hesaplama__veranda_cam_r2_c1.png"
+    },
+    {
+      "code": "EM05200003",
+      "name": "C TR Ö LAM H.LAM CL 4 MR +0.38cl+H.LAM CL 4  MR",
+      "category": "glass",
+      "unit": "m2",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1021,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "C TR Ö LAM H.LAM CL 4 MR +0.38cl+H.LAM CL 4 MR",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Sticlă laminată (specificație CAM.175)",
+      "image_url": "/static/decor/materials/029_yeni_veranda_u_reti_m_mali_yet_hesaplama__veranda_cam_r2_c1.png"
+    },
+    {
+      "code": "EM05300040",
+      "name": "C TR Ö IS.K KP. CP.62/44 5 ZR-TMP+12hbst.pu+H.LAM",
+      "category": "glass",
+      "unit": "m2",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1022,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "C TR Ö IS.K KP. CP.62/44 5 ZR-TMP+12hbst.pu+H.LAM",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Pachet sticlă termoizolantă laminată (specificație CAM.967)",
+      "image_url": "/static/decor/materials/029_yeni_veranda_u_reti_m_mali_yet_hesaplama__veranda_cam_r2_c1.png"
+    },
+    {
+      "id": 12,
+      "code": "GLASS-ISICAM",
+      "name": "Insulated glass unit (ISICAM)",
+      "category": "glass",
+      "unit": "m2",
+      "unit_price": 78.0,
+      "currency": "USD",
+      "source_file": "YENI VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "Veri Sayfası-2",
+      "active": "Y",
+      "name_original": "Insulated glass unit (ISICAM)",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Pachet de sticlă termoizolantă (ISICAM)",
+      "image_url": "/static/decor/materials/029_yeni_veranda_u_reti_m_mali_yet_hesaplama__veranda_cam_r2_c1.png"
+    },
+    {
+      "id": 13,
+      "code": "GLASS-TEKCAM",
+      "name": "Single glass (TEKCAM)",
+      "category": "glass",
+      "unit": "m2",
+      "unit_price": 49.0,
+      "currency": "USD",
+      "source_file": "YENI VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "Veri Sayfası-2",
+      "active": "Y",
+      "name_original": "Single glass (TEKCAM)",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Sticlă simplă (TEKCAM)",
+      "image_url": "/static/decor/materials/030_yeni_veranda_u_reti_m_mali_yet_hesaplama__veranda_cam_r2_c6.png"
+    },
+    {
+      "code": "1811079",
+      "name": "1811079-TELIS 16 RTS PURE INTL",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1001,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "TELIS 16 RTS PURE INTL",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Telecomandă TELIS 16 RTS PURE INTL",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "1870405",
+      "name": "1870405 SITUO 1 RTS PURE II",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1002,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "SITUO 1 RTS PURE II",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Telecomandă SITUO 1 RTS PURE II",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "1870421",
+      "name": "SITUO 5 RTS PURE II",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1003,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "SITUO 5 RTS PURE II",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Telecomandă SITUO 5 RTS PURE II",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "9027615",
+      "name": "LED VARIATION TR RTS",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1004,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "LED VARIATION TR RTS",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Telecomandă variație LED RTS",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "A510073",
+      "name": "A510073 DIMMER LED RX",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1006,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "A510073 DIMMER LED RX",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Receptor dimmer LED A510073",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "A530073L",
+      "name": "GIRO PLUS BLUE LOGO CH",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1007,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "GIRO PLUS BLUE LOGO CH",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Telecomandă GIRO PLUS (Cherubini)",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "A530086L",
+      "name": "GIRO MONO BURGUNDY LOGO CH",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1008,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "GIRO MONO BURGUNDY LOGO CH",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Telecomandă GIRO MONO (Cherubini)",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM03100014",
+      "name": "1870405 SITUO 1 RTS PURE II",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1014,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "1870405 SITUO 1 RTS PURE II",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Telecomandă SITUO 1 RTS PURE II",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM03100015",
+      "name": "SITUO 5 RTS PURE II",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1015,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "SITUO 5 RTS PURE II",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Telecomandă SITUO 5 RTS PURE II",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM03100019",
+      "name": "1811079-TELIS 16 RTS PURE INTL",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1016,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "1811079-TELIS 16 RTS PURE INTL",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Telecomandă TELIS 16 RTS PURE INTL",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM03100036",
+      "name": "LED VARIATION TR RTS",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1017,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "LED VARIATION TR RTS",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Telecomandă variație LED RTS",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM03200017",
+      "name": "GIRO PLUS BLUE LOGO CH",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1018,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "GIRO PLUS BLUE LOGO CH",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Telecomandă GIRO PLUS (Cherubini)",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM03200020",
+      "name": "GIRO MONO BURGUNDY LOGO CH",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1019,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "GIRO MONO BURGUNDY LOGO CH",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Telecomandă GIRO MONO (Cherubini)",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM03200028",
+      "name": "A510073 DIMMER LED RX",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1020,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "A510073 DIMMER LED RX",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Receptor dimmer LED A510073",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM06100139",
+      "name": "ALS PC DS OPAL LED KAPAK",
+      "category": "option_led",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1023,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "ALS PC DS OPAL LED KAPAK",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Capac LED opal ALS PC DS",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM08100001",
+      "name": "PRG MW-ELG-300-24A  ADAPTÖR",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1031,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "PRG MW-ELG-300-24A ADAPTÖR",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Adaptor / sursă MW-ELG-300-24A",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM08100003",
+      "name": "MW-XLG-200-12 A  ADAPTÖR",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1032,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "MW-XLG-200-12 A ADAPTÖR",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Adaptor / sursă MW-XLG-200-12A",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM08100005",
+      "name": "24VDC 6.25AMP DİMMİNG MW-ELG-150H-24B",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1033,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "24VDC 6.25AMP DİMMİNG MW-ELG-150H-24B",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Sursă 24VDC 6,25A dimmable MW-ELG-150H-24B",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM08100006",
+      "name": "PRG MW-LPV-100-24VDC ADAPTÖR",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1034,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "PRG MW-LPV-100-24VDC ADAPTÖR",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Adaptor / sursă 24VDC MW-LPV-100",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM08100008",
+      "name": "LED KONTROL ÜNİTESİ RF RGB",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1035,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "LED KONTROL ÜNİTESİ RF RGB",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Unitate control LED RF RGB",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM08200001",
+      "name": "LİNNEAR LED 60CM",
+      "category": "option_led",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1036,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "LİNNEAR LED 60CM",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "LED liniar 60 cm",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "EM08200002",
+      "name": "LİNNEAR LED RGB",
+      "category": "option_led",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1037,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "LİNNEAR LED RGB",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "LED liniar RGB",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "id": 11,
+      "code": "LED-RGB",
+      "name": "RGB LED + dimmer",
+      "category": "option_led",
+      "unit": "set",
+      "unit_price": 165.0,
+      "currency": "USD",
+      "source_file": "inferred",
+      "source_sheet": "TZ",
+      "active": "Y",
+      "name_original": "RGB LED + dimmer",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "LED RGB + dimmer",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "id": 10,
+      "code": "LED-WHITE",
+      "name": "LED illumination (white)",
+      "category": "option_led",
+      "unit": "m",
+      "unit_price": 18.0,
+      "currency": "USD",
+      "source_file": "inferred",
+      "source_sheet": "TZ",
+      "active": "Y",
+      "name_original": "LED illumination (white)",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Iluminare LED (alb)",
+      "image_url": "/static/decor/materials/020_yeni_veranda_u_reti_m_mali_yet_hesaplama__ret_m_prof_l_r21_c5.jpg"
+    },
+    {
+      "code": "PRG-0172",
+      "name": "LED KONTROL ÜNİTESİ RF RGB",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1051,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "LED KONTROL ÜNİTESİ RF RGB",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Unitate control LED RF RGB",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "PRG-0174",
+      "name": "ALS PC DS OPAL LED KAPAK",
+      "category": "option_led",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1052,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "ALS PC DS OPAL LED KAPAK",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Capac LED opal ALS PC DS",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "PRG-0177",
+      "name": "PRG MW-LPV-100-24VDC ADAPTÖR",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1053,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "PRG MW-LPV-100-24VDC ADAPTÖR",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Adaptor / sursă 24VDC MW-LPV-100",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "PRG-0226",
+      "name": "LİNNEAR LED 60CM",
+      "category": "option_led",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1054,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "LİNNEAR LED 60CM",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "LED liniar 60 cm",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "PRG-0236",
+      "name": "24VDC 6.25AMP DİMMİNG MW-ELG-150H-24B",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1055,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "24VDC 6.25AMP DİMMİNG MW-ELG-150H-24B",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Sursă 24VDC 6,25A dimmable MW-ELG-150H-24B",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "PRG-0276",
+      "name": "LİNNEAR LED RGB",
+      "category": "option_led",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1056,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "LİNNEAR LED RGB",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "LED liniar RGB",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "PRG-2143",
+      "name": "PRG MW-ELG-300-24A  ADAPTÖR",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1057,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "PRG MW-ELG-300-24A ADAPTÖR",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Adaptor / sursă MW-ELG-300-24A",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "PRG-2225",
+      "name": "MW-XLG-200-12 A  ADAPTÖR",
+      "category": "option_led",
+      "unit": "pc",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "VERANDA MALZEME LİSTESİ",
+      "active": "Y",
+      "id": 1058,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "MW-XLG-200-12 A ADAPTÖR",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Adaptor / sursă MW-XLG-200-12A",
+      "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png"
+    },
+    {
+      "code": "M6243",
+      "name": "Traverse Profile",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "PROFILE (NEW SYSTEM)",
+      "active": "Y",
+      "id": 1041,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "YAN KAYIT PROFİLİ",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Profil traversă laterală",
+      "image_url": "/static/decor/materials_dochtml/configurator2_proiect_test_una_1__image020.jpg"
+    },
+    {
+      "code": "M6283",
+      "name": "LED PROFİLİ",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "ÜRETİM-PROFİL",
+      "active": "Y",
+      "id": 1042,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "LED PROFİLİ",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Profil LED",
+      "image_url": "/static/decor/materials_dochtml/configurator2_proiect_test_una_1__image021.jpg"
+    },
+    {
+      "code": "M6377",
+      "name": "Main Carrier Cover Profile",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "PROFILE (NEW SYSTEM)",
+      "active": "Y",
+      "id": 1043,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "DİKMESİZ KÖŞE PRF",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Profil colț fără stâlp",
+      "image_url": "/static/decor/materials_dochtml/configurator2_proiect_test_una_1__image010.jpg"
+    },
+    {
+      "code": "M6378",
+      "name": "Main Carrier Profile",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "PROFILE (NEW SYSTEM)",
+      "active": "Y",
+      "id": 1044,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "CAM TAŞIYICI PRF",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Profil port-sticlă",
+      "image_url": "/static/decor/materials_dochtml/configurator2_proiect_test_una_1__image012.jpg"
+    },
+    {
+      "code": "M6383",
+      "name": "Main Carrier Middle Cover Profile",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 8.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "PROFILE (NEW SYSTEM)",
+      "active": "Y",
+      "id": 3,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "CAM TAŞIYICI ORTA KAPAK",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Capac central profil port-sticlă",
+      "image_url": "/static/decor/materials_dochtml/configurator2_proiect_test_una_1__image006.jpg"
+    },
+    {
+      "code": "M6385",
+      "name": "Main Carrier Side Cover Profile",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 10.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "PROFILE (NEW SYSTEM)",
+      "active": "Y",
+      "id": 4,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "CAM TAŞIYICI KENAR KAPAK",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Capac lateral profil port-sticlă",
+      "image_url": "/static/decor/materials_dochtml/configurator2_proiect_test_una_1__image008.jpg"
+    },
+    {
+      "code": "M6521",
+      "name": "Rare Connection Profile",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 34.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "PROFILE (NEW SYSTEM)",
+      "active": "Y",
+      "id": 1,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "ARKA BAĞLANTI PRF",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Profil de conexiune spate",
+      "image_url": "/static/decor/materials_dochtml/configurator2_proiect_test_una_1__image002.jpg"
+    },
+    {
+      "code": "M6522",
+      "name": "Gutter Profile",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "PROFILE (NEW SYSTEM)",
+      "active": "Y",
+      "id": 1045,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "OLUK PROFİLİ",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Profil jgheab",
+      "image_url": "/static/decor/materials_dochtml/configurator2_proiect_test_una_1__image014.jpg"
+    },
+    {
+      "code": "M6523",
+      "name": "Angle Profile",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 12.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "PROFILE (NEW SYSTEM)",
+      "active": "Y",
+      "id": 2,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "CAM TAŞIYICI ARA PRF",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Profil intermediar port-sticlă",
+      "image_url": "/static/decor/materials_dochtml/configurator2_proiect_test_una_1__image004.jpg"
+    },
+    {
+      "code": "M6592",
+      "name": "Gutter Extension Profile",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "PROFILE (NEW SYSTEM)",
+      "active": "Y",
+      "id": 1046,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "OLUK UZATMA PRF",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Profil extensie jgheab",
+      "image_url": "/static/decor/materials_dochtml/configurator2_proiect_test_una_1__image016.jpg"
+    },
+    {
+      "code": "M7652",
+      "name": "DİKME PRF",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx",
+      "source_sheet": "ÜRETİM-PROFİL",
+      "active": "Y",
+      "id": 1047,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "DİKME PRF",
+      "original_lang": "tr",
+      "original_lang_label": "Türkçe",
+      "name_ro": "Profil stâlp",
+      "image_url": "/static/decor/materials_dochtml/configurator2_proiect_test_una_1__image018.jpg"
+    },
+    {
+      "code": "O.5536",
+      "name": "Pillar Profile",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0.0,
+      "currency": "USD",
+      "source_file": "HUUN- NEW VERANDA- Material Base Price List -2024.xlsx",
+      "source_sheet": "PROFILE (NEW SYSTEM)",
+      "active": "Y",
+      "id": 1048,
+      "created_at": "2026-02-26 13:02:31",
+      "updated_at": "2026-02-26 13:29:09",
+      "name_original": "Pillar Profile",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Profil stâlp",
+      "image_url": "/static/decor/materials_dochtml/yeni_veranda_u_reti_m_mali_yet_hesaplama__image018.jpg"
+    },
+    {
+      "id": 14,
+      "code": "INSTALL",
+      "name": "Installation works",
+      "category": "service",
+      "unit": "m2",
+      "unit_price": 42.0,
+      "currency": "USD",
+      "source_file": "inferred",
+      "source_sheet": "TZ",
+      "active": "Y",
+      "name_original": "Installation works",
+      "original_lang": "en",
+      "original_lang_label": "English",
+      "name_ro": "Lucrări de montaj",
+      "image_url": "/static/decor/materials/033_yeni_veranda_u_reti_m_mali_yet_hesaplama__mal_yet_hesaplama_r5_c2.png"
+    }
+  ],
+  "statuses": [
+    {
+      "id": 1,
+      "code": "lead",
+      "name": "Лид / Новый"
+    },
+    {
+      "id": 2,
+      "code": "quoted",
+      "name": "Смета отправлена"
+    },
+    {
+      "id": 3,
+      "code": "approved",
+      "name": "Согласовано"
+    },
+    {
+      "id": 4,
+      "code": "production",
+      "name": "В производстве"
+    },
+    {
+      "id": 5,
+      "code": "installation",
+      "name": "Монтаж"
+    },
+    {
+      "id": 6,
+      "code": "completed",
+      "name": "Завершено"
+    },
+    {
+      "id": 7,
+      "code": "cancelled",
+      "name": "Отменено"
+    }
+  ],
+  "settings": {
+    "currency": "USD",
+    "exchange_rate_usd_to_mdl": 17.85,
+    "markup_percent": 18.0,
+    "waste_percent": 7.0,
+    "profile_weight_kg_per_m2": 9.5,
+    "accessory_fixed_per_m2": 12.0,
+    "drainage_fixed": 55.0,
+    "transport_fixed": 120.0,
+    "install_rate_m2": 42.0,
+    "glass_rate_m2": {
+      "TEKCAM": 49.0,
+      "ISICAM": 78.0
+    },
+    "led_options": {
+      "none": 0.0,
+      "white_led": 18.0,
+      "rgb_led_dimmer": 165.0
+    },
+    "project_types": [
+      "Стеклянная крыша",
+      "Веранда",
+      "Пергола",
+      "Козырек"
+    ],
+    "system_types": [
+      "TEKCAM",
+      "ISICAM"
+    ],
+    "colors": [
+      "Антрацит",
+      "Белый",
+      "Черный",
+      "Под дерево",
+      "Индивидуальный RAL"
+    ]
+  },
+  "orders": [
+    {
+      "id": 3,
+      "order_number": "DEC-202602-00003",
+      "barcode": "DEC-202602-00003",
+      "client_name": "XML Sample / 3 canale 1HUUN",
+      "client_phone": "+37300000000",
+      "client_email": "",
+      "project_type": "Стеклянная крыша",
+      "project_name": "3 canale 1HUUN",
+      "location": "Imported XML sample",
+      "color": "",
+      "notes": "[XML_IMPORT] 3 canale 1HUUN.xml · imported with line images",
+      "status_id": 1,
+      "status_code": "lead",
+      "status_name": "Лид / Новый",
+      "quote": {
+        "inputs": {
+          "source": "xml_import",
+          "xml_file": "3 canale 1HUUN.xml",
+          "extra_items_count": 18
+        },
+        "metrics": {},
+        "lines": [
+          {
+            "code": "7951",
+            "name": "6332 Profil 3 canale (superior) (buc600cm PRESS )",
+            "qty": 3.0,
+            "unit": "m",
+            "unit_price": 365.0,
+            "amount": 1095.0,
+            "image_url": "/static/decor/sample_orders/3_canale_1huun/image1.jpeg",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "7952",
+            "name": "6333 Profil prag plat 3 canale (buc600 PRESS)",
+            "qty": 3.0,
+            "unit": "m",
+            "unit_price": 280.0,
+            "amount": 840.0,
+            "image_url": "/static/decor/sample_orders/3_canale_1huun/image2.jpeg",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "6771",
+            "name": "11574 Profil superior fixare sticla (10mm) (buc700cm )",
+            "qty": 3.0,
+            "unit": "m",
+            "unit_price": 60.0,
+            "amount": 180.0,
+            "image_url": "/static/decor/sample_orders/3_canale_1huun/image3.jpeg",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "6768",
+            "name": "11579 Profil inferior fixare sticla (10mm) (buc700 press )",
+            "qty": 3.0,
+            "unit": "m",
+            "unit_price": 230.0,
+            "amount": 690.0,
+            "image_url": "/static/decor/sample_orders/3_canale_1huun/image4.jpeg",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "7950",
+            "name": "6334 Profil vertical perete (sistem 3 canale) (buc500cm PRESS )",
+            "qty": 5.0,
+            "unit": "m",
+            "unit_price": 350.0,
+            "amount": 1750.0,
+            "image_url": "/static/decor/sample_orders/3_canale_1huun/image5.jpeg",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "6769",
+            "name": "11572 (6305) Profil vertical fixare sticla (aluminiu) (buc500cm )",
+            "qty": 5.0,
+            "unit": "m",
+            "unit_price": 210.0,
+            "amount": 1050.0,
+            "image_url": "/static/decor/sample_orders/3_canale_1huun/image6.png",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "6770",
+            "name": "11646 Profil aluminiu conexiune sticla (10mm) (buc500cm PRESS )",
+            "qty": 10.0,
+            "unit": "m",
+            "unit_price": 70.0,
+            "amount": 700.0,
+            "image_url": "/static/decor/sample_orders/3_canale_1huun/image7.jpeg",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "6772",
+            "name": "Adaptor inox pentru prag (buc600cm )",
+            "qty": 3.0,
+            "unit": "m",
+            "unit_price": 113.0,
+            "amount": 339.0,
+            "image_url": "",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "6778",
+            "name": "Mecanism p/u sliding (1 lacata) (180grade MD )",
+            "qty": 2.0,
+            "unit": "set",
+            "unit_price": 210.0,
+            "amount": 420.0,
+            "image_url": "/static/decor/sample_orders/3_canale_1huun/image8.jpeg",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "10038",
+            "name": "Miner sistem sliding, fara cheie (negru)",
+            "qty": 1.0,
+            "unit": "buc",
+            "unit_price": 155.0,
+            "amount": 155.0,
+            "image_url": "/static/decor/sample_orders/3_canale_1huun/image9.jpeg",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "10037",
+            "name": "Miner sistem sliding, cu cheie (negru)",
+            "qty": 1.0,
+            "unit": "buc",
+            "unit_price": 300.0,
+            "amount": 300.0,
+            "image_url": "/static/decor/sample_orders/3_canale_1huun/image10.jpeg",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "6777",
+            "name": "EPDM Cauciuc p/u sliding",
+            "qty": 5.0,
+            "unit": "m",
+            "unit_price": 8.0,
+            "amount": 40.0,
+            "image_url": "",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "6775",
+            "name": "Perie la 450 p/u sliding / panorama 48x480",
+            "qty": 10.0,
+            "unit": "m",
+            "unit_price": 7.0,
+            "amount": 70.0,
+            "image_url": "",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "6776",
+            "name": "Perie la 550 p/u sliding",
+            "qty": 28.0,
+            "unit": "m",
+            "unit_price": 8.0,
+            "amount": 224.0,
+            "image_url": "",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "8983",
+            "name": "Conector din plastic p/u sliding (terminatie) (R",
+            "qty": 4.0,
+            "unit": "buc",
+            "unit_price": 40.0,
+            "amount": 160.0,
+            "image_url": "",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "7953",
+            "name": "Accesorii p/u sliding Rotile, Plastic 3 canale",
+            "qty": 1.0,
+            "unit": "set",
+            "unit_price": 2800.0,
+            "amount": 2800.0,
+            "image_url": "",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "XML-017",
+            "name": "Servicii vopsire RAL",
+            "qty": 9.0,
+            "unit": "m2",
+            "unit_price": 200.0,
+            "amount": 1800.0,
+            "image_url": "",
+            "source": "xml_import",
+            "category": "xml_import"
+          },
+          {
+            "code": "XML-018",
+            "name": "Servicii asamblare",
+            "qty": 9.0,
+            "unit": "serviciu",
+            "unit_price": 200.0,
+            "amount": 1800.0,
+            "image_url": "",
+            "source": "xml_import",
+            "category": "xml_import"
+          }
+        ],
+        "summary": {
+          "currency": "MDL",
+          "direct_cost": 14413.0,
+          "waste_amount": 0.0,
+          "subtotal": 14413.0,
+          "margin_amount": 0.0,
+          "total": 14413.0,
+          "exchange_rate_usd_to_mdl": null,
+          "total_mdl": 14413.0,
+          "extra_items_amount": 14413.0
+        }
+      },
+      "items": [
+        {
+          "code": "7951",
+          "name": "6332 Profil 3 canale (superior) (buc600cm PRESS )",
+          "qty": 3.0,
+          "unit": "m",
+          "unit_price": 365.0,
+          "amount": 1095.0,
+          "image_url": "/static/decor/sample_orders/3_canale_1huun/image1.jpeg",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "7952",
+          "name": "6333 Profil prag plat 3 canale (buc600 PRESS)",
+          "qty": 3.0,
+          "unit": "m",
+          "unit_price": 280.0,
+          "amount": 840.0,
+          "image_url": "/static/decor/sample_orders/3_canale_1huun/image2.jpeg",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "6771",
+          "name": "11574 Profil superior fixare sticla (10mm) (buc700cm )",
+          "qty": 3.0,
+          "unit": "m",
+          "unit_price": 60.0,
+          "amount": 180.0,
+          "image_url": "/static/decor/sample_orders/3_canale_1huun/image3.jpeg",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "6768",
+          "name": "11579 Profil inferior fixare sticla (10mm) (buc700 press )",
+          "qty": 3.0,
+          "unit": "m",
+          "unit_price": 230.0,
+          "amount": 690.0,
+          "image_url": "/static/decor/sample_orders/3_canale_1huun/image4.jpeg",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "7950",
+          "name": "6334 Profil vertical perete (sistem 3 canale) (buc500cm PRESS )",
+          "qty": 5.0,
+          "unit": "m",
+          "unit_price": 350.0,
+          "amount": 1750.0,
+          "image_url": "/static/decor/sample_orders/3_canale_1huun/image5.jpeg",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "6769",
+          "name": "11572 (6305) Profil vertical fixare sticla (aluminiu) (buc500cm )",
+          "qty": 5.0,
+          "unit": "m",
+          "unit_price": 210.0,
+          "amount": 1050.0,
+          "image_url": "/static/decor/sample_orders/3_canale_1huun/image6.png",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "6770",
+          "name": "11646 Profil aluminiu conexiune sticla (10mm) (buc500cm PRESS )",
+          "qty": 10.0,
+          "unit": "m",
+          "unit_price": 70.0,
+          "amount": 700.0,
+          "image_url": "/static/decor/sample_orders/3_canale_1huun/image7.jpeg",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "6772",
+          "name": "Adaptor inox pentru prag (buc600cm )",
+          "qty": 3.0,
+          "unit": "m",
+          "unit_price": 113.0,
+          "amount": 339.0,
+          "image_url": "",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "6778",
+          "name": "Mecanism p/u sliding (1 lacata) (180grade MD )",
+          "qty": 2.0,
+          "unit": "set",
+          "unit_price": 210.0,
+          "amount": 420.0,
+          "image_url": "/static/decor/sample_orders/3_canale_1huun/image8.jpeg",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "10038",
+          "name": "Miner sistem sliding, fara cheie (negru)",
+          "qty": 1.0,
+          "unit": "buc",
+          "unit_price": 155.0,
+          "amount": 155.0,
+          "image_url": "/static/decor/sample_orders/3_canale_1huun/image9.jpeg",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "10037",
+          "name": "Miner sistem sliding, cu cheie (negru)",
+          "qty": 1.0,
+          "unit": "buc",
+          "unit_price": 300.0,
+          "amount": 300.0,
+          "image_url": "/static/decor/sample_orders/3_canale_1huun/image10.jpeg",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "6777",
+          "name": "EPDM Cauciuc p/u sliding",
+          "qty": 5.0,
+          "unit": "m",
+          "unit_price": 8.0,
+          "amount": 40.0,
+          "image_url": "",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "6775",
+          "name": "Perie la 450 p/u sliding / panorama 48x480",
+          "qty": 10.0,
+          "unit": "m",
+          "unit_price": 7.0,
+          "amount": 70.0,
+          "image_url": "",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "6776",
+          "name": "Perie la 550 p/u sliding",
+          "qty": 28.0,
+          "unit": "m",
+          "unit_price": 8.0,
+          "amount": 224.0,
+          "image_url": "",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "8983",
+          "name": "Conector din plastic p/u sliding (terminatie) (R",
+          "qty": 4.0,
+          "unit": "buc",
+          "unit_price": 40.0,
+          "amount": 160.0,
+          "image_url": "",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "7953",
+          "name": "Accesorii p/u sliding Rotile, Plastic 3 canale",
+          "qty": 1.0,
+          "unit": "set",
+          "unit_price": 2800.0,
+          "amount": 2800.0,
+          "image_url": "",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "XML-017",
+          "name": "Servicii vopsire RAL",
+          "qty": 9.0,
+          "unit": "m2",
+          "unit_price": 200.0,
+          "amount": 1800.0,
+          "image_url": "",
+          "source": "xml_import",
+          "category": "xml_import"
+        },
+        {
+          "code": "XML-018",
+          "name": "Servicii asamblare",
+          "qty": 9.0,
+          "unit": "serviciu",
+          "unit_price": 200.0,
+          "amount": 1800.0,
+          "image_url": "",
+          "source": "xml_import",
+          "category": "xml_import"
+        }
+      ],
+      "total_amount": 14413.0,
+      "currency": "MDL",
+      "created_at": "2026-02-24 00:00:00",
+      "updated_at": "2026-02-26 21:31:01"
+    },
+    {
+      "id": 2,
+      "order_number": "DEC-202602-00002",
+      "barcode": "DEC-202602-00002",
+      "client_name": "Test User",
+      "client_phone": "+37360000000",
+      "client_email": "",
+      "project_type": "Стеклянная крыша",
+      "project_name": "AI test",
+      "location": "",
+      "color": "Антрацит",
+      "notes": "",
+      "status_id": 1,
+      "status_code": "lead",
+      "status_name": "Лид / Новый",
+      "quote": {
+        "inputs": {
+          "width_mm": 4200.0,
+          "projection_mm": 3100.0,
+          "front_height_mm": 2500.0,
+          "rear_height_mm": 2900.0,
+          "system_type": "ISICAM",
+          "led_option": "none",
+          "include_installation": true,
+          "include_transport": true,
+          "include_drainage": true,
+          "extra_items_count": 3
+        },
+        "metrics": {
+          "area_m2": 13.02,
+          "perimeter_m": 14.6,
+          "slope_mm": 400.0,
+          "slope_percent": 12.9,
+          "post_count": 4,
+          "section_count": 3,
+          "beam_count": 5,
+          "rafter_length_m": 3.126,
+          "frame_length_m": 27.104,
+          "profile_weight_total_kg": 257.49,
+          "glass_panel_count": 6,
+          "glass_panel_area_m2": 4.376,
+          "glass_panel_width_m": 1.4,
+          "glass_panel_length_m": 3.126
+        },
+        "lines": [
+          {
+            "code": "AREA",
+            "name": "Площадь изделия",
+            "qty": 13.02,
+            "unit": "m2",
+            "unit_price": 0,
+            "amount": 0
+          },
+          {
+            "code": "FRAME_LEN",
+            "name": "Длина профильной системы (оценка)",
+            "qty": 27.104,
+            "unit": "m",
+            "unit_price": 0,
+            "amount": 0
+          },
+          {
+            "code": "PROFILE_KG",
+            "name": "Профильная масса (оценка)",
+            "qty": 257.49,
+            "unit": "kg",
+            "unit_price": 2.4,
+            "amount": 617.98
+          },
+          {
+            "code": "GLASS",
+            "name": "Стекло (ISICAM)",
+            "qty": 13.02,
+            "unit": "m2",
+            "unit_price": 78.0,
+            "amount": 1015.56
+          },
+          {
+            "code": "ACCESSORY",
+            "name": "Аксессуары и крепёж",
+            "qty": 16,
+            "unit": "set",
+            "unit_price": 11.52,
+            "amount": 184.24
+          },
+          {
+            "code": "DRAINAGE",
+            "name": "Водоотвод / gutter set",
+            "qty": 1,
+            "unit": "set",
+            "unit_price": 55.0,
+            "amount": 55.0
+          },
+          {
+            "code": "INSTALL",
+            "name": "Монтаж",
+            "qty": 13.02,
+            "unit": "m2",
+            "unit_price": 42.0,
+            "amount": 546.84
+          },
+          {
+            "code": "TRANSPORT",
+            "name": "Транспорт/логистика",
+            "qty": 1,
+            "unit": "job",
+            "unit_price": 120.0,
+            "amount": 120.0
+          },
+          {
+            "code": "WASTE",
+            "name": "Тех. отходы 7.0%",
+            "qty": 1,
+            "unit": "job",
+            "unit_price": 186.45,
+            "amount": 186.45
+          },
+          {
+            "code": "MARGIN",
+            "name": "Маржа 18.0%",
+            "qty": 1,
+            "unit": "job",
+            "unit_price": 513.01,
+            "amount": 513.01
+          },
+          {
+            "code": "M6521",
+            "name": "Rare Connection Profile [AI]",
+            "qty": 2.0,
+            "unit": "m",
+            "unit_price": 34.0,
+            "amount": 68.0,
+            "source": "ai_batch",
+            "image_url": "/static/decor/materials_dochtml/configurator2_proiect_test_una_1__image002.jpg",
+            "category": "profile"
+          },
+          {
+            "code": "PRG-0172",
+            "name": "LED KONTROL ÜNİTESİ RF RGB [AI]",
+            "qty": 3.0,
+            "unit": "pc",
+            "unit_price": 0.0,
+            "amount": 0.0,
+            "source": "ai_batch",
+            "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png",
+            "category": "option_led"
+          },
+          {
+            "code": "EM07100091",
+            "name": "Veranda Gutter Cover R+L [AI]",
+            "qty": 4.0,
+            "unit": "pc",
+            "unit_price": 14.0,
+            "amount": 56.0,
+            "source": "ai_batch",
+            "image_url": "/static/decor/materials/007_huun_new_veranda_material_base_price_list_2024__accessory_2_r6_c4.png",
+            "category": "accessory"
+          }
+        ],
+        "summary": {
+          "currency": "USD",
+          "direct_cost": 2663.62,
+          "waste_amount": 186.45,
+          "subtotal": 2850.07,
+          "margin_amount": 513.01,
+          "total": 3363.08,
+          "exchange_rate_usd_to_mdl": 17.85,
+          "total_mdl": 60030.98,
+          "extra_items_amount": 124.0
+        }
+      },
+      "items": [
+        {
+          "code": "AREA",
+          "name": "Площадь изделия",
+          "qty": 13.02,
+          "unit": "m2",
+          "unit_price": 0,
+          "amount": 0
+        },
+        {
+          "code": "FRAME_LEN",
+          "name": "Длина профильной системы (оценка)",
+          "qty": 27.104,
+          "unit": "m",
+          "unit_price": 0,
+          "amount": 0
+        },
+        {
+          "code": "PROFILE_KG",
+          "name": "Профильная масса (оценка)",
+          "qty": 257.49,
+          "unit": "kg",
+          "unit_price": 2.4,
+          "amount": 617.98
+        },
+        {
+          "code": "GLASS",
+          "name": "Стекло (ISICAM)",
+          "qty": 13.02,
+          "unit": "m2",
+          "unit_price": 78.0,
+          "amount": 1015.56
+        },
+        {
+          "code": "ACCESSORY",
+          "name": "Аксессуары и крепёж",
+          "qty": 16,
+          "unit": "set",
+          "unit_price": 11.52,
+          "amount": 184.24
+        },
+        {
+          "code": "DRAINAGE",
+          "name": "Водоотвод / gutter set",
+          "qty": 1,
+          "unit": "set",
+          "unit_price": 55.0,
+          "amount": 55.0
+        },
+        {
+          "code": "INSTALL",
+          "name": "Монтаж",
+          "qty": 13.02,
+          "unit": "m2",
+          "unit_price": 42.0,
+          "amount": 546.84
+        },
+        {
+          "code": "TRANSPORT",
+          "name": "Транспорт/логистика",
+          "qty": 1,
+          "unit": "job",
+          "unit_price": 120.0,
+          "amount": 120.0
+        },
+        {
+          "code": "WASTE",
+          "name": "Тех. отходы 7.0%",
+          "qty": 1,
+          "unit": "job",
+          "unit_price": 186.45,
+          "amount": 186.45
+        },
+        {
+          "code": "MARGIN",
+          "name": "Маржа 18.0%",
+          "qty": 1,
+          "unit": "job",
+          "unit_price": 513.01,
+          "amount": 513.01
+        },
+        {
+          "code": "M6521",
+          "name": "Rare Connection Profile [AI]",
+          "qty": 2.0,
+          "unit": "m",
+          "unit_price": 34.0,
+          "amount": 68.0,
+          "source": "ai_batch",
+          "image_url": "/static/decor/materials_dochtml/configurator2_proiect_test_una_1__image002.jpg",
+          "category": "profile"
+        },
+        {
+          "code": "PRG-0172",
+          "name": "LED KONTROL ÜNİTESİ RF RGB [AI]",
+          "qty": 3.0,
+          "unit": "pc",
+          "unit_price": 0.0,
+          "amount": 0.0,
+          "source": "ai_batch",
+          "image_url": "/static/decor/materials/022_yeni_veranda_u_reti_m_mali_yet_hesaplama__aksesuar_sayfasi_r23_c6.png",
+          "category": "option_led"
+        },
+        {
+          "code": "EM07100091",
+          "name": "Veranda Gutter Cover R+L [AI]",
+          "qty": 4.0,
+          "unit": "pc",
+          "unit_price": 14.0,
+          "amount": 56.0,
+          "source": "ai_batch",
+          "image_url": "/static/decor/materials/007_huun_new_veranda_material_base_price_list_2024__accessory_2_r6_c4.png",
+          "category": "accessory"
+        }
+      ],
+      "total_amount": 3363.08,
+      "currency": "USD",
+      "created_at": "2026-02-26 17:08:10",
+      "updated_at": "2026-02-26 17:08:10"
+    },
+    {
+      "id": 1,
+      "order_number": "DEC-202602-00001",
+      "barcode": "DEC-202602-00001",
+      "client_name": "Test Client",
+      "client_phone": "+37369111222",
+      "client_email": "test@example.com",
+      "project_type": "Веранда",
+      "project_name": "DUMAN-like test",
+      "location": "Chisinau",
+      "color": "Антрацит",
+      "notes": "MCP smoke test",
+      "status_id": 2,
+      "status_code": "quoted",
+      "status_name": "Смета отправлена",
+      "quote": {
+        "inputs": {
+          "width_mm": 4200.0,
+          "projection_mm": 3200.0,
+          "front_height_mm": 2500.0,
+          "rear_height_mm": 2950.0,
+          "system_type": "ISICAM",
+          "led_option": "white_led",
+          "include_installation": true,
+          "include_transport": true,
+          "include_drainage": true
+        },
+        "metrics": {
+          "area_m2": 13.44,
+          "perimeter_m": 14.8,
+          "slope_mm": 450.0,
+          "slope_percent": 14.06,
+          "post_count": 4,
+          "section_count": 3,
+          "beam_count": 5,
+          "rafter_length_m": 3.231,
+          "frame_length_m": 27.724,
+          "profile_weight_total_kg": 263.38,
+          "glass_panel_count": 6,
+          "glass_panel_area_m2": 4.523,
+          "glass_panel_width_m": 1.4,
+          "glass_panel_length_m": 3.231
+        },
+        "lines": [
+          {
+            "code": "AREA",
+            "name": "Площадь изделия",
+            "qty": 13.44,
+            "unit": "m2",
+            "unit_price": 0,
+            "amount": 0
+          },
+          {
+            "code": "FRAME_LEN",
+            "name": "Длина профильной системы (оценка)",
+            "qty": 27.724,
+            "unit": "m",
+            "unit_price": 0,
+            "amount": 0
+          },
+          {
+            "code": "PROFILE_KG",
+            "name": "Профильная масса (оценка)",
+            "qty": 263.38,
+            "unit": "kg",
+            "unit_price": 2.4,
+            "amount": 632.11
+          },
+          {
+            "code": "GLASS",
+            "name": "Стекло (ISICAM)",
+            "qty": 13.44,
+            "unit": "m2",
+            "unit_price": 78.0,
+            "amount": 1048.32
+          },
+          {
+            "code": "ACCESSORY",
+            "name": "Аксессуары и крепёж",
+            "qty": 16,
+            "unit": "set",
+            "unit_price": 11.83,
+            "amount": 189.28
+          },
+          {
+            "code": "DRAINAGE",
+            "name": "Водоотвод / gutter set",
+            "qty": 1,
+            "unit": "set",
+            "unit_price": 55.0,
+            "amount": 55.0
+          },
+          {
+            "code": "LED",
+            "name": "LED option (white_led)",
+            "qty": 14.8,
+            "unit": "m",
+            "unit_price": 18.0,
+            "amount": 266.4
+          },
+          {
+            "code": "INSTALL",
+            "name": "Монтаж",
+            "qty": 13.44,
+            "unit": "m2",
+            "unit_price": 42.0,
+            "amount": 564.48
+          },
+          {
+            "code": "TRANSPORT",
+            "name": "Транспорт/логистика",
+            "qty": 1,
+            "unit": "job",
+            "unit_price": 120.0,
+            "amount": 120.0
+          },
+          {
+            "code": "WASTE",
+            "name": "Тех. отходы 7.0%",
+            "qty": 1,
+            "unit": "job",
+            "unit_price": 201.29,
+            "amount": 201.29
+          },
+          {
+            "code": "MARGIN",
+            "name": "Маржа 18.0%",
+            "qty": 1,
+            "unit": "job",
+            "unit_price": 553.84,
+            "amount": 553.84
+          }
+        ],
+        "summary": {
+          "currency": "USD",
+          "direct_cost": 2875.59,
+          "waste_amount": 201.29,
+          "subtotal": 3076.88,
+          "margin_amount": 553.84,
+          "total": 3630.72,
+          "exchange_rate_usd_to_mdl": 17.85,
+          "total_mdl": 64808.35
+        }
+      },
+      "items": [
+        {
+          "code": "AREA",
+          "name": "Площадь изделия",
+          "qty": 13.44,
+          "unit": "m2",
+          "unit_price": 0,
+          "amount": 0
+        },
+        {
+          "code": "FRAME_LEN",
+          "name": "Длина профильной системы (оценка)",
+          "qty": 27.724,
+          "unit": "m",
+          "unit_price": 0,
+          "amount": 0
+        },
+        {
+          "code": "PROFILE_KG",
+          "name": "Профильная масса (оценка)",
+          "qty": 263.38,
+          "unit": "kg",
+          "unit_price": 2.4,
+          "amount": 632.11
+        },
+        {
+          "code": "GLASS",
+          "name": "Стекло (ISICAM)",
+          "qty": 13.44,
+          "unit": "m2",
+          "unit_price": 78.0,
+          "amount": 1048.32
+        },
+        {
+          "code": "ACCESSORY",
+          "name": "Аксессуары и крепёж",
+          "qty": 16,
+          "unit": "set",
+          "unit_price": 11.83,
+          "amount": 189.28
+        },
+        {
+          "code": "DRAINAGE",
+          "name": "Водоотвод / gutter set",
+          "qty": 1,
+          "unit": "set",
+          "unit_price": 55.0,
+          "amount": 55.0
+        },
+        {
+          "code": "LED",
+          "name": "LED option (white_led)",
+          "qty": 14.8,
+          "unit": "m",
+          "unit_price": 18.0,
+          "amount": 266.4
+        },
+        {
+          "code": "INSTALL",
+          "name": "Монтаж",
+          "qty": 13.44,
+          "unit": "m2",
+          "unit_price": 42.0,
+          "amount": 564.48
+        },
+        {
+          "code": "TRANSPORT",
+          "name": "Транспорт/логистика",
+          "qty": 1,
+          "unit": "job",
+          "unit_price": 120.0,
+          "amount": 120.0
+        },
+        {
+          "code": "WASTE",
+          "name": "Тех. отходы 7.0%",
+          "qty": 1,
+          "unit": "job",
+          "unit_price": 201.29,
+          "amount": 201.29
+        },
+        {
+          "code": "MARGIN",
+          "name": "Маржа 18.0%",
+          "qty": 1,
+          "unit": "job",
+          "unit_price": 553.84,
+          "amount": 553.84
+        }
+      ],
+      "total_amount": 3630.72,
+      "currency": "USD",
+      "created_at": "2026-02-26 01:02:09",
+      "updated_at": "2026-02-26 01:02:09"
+    }
+  ],
+  "next_material_id": 1070,
+  "next_order_id": 4,
+  "next_quote_seq": 4,
+  "sliding_materials": [
+    {
+      "id": 1,
+      "code": "M6332",
+      "name": "Profil 3 canale (superior)",
+      "name_ro": "Profil superior 3 canale",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 365,
+      "currency": "MDL",
+      "weight_g_per_m": 1552,
+      "family": "3rail",
+      "active": "Y"
+    },
+    {
+      "id": 2,
+      "code": "M6333",
+      "name": "Profil prag plat 3 canale",
+      "name_ro": "Profil prag plat 3 canale",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 280,
+      "currency": "MDL",
+      "weight_g_per_m": 1064,
+      "family": "3rail",
+      "active": "Y"
+    },
+    {
+      "id": 3,
+      "code": "11574",
+      "name": "Profil superior fixare sticlă 10mm",
+      "name_ro": "Profil superior fixare sticlă 10mm",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 60,
+      "currency": "MDL",
+      "weight_g_per_m": 215,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 4,
+      "code": "11579",
+      "name": "Profil inferior fixare sticlă 10mm",
+      "name_ro": "Profil inferior fixare sticlă 10mm",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 230,
+      "currency": "MDL",
+      "weight_g_per_m": 1056,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 5,
+      "code": "M6334",
+      "name": "Profil vertical perete (sistem 3 canale)",
+      "name_ro": "Profil vertical perete 3 canale",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 350,
+      "currency": "MDL",
+      "weight_g_per_m": 1530,
+      "family": "3rail",
+      "active": "Y"
+    },
+    {
+      "id": 6,
+      "code": "M6305",
+      "name": "Profil vertical fixare sticlă (aluminiu)",
+      "name_ro": "Profil vertical fixare sticlă",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 210,
+      "currency": "MDL",
+      "weight_g_per_m": 929,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 7,
+      "code": "11646",
+      "name": "Profil conexiune sticlă 10mm",
+      "name_ro": "Profil conexiune sticlă 10mm",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 70,
+      "currency": "MDL",
+      "weight_g_per_m": 292,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 8,
+      "code": "M6313",
+      "name": "Profil mare col sliding",
+      "name_ro": "Profil mare col sliding",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 1404,
+      "family": "3rail",
+      "active": "Y"
+    },
+    {
+      "id": 9,
+      "code": "M6544",
+      "name": "Profil colț fără stâlp",
+      "name_ro": "Profil colț fără stâlp",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 944,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 10,
+      "code": "M6377",
+      "name": "Capac profil colț",
+      "name_ro": "Capac profil colț",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 127,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 11,
+      "code": "INOX-ADAPT",
+      "name": "Adaptor inox pentru prag",
+      "name_ro": "Adaptor inox prag",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 113,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 12,
+      "code": "M7524",
+      "name": "Profil prag suplimentar",
+      "name_ro": "Profil prag suplimentar",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 13,
+      "code": "12039",
+      "name": "Profil fix sliding",
+      "name_ro": "Profil fix sliding",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 431,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 14,
+      "code": "12061",
+      "name": "Profil garnitură fix",
+      "name_ro": "Profil garnitură fix",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 175,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 15,
+      "code": "12069",
+      "name": "Profil fix sticlă garnitură",
+      "name_ro": "Profil fix sticlă garnitură",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 16,
+      "code": "M6822",
+      "name": "Profil intermediar 5 canale",
+      "name_ro": "Profil intermediar 5 canale",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 716,
+      "family": "5rail",
+      "active": "Y"
+    },
+    {
+      "id": 17,
+      "code": "M6819",
+      "name": "Profil colț 5 canale",
+      "name_ro": "Profil colț 5 canale",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 1231,
+      "family": "5rail",
+      "active": "Y"
+    },
+    {
+      "id": 18,
+      "code": "M6292",
+      "name": "Profil superior 5 canale",
+      "name_ro": "Profil superior 5 canale",
+      "category": "profile",
+      "unit": "m",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 1436,
+      "family": "5rail",
+      "active": "Y"
+    },
+    {
+      "id": 50,
+      "code": "6778",
+      "name": "Mecanism sliding (1 lăcată, 180°)",
+      "name_ro": "Mecanism sliding",
+      "category": "accessory",
+      "unit": "set",
+      "unit_price": 210,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 51,
+      "code": "10038",
+      "name": "Mâner sliding fără cheie (negru)",
+      "name_ro": "Mâner fără cheie",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 155,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 52,
+      "code": "10037",
+      "name": "Mâner sliding cu cheie (negru)",
+      "name_ro": "Mâner cu cheie",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 300,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 53,
+      "code": "6777",
+      "name": "EPDM cauciuc sliding",
+      "name_ro": "EPDM cauciuc",
+      "category": "accessory",
+      "unit": "m",
+      "unit_price": 8,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 54,
+      "code": "6775",
+      "name": "Perie 48x480 panorama sliding",
+      "name_ro": "Perie 48x480",
+      "category": "accessory",
+      "unit": "m",
+      "unit_price": 7,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 55,
+      "code": "6776",
+      "name": "Perie 550 sliding",
+      "name_ro": "Perie 550",
+      "category": "accessory",
+      "unit": "m",
+      "unit_price": 8,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 56,
+      "code": "8983",
+      "name": "Conector plastic terminație (R/L)",
+      "name_ro": "Conector plastic terminație",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 40,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 57,
+      "code": "7953",
+      "name": "Accesorii rotile+plastic 3 canale",
+      "name_ro": "Set accesorii rotile 3 canale",
+      "category": "accessory",
+      "unit": "set",
+      "unit_price": 2800,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "3rail",
+      "active": "Y"
+    },
+    {
+      "id": 58,
+      "code": "EM07300010",
+      "name": "Centrare sliding",
+      "name_ro": "Centrare sliding",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 59,
+      "code": "EM07300011",
+      "name": "Roată sliding dublă",
+      "name_ro": "Roată sliding dublă",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 60,
+      "code": "EM06100145",
+      "name": "Capac plastic stâlp inferior",
+      "name_ro": "Capac plastic stâlp inferior",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 61,
+      "code": "EM06100151",
+      "name": "Plastic intermediar inferior TEKCAM",
+      "name_ro": "Plastic intermediar inferior TEKCAM",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "tekcam",
+      "active": "Y"
+    },
+    {
+      "id": 62,
+      "code": "EM06100152",
+      "name": "Plastic intermediar superior TEKCAM",
+      "name_ro": "Plastic intermediar superior TEKCAM",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "tekcam",
+      "active": "Y"
+    },
+    {
+      "id": 63,
+      "code": "EM06100141",
+      "name": "Mâner superior TEKCAM negru",
+      "name_ro": "Mâner superior TEKCAM",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "tekcam",
+      "active": "Y"
+    },
+    {
+      "id": 64,
+      "code": "EM06100140",
+      "name": "Mâner inferior TEKCAM negru",
+      "name_ro": "Mâner inferior TEKCAM",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "tekcam",
+      "active": "Y"
+    },
+    {
+      "id": 65,
+      "code": "EM06100142",
+      "name": "Scurgere apă 3 canale",
+      "name_ro": "Scurgere apă 3 canale",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "3rail",
+      "active": "Y"
+    },
+    {
+      "id": 66,
+      "code": "EM07100095",
+      "name": "Placă colț sudată 3 canale",
+      "name_ro": "Placă colț sudată 3 canale",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "3rail",
+      "active": "Y"
+    },
+    {
+      "id": 67,
+      "code": "EM09100003",
+      "name": "Fix All High Tack 290ml",
+      "name_ro": "Sigilant Fix All 290ml",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 68,
+      "code": "EM06100331",
+      "name": "Capac lateral prag",
+      "name_ro": "Capac lateral prag",
+      "category": "accessory",
+      "unit": "set",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 69,
+      "code": "EM06100146",
+      "name": "Plastic scurgere apă ISICAM",
+      "name_ro": "Plastic scurgere ISICAM",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "isicam",
+      "active": "Y"
+    },
+    {
+      "id": 70,
+      "code": "EM06100147",
+      "name": "Plastic inferior ISICAM",
+      "name_ro": "Plastic inferior ISICAM",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "isicam",
+      "active": "Y"
+    },
+    {
+      "id": 71,
+      "code": "EM06100148",
+      "name": "Plastic superior ISICAM",
+      "name_ro": "Plastic superior ISICAM",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "isicam",
+      "active": "Y"
+    },
+    {
+      "id": 72,
+      "code": "EM07100094",
+      "name": "Metal colț ISICAM",
+      "name_ro": "Metal colț ISICAM",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "isicam",
+      "active": "Y"
+    },
+    {
+      "id": 73,
+      "code": "EM06100153",
+      "name": "Plastic scurgere TEKCAM",
+      "name_ro": "Plastic scurgere TEKCAM",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "tekcam",
+      "active": "Y"
+    },
+    {
+      "id": 74,
+      "code": "EM07100096",
+      "name": "Placă colț TEKCAM laser",
+      "name_ro": "Placă colț TEKCAM laser",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "tekcam",
+      "active": "Y"
+    },
+    {
+      "id": 75,
+      "code": "EM06100143",
+      "name": "Plastic îmbinare centrală TEKCAM",
+      "name_ro": "Plastic îmbinare TEKCAM",
+      "category": "accessory",
+      "unit": "buc",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "tekcam",
+      "active": "Y"
+    },
+    {
+      "id": 80,
+      "code": "EM05100011",
+      "name": "Sticlă TEKCAM 10mm transparentă",
+      "name_ro": "Sticlă TEKCAM 10mm transparentă",
+      "category": "glass",
+      "unit": "m2",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "tekcam",
+      "active": "Y"
+    },
+    {
+      "id": 81,
+      "code": "EM05300037",
+      "name": "Sticlă ISICAM termoizolantă",
+      "name_ro": "Sticlă ISICAM termoizolantă",
+      "category": "glass",
+      "unit": "m2",
+      "unit_price": 0,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "isicam",
+      "active": "Y"
+    },
+    {
+      "id": 90,
+      "code": "SRV-PAINT",
+      "name": "Vopsire RAL",
+      "name_ro": "Vopsire RAL",
+      "category": "service",
+      "unit": "m2",
+      "unit_price": 200,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 91,
+      "code": "SRV-ASSEMBLY",
+      "name": "Asamblare",
+      "name_ro": "Asamblare",
+      "category": "service",
+      "unit": "serviciu",
+      "unit_price": 200,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    },
+    {
+      "id": 92,
+      "code": "SRV-INSTALL",
+      "name": "Montaj",
+      "name_ro": "Montaj",
+      "category": "service",
+      "unit": "serviciu",
+      "unit_price": 200,
+      "currency": "MDL",
+      "weight_g_per_m": 0,
+      "family": "common",
+      "active": "Y"
+    }
+  ],
+  "sliding_settings": {
+    "currency": "MDL",
+    "glass_rate_matrix": {
+      "TEKCAM": {
+        "transparent_8mm": 0,
+        "transparent_10mm": 0,
+        "tinted_8mm": 0,
+        "tinted_10mm": 0,
+        "matte_8mm": 0,
+        "matte_10mm": 0
+      },
+      "ISICAM": {
+        "transparent_8mm": 0,
+        "transparent_10mm": 0,
+        "tinted_8mm": 0,
+        "tinted_10mm": 0,
+        "matte_8mm": 0,
+        "matte_10mm": 0
+      }
+    },
+    "assembly_rate": 200,
+    "assembly_basis": "perimeter",
+    "installation_rate": 200,
+    "installation_basis": "perimeter",
+    "painting_rate_m2": 200,
+    "markup_percent": 18.0,
+    "waste_percent": 7.0,
+    "exchange_rate_mdl_to_usd": 0.056,
+    "system_types": [
+      "TEKCAM",
+      "ISICAM"
+    ],
+    "glass_finishes": [
+      "transparent",
+      "tinted",
+      "matte"
+    ],
+    "glass_thicknesses": [
+      "8mm",
+      "10mm"
+    ],
+    "colors": [
+      "Antracit",
+      "Alb",
+      "Negru",
+      "Imitație lemn",
+      "RAL individual"
+    ]
+  },
+  "sliding_variants": {
+    "3rail_3panel": {
+      "family": "3rail",
+      "panels": "3",
+      "label": "3 Rail / 3 Panel",
+      "width_min_mm": 1500,
+      "width_max_mm": 3750,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 11,
+      "max_panel_width_mm": 1200,
+      "profiles": {
+        "M6332": {
+          "desc": "Profil superior 3 canale",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag plat",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6334": {
+          "desc": "Profil vertical perete",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -90.4,
+          "panel_offsets": {
+            "A": -90.4,
+            "B": -58.5
+          }
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -90.4,
+          "panel_offsets": {
+            "A": -90.4,
+            "B": -58.5
+          }
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 4,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {
+        "M7524": {
+          "desc": "Prag suplimentar",
+          "condition": "threshold",
+          "pieces": 1,
+          "length_mm": 15
+        }
+      },
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 6
+        },
+        "EM07300011": {
+          "qty": 6
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100151": {
+          "qty": 4
+        },
+        "EM06100152": {
+          "qty": 4
+        },
+        "EM06100141": {
+          "qty": 2
+        },
+        "EM06100140": {
+          "qty": 2
+        },
+        "EM06100142": {
+          "qty": 2
+        },
+        "EM07100095": {
+          "qty": 2
+        },
+        "EM09100003": {
+          "qty": 3
+        },
+        "EM06100331": {
+          "qty": 1,
+          "condition": "threshold"
+        }
+      }
+    },
+    "3rail_2panel": {
+      "family": "3rail",
+      "panels": "2",
+      "label": "3 Rail / 2 Panel",
+      "width_min_mm": 1500,
+      "width_max_mm": 3750,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 11,
+      "max_panel_width_mm": 1200,
+      "profiles": {
+        "M6332": {
+          "desc": "Profil superior 3 canale",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag plat",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6334": {
+          "desc": "Profil vertical perete",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -115
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -115
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -122
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -124
+        },
+        "12039": {
+          "desc": "Profil fix",
+          "pieces": 1,
+          "length_mm": 68
+        },
+        "12061": {
+          "desc": "Garnitură fix",
+          "pieces": 1,
+          "length_mm": 4
+        }
+      },
+      "optional_profiles": {
+        "M7524": {
+          "desc": "Prag suplimentar",
+          "condition": "threshold",
+          "pieces": 1,
+          "length_mm": 15
+        }
+      },
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 4
+        },
+        "EM07300011": {
+          "qty": 4
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100151": {
+          "qty": 2
+        },
+        "EM06100152": {
+          "qty": 2
+        },
+        "EM06100141": {
+          "qty": 2
+        },
+        "EM06100140": {
+          "qty": 2
+        },
+        "EM06100142": {
+          "qty": 2
+        },
+        "EM07100095": {
+          "qty": 0
+        },
+        "EM09100003": {
+          "qty": 3
+        },
+        "EM06100331": {
+          "qty": 1,
+          "condition": "threshold"
+        }
+      }
+    },
+    "3rail_3plus3": {
+      "family": "3rail",
+      "panels": "3+3",
+      "label": "3 Rail / 3+3 Panel (double)",
+      "width_min_mm": 1500,
+      "width_max_mm": 3750,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 11,
+      "max_panel_width_mm": 1200,
+      "is_double": true,
+      "profiles": {
+        "M6332": {
+          "desc": "Profil superior 3 canale",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag plat",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6334": {
+          "desc": "Profil vertical perete",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "M6313": {
+          "desc": "Profil central mare",
+          "pieces": 1,
+          "length_basis": "H",
+          "length_offset_mm": -122
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -81
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -81
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -122
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 4,
+          "length_basis": "H",
+          "length_offset_mm": -124
+        }
+      },
+      "optional_profiles": {},
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 12
+        },
+        "EM07300011": {
+          "qty": 12
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100151": {
+          "qty": 8
+        },
+        "EM06100152": {
+          "qty": 8
+        },
+        "EM06100141": {
+          "qty": 4
+        },
+        "EM06100140": {
+          "qty": 4
+        },
+        "EM06100142": {
+          "qty": 4
+        },
+        "EM07100095": {
+          "qty": 4
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "3rail_2plus2": {
+      "family": "3rail",
+      "panels": "2+2",
+      "label": "3 Rail / 2+2 Panel (double with fix)",
+      "width_min_mm": 1500,
+      "width_max_mm": 3750,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 11,
+      "max_panel_width_mm": 1200,
+      "is_double": true,
+      "profiles": {
+        "M6332": {
+          "desc": "Profil superior 3 canale",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag plat",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6334": {
+          "desc": "Profil vertical perete",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "M6313": {
+          "desc": "Profil central mare",
+          "pieces": 1,
+          "length_basis": "H",
+          "length_offset_mm": -122
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -115
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -115
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -122
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 4,
+          "length_basis": "H",
+          "length_offset_mm": -124
+        },
+        "12061": {
+          "desc": "Garnitură fix",
+          "pieces": 1,
+          "length_mm": 4
+        },
+        "12069": {
+          "desc": "Fix sticlă garnitură",
+          "pieces": 1,
+          "length_mm": 72
+        }
+      },
+      "optional_profiles": {},
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 8
+        },
+        "EM07300011": {
+          "qty": 8
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100151": {
+          "qty": 4
+        },
+        "EM06100152": {
+          "qty": 4
+        },
+        "EM06100141": {
+          "qty": 4
+        },
+        "EM06100140": {
+          "qty": 4
+        },
+        "EM06100142": {
+          "qty": 4
+        },
+        "EM07100095": {
+          "qty": 0
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "5rail_5panel": {
+      "family": "5rail",
+      "panels": "5",
+      "label": "5 Rail / 5 Panel",
+      "width_min_mm": 2500,
+      "width_max_mm": 6000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 18,
+      "max_panel_width_mm": 1200,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior 5 canale",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag plat",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical perete 5 canale",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -90.4
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -90.4
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 8,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {
+        "M7524": {
+          "desc": "Prag suplimentar",
+          "condition": "threshold",
+          "pieces": 1,
+          "length_mm": 15
+        }
+      },
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 10
+        },
+        "EM07300011": {
+          "qty": 10
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100151": {
+          "qty": 8
+        },
+        "EM06100152": {
+          "qty": 8
+        },
+        "EM06100141": {
+          "qty": 2
+        },
+        "EM06100140": {
+          "qty": 2
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "5rail_4panel": {
+      "family": "5rail",
+      "panels": "4",
+      "label": "5 Rail / 4 Panel",
+      "width_min_mm": 2500,
+      "width_max_mm": 6000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 18,
+      "max_panel_width_mm": 1200,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior 5 canale",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag plat",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical perete 5 canale",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -90.4
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -90.4
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 6,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {
+        "M7524": {
+          "desc": "Prag suplimentar",
+          "condition": "threshold",
+          "pieces": 1,
+          "length_mm": 15
+        }
+      },
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 8
+        },
+        "EM07300011": {
+          "qty": 8
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100151": {
+          "qty": 6
+        },
+        "EM06100152": {
+          "qty": 6
+        },
+        "EM06100141": {
+          "qty": 2
+        },
+        "EM06100140": {
+          "qty": 2
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "5rail_3panel": {
+      "family": "5rail",
+      "panels": "3",
+      "label": "5 Rail / 3 Panel",
+      "width_min_mm": 2500,
+      "width_max_mm": 6000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 18,
+      "max_panel_width_mm": 1200,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior 5 canale",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag plat",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical perete 5 canale",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -90.4
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -90.4
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 4,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {
+        "M7524": {
+          "desc": "Prag suplimentar",
+          "condition": "threshold",
+          "pieces": 1,
+          "length_mm": 15
+        }
+      },
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 6
+        },
+        "EM07300011": {
+          "qty": 6
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100151": {
+          "qty": 4
+        },
+        "EM06100152": {
+          "qty": 4
+        },
+        "EM06100141": {
+          "qty": 2
+        },
+        "EM06100140": {
+          "qty": 2
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "5rail_2panel": {
+      "family": "5rail",
+      "panels": "2",
+      "label": "5 Rail / 2 Panel",
+      "width_min_mm": 2500,
+      "width_max_mm": 6000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 18,
+      "max_panel_width_mm": 1200,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior 5 canale",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag plat",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical perete 5 canale",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -115
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -115
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {
+        "M7524": {
+          "desc": "Prag suplimentar",
+          "condition": "threshold",
+          "pieces": 1,
+          "length_mm": 15
+        }
+      },
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 4
+        },
+        "EM07300011": {
+          "qty": 4
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100151": {
+          "qty": 2
+        },
+        "EM06100152": {
+          "qty": 2
+        },
+        "EM06100141": {
+          "qty": 2
+        },
+        "EM06100140": {
+          "qty": 2
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "5rail_5plus5": {
+      "family": "5rail",
+      "panels": "5+5",
+      "label": "5 Rail / 5+5 Panel (double)",
+      "width_min_mm": 2500,
+      "width_max_mm": 6000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 18,
+      "max_panel_width_mm": 1200,
+      "is_double": true,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior 5 canale",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag plat",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical perete 5 canale",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "M6313": {
+          "desc": "Profil central mare",
+          "pieces": 1,
+          "length_basis": "H",
+          "length_offset_mm": -122
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -81
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -81
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 16,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {},
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 20
+        },
+        "EM07300011": {
+          "qty": 20
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100151": {
+          "qty": 16
+        },
+        "EM06100152": {
+          "qty": 16
+        },
+        "EM06100141": {
+          "qty": 4
+        },
+        "EM06100140": {
+          "qty": 4
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "5rail_4plus4": {
+      "family": "5rail",
+      "panels": "4+4",
+      "label": "5 Rail / 4+4 Panel (double)",
+      "width_min_mm": 2500,
+      "width_max_mm": 6000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 18,
+      "max_panel_width_mm": 1200,
+      "is_double": true,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior 5 canale",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag plat",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical perete 5 canale",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "M6313": {
+          "desc": "Profil central mare",
+          "pieces": 1,
+          "length_basis": "H",
+          "length_offset_mm": -122
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -81
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -81
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 12,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {},
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 16
+        },
+        "EM07300011": {
+          "qty": 16
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100151": {
+          "qty": 12
+        },
+        "EM06100152": {
+          "qty": 12
+        },
+        "EM06100141": {
+          "qty": 4
+        },
+        "EM06100140": {
+          "qty": 4
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "5rail_3plus3": {
+      "family": "5rail",
+      "panels": "3+3",
+      "label": "5 Rail / 3+3 Panel (double)",
+      "width_min_mm": 2500,
+      "width_max_mm": 6000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 18,
+      "max_panel_width_mm": 1200,
+      "is_double": true,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior 5 canale",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag plat",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical perete 5 canale",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "M6313": {
+          "desc": "Profil central mare",
+          "pieces": 1,
+          "length_basis": "H",
+          "length_offset_mm": -122
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -81
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -81
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 8,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {},
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 12
+        },
+        "EM07300011": {
+          "qty": 12
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100151": {
+          "qty": 8
+        },
+        "EM06100152": {
+          "qty": 8
+        },
+        "EM06100141": {
+          "qty": 4
+        },
+        "EM06100140": {
+          "qty": 4
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "5rail_2plus2": {
+      "family": "5rail",
+      "panels": "2+2",
+      "label": "5 Rail / 2+2 Panel (double)",
+      "width_min_mm": 2500,
+      "width_max_mm": 6000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 18,
+      "max_panel_width_mm": 1200,
+      "is_double": true,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior 5 canale",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag plat",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical perete 5 canale",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "M6313": {
+          "desc": "Profil central mare",
+          "pieces": 1,
+          "length_basis": "H",
+          "length_offset_mm": -122
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -115
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -115
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 4,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {},
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 8
+        },
+        "EM07300011": {
+          "qty": 8
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100151": {
+          "qty": 4
+        },
+        "EM06100152": {
+          "qty": 4
+        },
+        "EM06100141": {
+          "qty": 4
+        },
+        "EM06100140": {
+          "qty": 4
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "thermal_4panel": {
+      "family": "thermal",
+      "panels": "4",
+      "label": "Thermal / 4 Panel",
+      "width_min_mm": 2000,
+      "width_max_mm": 5000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 15,
+      "max_panel_width_mm": 1200,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior termic",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical termic",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -90.4
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -90.4
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 6,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {},
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 8
+        },
+        "EM07300011": {
+          "qty": 8
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100147": {
+          "qty": 6
+        },
+        "EM06100148": {
+          "qty": 6
+        },
+        "EM07100094": {
+          "qty": 4
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "thermal_3panel": {
+      "family": "thermal",
+      "panels": "3",
+      "label": "Thermal / 3 Panel",
+      "width_min_mm": 2000,
+      "width_max_mm": 5000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 15,
+      "max_panel_width_mm": 1200,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior termic",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical termic",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -90.4
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -90.4
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 4,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {},
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 6
+        },
+        "EM07300011": {
+          "qty": 6
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100147": {
+          "qty": 4
+        },
+        "EM06100148": {
+          "qty": 4
+        },
+        "EM07100094": {
+          "qty": 4
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "thermal_2panel": {
+      "family": "thermal",
+      "panels": "2",
+      "label": "Thermal / 2 Panel",
+      "width_min_mm": 2000,
+      "width_max_mm": 5000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 15,
+      "max_panel_width_mm": 1200,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior termic",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical termic",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -115
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -115
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {},
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 4
+        },
+        "EM07300011": {
+          "qty": 4
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100147": {
+          "qty": 2
+        },
+        "EM06100148": {
+          "qty": 2
+        },
+        "EM07100094": {
+          "qty": 4
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "thermal_4plus4": {
+      "family": "thermal",
+      "panels": "4+4",
+      "label": "Thermal / 4+4 Panel (double)",
+      "width_min_mm": 2000,
+      "width_max_mm": 5000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 15,
+      "max_panel_width_mm": 1200,
+      "is_double": true,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior termic",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical termic",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "M6313": {
+          "desc": "Profil central",
+          "pieces": 1,
+          "length_basis": "H",
+          "length_offset_mm": -122
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -81
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -81
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 12,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {},
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 16
+        },
+        "EM07300011": {
+          "qty": 16
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100147": {
+          "qty": 12
+        },
+        "EM06100148": {
+          "qty": 12
+        },
+        "EM07100094": {
+          "qty": 4
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "thermal_3plus3": {
+      "family": "thermal",
+      "panels": "3+3",
+      "label": "Thermal / 3+3 Panel (double)",
+      "width_min_mm": 2000,
+      "width_max_mm": 5000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 15,
+      "max_panel_width_mm": 1200,
+      "is_double": true,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior termic",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical termic",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "M6313": {
+          "desc": "Profil central",
+          "pieces": 1,
+          "length_basis": "H",
+          "length_offset_mm": -122
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -81
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -81
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 8,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {},
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 12
+        },
+        "EM07300011": {
+          "qty": 12
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100147": {
+          "qty": 8
+        },
+        "EM06100148": {
+          "qty": 8
+        },
+        "EM07100094": {
+          "qty": 4
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    },
+    "thermal_2plus2": {
+      "family": "thermal",
+      "panels": "2+2",
+      "label": "Thermal / 2+2 Panel (double)",
+      "width_min_mm": 2000,
+      "width_max_mm": 5000,
+      "height_min_mm": 1000,
+      "height_max_mm": 3000,
+      "max_area_m2": 15,
+      "max_panel_width_mm": 1200,
+      "is_double": true,
+      "profiles": {
+        "M6292": {
+          "desc": "Profil superior termic",
+          "pieces": 1,
+          "length_offset_mm": -110
+        },
+        "M6333": {
+          "desc": "Profil prag",
+          "pieces": 1,
+          "length_offset_mm": -142
+        },
+        "M6822": {
+          "desc": "Profil vertical termic",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -19
+        },
+        "M6313": {
+          "desc": "Profil central",
+          "pieces": 1,
+          "length_basis": "H",
+          "length_offset_mm": -122
+        },
+        "11574": {
+          "desc": "Profil sup fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -115
+        },
+        "11579": {
+          "desc": "Profil inf fixare sticlă",
+          "per_panel": true,
+          "length_basis": "panel_w",
+          "length_offset_mm": -115
+        },
+        "M6305": {
+          "desc": "Profil vertical sticlă",
+          "pieces": 2,
+          "length_basis": "H",
+          "length_offset_mm": -137
+        },
+        "11646": {
+          "desc": "Profil conexiune sticlă",
+          "pieces": 4,
+          "length_basis": "H",
+          "length_offset_mm": -139
+        }
+      },
+      "optional_profiles": {},
+      "accessory_formulas": {
+        "EM07300010": {
+          "qty": 8
+        },
+        "EM07300011": {
+          "qty": 8
+        },
+        "EM06100145": {
+          "qty": 2
+        },
+        "EM06100147": {
+          "qty": 4
+        },
+        "EM06100148": {
+          "qty": 4
+        },
+        "EM07100094": {
+          "qty": 4
+        },
+        "EM09100003": {
+          "qty": 3
+        }
+      }
+    }
+  },
+  "next_sliding_material_id": 100
+}

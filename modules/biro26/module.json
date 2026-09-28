@@ -1,0 +1,23 @@
+{
+  "title": {"ru": "Biro26 — магазин и бэк-офис", "ro": "Biro26 — magazin și back-office", "en": "Biro26 — shop & back office"},
+  "icon": "🛒",
+  "order": 20,
+  "url": "/UNA.md/orasldev/biro26",
+  "sql_prefix": "TMS_, TMDB_",
+  "descr": "Витрина, корзина, кредитование, отчёты, интеграции",
+  "pages": {
+    "biro26": "Панель модуля",
+    "biro26-site": "Витрина магазина",
+    "biro26-shop": "Каталог",
+    "biro26-backoffice": "Бэк-офис",
+    "biro26-admin": "Администрирование",
+    "biro26-credit-admin": "Кредитование: настройки",
+    "biro26-credite-docs": "Кредитные документы",
+    "biro26-report-templates": "Шаблоны отчётов",
+    "biro26-pdfme-designer": "Визуальный редактор форм",
+    "biro26-journal": "Журнал",
+    "biro26-integration-log": "Лог интеграций",
+    "biro26-docs": "Документация",
+    "biro26-tz": "Техническое задание"
+  }
+}

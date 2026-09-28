@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бизнес-процесс: Управление строительными работами и материалами</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            min-height: 100vh;
+        }
+        .header {
+            background: linear-gradient(135deg, #16213e, #0f3460);
+            padding: 20px 30px;
+            border-bottom: 2px solid #e94560;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .header h1 {
+            font-size: 1.3rem;
+            color: #fff;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .controls button {
+            padding: 8px 16px;
+            border: 1px solid #e94560;
+            background: transparent;
+            color: #e94560;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        .controls button:hover, .controls button.active {
+            background: #e94560;
+            color: #fff;
+        }
+        .diagram-container {
+            padding: 20px;
+            overflow: auto;
+            display: flex;
+            justify-content: center;
+        }
+        .mermaid {
+            background: #fff;
+            border-radius: 12px;
+            padding: 30px;
+            min-width: 900px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        .legend {
+            padding: 15px 30px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: 1px solid #555;
+        }
+        #tooltip {
+            display: none;
+            position: fixed;
+            background: #16213e;
+            border: 1px solid #e94560;
+            border-radius: 8px;
+            padding: 12px 16px;
+            max-width: 300px;
+            font-size: 0.85rem;
+            z-index: 1000;
+            pointer-events: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+        #tooltip h4 { color: #e94560; margin-bottom: 6px; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>📋 Бизнес-процесс: Управление строительными работами и материалами</h1>
+    <div class="controls">
+        <button id="btnFull" class="active" onclick="showDiagram('full')">Полная схема</button>
+        <button id="btnTop" onclick="showDiagram('top')">Верхний поток</button>
+        <button id="btnBottom" onclick="showDiagram('bottom')">Нижний поток</button>
+        <button id="btnZoomIn" onclick="zoom(1.2)">🔍+</button>
+        <button id="btnZoomOut" onclick="zoom(0.8)">🔍−</button>
+        <button id="btnReset" onclick="zoom(0)">↺ Сброс</button>
+    </div>
+</div>
+
+<div class="legend">
+    <div class="legend-item"><div class="legend-color" style="background:#e8f5e9;border-color:#4caf50"></div> Актор / Начало</div>
+    <div class="legend-item"><div class="legend-color" style="background:#e3f2fd;border-color:#2196f3"></div> Процессы</div>
+    <div class="legend-item"><div class="legend-color" style="background:#fff3e0;border-color:#ff9800"></div> Документы (Deviz/Смета)</div>
+    <div class="legend-item"><div class="legend-color" style="background:#fce4ec;border-color:#e91e63"></div> Материалы / Поставка</div>
+    <div class="legend-item"><div class="legend-color" style="background:#f3e5f5;border-color:#9c27b0"></div> Закрытие / Акты</div>
+</div>
+
+<div class="diagram-container" id="diagramContainer">
+    <div class="mermaid" id="mermaidDiagram"></div>
+</div>
+
+<div id="tooltip"><h4 id="ttTitle"></h4><p id="ttDesc"></p></div>
+
+<script>
+mermaid.initialize({
+    startOnLoad: false,
+    theme: 'base',
+    themeVariables: {
+        primaryColor: '#e3f2fd',
+        primaryBorderColor: '#2196f3',
+        primaryTextColor: '#1a1a2e',
+        lineColor: '#555',
+        fontSize: '13px'
+    },
+    flowchart: {
+        htmlLabels: true,
+        curve: 'basis',
+        nodeSpacing: 30,
+        rankSpacing: 50,
+        padding: 15
+    }
+});
+
+const diagrams = {
+    full: `
+flowchart LR
+    classDef actor fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#1b5e20
+    classDef process fill:#e3f2fd,stroke:#2196f3,stroke-width:2px,color:#0d47a1
+    classDef document fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100
+    classDef material fill:#fce4ec,stroke:#e91e63,stroke-width:2px,color:#880e4f
+    classDef closing fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#4a148c
+    classDef contract fill:#fffde7,stroke:#fbc02d,stroke-width:2px,color:#f57f17
+
+    A(["👤 Заказчик<br/>заказывает работы"]):::actor
+    B["📄 Заказ на работы<br/>(контракт)"]:::contract
+    C["⚙️ В WinCmeta<br/>генерируется<br/>смета работ"]:::process
+    D>"📋 Deviz local<br/>Смета"]:::document
+    E["⚙️ В WinCmeta<br/>генерируется<br/>смета ресурсов"]:::process
+    F>"📋 Deviz local de<br/>resurse Смета<br/>ресурсов F3"]:::document
+    G["👷 Прораб создает<br/>заявку на материалы<br/>согласно смете"]:::process
+    H["📝 Заявка на<br/>материалы"]:::material
+    I["🚚 Поставка<br/>материалов<br/>на объект"]:::material
+    J["📦 Материалы"]:::material
+    K["📝 Списание<br/>материалов<br/>на объекте"]:::material
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+    I --> J
+    J --> K
+
+    CONTRACT["📄 Contract<br/>Изменение условий"]:::contract
+    EXTRA["⚙️ В WinCmeta<br/>доп. объем работ"]:::process
+    F7>"📋 Deviz local F7"]:::document
+    F5>"📋 Catalog de<br/>preturi F5"]:::document
+    F3TOP>"📋 Deviz local de<br/>resurse F3"]:::document
+    ZAYVKA_TOP["📝 Заявка на<br/>материалы"]:::material
+
+    CONTRACT -.-> EXTRA
+    EXTRA -.-> D
+    F7 -.-> D
+    F5 -.-> E
+    F3TOP -.-> F
+    ZAYVKA_TOP -.-> H
+
+    B -->|"Заказчик утверждает<br/>смету работ"| C
+
+    NEED["📊 Потребность<br/>в материалах"]:::material
+    RASHOD["📝 Расходный<br/>ордер"]:::closing
+    CLOSE_WORK["🔒 Закрытие<br/>работ"]:::closing
+    PV_ACT["📄 Proces Verbal<br/>Акт выполненных<br/>работ"]:::closing
+    PV_F21>"📄 Proces Verbal<br/>F21"]:::document
+    WRITE_OFF["📝 Списание<br/>материалов в<br/>бухгалтерии"]:::closing
+    ACT_WRITE["📄 Акт списания<br/>материалов"]:::closing
+    COMPARE["📊 Сопоставление<br/>плановых и<br/>фактических<br/>материалов"]:::process
+    ORDER_CLOSE(["✅ Закрытие<br/>заказа"]):::actor
+
+    F -.-> NEED
+    J -.-> RASHOD
+    RASHOD --> CLOSE_WORK
+    CLOSE_WORK --> PV_ACT
+    PV_F21 -.-> PV_ACT
+    PV_ACT --> WRITE_OFF
+    WRITE_OFF --> ACT_WRITE
+    ACT_WRITE --> COMPARE
+    K -.-> COMPARE
+    COMPARE --> ORDER_CLOSE
+
+    PV_ACT -->|"Заказ закрыт<br/>частично"| RASHOD
+`,
+    top: `
+flowchart LR
+    classDef actor fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#1b5e20
+    classDef process fill:#e3f2fd,stroke:#2196f3,stroke-width:2px,color:#0d47a1
+    classDef document fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100
+    classDef material fill:#fce4ec,stroke:#e91e63,stroke-width:2px,color:#880e4f
+    classDef contract fill:#fffde7,stroke:#fbc02d,stroke-width:2px,color:#f57f17
+
+    A(["👤 Заказчик<br/>заказывает работы"]):::actor
+    B["📄 Заказ на работы<br/>(контракт)"]:::contract
+    C["⚙️ В WinCmeta<br/>генерируется<br/>смета работ"]:::process
+    D>"📋 Deviz local<br/>Смета"]:::document
+    E["⚙️ В WinCmeta<br/>генерируется<br/>смета ресурсов"]:::process
+    F>"📋 Deviz local de<br/>resurse Смета<br/>ресурсов F3"]:::document
+    G["👷 Прораб создает<br/>заявку на материалы<br/>согласно смете"]:::process
+    H["📝 Заявка на<br/>материалы"]:::material
+    I["🚚 Поставка<br/>материалов<br/>на объект"]:::material
+    J["📦 Материалы"]:::material
+    K["📝 Списание<br/>материалов<br/>на объекте"]:::material
+
+    A --> B
+    B -->|"Заказчик утверждает смету"| C
+    C --> D
+    D --> E
+    E --> F
+    F --> G
+    G --> H
+    H --> I
+    I --> J
+    J --> K
+
+    CONTRACT["📄 Contract<br/>Изменение условий"]:::contract
+    EXTRA["⚙️ Доп. объем работ"]:::process
+    F7>"📋 Deviz local F7"]:::document
+    F5>"📋 Catalog de preturi F5"]:::document
+
+    CONTRACT -.-> EXTRA
+    EXTRA -.-> D
+    F7 -.-> D
+    F5 -.-> E
+`,
+    bottom: `
+flowchart LR
+    classDef process fill:#e3f2fd,stroke:#2196f3,stroke-width:2px,color:#0d47a1
+    classDef document fill:#fff3e0,stroke:#ff9800,stroke-width:2px,color:#e65100
+    classDef material fill:#fce4ec,stroke:#e91e63,stroke-width:2px,color:#880e4f
+    classDef closing fill:#f3e5f5,stroke:#9c27b0,stroke-width:2px,color:#4a148c
+    classDef actor fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,color:#1b5e20
+
+    NEED["📊 Потребность<br/>в материалах"]:::material
+    RASHOD["📝 Расходный<br/>ордер"]:::closing
+    CLOSE_WORK["🔒 Закрытие<br/>работ"]:::closing
+    PV_ACT["📄 Proces Verbal<br/>Акт выполненных<br/>работ"]:::closing
+    PV_F21>"📄 Proces Verbal F21"]:::document
+    WRITE_OFF["📝 Списание материалов<br/>в бухгалтерии"]:::closing
+    ACT_WRITE["📄 Акт списания<br/>материалов"]:::closing
+    COMPARE["📊 Сопоставление<br/>плановых и фактических<br/>материалов"]:::process
+    ORDER_CLOSE(["✅ Закрытие заказа"]):::actor
+
+    NEED -.-> RASHOD
+    RASHOD --> CLOSE_WORK
+    CLOSE_WORK --> PV_ACT
+    PV_F21 -.-> PV_ACT
+    PV_ACT --> WRITE_OFF
+    WRITE_OFF --> ACT_WRITE
+    ACT_WRITE --> COMPARE
+    COMPARE --> ORDER_CLOSE
+
+    PV_ACT -->|"Заказ закрыт частично"| RASHOD
+`
+};
+
+let currentScale = 1;
+
+async function showDiagram(type) {
+    document.querySelectorAll('.controls button').forEach(b => b.classList.remove('active'));
+    document.getElementById('btn' + type.charAt(0).toUpperCase() + type.slice(1)).classList.add('active');
+
+    const container = document.getElementById('mermaidDiagram');
+    container.innerHTML = '';
+    container.removeAttribute('data-processed');
+
+    const { svg } = await mermaid.render('mermaid-' + Date.now(), diagrams[type]);
+    container.innerHTML = svg;
+    currentScale = 1;
+    container.style.transform = `scale(${currentScale})`;
+    container.style.transformOrigin = 'top left';
+
+    addNodeInteractivity();
+}
+
+function zoom(factor) {
+    const container = document.getElementById('mermaidDiagram');
+    if (factor === 0) {
+        currentScale = 1;
+    } else {
+        currentScale *= factor;
+        currentScale = Math.max(0.3, Math.min(3, currentScale));
+    }
+    container.style.transform = `scale(${currentScale})`;
+    container.style.transformOrigin = 'top left';
+}
+
+const nodeDescriptions = {
+    'Заказчик': 'Инициатор процесса — клиент, который размещает заказ на выполнение строительных работ.',
+    'контракт': 'Формальное соглашение между заказчиком и исполнителем с описанием объёма и условий работ.',
+    'WinCmeta': 'Программа для автоматического формирования смет на работы и ресурсы.',
+    'Deviz': 'Локальная смета — документ с детализацией стоимости работ и ресурсов.',
+    'Прораб': 'Производитель работ, ответственный за заявки на материалы согласно утверждённой смете.',
+    'Заявка': 'Документ-запрос на поставку необходимых материалов на строительный объект.',
+    'Поставка': 'Логистический процесс доставки материалов на объект.',
+    'Материалы': 'Физические строительные материалы, доставленные на объект.',
+    'Списание': 'Процесс учёта израсходованных материалов.',
+    'Contract': 'Возможность изменения условий контракта или объёма работ.',
+    'Catalog': 'Справочник цен на материалы и ресурсы (форма F5).',
+    'Потребность': 'Расчёт необходимого количества материалов на основе сметы.',
+    'Расходный': 'Документ, подтверждающий выдачу материалов со склада.',
+    'Закрытие работ': 'Процесс завершения и приёмки выполненных работ.',
+    'Proces Verbal': 'Акт выполненных работ — документ приёмки (молдавская форма).',
+    'бухгалтерии': 'Бухгалтерское списание материалов с баланса организации.',
+    'Акт списания': 'Официальный документ о списании использованных материалов.',
+    'Сопоставление': 'Сравнение плановых (по смете) и фактически использованных материалов.',
+    'Закрытие заказа': 'Финальный этап — полное закрытие заказа после всех проверок.'
+};
+
+function addNodeInteractivity() {
+    const tooltip = document.getElementById('tooltip');
+    const ttTitle = document.getElementById('ttTitle');
+    const ttDesc = document.getElementById('ttDesc');
+
+    document.querySelectorAll('.node, .label').forEach(node => {
+        node.style.cursor = 'pointer';
+        node.addEventListener('mouseenter', (e) => {
+            const text = node.textContent || '';
+            for (const [key, desc] of Object.entries(nodeDescriptions)) {
+                if (text.includes(key)) {
+                    ttTitle.textContent = key;
+                    ttDesc.textContent = desc;
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = (e.clientX + 15) + 'px';
+                    tooltip.style.top = (e.clientY + 15) + 'px';
+                    break;
+                }
+            }
+        });
+        node.addEventListener('mousemove', (e) => {
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top = (e.clientY + 15) + 'px';
+        });
+        node.addEventListener('mouseleave', () => {
+            tooltip.style.display = 'none';
+        });
+    });
+}
+
+showDiagram('full');
+</script>
+</body>
+</html>

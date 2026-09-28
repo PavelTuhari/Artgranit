@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "artgranit",
+      "runtimeExecutable": "venv/bin/python",
+      "runtimeArgs": ["app.py"],
+      "port": 3003,
+      "autoPort": true
+    }
+  ]
+}

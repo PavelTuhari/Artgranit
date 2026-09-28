@@ -1,0 +1,16 @@
+{
+  "name": "artgranit-reports-lite",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Lite reporting sidecar: pdfme only (no jsReport/Chromium). RO: pentru servere mici / EN: for small boxes.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@pdfme/common": "^6.1.11",
+    "@pdfme/generator": "^6.1.11",
+    "@pdfme/schemas": "^6.1.11",
+    "express": "^4.21.2"
+  }
+}

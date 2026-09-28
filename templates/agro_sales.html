@@ -1,0 +1,1642 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGRO Sales</title>
+<script>if(location.search.indexOf('embed=1')!==-1)document.documentElement.classList.add('embed');</script>
+<link rel="stylesheet" href="/static/agro/scale-kiosk.css">
+<style>
+:root {
+    --primary: #e94560; --primary-dark: #d63a55; --accent: #53d769;
+    --bg: #1a1a2e; --card-bg: #16213e; --sidebar-bg: #16213e; --sidebar-text: #b0b0c8;
+    --text: #e0e0e0; --text-muted: #8888aa; --border: #0f3460;
+    --white: #fff; --danger: #e94560; --danger-bg: #dc354530;
+    --warning: #f59e0b; --warning-bg: #f59e0b22; --info: #3b82f6; --info-bg: #3b82f622;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html.embed .top-bar { display: none !important; }
+html.embed .main { height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; min-height: 100vh; }
+.top-bar { height: 48px; background: #0d0d1a; border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 16px; gap: 4px; flex-shrink: 0; position: sticky; top: 0; z-index: 100; }
+.top-bar .logo { font-size: 15px; font-weight: 700; color: var(--accent); letter-spacing: 1px; padding: 0 12px 0 4px; margin-right: 8px; }
+.top-bar .nav-item { padding: 6px 14px; border-radius: 6px; color: var(--sidebar-text); text-decoration: none; font-size: 13px; font-weight: 500; transition: background .15s, color .15s; }
+.top-bar .nav-item:hover { background: rgba(255,255,255,.08); color: var(--white); }
+.top-bar .nav-item.active { background: rgba(233,69,96,.18); color: var(--primary); font-weight: 600; }
+.top-bar .spacer { flex: 1; }
+.top-bar .back-link { padding: 6px 14px; border-radius: 6px; color: var(--text-muted); text-decoration: none; font-size: 13px; transition: color .15s; }
+.top-bar .back-link:hover { color: var(--white); }
+.main-layout { display: flex; flex: 1; overflow: hidden; }
+.sidebar { width: 200px; background: var(--sidebar-bg); color: var(--sidebar-text); flex-shrink: 0; display: flex; flex-direction: column; overflow-y: auto; max-height: calc(100vh - 48px); position: sticky; top: 48px; border-right: 1px solid var(--border); }
+.sidebar-section { padding: 14px 16px 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(255,255,255,.35); font-weight: 600; }
+.sidebar a { display: flex; align-items: center; padding: 10px 16px; color: var(--sidebar-text); text-decoration: none; font-size: 13px; transition: background .15s; border-left: 3px solid transparent; min-height: 42px; }
+.sidebar a:hover { background: rgba(255,255,255,.07); color: var(--white); }
+.sidebar a.active { background: rgba(233,69,96,.14); color: var(--white); border-left-color: var(--accent); font-weight: 600; }
+.sidebar-divider { border-top: 1px solid rgba(255,255,255,.08); margin: 8px 0; }
+.main { flex: 1; padding: 24px 32px; overflow-x: hidden; min-width: 0; overflow-y: auto; }
+.page { display: none; } .page.active { display: block; }
+.page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+.page-header h1 { font-size: 22px; color: var(--text); }
+.page-header .subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.card { background: var(--card-bg); border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 20px; margin-bottom: 20px; }
+.btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: opacity .15s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 48px; touch-action: manipulation; }
+.btn:hover { opacity: .88; } .btn:active { transform: scale(.97); }
+.btn-primary { background: var(--primary); color: var(--white); }
+.btn-accent { background: var(--accent); color: var(--white); }
+.btn-ghost { background: rgba(255,255,255,.07); color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: rgba(233,69,96,.22); color: #ff8fa3; }
+.btn-info { background: rgba(59,130,246,.22); color: #93c5fd; }
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 13px; color: var(--text-muted); margin-bottom: 4px; font-weight: 500; }
+.field input, .field select, .field textarea { width: 100%; padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px; font-size: 15px; color: var(--text); background: #1e2a45; min-height: 40px; }
+.field input:focus, .field select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(233,69,96,.18); }
+.field-row { display: flex; gap: 12px; } .field-row .field { flex: 1; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+th { background: #1e2a45; font-weight: 600; color: var(--text-muted); font-size: 12px; text-transform: uppercase; letter-spacing: .3px; position: sticky; top: 0; z-index: 1; }
+tr:hover td { background: rgba(255,255,255,.04); }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; }
+.badge-draft { background: rgba(136,136,170,.2); color: #b0b0c8; }
+.badge-confirmed { background: rgba(83,215,105,.18); color: #53d769; }
+.badge-shipped { background: rgba(59,130,246,.2); color: #93c5fd; }
+.badge-cancelled { background: rgba(233,69,96,.2); color: #ff8fa3; }
+.badge-new { background: rgba(245,158,11,.2); color: #fcd34d; }
+.badge-submitted { background: rgba(59,130,246,.2); color: #93c5fd; }
+.badge-approved { background: rgba(83,215,105,.18); color: #53d769; }
+.badge-active { background: rgba(83,215,105,.18); color: #53d769; }
+.table-wrap { overflow-x: auto; margin-top: 12px; }
+.stat-cards { display: flex; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.stat-card { flex: 1; min-width: 140px; background: var(--card-bg); border-radius: 10px; padding: 16px; box-shadow: 0 2px 6px rgba(0,0,0,.05); text-align: center; }
+.stat-card .val { font-size: 28px; font-weight: 700; color: var(--accent); }
+.stat-card .lbl { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+.doc-detail { border-left: 3px solid var(--accent); padding-left: 16px; margin-bottom: 16px; }
+.doc-detail .doc-num { font-size: 18px; font-weight: 700; color: var(--accent); }
+.doc-detail .doc-info { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.alloc-progress { height: 8px; background: rgba(255,255,255,.1); border-radius: 4px; overflow: hidden; }
+.alloc-progress .fill { height: 100%; background: var(--accent); border-radius: 4px; transition: width .3s; }
+.line-item-row { background: rgba(255,255,255,.04); border-radius: 8px; padding: 12px; margin-bottom: 8px; display: flex; gap: 10px; align-items: flex-end; }
+.line-item-row .field { margin-bottom: 0; flex: 1; }
+.toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 24px; border-radius: 10px; font-size: 15px; font-weight: 500; z-index: 2000; transform: translateY(100px); opacity: 0; transition: transform .3s, opacity .3s; color: var(--white); max-width: 400px; }
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast-success { background: var(--primary); } .toast-error { background: var(--danger); } .toast-warning { background: var(--warning); }
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--card-bg); border-radius: 14px; box-shadow: 0 20px 60px rgba(0,0,0,.5); border: 1px solid var(--border); max-width: 700px; width: 95%; padding: 24px; max-height: 90vh; overflow-y: auto; }
+.modal h2 { font-size: 18px; color: var(--text); margin-bottom: 16px; }
+.modal-actions { display: flex; gap: 10px; margin-top: 18px; justify-content: flex-end; }
+.empty { text-align: center; padding: 24px; color: var(--text-muted); }
+/* ---------- Touchscreen Weighing (from field patterns) ---------- */
+.input-weight {
+    font-size: 36px; font-weight: 700; text-align: center;
+    padding: 20px; min-height: 80px; letter-spacing: 2px; color: var(--text);
+}
+.weight-display { display: flex; gap: 16px; margin: 16px 0; }
+.weight-box {
+    flex: 1; background: #1a1a2e; border: 2px solid var(--border);
+    border-radius: 12px; padding: 16px; text-align: center;
+}
+.weight-box.net { border-color: var(--primary); background: #2a0f1e; }
+.weight-box .wlabel { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+.weight-box .wvalue { font-size: 28px; font-weight: 700; color: var(--text); }
+.btn-lg {
+    padding: 18px 36px; font-size: 20px; border-radius: 14px;
+    min-height: 60px; width: 100%; touch-action: manipulation;
+}
+.btn-weigh {
+    width: 48px; height: 48px; border: 2px solid var(--accent);
+    background: rgba(83,215,105,.1); color: #53d769; border-radius: 8px;
+    font-size: 20px; cursor: pointer; transition: all .2s;
+}
+.btn-weigh:hover { background: rgba(83,215,105,.25); transform: scale(1.05); }
+.btn-weigh:active { transform: scale(.95); }
+.btn-weigh.weighing { animation: weigh-pulse 1s infinite; border-color: #ffc107; }
+@keyframes weigh-pulse { 0%,100%{opacity:1;} 50%{opacity:.5;} }
+.wt-line-row {
+    display: grid; grid-template-columns: 40px 1.5fr 2fr 1fr 1fr 1fr 48px 40px;
+    gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border);
+    align-items: center; font-size: 15px;
+}
+.wt-line-header { font-weight: 600; font-size: 12px; color: var(--text-muted); text-transform: uppercase; }
+.sidebar-divider { border-top: 1px solid rgba(255,255,255,.08); margin: 8px 0; }
+/* ---------- Status Tabs ---------- */
+.status-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+.status-tab {
+    padding: 10px 20px;
+    border: 2px solid #333366;
+    border-radius: 10px;
+    background: #1a1a2e;
+    color: #8888aa;
+    cursor: pointer;
+    font-size: 15px;
+    font-weight: 500;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    transition: all .15s;
+    touch-action: manipulation;
+}
+.status-tab:hover { border-color: var(--accent); color: #e0e0e0; }
+.status-tab.active { border-color: var(--primary); background: #2a0f1e; color: #e94560; font-weight: 700; }
+.status-tab .tab-count {
+    background: rgba(0,0,0,.08);
+    padding: 2px 8px;
+    border-radius: 8px;
+    margin-left: 8px;
+    font-size: 12px;
+}
+/* ---------- Master-Detail Journal ---------- */
+.journal-master-detail {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 220px);
+    min-height: 400px;
+}
+.journal-master {
+    flex: 0 0 auto;
+    max-height: 45%;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-radius: 12px 12px 0 0;
+    background: var(--card-bg);
+}
+.journal-master table { margin: 0; }
+.journal-master tr.selected td {
+    background: #0f3460 !important;
+    border-left: 3px solid var(--primary);
+}
+.journal-master tr { cursor: pointer; }
+.journal-detail {
+    flex: 1;
+    overflow-y: auto;
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    background: var(--card-bg);
+    padding: 16px 20px;
+}
+.journal-detail-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-size: 16px;
+}
+.detail-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+}
+.detail-header h3 { font-size: 16px; color: #e0e0e0; }
+.detail-header .detail-status { font-size: 14px; }
+.detail-props {
+    display: flex;
+    gap: 24px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+    font-size: 14px;
+}
+.detail-props .prop { color: var(--text-muted); }
+.detail-props .prop b { color: var(--text); font-weight: 600; }
+.detail-totals {
+    display: flex;
+    gap: 20px;
+    margin-top: 12px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+    font-size: 14px;
+    justify-content: flex-end;
+}
+.detail-totals .total-item { color: var(--text-muted); }
+.detail-totals .total-item b { color: var(--accent); font-weight: 700; font-size: 16px; }
+.detail-lines-table { font-size: 13px; }
+.detail-lines-table th { font-size: 11px; background: #0a1e3d; }
+.detail-lines-table td { padding: 8px 10px; }
+/* ---------- Journal Toolbar ---------- */
+.journal-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+}
+.journal-toolbar .search-input {
+    padding: 10px 16px;
+    border: 1px solid #333366;
+    border-radius: 10px;
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-size: 15px;
+    min-width: 220px;
+    min-height: 44px;
+}
+.journal-toolbar .search-input:focus {
+    outline: none;
+    border-color: var(--primary);
+}
+/* ---------- Ship Line Grid ---------- */
+.ship-line {
+    display: grid;
+    grid-template-columns: 2fr repeat(5, 1fr) auto auto;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    font-size: 15px;
+}
+.ship-line-header {
+    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+}
+.badge-finalized { background: rgba(83,215,105,.18); color: #53d769; }
+/* Instructions panel */
+.instructions-panel { background: var(--card-bg, #12122a); border: 1px solid var(--border, #1a1a3e); border-radius: 10px; margin-bottom: 14px; overflow: hidden; }
+.instructions-toggle { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; font-size: 14px; color: var(--text-muted, #8888aa); transition: background .15s; }
+.instructions-toggle:hover { background: rgba(255,255,255,0.03); }
+.instructions-toggle .arrow { font-size: 12px; transition: transform .2s; }
+.instructions-body { display: none; padding: 0 16px 14px; font-size: 13px; line-height: 1.7; color: var(--text, #e0e0f0); }
+.instructions-body.open { display: block; }
+.instructions-body ol { padding-left: 20px; margin: 0; }
+.instructions-body li { margin-bottom: 4px; }
+@media (max-width: 900px) { .sidebar { display: none; } .main { padding: 16px; } .top-bar .nav-item { display: none; } .top-bar .nav-item.active { display: inline-flex; } }
+</style>
+</head>
+<body>
+<div class="top-bar">
+    <div class="logo">AGRO</div>
+    <a href="/UNA.md/orasldev/agro-admin" class="nav-item">Admin</a>
+    <a href="/UNA.md/orasldev/agro-field" class="nav-item">Приёмка</a>
+    <a href="/UNA.md/orasldev/agro-warehouse" class="nav-item">Склад</a>
+    <a href="/UNA.md/orasldev/agro-qa" class="nav-item">QA / HACCP</a>
+    <a href="/UNA.md/orasldev/agro-sales" class="nav-item active">Продажи</a>
+    <div class="spacer"></div>
+    <a href="/UNA.md/orasldev" class="back-link">&#8592; SQL Developer</a>
+</div>
+<div class="main-layout">
+<nav class="sidebar">
+    <div class="sidebar-section">Документы</div>
+    <a href="#documents" class="nav-link active" data-page="documents">Журнал</a>
+    <a href="#new-doc" class="nav-link" data-page="new-doc">+ Отгрузка</a>
+    <a href="#stock" class="nav-link" data-page="stock">Остатки</a>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Весы</div>
+    <a href="#weighing" class="nav-link" data-page="weighing">⚖ Весы</a>
+    <a href="#tickets" class="nav-link" data-page="tickets">Акты</a>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Экспорт</div>
+    <a href="#export" class="nav-link" data-page="export">Декларации</a>
+</nav>
+
+<main class="main">
+
+<!-- ==================== DOCUMENTS LIST ==================== -->
+<div id="page-documents" class="page active">
+    <div class="page-header">
+        <div><h1>Документы отгрузки</h1><div class="subtitle">Журнал документов продажи и отгрузки</div></div>
+        <button class="btn btn-accent" onclick="navigateTo('new-doc')">+ Отгрузка</button>
+    </div>
+
+    <!-- Instructions panel -->
+    <div class="instructions-panel">
+        <div class="instructions-toggle" onclick="toggleInstructions('salesInstr')">
+            <span>📖 Инструкция / Instructiuni de utilizare</span>
+            <span class="arrow" id="salesInstrArrow">▶</span>
+        </div>
+        <div class="instructions-body" id="salesInstr">
+            <ol>
+                <li>В верхней таблице — <b>список документов отгрузки</b>. Кликните на строку для просмотра содержимого.</li>
+                <li>Используйте <b>вкладки статусов</b> (Все / Черновик / Подтверждено / Отгружено) для фильтрации.</li>
+                <li>Поле <b>поиска</b> фильтрует по номеру, клиенту и дате.</li>
+                <li>В <b>нижней панели</b> отображаются строки выбранного документа: товар, вес, цена, сумма.</li>
+                <li>Для <b>работы с документом</b> — используйте кнопки Подтвердить / Распределить в нижней панели.</li>
+                <li>Кнопка <kbd>+ Отгрузка</kbd> создаёт новый документ отгрузки.</li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="journal-toolbar">
+        <div class="status-tabs" style="margin-bottom:0;">
+            <div class="status-tab active" data-status="all" onclick="filterSalesDocs('all')">Все <span class="tab-count" id="salesCountAll">0</span></div>
+            <div class="status-tab" data-status="draft" onclick="filterSalesDocs('draft')">Черновик <span class="tab-count" id="salesCountDraft">0</span></div>
+            <div class="status-tab" data-status="confirmed" onclick="filterSalesDocs('confirmed')">Подтверждено <span class="tab-count" id="salesCountConfirmed">0</span></div>
+            <div class="status-tab" data-status="shipped" onclick="filterSalesDocs('shipped')">Отгружено <span class="tab-count" id="salesCountShipped">0</span></div>
+        </div>
+        <input type="text" class="search-input" id="salesSearchInput" placeholder="Поиск по номеру, клиенту, дате..." oninput="renderSalesDocsList()">
+    </div>
+
+    <div class="journal-master-detail">
+        <div class="journal-master">
+            <table><thead><tr>
+                <th style="width:100px;">Номер</th><th style="width:110px;">Дата</th><th>Клиент</th><th style="width:90px;">Склад</th>
+                <th style="width:100px;">Статус</th><th style="width:90px;text-align:right;">Кг</th><th style="width:100px;text-align:right;">Сумма</th>
+            </tr></thead><tbody id="docsBody"><tr><td colspan="7" class="empty">Загрузка...</td></tr></tbody></table>
+        </div>
+        <div class="journal-detail" id="salesDetailPanel">
+            <div class="journal-detail-empty">Выберите документ из списка</div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== NEW DOCUMENT ==================== -->
+<div id="page-new-doc" class="page">
+    <div class="page-header"><div><h1>Новый документ отгрузки / Document nou de livrare</h1><div class="subtitle">Crearea documentului de vanzare cu alocare loturi FIFO</div></div></div>
+    <div class="card">
+        <div class="field-row">
+            <div class="field"><label>Клиент / Client</label><select id="newDocCustomer"></select></div>
+            <div class="field"><label>Склад / Depozit</label><select id="newDocWarehouse"></select></div>
+        </div>
+        <div class="field-row">
+            <div class="field"><label>Валюта / Moneda</label><select id="newDocCurrency"></select></div>
+            <div class="field"><label>Примечание / Observatii</label><input type="text" id="newDocNotes" placeholder="Опционально..."></div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+            <h3>Позиции отгрузки</h3>
+            <button class="btn btn-sm btn-accent" onclick="addShipLine()">+ Позиция</button>
+        </div>
+        <div class="ship-line ship-line-header">
+            <div>Продукт</div><div>Кол-во</div><div>Брутто</div><div>Тара</div><div>Нетто</div><div>Цена/кг</div><div>⚖</div><div></div>
+        </div>
+        <div id="lineItemsContainer"></div>
+        <div id="noLines" style="text-align:center;padding:16px;color:var(--text-muted);">Нажмите + Позиция для добавления товаров</div>
+    </div>
+
+    <div class="card" style="display:flex;justify-content:space-between;align-items:center;">
+        <div><strong>Итого / Total:</strong> <span id="newDocTotal" style="font-size:20px;font-weight:700;color:var(--primary-dark);">0.00</span></div>
+        <button class="btn btn-primary" onclick="submitNewDoc()">Создать документ / Creaza document</button>
+    </div>
+</div>
+
+<!-- ==================== AVAILABLE STOCK ==================== -->
+<div id="page-stock" class="page">
+    <div class="page-header">
+        <div><h1>Доступные остатки / Stoc disponibil</h1><div class="subtitle">Loturi disponibile pentru alocare (FIFO)</div></div>
+        <div style="display:flex;gap:8px;">
+            <select id="stockFilterWh" onchange="loadAvailStock()" style="padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#1e2a45;color:var(--text);">
+                <option value="">Все склады</option>
+            </select>
+            <select id="stockFilterItem" onchange="loadAvailStock()" style="padding:8px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#1e2a45;color:var(--text);">
+                <option value="">Все продукты</option>
+            </select>
+        </div>
+    </div>
+    <div class="card"><div class="table-wrap">
+        <table><thead><tr>
+            <th>Партия / Lot</th><th>Продукция / Produs</th><th>Склад / Depozit</th>
+            <th>Доступно кг</th><th>Годен до</th><th>Получено</th>
+        </tr></thead><tbody id="stockBody"><tr><td colspan="6" class="empty">Загрузка...</td></tr></tbody></table>
+    </div></div>
+</div>
+
+<!-- ==================== EXPORT DECLARATIONS ==================== -->
+<div id="page-export" class="page">
+    <div class="page-header">
+        <div><h1>Экспортные декларации / Declaratii de export</h1><div class="subtitle">Gestionarea declaratiilor de export</div></div>
+        <button class="btn btn-primary" onclick="openExportModal()">+ Декларация / Declaratie</button>
+    </div>
+    <div class="card" id="exportList"><div class="table-wrap">
+        <table><thead><tr>
+            <th>Номер / Nr.</th><th>Документ продажи</th><th>Клиент / Client</th>
+            <th>Страна / Tara</th><th>Статус</th><th>Дата</th><th>Действия</th>
+        </tr></thead><tbody id="exportBody"><tr><td colspan="7" class="empty">Загрузка...</td></tr></tbody></table>
+    </div></div>
+</div>
+
+<!-- ==================== WEIGHING / ВЗВЕШИВАНИЕ ==================== -->
+<div id="page-weighing" class="page">
+    <div class="page-header">
+        <div><h1>⚖ Взвешивание при отгрузке / Cântărire la expediere</h1>
+        <div class="subtitle">Interfata touchscreen pentru cantarire si formare acte</div></div>
+    </div>
+
+    <div class="card">
+        <div class="field-row">
+            <div class="field"><label>Документ продажи / Document vânzare</label>
+                <select id="wtSalesDoc" onchange="wtSalesDocChanged()">
+                    <option value="">-- Без привязки --</option>
+                </select></div>
+            <div class="field"><label>Клиент / Client</label>
+                <select id="wtCustomer"></select></div>
+            <div class="field"><label>Склад / Depozit</label>
+                <select id="wtWarehouse"></select></div>
+        </div>
+    </div>
+
+    <!-- Scanner -->
+    <div class="card">
+        <h3 style="margin-bottom:12px;">Сканер / Scanner</h3>
+        <div class="field-row">
+            <div class="field" style="flex:2;">
+                <label>Штрихкод ящика / Cod de bare ladă</label>
+                <div style="display:flex;gap:10px;">
+                    <input type="text" id="wtBarcode" placeholder="Сканируйте или введите..." style="flex:1;font-size:18px;padding:14px 16px;">
+                    <button class="btn btn-accent" onclick="wtLookupCrate()" style="min-width:100px;">Найти</button>
+                </div>
+            </div>
+            <div class="field" style="flex:1;">
+                <label>Продукт / Produs</label>
+                <select id="wtItem"></select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Live Scale Display -->
+    <div class="card" style="text-align:center;padding:30px;">
+        <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px;">
+            <div id="wtScaleIndicator" style="width:14px;height:14px;border-radius:50%;background:#666;transition:background .3s;"></div>
+            <span id="wtScaleStatusText" style="font-size:11px;color:#8888aa;text-transform:uppercase;letter-spacing:1px;">Idle</span>
+            <select id="wtScaleId" style="padding:4px 8px;font-size:11px;background:#1a1a2e;border:1px solid #333366;color:#e0e0e0;border-radius:4px;" onchange="wtSwitchScale()">
+                <option value="default">Default</option>
+            </select>
+        </div>
+        <div id="wtScaleGross" style="font-size:72px;font-weight:700;color:#e0e0e0;line-height:1;font-variant-numeric:tabular-nums;">0.000</div>
+        <div style="font-size:16px;color:#8888aa;margin-top:4px;">kg (gross)</div>
+
+        <div class="weight-display" style="margin-top:20px;justify-content:center;gap:30px;">
+            <div class="weight-box" style="min-width:140px;">
+                <div class="wlabel">Tare / Тара</div>
+                <div class="wvalue" id="wtScaleTare">0.000</div>
+            </div>
+            <div class="weight-box net" style="min-width:140px;">
+                <div class="wlabel">Net / Нетто</div>
+                <div class="wvalue" id="wtScaleNet">0.000</div>
+            </div>
+        </div>
+
+        <!-- Scale Controls -->
+        <div style="display:flex;gap:10px;justify-content:center;margin-top:24px;flex-wrap:wrap;">
+            <button class="btn btn-ghost" onclick="wtScaleZero()" style="min-width:100px;">Zero / Ноль</button>
+            <button class="btn btn-accent" onclick="wtScaleTare()" style="min-width:100px;">Tare / Тара</button>
+            <button class="btn btn-primary btn-lg" onclick="wtScaleCapture()" id="btnWtCapture" style="width:auto;padding:18px 36px;">⚖ Зафиксировать / Fixează</button>
+        </div>
+    </div>
+
+    <!-- Emulator Controls -->
+    <div class="card">
+        <h3 style="font-size:14px;color:#8888aa;margin-bottom:14px;">Emulator / Эмулятор весов</h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+            <div class="field" style="margin:0;flex:0 0 160px;">
+                <label>Вес / Greutate (kg)</label>
+                <input type="number" id="wtSimWeight" value="25.5" step="0.1" min="0" max="600" style="width:100%;padding:8px;background:#1a1a2e;border:1px solid #333366;color:#e0e0e0;border-radius:4px;">
+            </div>
+            <button class="btn btn-ghost" onclick="wtSimulate()">Поставить / Pune</button>
+            <button class="btn btn-ghost" onclick="wtSimulateRandom()">Случайный / Aleator</button>
+            <button class="btn btn-danger" onclick="wtSimulateRemove()">Снять / Ridică</button>
+        </div>
+        <div style="font-size:11px;color:#6c6c8a;margin-top:10px;">Управление эмулятором весов. При реальном оборудовании — заменяется драйвером.</div>
+    </div>
+
+    <!-- Scale Config -->
+    <div class="card">
+        <h3 style="font-size:14px;color:#8888aa;margin-bottom:10px;">Конфигурация / Configurare</h3>
+        <div id="wtScaleConfigInfo" style="font-size:12px;color:#b0b0c8;font-family:monospace;"></div>
+    </div>
+
+    <!-- Captured Reading -->
+    <div class="card" id="wtCapturedCard" style="display:none;">
+        <h3 style="font-size:14px;color:#53d769;margin-bottom:14px;">Зафиксированный вес / Greutate fixată</h3>
+        <div class="weight-display" style="margin-bottom:16px;">
+            <div class="weight-box">
+                <div class="wlabel">Gross / Брутто</div>
+                <div class="wvalue" id="wtCapturedGross">-</div>
+            </div>
+            <div class="weight-box">
+                <div class="wlabel">Tare / Тара</div>
+                <div class="wvalue" id="wtCapturedTare">-</div>
+            </div>
+            <div class="weight-box net">
+                <div class="wlabel">Net / Нетто</div>
+                <div class="wvalue" id="wtCapturedNet">-</div>
+            </div>
+        </div>
+        <div style="display:flex;gap:10px;">
+            <button class="btn btn-primary btn-lg" style="flex:1;" onclick="wtAddLine()">+ Добавить в акт / Adaugă la act</button>
+            <button class="btn btn-ghost" onclick="wtClearCaptured()" style="min-width:120px;">Сброс / Reset</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3>Позиции акта / Liniile actului</h3>
+            <span style="font-size:13px;color:var(--text-muted);" id="wtLineCount">0 позиций</span>
+        </div>
+        <div class="wt-line-row wt-line-header">
+            <div>#</div><div>Штрихкод</div><div>Продукт</div>
+            <div>Брутто</div><div>Тара</div><div>Нетто</div><div>⚖</div><div></div>
+        </div>
+        <div id="wtLinesBody"><div style="text-align:center;padding:20px;color:var(--text-muted);">Сканируйте ящик и взвесьте</div></div>
+
+        <div style="margin-top:16px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
+            <div style="font-size:22px;font-weight:700;color:var(--accent);">
+                Итого нетто: <span id="wtTotalNet">0.00</span> кг
+            </div>
+            <button class="btn btn-primary btn-lg" style="width:auto;padding:18px 40px;" onclick="wtCreateTicket()">
+                Сформировать акт / Generează act
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== TICKET JOURNAL / АКТЫ ==================== -->
+<div id="page-tickets" class="page">
+    <div class="page-header">
+        <div><h1>Акты взвешивания / Acte de cântărire</h1>
+        <div class="subtitle">Jurnal acte cu detalii si tiparire</div></div>
+        <div style="display:flex;gap:8px;">
+            <div class="status-tabs" id="ticketStatusTabs">
+                <div class="status-tab active" data-status="" onclick="filterTickets('')">Все <span class="tab-count" id="ticketCountAll">0</span></div>
+                <div class="status-tab" data-status="draft" onclick="filterTickets('draft')">Черновик <span class="tab-count" id="ticketCountDraft">0</span></div>
+                <div class="status-tab" data-status="finalized" onclick="filterTickets('finalized')">Финализировано <span class="tab-count" id="ticketCountFinalized">0</span></div>
+            </div>
+        </div>
+    </div>
+    <div class="stat-cards" id="wtStats">
+        <div class="stat-card"><div class="val" id="wtStatTotal">0</div><div class="lbl">Всего / Total</div></div>
+        <div class="stat-card"><div class="val" id="wtStatDraft">0</div><div class="lbl">Черновики / Ciorne</div></div>
+        <div class="stat-card"><div class="val" id="wtStatFinal">0</div><div class="lbl">Финализированы</div></div>
+        <div class="stat-card"><div class="val" id="wtStatTotalKg">0</div><div class="lbl">Всего кг / Total kg</div></div>
+    </div>
+    <div class="card"><div class="table-wrap">
+        <table><thead><tr>
+            <th>Номер / Nr.</th><th>Дата</th><th>Клиент / Client</th><th>Склад</th>
+            <th>Док. продажи</th><th>Статус</th><th>Нетто кг</th><th>Действия</th>
+        </tr></thead><tbody id="wtTicketsBody"><tr><td colspan="8" class="empty">Загрузка...</td></tr></tbody></table>
+    </div></div>
+</div>
+
+</main>
+</div><!-- /.main-layout -->
+
+<!-- ==================== DOCUMENT DETAIL MODAL ==================== -->
+<div class="modal-overlay" id="docDetailModal">
+    <div class="modal" style="max-width:800px;">
+        <h2>Документ отгрузки / Document de livrare</h2>
+        <div id="docDetailContent"><p class="empty">Загрузка...</p></div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('docDetailModal')">Закрыть / Inchide</button>
+            <button class="btn btn-info btn-sm" id="btnAllocate" onclick="allocateDoc()" style="display:none;">Распределить партии / Aloca loturi</button>
+            <button class="btn btn-primary" id="btnConfirmDoc" onclick="confirmDoc()" style="display:none;">Подтвердить / Confirma</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== EXPORT DECLARATION MODAL ==================== -->
+<div class="modal-overlay" id="exportModal">
+    <div class="modal">
+        <h2>Экспортная декларация / Declaratie de export</h2>
+        <div class="field"><label>Документ продажи / Document vanzare</label><select id="expSalesDoc"></select></div>
+        <div class="field-row">
+            <div class="field"><label>Страна / Tara destinatie</label><input type="text" id="expCountry" placeholder="RO, DE, FR..."></div>
+            <div class="field"><label>Порт / Port</label><input type="text" id="expPort" placeholder="Port de iesire"></div>
+        </div>
+        <div class="field-row">
+            <div class="field"><label>Транспорт / Transport</label>
+                <select id="expTransport"><option value="truck">Truck</option><option value="ship">Ship</option><option value="rail">Rail</option><option value="air">Air</option></select>
+            </div>
+            <div class="field"><label>Фитосанитарный серт. / Certificat fito</label><input type="text" id="expPhyto" placeholder="Nr. certificat"></div>
+        </div>
+        <div class="field"><label>Примечание / Observatii</label><textarea id="expNotes" rows="2"></textarea></div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('exportModal')">Отмена / Anuleaza</button>
+            <button class="btn btn-primary" onclick="createExportDecl()">Создать / Creaza</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== EXPORT DETAIL MODAL ==================== -->
+<div class="modal-overlay" id="exportDetailModal">
+    <div class="modal">
+        <h2>Детали декларации / Detalii declaratie</h2>
+        <div id="exportDetailContent"><p class="empty">Загрузка...</p></div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('exportDetailModal')">Закрыть / Inchide</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== TICKET DETAIL MODAL ==================== -->
+<div class="modal-overlay" id="wtDetailModal">
+    <div class="modal" style="max-width:800px;">
+        <h2>Акт взвешивания / Act de cântărire</h2>
+        <div id="wtDetailContent"><p class="empty">Загрузка...</p></div>
+        <div class="modal-actions">
+            <button class="btn btn-ghost" onclick="closeModal('wtDetailModal')">Закрыть / Închide</button>
+            <button class="btn btn-info btn-sm" id="btnWtPrint" onclick="wtPrint()" style="display:none;">Печать / Tipărește</button>
+            <button class="btn btn-primary" id="btnWtFinalize" onclick="wtFinalize()" style="display:none;">Финализировать / Finalizează</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="/static/agro/scale-kiosk.js"></script>
+<script>
+(function() {
+'use strict';
+
+var refs = { customers: [], warehouses: [], items: [], currencies: [] };
+var currentDocId = null;
+var lineCounter = 0;
+var allSalesDocs = [];
+var salesStatusFilter = 'all';
+var ticketStatusFilter = '';
+
+document.addEventListener('DOMContentLoaded', function() {
+    initNav();
+    loadRefs(function() {
+        loadDocs();
+        loadAvailStock();
+        loadTickets();
+        api('GET', '/api/agro-sales/documents').then(function(d) {
+            var docs = (d.data || []).filter(function(r) { return r.status === 'draft' || r.status === 'confirmed'; });
+            fillSel('wtSalesDoc', docs, 'id', 'doc_number', '-- Без привязки --');
+        });
+    });
+});
+
+function initNav() {
+    document.querySelectorAll('.nav-link').forEach(function(l) {
+        l.addEventListener('click', function(e) {
+            e.preventDefault();
+            var pg = this.getAttribute('data-page');
+            document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+            document.querySelectorAll('.nav-link').forEach(function(n) { n.classList.remove('active'); });
+            var el = document.getElementById('page-' + pg);
+            if (el) el.classList.add('active');
+            this.classList.add('active');
+        });
+    });
+}
+
+function toast(msg, type) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast toast-' + (type || 'success') + ' show';
+    setTimeout(function() { t.classList.remove('show'); }, 3000);
+}
+
+function api(method, url, body) {
+    var opts = { method: method, headers: { 'Content-Type': 'application/json' } };
+    if (body) opts.body = JSON.stringify(body);
+    return fetch(url, opts).then(function(r) { return r.json(); });
+}
+
+function fillSel(id, items, vk, tk, blank) {
+    var s = document.getElementById(id); if (!s) return;
+    s.innerHTML = '<option value="">' + (blank || '--') + '</option>';
+    (items || []).forEach(function(i) {
+        var o = document.createElement('option');
+        o.value = i[vk];
+        o.textContent = i[tk] || i.code || i[vk];
+        s.appendChild(o);
+    });
+}
+
+function loadRefs(cb) {
+    var loaded = 0, need = 4;
+    function check() { loaded++; if (loaded >= need && cb) cb(); }
+
+    api('GET', '/api/agro-admin/customers').then(function(d) {
+        refs.customers = d.data || d || [];
+        fillSel('newDocCustomer', refs.customers, 'id', 'name', 'Выбрать клиента');
+        fillSel('wtCustomer', refs.customers, 'id', 'name', 'Выбрать клиента');
+        check();
+    }).catch(check);
+
+    api('GET', '/api/agro-admin/warehouses').then(function(d) {
+        refs.warehouses = d.data || d || [];
+        fillSel('newDocWarehouse', refs.warehouses, 'id', 'name', 'Выбрать склад');
+        fillSel('stockFilterWh', refs.warehouses, 'id', 'name', 'Все склады');
+        fillSel('wtWarehouse', refs.warehouses, 'id', 'name', 'Выбрать склад');
+        check();
+    }).catch(check);
+
+    api('GET', '/api/agro-admin/items').then(function(d) {
+        refs.items = d.data || d || [];
+        fillSel('stockFilterItem', refs.items, 'id', 'name', 'Все продукты');
+        fillSel('wtItem', refs.items, 'id', 'name', 'Выбрать продукт');
+        check();
+    }).catch(check);
+
+    api('GET', '/api/agro-admin/currencies').then(function(d) {
+        refs.currencies = d.data || d || [];
+        fillSel('newDocCurrency', refs.currencies, 'id', 'code', 'Валюта');
+        check();
+    }).catch(check);
+}
+
+/* ==================== DOCUMENTS ==================== */
+window.loadDocs = function() {
+    api('GET', '/api/agro-sales/documents').then(function(d) {
+        allSalesDocs = d.data || [];
+        renderSalesDocsList();
+
+        // Fill sales doc select in export modal
+        fillSel('expSalesDoc', allSalesDocs.filter(function(r) { return r.status === 'confirmed' || r.status === 'shipped'; }), 'id', 'doc_number', 'Выбрать документ');
+    });
+};
+
+window.renderSalesDocsList = function() {
+    var searchVal = (document.getElementById('salesSearchInput') || {}).value || '';
+    searchVal = searchVal.toLowerCase();
+
+    var filtered = salesStatusFilter === 'all' ? allSalesDocs : allSalesDocs.filter(function(r) { return r.status === salesStatusFilter; });
+
+    // Search filter
+    if (searchVal) {
+        filtered = filtered.filter(function(r) {
+            var docNum = (r.doc_number || '').toLowerCase();
+            var docDate = (r.doc_date || '').toLowerCase();
+            var customer = (r.customer_name || '').toLowerCase();
+            return docNum.indexOf(searchVal) !== -1 || docDate.indexOf(searchVal) !== -1 || customer.indexOf(searchVal) !== -1;
+        });
+    }
+
+    // Update tab counts
+    var all = allSalesDocs.length;
+    var drafts = allSalesDocs.filter(function(r) { return r.status === 'draft'; }).length;
+    var confirmed = allSalesDocs.filter(function(r) { return r.status === 'confirmed'; }).length;
+    var shipped = allSalesDocs.filter(function(r) { return r.status === 'shipped'; }).length;
+    var e = function(id, v) { var x = document.getElementById(id); if (x) x.textContent = v; };
+    e('salesCountAll', all);
+    e('salesCountDraft', drafts);
+    e('salesCountConfirmed', confirmed);
+    e('salesCountShipped', shipped);
+
+    var tb = document.getElementById('docsBody');
+    if (!filtered.length) { tb.innerHTML = '<tr><td colspan="7" class="empty">Нет документов</td></tr>'; return; }
+
+    tb.innerHTML = filtered.map(function(r) {
+        var bc = 'badge-' + (r.status || 'draft');
+        var totalKg = parseFloat(r.total_qty_kg || r.total_kg || 0);
+        return '<tr onclick="selectSalesDoc(' + r.id + ')">' +
+            '<td style="font-weight:600;">' + (r.doc_number || '-') + '</td>' +
+            '<td>' + (r.doc_date || '-') + '</td>' +
+            '<td>' + (r.customer_name || '-') + '</td>' +
+            '<td>' + (r.warehouse_name || '-') + '</td>' +
+            '<td><span class="badge ' + bc + '">' + (r.status || 'draft') + '</span></td>' +
+            '<td style="text-align:right;font-weight:600;color:var(--accent);">' + (totalKg > 0 ? totalKg.toFixed(0) : '-') + '</td>' +
+            '<td style="text-align:right;font-weight:600;">' + formatMoney(r.total_amount, r.currency_code) + '</td></tr>';
+    }).join('');
+};
+
+window.filterSalesDocs = function(status) {
+    salesStatusFilter = status;
+    document.querySelectorAll('#page-documents .status-tab').forEach(function(t) { t.classList.remove('active'); });
+    var tab = document.querySelector('#page-documents .status-tab[data-status="' + status + '"]');
+    if (tab) tab.classList.add('active');
+    renderSalesDocsList();
+};
+
+window.selectSalesDoc = function(docId) {
+    currentDocId = docId;
+    // Highlight row
+    var rows = document.querySelectorAll('#docsBody tr');
+    rows.forEach(function(r) { r.classList.remove('selected'); });
+    rows.forEach(function(r) {
+        if (r.getAttribute('onclick') && r.getAttribute('onclick').indexOf('(' + docId + ')') !== -1) {
+            r.classList.add('selected');
+        }
+    });
+
+    var panel = document.getElementById('salesDetailPanel');
+    panel.innerHTML = '<div class="journal-detail-empty">Загрузка...</div>';
+
+    api('GET', '/api/agro-sales/documents/' + docId).then(function(d) {
+        if (!d.success && !d.data) { panel.innerHTML = '<div class="journal-detail-empty">Ошибка загрузки</div>'; return; }
+        var raw = d.data || d;
+        var doc = raw.doc || raw;
+        var lines = raw.lines || doc.lines || [];
+        var allocations = raw.allocations || doc.allocations || [];
+
+        var badgeClass = 'badge-' + (doc.status || 'draft');
+        var html = '<div class="detail-header">' +
+            '<h3>Документ ' + (doc.doc_number || '-') + ' от ' + (doc.doc_date || '-') + '</h3>' +
+            '<div class="detail-status"><span class="badge ' + badgeClass + '">' + (doc.status || 'draft') + '</span>';
+        if (doc.status === 'draft') {
+            html += '  <button class="btn btn-sm btn-ghost" onclick="allocateDoc()">Распределить</button>';
+            html += '  <button class="btn btn-sm btn-primary" onclick="confirmDoc()">Подтвердить</button>';
+        }
+        html += '  <button class="btn btn-sm btn-accent" onclick="openSalesDoc(' + docId + ')" style="margin-left:8px;">📂 Открыть / Deschide</button>';
+        html += '</div></div>';
+
+        html += '<div class="detail-props">' +
+            '<div class="prop">Клиент: <b>' + (doc.customer_name || '-') + '</b></div>' +
+            '<div class="prop">Склад: <b>' + (doc.warehouse_name || '-') + '</b></div>' +
+            '<div class="prop">Позиций: <b>' + lines.length + '</b></div>' +
+            '</div>';
+
+        if (lines.length) {
+            html += '<div class="table-wrap"><table class="detail-lines-table"><thead><tr><th>Продукт</th><th style="text-align:right;">Кол-во кг</th><th style="text-align:right;">Цена/кг</th><th style="text-align:right;">Сумма</th></tr></thead><tbody>';
+            var total = 0;
+            lines.forEach(function(l) {
+                var lineTotal = (parseFloat(l.qty_kg || 0) * parseFloat(l.price_per_kg || 0));
+                total += lineTotal;
+                html += '<tr><td>' + (l.item_name || l.item_id || '-') + '</td>' +
+                    '<td style="text-align:right;">' + parseFloat(l.qty_kg || 0).toFixed(1) + '</td>' +
+                    '<td style="text-align:right;">' + parseFloat(l.price_per_kg || 0).toFixed(2) + '</td>' +
+                    '<td style="text-align:right;font-weight:600;">' + lineTotal.toFixed(2) + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+            html += '<div class="detail-totals"><div class="total-item">Итого: <b>' + total.toFixed(2) + ' ' + (doc.currency_code || '') + '</b></div></div>';
+        }
+
+        if (allocations.length) {
+            html += '<h4 style="margin:16px 0 8px;font-size:13px;color:var(--text-muted);">Распределение партий</h4>';
+            html += '<div class="table-wrap"><table class="detail-lines-table"><thead><tr><th>Позиция</th><th>Партия</th><th style="text-align:right;">Кол-во кг</th></tr></thead><tbody>';
+            allocations.forEach(function(a) {
+                html += '<tr><td>' + (a.sales_line_id || '-') + '</td><td>' + (a.batch_number || a.batch_id || '-') + '</td>' +
+                    '<td style="text-align:right;">' + parseFloat(a.allocated_qty_kg || 0).toFixed(1) + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+        }
+
+        if (doc.notes) html += '<div style="margin-top:12px;font-size:13px;color:var(--text-muted);"><em>' + doc.notes + '</em></div>';
+
+        html += '<div style="margin-top:16px;display:flex;gap:10px;justify-content:flex-end;">' +
+            '<button class="btn btn-primary" onclick="openSalesDoc(' + docId + ')">Открыть документ / Deschide</button>' +
+            '</div>';
+
+        panel.innerHTML = html;
+    });
+};
+
+window.navigateTo = function(page) {
+    document.querySelectorAll('.page').forEach(function(p) { p.classList.remove('active'); });
+    document.querySelectorAll('.nav-link').forEach(function(n) { n.classList.remove('active'); });
+    var el = document.getElementById('page-' + page);
+    if (el) el.classList.add('active');
+    var link = document.querySelector('[data-page="' + page + '"]');
+    if (link) link.classList.add('active');
+};
+
+function formatMoney(val, cur) {
+    var n = parseFloat(val || 0).toFixed(2);
+    return n + ' ' + (cur || '');
+}
+
+/* VIEW DOCUMENT — legacy modal redirect */
+window.viewDoc = function(docId) {
+    selectSalesDoc(docId);
+};
+
+/* OPEN DOCUMENT — navigate to edit form like field's "Открыть" */
+window.openSalesDoc = function(docId) {
+    navigateTo('new-doc');
+    currentDocId = docId;
+
+    api('GET', '/api/agro-sales/documents/' + docId).then(function(d) {
+        var raw = d.data || d;
+        var doc = raw.doc || raw;
+        var lines = raw.lines || doc.lines || [];
+
+        // Fill header fields
+        var custSel = document.getElementById('newDocCustomer');
+        if (custSel) custSel.value = doc.customer_id || '';
+        var whSel = document.getElementById('newDocWarehouse');
+        if (whSel) whSel.value = doc.warehouse_id || '';
+        var curSel = document.getElementById('newDocCurrency');
+        if (curSel) curSel.value = doc.currency_code || '';
+        var notesEl = document.getElementById('newDocNotes');
+        if (notesEl) notesEl.value = doc.notes || '';
+
+        // Clear existing lines
+        var container = document.getElementById('lineItemsContainer');
+        container.innerHTML = '';
+        lineCounter = 0;
+        var noLines = document.getElementById('noLines');
+        if (noLines) noLines.style.display = 'none';
+
+        // Add lines from doc
+        lines.forEach(function(l) {
+            addShipLine();
+            var lineId = 'shipLine' + lineCounter;
+            var line = document.getElementById(lineId);
+            if (!line) return;
+            var itemSel = line.querySelector('select');
+            if (itemSel) itemSel.value = l.item_id || '';
+            var qtyInput = line.querySelector('[id^="lineQty"]');
+            if (qtyInput) qtyInput.value = l.qty_kg || '';
+            var grossInput = line.querySelector('.line-gross');
+            if (grossInput) grossInput.value = l.gross_kg || '';
+            var tareInput = line.querySelector('.line-tare');
+            if (tareInput) tareInput.value = l.tare_kg || '';
+            var priceInput = line.querySelector('[id^="linePrice"]');
+            if (priceInput) priceInput.value = l.price_per_kg || '';
+            recalcSalesLine(lineId);
+        });
+    });
+};
+
+/* CONFIRM DOCUMENT */
+window.confirmDoc = function() {
+    if (!currentDocId) return;
+    if (!confirm('Подтвердить документ? Партии будут распределены по FIFO.\nConfirmati documentul? Loturile vor fi alocate FIFO.')) return;
+
+    api('PUT', '/api/agro-sales/documents/' + currentDocId + '/confirm').then(function(d) {
+        if (d.success) {
+            toast('Документ подтверждён / Document confirmat');
+            loadDocs();
+            if (currentDocId) selectSalesDoc(currentDocId);
+        } else {
+            toast(d.error || 'Ошибка подтверждения', 'error');
+        }
+    });
+};
+
+/* ALLOCATE BATCHES FOR DOC */
+window.allocateDoc = function() {
+    if (!currentDocId) return;
+    api('GET', '/api/agro-sales/documents/' + currentDocId).then(function(d) {
+        var raw = d.data || d;
+        var doc = raw.doc || raw;
+        var lines = raw.lines || doc.lines || [];
+        if (!lines.length) { toast('Нет позиций для распределения', 'warning'); return; }
+
+        var pending = lines.length;
+        var errors = [];
+        lines.forEach(function(line) {
+            api('POST', '/api/agro-sales/allocate', {
+                sales_line_id: line.id,
+                item_id: line.item_id,
+                qty_kg: line.qty_kg,
+                warehouse_id: doc.warehouse_id,
+                method: 'fifo'
+            }).then(function(r) {
+                pending--;
+                if (!r.success) errors.push((line.item_name || line.item_id) + ': ' + (r.error || 'Ошибка'));
+                if (pending <= 0) {
+                    if (errors.length) toast('Ошибки: ' + errors.join('; '), 'error');
+                    else toast('Партии распределены по FIFO');
+                    viewDoc(currentDocId);
+                }
+            });
+        });
+    });
+};
+
+/* NEW DOCUMENT — ship-line grid */
+window.addShipLine = function() {
+    lineCounter++;
+    var noLines = document.getElementById('noLines');
+    if (noLines) noLines.style.display = 'none';
+
+    var container = document.getElementById('lineItemsContainer');
+    var lineId = 'line-' + lineCounter;
+    var div = document.createElement('div');
+    div.className = 'ship-line';
+    div.id = lineId;
+    div.setAttribute('data-idx', lineCounter);
+
+    var itemOptions = '<option value="">Продукт...</option>';
+    refs.items.forEach(function(i) { itemOptions += '<option value="' + i.id + '">' + (i.name || i.code) + '</option>'; });
+
+    div.innerHTML =
+        '<div><select id="lineItem' + lineCounter + '" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;">' + itemOptions + '</select></div>' +
+        '<div><input type="number" id="lineQty' + lineCounter + '" placeholder="0" step="0.1" min="0" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcSalesLine(\'' + lineId + '\')"></div>' +
+        '<div><input type="number" class="line-gross" id="lineGross' + lineCounter + '" placeholder="0.00" step="0.01" min="0" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcSalesLine(\'' + lineId + '\')"></div>' +
+        '<div><input type="number" class="line-tare" id="lineTare' + lineCounter + '" placeholder="0.00" step="0.01" min="0" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcSalesLine(\'' + lineId + '\')"></div>' +
+        '<div style="font-size:18px;font-weight:700;text-align:center;padding:10px;" class="line-net-display">0.00</div>' +
+        '<div><input type="number" id="linePrice' + lineCounter + '" placeholder="0.00" step="0.01" min="0" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:15px;min-height:48px;text-align:center;" oninput="recalcSalesLine(\'' + lineId + '\')"></div>' +
+        '<div><button class="btn-weigh" onclick="weighSalesLine(\'' + lineId + '\')" title="Снять вес">⚖️</button></div>' +
+        '<div><button class="btn btn-sm btn-danger" onclick="removeLine(' + lineCounter + ')" style="padding:4px 8px;">✕</button></div>';
+
+    container.appendChild(div);
+};
+
+/* Keep legacy alias */
+window.addLineItem = window.addShipLine;
+
+/* ===== ScaleKiosk instantiation for Sale mode ===== */
+var salesKiosk = new ScaleKiosk({
+    mode: 'sale',
+    title: '⚖️ Весы — Отгрузка / Cântar — Expediere',
+    products: [
+        {key: 'APPLE',   name: 'Яблоко / Măr',         svgPath: '/static/agro/products/apple.svg'},
+        {key: 'PEAR',    name: 'Груша / Pară',          svgPath: '/static/agro/products/pear.svg'},
+        {key: 'PEACH',   name: 'Персик / Piersică',     svgPath: '/static/agro/products/peach.svg'},
+        {key: 'PLUM',    name: 'Слива / Prună',         svgPath: '/static/agro/products/plum.svg'},
+        {key: 'CHERRY',  name: 'Вишня / Cireșe',        svgPath: '/static/agro/products/cherry.svg'},
+        {key: 'GRAPE',   name: 'Виноград / Struguri',   svgPath: '/static/agro/products/grape.svg'},
+        {key: 'APRICOT', name: 'Абрикос / Caisă',       svgPath: '/static/agro/products/apricot.svg'},
+        {key: 'WALNUT',  name: 'Орех / Nucă',           svgPath: '/static/agro/products/walnut.svg'},
+        {key: 'TOMATO',  name: 'Томат / Roșie',         svgPath: '/static/agro/products/tomato.svg'},
+        {key: 'PEPPER',  name: 'Перец / Ardei',         svgPath: '/static/agro/products/pepper.svg'}
+    ],
+    weightRange: {min: 5, max: 200},
+    showPassport: true,
+    showEmulator: true,
+    toastFn: function(msg, type) { if (typeof toast === 'function') toast(msg, type); },
+    onCapture: function(data) {
+        if (!data.lineId) return;
+        var line = document.getElementById(data.lineId);
+        if (!line) return;
+        line.querySelector('.line-gross').value = data.gross.toFixed(2);
+        line.querySelector('.line-tare').value = data.tare.toFixed(2);
+        if (typeof recalcSalesLine === 'function') recalcSalesLine(data.lineId);
+    }
+});
+
+window.weighSalesLine = function(lineId) { salesKiosk.open(lineId); };
+window.closeSalesScaleModal = function() { salesKiosk.close(); };
+window.openSalesScaleModal = function(lineId) { salesKiosk.open(lineId); };
+
+/* ===== Instructions toggle ===== */
+window.toggleInstructions = function(id) {
+    var body = document.getElementById(id);
+    var arrow = document.getElementById(id + 'Arrow');
+    if (body) {
+        body.classList.toggle('open');
+        if (arrow) arrow.textContent = body.classList.contains('open') ? '▼' : '▶';
+    }
+};
+
+window.recalcSalesLine = function(lineId) {
+    var line = document.getElementById(lineId);
+    if (!line) return;
+    var gross = parseFloat(line.querySelector('.line-gross').value) || 0;
+    var tare = parseFloat(line.querySelector('.line-tare').value) || 0;
+    var net = Math.max(0, gross - tare);
+    line.querySelector('.line-net-display').textContent = net.toFixed(2);
+    recalcSalesTotal();
+};
+
+function recalcSalesTotal() {
+    var total = 0;
+    document.querySelectorAll('#lineItemsContainer .ship-line').forEach(function(line) {
+        var idx = line.getAttribute('data-idx');
+        var qty = parseFloat(document.getElementById('lineQty' + idx).value) || 0;
+        var price = parseFloat(document.getElementById('linePrice' + idx).value) || 0;
+        if (qty > 0 && price > 0) {
+            total += qty * price;
+        } else {
+            // Fallback: use net * price
+            var gross = parseFloat(document.getElementById('lineGross' + idx).value) || 0;
+            var tare = parseFloat(document.getElementById('lineTare' + idx).value) || 0;
+            var net = Math.max(0, gross - tare);
+            if (net > 0 && price > 0) total += net * price;
+        }
+    });
+    document.getElementById('newDocTotal').textContent = total.toFixed(2);
+}
+
+window.removeLine = function(idx) {
+    var el = document.getElementById('line-' + idx);
+    if (el) el.remove();
+    recalcSalesTotal();
+    var container = document.getElementById('lineItemsContainer');
+    if (!container.children.length) document.getElementById('noLines').style.display = '';
+};
+
+window.recalcTotal = function() {
+    recalcSalesTotal();
+};
+
+window.submitNewDoc = function() {
+    var customerId = parseInt(document.getElementById('newDocCustomer').value);
+    var warehouseId = parseInt(document.getElementById('newDocWarehouse').value);
+    var currencyId = parseInt(document.getElementById('newDocCurrency').value) || null;
+    var notes = document.getElementById('newDocNotes').value;
+
+    if (!customerId || !warehouseId) { toast('Выберите клиента и склад / Selectati clientul si depozitul', 'warning'); return; }
+
+    var lines = [];
+    document.querySelectorAll('#lineItemsContainer .ship-line').forEach(function(row) {
+        var idx = row.getAttribute('data-idx');
+        var itemId = parseInt(document.getElementById('lineItem' + idx).value);
+        var qty = parseFloat(document.getElementById('lineQty' + idx).value);
+        var price = parseFloat(document.getElementById('linePrice' + idx).value);
+        if (itemId && qty > 0) {
+            lines.push({ item_id: itemId, qty_kg: qty, price_per_kg: price });
+        }
+    });
+
+    if (!lines.length) { toast('Добавьте хотя бы одну позицию / Adaugati cel putin o linie', 'warning'); return; }
+
+    api('POST', '/api/agro-sales/documents', {
+        customer_id: customerId,
+        warehouse_id: warehouseId,
+        currency_id: currencyId,
+        notes: notes,
+        lines: lines
+    }).then(function(d) {
+        if (d.success) {
+            toast('Документ создан: ' + (d.doc_number || (d.data && d.data.doc_number) || ''));
+            // Reset form
+            document.getElementById('lineItemsContainer').innerHTML = '';
+            document.getElementById('noLines').style.display = '';
+            document.getElementById('newDocTotal').textContent = '0.00';
+            document.getElementById('newDocNotes').value = '';
+            lineCounter = 0;
+            // Switch to docs list
+            navigateTo('documents');
+            loadDocs();
+        } else {
+            toast(d.error || 'Ошибка создания', 'error');
+        }
+    });
+};
+
+/* ==================== AVAILABLE STOCK ==================== */
+window.loadAvailStock = function() {
+    var url = '/api/agro-sales/available-stock';
+    var params = [];
+    var wh = document.getElementById('stockFilterWh').value;
+    var item = document.getElementById('stockFilterItem').value;
+    if (wh) params.push('warehouse_id=' + wh);
+    if (item) params.push('item_id=' + item);
+    if (params.length) url += '?' + params.join('&');
+
+    api('GET', url).then(function(d) {
+        var rows = d.data || [];
+        var tb = document.getElementById('stockBody');
+        if (!rows.length) { tb.innerHTML = '<tr><td colspan="6" class="empty">Нет доступных остатков / Nu exista stoc disponibil</td></tr>'; return; }
+        tb.innerHTML = rows.map(function(r) {
+            return '<tr>' +
+                '<td style="font-weight:600;">' + (r.batch_number || '-') + '</td>' +
+                '<td>' + (r.item_name || '-') + '</td>' +
+                '<td>' + (r.warehouse_name || '-') + '</td>' +
+                '<td style="font-weight:700;color:var(--primary-dark);">' + parseFloat(r.current_qty_kg || 0).toFixed(1) + '</td>' +
+                '<td>' + (r.expiry_date || '-') + '</td>' +
+                '<td>' + (r.received_at || '-') + '</td></tr>';
+        }).join('');
+    });
+};
+
+/* ==================== EXPORT DECLARATIONS ==================== */
+window.openExportModal = function() {
+    loadDocs(); // refresh sales doc list
+    document.getElementById('exportModal').classList.add('open');
+};
+
+window.createExportDecl = function() {
+    var salesDocId = parseInt(document.getElementById('expSalesDoc').value);
+    if (!salesDocId) { toast('Выберите документ продажи / Selectati documentul de vanzare', 'warning'); return; }
+
+    api('POST', '/api/agro-sales/export-decl', {
+        sales_doc_id: salesDocId,
+        destination_country: document.getElementById('expCountry').value,
+        customs_code: document.getElementById('expPort').value,
+        transport_conditions: document.getElementById('expTransport').value,
+        phyto_cert_number: document.getElementById('expPhyto').value,
+        notes: document.getElementById('expNotes').value
+    }).then(function(d) {
+        if (d.success) {
+            toast('Декларация создана: ' + (d.decl_number || (d.data && d.data.decl_number) || ''));
+            closeModal('exportModal');
+            loadExportDecls();
+        } else {
+            toast(d.error || 'Ошибка', 'error');
+        }
+    });
+};
+
+function loadExportDecls() {
+    // No dedicated list endpoint yet, so we iterate known declarations
+    // For now, show stored ones via the docs
+    api('GET', '/api/agro-sales/documents').then(function(d) {
+        var docs = (d.data || []).filter(function(r) { return r.status === 'confirmed' || r.status === 'shipped'; });
+        var tb = document.getElementById('exportBody');
+        if (!docs.length) {
+            tb.innerHTML = '<tr><td colspan="7" class="empty">Нет подтверждённых документов для экспорта</td></tr>';
+            return;
+        }
+        // Try loading export decls one by one for confirmed docs
+        var html = '';
+        var pending = docs.length;
+        docs.forEach(function(doc) {
+            // Try to get export decl for this doc; show what we have
+            html += '<tr>' +
+                '<td>-</td>' +
+                '<td>' + (doc.doc_number || '-') + '</td>' +
+                '<td>' + (doc.customer_name || '-') + '</td>' +
+                '<td>-</td>' +
+                '<td><span class="badge badge-confirmed">confirmed</span></td>' +
+                '<td>' + (doc.doc_date || '-') + '</td>' +
+                '<td><button class="btn btn-sm btn-ghost" onclick="openExportModalForDoc(' + doc.id + ')">Создать декл.</button></td></tr>';
+        });
+        tb.innerHTML = html || '<tr><td colspan="7" class="empty">Нет деклараций</td></tr>';
+    });
+}
+
+window.openExportModalForDoc = function(docId) {
+    document.getElementById('expSalesDoc').value = docId;
+    document.getElementById('exportModal').classList.add('open');
+};
+
+window.viewExportDecl = function(declId) {
+    document.getElementById('exportDetailContent').innerHTML = '<p class="empty">Загрузка...</p>';
+    document.getElementById('exportDetailModal').classList.add('open');
+
+    api('GET', '/api/agro-sales/export-decl/' + declId).then(function(d) {
+        var decl = d.data || d;
+        var html = '<div class="doc-detail">' +
+            '<div class="doc-num">' + (decl.decl_number || '-') + '</div>' +
+            '<div class="doc-info">' +
+            'Документ: ' + (decl.doc_number || '-') + ' | ' +
+            'Клиент: ' + (decl.customer_name || '-') + '<br>' +
+            'Страна: <strong>' + (decl.destination_country || '-') + '</strong> | ' +
+            'Порт: ' + (decl.port_of_exit || '-') + ' | ' +
+            'Транспорт: ' + (decl.transport_mode || '-') + '<br>' +
+            'Фитосанитарный серт.: ' + (decl.phytosanitary_cert || '-') + ' | ' +
+            'Статус: <span class="badge badge-' + (decl.status || 'new') + '">' + (decl.status || '-') + '</span>' +
+            '</div></div>';
+        if (decl.notes) html += '<div style="margin-top:8px;font-size:13px;color:var(--text-muted);"><em>' + decl.notes + '</em></div>';
+        document.getElementById('exportDetailContent').innerHTML = html;
+    });
+};
+
+/* ==================== UTILS ==================== */
+window.closeModal = function(id) { document.getElementById(id).classList.remove('open'); };
+
+// Load export declarations on page switch
+var origNav = initNav;
+document.querySelectorAll('.nav-link').forEach(function(l) {
+    l.addEventListener('click', function() {
+        var pg = this.getAttribute('data-page');
+        if (pg === 'export') loadExportDecls();
+        else if (pg === 'stock') loadAvailStock();
+        else if (pg === 'documents') loadDocs();
+        else if (pg === 'tickets') loadTickets();
+        else if (pg === 'weighing') loadWtScaleConfig();
+    });
+});
+
+/* ==================== WEIGHT TICKETS ==================== */
+var wtLines = [];
+var wtCurrentTicketId = null;
+
+function wtSalesDocChanged() {
+    var docId = document.getElementById('wtSalesDoc').value;
+    if (!docId) return;
+    api('GET', '/api/agro-sales/documents/' + docId).then(function(d) {
+        var doc = (d.data || d).doc || d.data || d;
+        if (doc.customer_id) document.getElementById('wtCustomer').value = doc.customer_id;
+        if (doc.warehouse_id) document.getElementById('wtWarehouse').value = doc.warehouse_id;
+    });
+}
+
+function wtLookupCrate() {
+    var bc = document.getElementById('wtBarcode').value.trim();
+    if (!bc) return toast('Введите штрихкод', 'warning');
+    api('POST', '/api/agro-field/crates/scan', {barcode: bc}).then(function(d) {
+        if (d.success && d.data) {
+            var crate = d.data;
+            if (crate.item_id) {
+                document.getElementById('wtItem').value = crate.item_id;
+                document.getElementById('wtBarcode').setAttribute('data-batch-id', crate.batch_id || '');
+                toast('Ящик найден: ' + (crate.crate_code || bc), 'success');
+            }
+        }
+    }).catch(function() {});
+}
+
+/* ---- Scale polling (same pattern as agro_field) ---- */
+var wtScaleTimer = null;
+var wtScaleReading = null;
+
+function loadWtScaleConfig() {
+    api('GET', '/api/agro-scale/config?scale_id=default').then(function(res) {
+        if (!res.success) return;
+        var c = res.data || res;
+        var info = document.getElementById('wtScaleConfigInfo');
+        if (info) info.innerHTML = 'Max: ' + (c.max_capacity_kg || 600) + ' kg | Resolution: ' + (c.resolution_kg || 0.01) + ' kg | Settle: ' + (c.settle_time_s || 3) + 's | Mode: ' + (c.emulator ? 'Emulator' : 'Hardware');
+    }).catch(function() {});
+}
+
+function wtStartPolling() {
+    if (wtScaleTimer) return;
+    wtScaleTimer = setInterval(wtPollScale, 1000);
+}
+function wtStopPolling() {
+    if (wtScaleTimer) { clearInterval(wtScaleTimer); wtScaleTimer = null; }
+}
+
+function wtPollScale() {
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('GET', '/api/agro-scale/read?scale_id=' + encodeURIComponent(scaleId)).then(function(res) {
+        if (!res.success) return;
+        var d = res.data;
+        wtScaleReading = d;
+        document.getElementById('wtScaleGross').textContent = (d.gross_kg || 0).toFixed(3);
+        document.getElementById('wtScaleTare').textContent = (d.tare_kg || 0).toFixed(3);
+        document.getElementById('wtScaleNet').textContent = (d.net_kg || 0).toFixed(3);
+        // Status indicator
+        var ind = document.getElementById('wtScaleIndicator');
+        var txt = document.getElementById('wtScaleStatusText');
+        var status = d.status || 'idle';
+        if (status === 'stable') { ind.style.background = '#53d769'; txt.textContent = 'Stable'; }
+        else if (status === 'settling') { ind.style.background = '#f59e0b'; txt.textContent = 'Settling...'; }
+        else if (status === 'overload' || status === 'error') { ind.style.background = '#e94560'; txt.textContent = status; }
+        else { ind.style.background = '#666'; txt.textContent = 'Idle'; }
+    }).catch(function() {});
+}
+
+window.wtScaleZero = function() {
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('POST', '/api/agro-scale/zero', {scale_id: scaleId}).then(function(r) {
+        if (r.success) toast('Zero OK');
+    });
+};
+window.wtScaleTare = function() {
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('POST', '/api/agro-scale/tare', {scale_id: scaleId}).then(function(r) {
+        if (r.success) toast('Tare OK');
+    });
+};
+window.wtScaleCapture = function() {
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('POST', '/api/agro-scale/capture', {scale_id: scaleId}).then(function(r) {
+        if (r.success && r.reading) {
+            var rd = r.reading;
+            document.getElementById('wtCapturedGross').textContent = (rd.gross_kg || 0).toFixed(3);
+            document.getElementById('wtCapturedTare').textContent = (rd.tare_kg || 0).toFixed(3);
+            document.getElementById('wtCapturedNet').textContent = (rd.net_kg || 0).toFixed(3);
+            document.getElementById('wtCapturedCard').style.display = 'block';
+            toast('Вес зафиксирован: ' + (rd.net_kg || 0).toFixed(3) + ' кг', 'success');
+        } else {
+            toast('Не удалось зафиксировать', 'warning');
+        }
+    }).catch(function() { toast('Ошибка весов', 'error'); });
+};
+window.wtClearCaptured = function() {
+    document.getElementById('wtCapturedCard').style.display = 'none';
+};
+
+/* ---- Emulator ---- */
+window.wtSimulate = function() {
+    var w = parseFloat(document.getElementById('wtSimWeight').value) || 0;
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('POST', '/api/agro-scale/simulate', {scale_id: scaleId, weight: w});
+};
+window.wtSimulateRandom = function() {
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('POST', '/api/agro-scale/simulate', {scale_id: scaleId});
+};
+window.wtSimulateRemove = function() {
+    var scaleId = document.getElementById('wtScaleId').value || 'default';
+    api('POST', '/api/agro-scale/simulate', {scale_id: scaleId, weight: 0});
+};
+window.wtSwitchScale = function() {};
+
+/* Start scale polling when navigating to weighing page */
+document.querySelectorAll('.nav-link').forEach(function(l) {
+    l.addEventListener('click', function() {
+        var pg = this.getAttribute('data-page');
+        if (pg === 'weighing') wtStartPolling();
+        else wtStopPolling();
+    });
+});
+
+window.wtAddLine = function() {
+    var bc = document.getElementById('wtBarcode').value.trim();
+    var itemId = document.getElementById('wtItem').value;
+    if (!itemId) return toast('Выберите продукт', 'warning');
+
+    // Get weight from captured card
+    var capturedCard = document.getElementById('wtCapturedCard');
+    var grossText = document.getElementById('wtCapturedGross').textContent;
+    var tareText = document.getElementById('wtCapturedTare').textContent;
+    var netText = document.getElementById('wtCapturedNet').textContent;
+
+    if (capturedCard.style.display === 'none' || grossText === '-') {
+        return toast('Сначала зафиксируйте вес / Mai întâi fixați greutatea', 'warning');
+    }
+
+    var gross = parseFloat(grossText) || 0;
+    var tare = parseFloat(tareText) || 0;
+    var net = parseFloat(netText) || 0;
+    if (gross <= 0) return toast('Взвесьте ящик', 'warning');
+
+    var itemName = '';
+    var item = refs.items.find(function(i) { return String(i.id) === String(itemId); });
+    if (item) itemName = item.name || item.name_ru || item.code;
+
+    var batchId = document.getElementById('wtBarcode').getAttribute('data-batch-id') || null;
+    wtLines.push({
+        crate_code: bc, item_id: parseInt(itemId), item_name: itemName,
+        batch_id: batchId ? parseInt(batchId) : null,
+        gross_kg: gross, tare_kg: tare, net_kg: net
+    });
+    wtRenderLines();
+    // Reset
+    document.getElementById('wtBarcode').value = '';
+    document.getElementById('wtCapturedCard').style.display = 'none';
+    document.getElementById('wtCapturedGross').textContent = '-';
+    document.getElementById('wtCapturedTare').textContent = '-';
+    document.getElementById('wtCapturedNet').textContent = '-';
+    document.getElementById('wtBarcode').focus();
+};
+
+function wtRenderLines() {
+    var body = document.getElementById('wtLinesBody');
+    if (!wtLines.length) {
+        body.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">Сканируйте ящик и взвесьте</div>';
+        document.getElementById('wtLineCount').textContent = '0 позиций';
+        document.getElementById('wtTotalNet').textContent = '0.00';
+        return;
+    }
+    var totalNet = 0;
+    body.innerHTML = wtLines.map(function(l, i) {
+        totalNet += l.net_kg;
+        return '<div class="wt-line-row">' +
+            '<div>' + (i + 1) + '</div>' +
+            '<div style="font-family:monospace;">' + (l.crate_code || '-') + '</div>' +
+            '<div>' + l.item_name + '</div>' +
+            '<div style="font-weight:600;">' + l.gross_kg.toFixed(2) + '</div>' +
+            '<div>' + l.tare_kg.toFixed(2) + '</div>' +
+            '<div style="font-weight:700;color:var(--accent);">' + l.net_kg.toFixed(2) + '</div>' +
+            '<div></div>' +
+            '<div><button class="btn btn-sm btn-danger" onclick="wtRemoveLine(' + i + ')" style="padding:4px 8px;">✕</button></div>' +
+            '</div>';
+    }).join('');
+    document.getElementById('wtLineCount').textContent = wtLines.length + ' позиций';
+    document.getElementById('wtTotalNet').textContent = totalNet.toFixed(2);
+}
+
+window.wtRemoveLine = function(idx) {
+    wtLines.splice(idx, 1);
+    wtRenderLines();
+};
+
+window.wtCreateTicket = function() {
+    if (!wtLines.length) return toast('Нет позиций', 'warning');
+    var custId = document.getElementById('wtCustomer').value;
+    var whId = document.getElementById('wtWarehouse').value;
+    var sdId = document.getElementById('wtSalesDoc').value;
+    if (!custId) return toast('Выберите клиента', 'warning');
+
+    api('POST', '/api/agro-sales/weight-tickets', {
+        customer_id: parseInt(custId),
+        warehouse_id: whId ? parseInt(whId) : null,
+        sales_doc_id: sdId ? parseInt(sdId) : null
+    }).then(function(d) {
+        if (!d.success) return toast(d.error || 'Ошибка', 'error');
+        var ticketId = d.id;
+        var chain = Promise.resolve();
+        wtLines.forEach(function(line) {
+            chain = chain.then(function() {
+                return api('POST', '/api/agro-sales/weight-tickets/' + ticketId + '/lines', {
+                    crate_code: line.crate_code, item_id: line.item_id,
+                    batch_id: line.batch_id,
+                    gross_kg: line.gross_kg, tare_kg: line.tare_kg
+                });
+            });
+        });
+        chain.then(function() {
+            toast('Акт ' + d.ticket_number + ' создан!', 'success');
+            wtLines = [];
+            wtRenderLines();
+            navigateTo('tickets');
+            loadTickets();
+        });
+    });
+};
+
+/* ==================== TICKET JOURNAL ==================== */
+window.filterTickets = function(status) {
+    ticketStatusFilter = status;
+    document.querySelectorAll('#ticketStatusTabs .status-tab').forEach(function(t) { t.classList.remove('active'); });
+    var tab = document.querySelector('#ticketStatusTabs .status-tab[data-status="' + status + '"]');
+    if (tab) tab.classList.add('active');
+    loadTickets();
+};
+
+window.loadTickets = function() {
+    var status = ticketStatusFilter || '';
+    var url = '/api/agro-sales/weight-tickets';
+    if (status) url += '?status=' + status;
+    api('GET', url).then(function(d) {
+        var rows = d.data || [];
+        var total = rows.length, drafts = 0, finals = 0, totalKg = 0;
+        rows.forEach(function(r) {
+            if (r.status === 'draft') drafts++;
+            else if (r.status === 'finalized') finals++;
+            totalKg += parseFloat(r.total_net_kg || 0);
+        });
+        var e = function(id) { var x = document.getElementById(id); if (x) x.textContent = arguments[1]; };
+        e('wtStatTotal', total); e('wtStatDraft', drafts);
+        e('wtStatFinal', finals); e('wtStatTotalKg', totalKg.toFixed(0));
+        e('ticketCountAll', total); e('ticketCountDraft', drafts);
+        e('ticketCountFinalized', finals);
+
+        var tb = document.getElementById('wtTicketsBody');
+        if (!tb) return;
+        if (!rows.length) { tb.innerHTML = '<tr><td colspan="8" class="empty">Нет актов</td></tr>'; return; }
+        tb.innerHTML = rows.map(function(r) {
+            var bc = r.status === 'finalized' ? 'badge-confirmed' : 'badge-draft';
+            return '<tr>' +
+                '<td style="font-weight:600;">' + (r.ticket_number || '-') + '</td>' +
+                '<td>' + (r.ticket_date || '-') + '</td>' +
+                '<td>' + (r.customer_name || '-') + '</td>' +
+                '<td>' + (r.warehouse_name || '-') + '</td>' +
+                '<td>' + (r.sales_doc_number || '-') + '</td>' +
+                '<td><span class="badge ' + bc + '">' + (r.status || '-') + '</span></td>' +
+                '<td style="font-weight:700;color:var(--accent);">' + parseFloat(r.total_net_kg || 0).toFixed(2) + '</td>' +
+                '<td><button class="btn btn-sm btn-ghost" onclick="viewTicket(' + r.id + ')">Открыть</button></td></tr>';
+        }).join('');
+    });
+};
+
+window.viewTicket = function(tid) {
+    wtCurrentTicketId = tid;
+    document.getElementById('wtDetailContent').innerHTML = '<p class="empty">Загрузка...</p>';
+    document.getElementById('btnWtFinalize').style.display = 'none';
+    document.getElementById('btnWtPrint').style.display = 'none';
+    document.getElementById('wtDetailModal').classList.add('open');
+
+    api('GET', '/api/agro-sales/weight-tickets/' + tid).then(function(d) {
+        if (!d.success) { document.getElementById('wtDetailContent').innerHTML = '<p class="empty">Ошибка</p>'; return; }
+        var t = d.data;
+        var lines = t.lines || [];
+
+        var html = '<div class="doc-detail">' +
+            '<div class="doc-num">' + (t.ticket_number || '-') + '</div>' +
+            '<div class="doc-info">Клиент: <strong>' + (t.customer_name || '-') + '</strong> | ' +
+            'Склад: <strong>' + (t.warehouse_name || '-') + '</strong> | ' +
+            'Дата: ' + (t.ticket_date || '-') + ' | ' +
+            'Статус: <span class="badge badge-' + (t.status === 'finalized' ? 'confirmed' : 'draft') + '">' + (t.status || '-') + '</span>' +
+            '</div></div>';
+
+        if (lines.length) {
+            html += '<div class="table-wrap"><table><thead><tr><th>#</th><th>Штрихкод</th><th>Продукт</th><th>Брутто</th><th>Тара</th><th>Нетто</th></tr></thead><tbody>';
+            var totalNet = 0;
+            lines.forEach(function(l) {
+                totalNet += parseFloat(l.net_kg || 0);
+                html += '<tr><td>' + (l.line_no || '-') + '</td><td style="font-family:monospace;">' + (l.crate_code || '-') + '</td>' +
+                    '<td>' + (l.item_name || '-') + '</td>' +
+                    '<td>' + parseFloat(l.gross_kg || 0).toFixed(2) + '</td>' +
+                    '<td>' + parseFloat(l.tare_kg || 0).toFixed(2) + '</td>' +
+                    '<td style="font-weight:700;color:var(--accent);">' + parseFloat(l.net_kg || 0).toFixed(2) + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+            html += '<div style="text-align:right;margin-top:12px;font-size:20px;font-weight:700;color:var(--accent);">Итого нетто: ' + totalNet.toFixed(2) + ' кг</div>';
+        }
+
+        document.getElementById('wtDetailContent').innerHTML = html;
+        if (t.status === 'draft') document.getElementById('btnWtFinalize').style.display = '';
+        document.getElementById('btnWtPrint').style.display = '';
+    });
+};
+
+window.wtFinalize = function() {
+    if (!wtCurrentTicketId) return;
+    if (!confirm('Финализировать акт? Изменения будут невозможны.')) return;
+    api('POST', '/api/agro-sales/weight-tickets/' + wtCurrentTicketId + '/finalize').then(function(d) {
+        if (d.success) {
+            toast('Акт финализирован', 'success');
+            closeModal('wtDetailModal');
+            loadTickets();
+        } else {
+            toast(d.error || 'Ошибка', 'error');
+        }
+    });
+};
+
+window.wtPrint = function() {
+    if (!wtCurrentTicketId) return;
+    window.open('/UNA.md/orasldev/agro-document/' + wtCurrentTicketId + '?type=weight_ticket', '_blank');
+};
+
+})();
+
+/* Socket.io — real-time notifications */
+(function() {
+    if (typeof io === 'undefined') {
+        var s = document.createElement('script');
+        s.src = '/socket.io/socket.io.js';
+        s.onload = connectSocket;
+        document.head.appendChild(s);
+    } else { connectSocket(); }
+
+    function connectSocket() {
+        if (typeof io === 'undefined') return;
+        var socket = io();
+        socket.on('agro_event', function(evt) {
+            if (evt.type === 'sales_confirmed') {
+                toast('✓ ' + (evt.data.message || 'Документ подтверждён'), 'success');
+                loadDocs();
+            } else if (evt.type === 'batch_blocked') {
+                toast('🔒 ' + (evt.data.message || 'Партия заблокирована'), 'warning');
+                loadAvailStock();
+            }
+        });
+    }
+})();
+</script>
+
+</body>
+</html>

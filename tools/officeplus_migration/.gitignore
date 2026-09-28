@@ -1,0 +1,4 @@
+# RO: arhivele contin secrete (.env, wallet, dump DB) — nu se comit niciodata
+# EN: archives hold secrets (.env, wallet, DB dump) — never commit them
+archives/
+migration.json

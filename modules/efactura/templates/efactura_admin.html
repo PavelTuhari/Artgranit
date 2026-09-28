@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>e-Factura (SFS) — administrare</title>
+<style>
+  body{margin:0;font:14px/1.5 Inter,system-ui,sans-serif;background:#f2f4f8;color:#1a1a1a}
+  .bar{background:#194681;color:#fff;padding:12px 20px;font-weight:700}
+  .bar a{color:#ffd23a;text-decoration:none;margin-left:14px;font-size:13px;font-weight:600}
+  .wrap{max-width:1100px;margin:20px auto;padding:0 14px}
+  .card{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;
+        box-shadow:0 2px 10px rgba(0,0,0,.06)}
+  h2{margin:.2em 0 .6em;font-size:17px;color:#194681}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{border-bottom:1px solid #e5e7eb;padding:7px 8px;text-align:left;vertical-align:top}
+  input,select{padding:7px 9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}
+  .btn{background:#194681;color:#fff;border:0;border-radius:8px;padding:8px 16px;
+       font-weight:700;cursor:pointer}
+  .btn.orange{background:#ea6f21}
+  .btn.gray{background:#64748b}
+  .muted{color:#64748b;font-size:12.5px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:8px 0}
+  .row label{display:block;font-size:12px;color:#475569;margin-bottom:3px}
+  .ok{color:#16a34a}.err{color:#dc2626}
+  .pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:700}
+  .p-new{background:#e2e8f0;color:#475569}.p-sent{background:#dbeafe;color:#1d4ed8}
+  .p-accepted{background:#dcfce7;color:#15803d}.p-rejected{background:#fee2e2;color:#b91c1c}
+  .p-error{background:#fee2e2;color:#b91c1c}
+  pre{background:#0f172a;color:#d7e3f4;border-radius:10px;padding:12px;
+      font-size:12px;overflow:auto;max-height:340px}
+</style>
+</head>
+<body>
+<div class="bar">🧾 e-Factura (SFS) — administrare
+  <a href="/UNA.md/orasldev/b26docs/Partner/ANALIZA_EFACTURA_SFS.md" target="_blank">Analiza integrării ↗</a>
+  <a href="test">🧪 Factură de test</a>
+  <a href="report">📊 Facturi transmise (raport)</a>
+  <a href="/UNA.md/orasldev/biro26">Hub Biro26</a>
+  <a href="/UNA.md/orasldev/modules">← Portal</a></div>
+<div class="wrap">
+
+<div class="card">
+  <h2>Setările integrării</h2>
+  <p class="muted">Utilizatorul API se creează în e-Factura de persoana cu rol
+    <b>Manager (Director)</b>: <i>Setări → Utilizatorii companiei →
+    „CREEAZĂ UN UTILIZATOR API"</i>. Până la completare modulul funcționează
+    în gol: se poate vedea XML-ul care ar pleca, dar nu se trimite nimic.</p>
+  <div class="row">
+    <div><label>Endpoint (adresa serviciului SOAP)</label>
+      <!-- RO: lista mediilor + «alt text» (03.09.2026): contabilul a lasat
+           adresa de proba cu conturi reale; alegerea explicita previne asta.
+           Valoarea salvata ramine in s-endpoint, ca inainte. -->
+      <select id="s-endpoint-pick" onchange="pickEndpoint()" style="width:420px">
+        <option value="{{ endpoint_prod }}">REAL — {{ endpoint_prod }}</option>
+        <option value="{{ endpoint_test }}">de PROBĂ — {{ endpoint_test }}</option>
+        <option value="__custom__">alt text…</option>
+      </select>
+      <input id="s-endpoint" style="width:420px;margin-top:4px" placeholder="https://…/Service.svc" oninput="syncEndpointPick()"></div>
+    <div><label>Namespace</label><input id="s-namespace" style="width:200px"></div>
+  </div>
+  <div class="row">
+    <div><label>Regim</label><select id="s-mode">
+      <option value="semi">Semi-automat (semnare în web)</option>
+      <option value="full">Complet automat (cu certificat)</option></select></div>
+  </div>
+  <h2 style="margin-top:14px">Semnatarii — DOUĂ conturi API</h2>
+  <p class="muted">Factura fiscală se semnează de obicei de două persoane
+    (director și contabil-șef), iar e-Factura ține <b>cozi separate</b> pentru
+    fiecare (<code>Order</code> 1 și 2 la <code>GetInvoicesForSigning</code>) —
+    de aceea se înregistrează două conturi API. Al doilea este opțional:
+    dacă lipsește, se folosește primul.</p>
+  <div class="row">
+    <div><label>1. Utilizator API</label><input id="s-username" style="width:200px"></div>
+    <div><label>1. Parola</label><input id="s-password" type="password" style="width:150px"
+      placeholder="(neschimbată)"></div>
+    <div><label>1. Numele semnatarului</label><input id="s-signer1_name" style="width:200px"
+      placeholder="director"></div>
+  </div>
+  <div class="row">
+    <div><label>2. Utilizator API</label><input id="s-username2" style="width:200px"></div>
+    <div><label>2. Parola</label><input id="s-password2" type="password" style="width:150px"
+      placeholder="(neschimbată)"></div>
+    <div><label>2. Numele semnatarului</label><input id="s-signer2_name" style="width:200px"
+      placeholder="contabil-șef"></div>
+  </div>
+  <h2 style="margin-top:14px">Rechizitele vânzătorului (pentru XML)</h2>
+  <div class="row">
+    <div><label>IDNO</label><input id="s-seller_idno" style="width:150px"></div>
+    <div><label>Denumirea</label><input id="s-seller_name" style="width:240px"></div>
+    <div><label>Adresa</label><input id="s-seller_address" style="width:260px"></div>
+  </div>
+  <div class="row">
+    <div><label>IBAN</label><input id="s-seller_iban" style="width:240px"></div>
+    <div><label>Cod bancă (BIC)</label><input id="s-seller_bank_code" style="width:140px"></div>
+    <div><label>Seria facturii</label><input id="s-seria" style="width:100px"></div>
+  </div>
+  <div class="row">
+    <!-- RO: CreationMotiv dupa statutul TVA al firmei (03.09.2026: mediul real
+         a refuzat 4 pentru un neplatitor: «trebue sa fie 1 sau 2») -->
+    <div><label>Firma este plătitoare de TVA</label>
+      <select id="s-vat_payer" style="width:200px" onchange="syncVat()">
+        <option value="1">Da — plătitoare</option>
+        <option value="0">Nu — NEplătitoare (TVA 0, motiv 1/2/3)</option>
+      </select></div>
+    <div><label>Motivul creării facturii</label>
+      <select id="s-creation_motiv" style="width:420px">
+        <option value="4">4 — Livrare (firmă PLĂTITOARE de TVA)</option>
+        <option value="5">5 — Non-livrare (plătitoare de TVA)</option>
+        <option value="1">1 — Livrare (firmă NEPLĂTITOARE de TVA)</option>
+        <option value="2">2 — Refacturarea cheltuielilor compensate (neplătitoare)</option>
+        <option value="3">3 — Combinată (neplătitoare)</option>
+      </select></div>
+    <div><label>Cota TVA implicită, % (cînd documentul nu are TVA; neplătitor = 0)</label>
+      <input id="s-tva_rate" style="width:80px"></div>
+  </div>
+  <h2 style="margin-top:14px">Facturi PRIMITE — conturile documentului de intrare</h2>
+  <p class="muted">Cînd o factură primită de la partener se importă în una.md, modulul creează
+    documentul <b>1209 «Оприходование товара»</b>. Valorile de mai jos sînt copiate din documentul
+    1209 existent al firmei — contabilul le confirmă o singură dată.</p>
+  <div class="row">
+    <div><label>Setul de documente (NRSET)</label><input id="s-in_nrset" style="width:110px"></div>
+    <div><label>Debit antet (DT)</label><input id="s-in_dt" style="width:110px"></div>
+    <div><label>Credit antet (CT)</label><input id="s-in_ct" style="width:110px"></div>
+    <div><label>Depozit / subdiviziune (DTDEP)</label><input id="s-in_dtdep" style="width:130px"></div>
+    <div><label>Debit poziții (DT rînd)</label><input id="s-in_dt_row" style="width:110px"></div>
+    <div><label>USERID pentru documentele create automat</label><input id="s-in_userid" style="width:150px"></div>
+  </div>
+  <div class="row">
+    <div><label>Trimitere automată la emiterea contului</label>
+      <select id="s-auto_send"><option value="0">Nu</option><option value="1">Da</option></select></div>
+    <div><label>Doar persoanelor juridice</label>
+      <select id="s-only_companies"><option value="1">Da</option><option value="0">Nu</option></select></div>
+    <button class="btn" onclick="saveSettings()">💾 Salvează</button>
+    <button class="btn gray" onclick="testConn()">🔌 Testează conexiunea</button>
+    <span id="s-info" class="muted"></span>
+  </div>
+  <!-- RO: rezultatul testului sta AICI, nu in s-info: load() rescrie s-info
+       cu «configurat» si mesajul disparea intr-o secunda (03.09.2026). -->
+  <div id="s-test" class="muted" style="margin-top:8px;white-space:pre-line"></div>
+</div>
+
+<div class="card">
+  <h2>Documente</h2>
+  <div class="row">
+    <div><label>Cod document (TMDB_DOCS.COD)</label>
+      <input id="d-cod" type="number" style="width:140px"></div>
+    <button class="btn gray" onclick="preview()">👁 Vezi XML-ul</button>
+    <button class="btn orange" onclick="send()">📤 Trimite în e-Factura</button>
+    <button class="btn gray" onclick="refresh()">⟳ Actualizează statusurile</button>
+    <span id="d-info" class="muted"></span>
+  </div>
+  <pre id="xml" style="display:none"></pre>
+  <table id="dtab"><thead><tr><th>Doc</th><th>Nr.</th><th>Client</th>
+    <th>IDNO</th><th>Total</th><th>Status</th><th>Trimis</th><th>Eroare</th>
+    </tr></thead><tbody></tbody></table>
+</div>
+
+<div class="card">
+  <h2 id="calls">Comunicări cu SFS — toate apelurile, complet</h2>
+  <p class="muted">Fiecare apel către SIA e-Factura, reușit sau nu: ce s-a trimis
+    (plicul SOAP, parola mascată) și ce a răspuns SFS. Click pe rînd → textul întreg.
+    <button class="btn gray" onclick="loadCalls()">↻ Reîncarcă</button></p>
+  <table id="ctab"><thead><tr><th>Când</th><th>Sursă</th><th>Cont</th>
+    <th>Metodă</th><th>HTTP</th><th>ms</th><th>Rezultat</th><th>Ce a răspuns SFS</th></tr></thead>
+    <tbody></tbody></table>
+</div>
+
+<div class="card">
+  <h2>Jurnal (ultimele 200)</h2>
+  <table id="ltab"><thead><tr><th>Când</th><th>Doc</th><th>Eveniment</th>
+    <th>Sursă</th><th>Detalii</th></tr></thead><tbody></tbody></table>
+</div>
+</div>
+<script>
+// RO: baza de la Flask, nu adrese relative — daca pagina se deschide fara
+//     slash la final, o adresa relativa ar cadea linga modul, nu in el.
+//     Iar un raspuns care nu e JSON (404/500 in HTML) trebuie sa se vada ca
+//     eroare, nu sa lase butonul mut — lectia din pagina probei (31.08.2026).
+const BASE = '{{ url_for("efactura.admin_page") }}'.replace(/\/$/, '');
+const j = (u, o) => fetch(BASE + '/' + u,
+  Object.assign({headers: {'Content-Type': 'application/json'},
+    credentials: 'include'}, o))
+  .then(r => r.text().then(t => {
+    try { return JSON.parse(t); }
+    catch (e) {
+      return {success: false, error: 'HTTP ' + r.status + ' — ' +
+              t.replace(/<[^>]*>/g, ' ').trim().slice(0, 200)};
+    }
+  }))
+  .catch(e => ({success: false, error: String(e)}));
+const esc = s => String(s == null ? '' : s).replace(/[&<>]/g,
+  c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;'}[c]));
+const KEYS = ['endpoint','namespace','username','username2','signer1_name',
+              'signer2_name','mode','seller_idno','seller_name',
+              'seller_address','seller_iban','seller_bank_code','seria',
+              'creation_motiv','tva_rate','vat_payer',
+              'auto_send','only_companies',
+              'in_nrset','in_dt','in_ct','in_dtdep','in_dt_row','in_userid'];
+
+function syncVat() {
+  // RO: neplatitor -> motivul din grupa 1/2/3 si cota 0; platitor -> 4/5 si 20
+  const vp = document.getElementById('s-vat_payer').value;
+  const m = document.getElementById('s-creation_motiv');
+  const t = document.getElementById('s-tva_rate');
+  if (vp === '0') { if (['4','5'].includes(m.value)) m.value = '1'; t.value = '0'; }
+  else { if (['1','2','3'].includes(m.value)) m.value = '4'; if (t.value === '0') t.value = '20'; }
+}
+function pickEndpoint() {
+  const pick = document.getElementById('s-endpoint-pick');
+  const inp = document.getElementById('s-endpoint');
+  if (pick.value === '__custom__') { inp.hidden = false; inp.focus(); return; }
+  inp.value = pick.value; inp.hidden = true;
+}
+function syncEndpointPick() {
+  // RO: dupa incarcare / tastare: adresa cunoscuta -> optiunea ei, altfel «alt text»
+  const pick = document.getElementById('s-endpoint-pick');
+  const inp = document.getElementById('s-endpoint');
+  const v = (inp.value || '').trim();
+  const known = [...pick.options].some(o => o.value === v);
+  pick.value = known ? v : '__custom__';
+  inp.hidden = known;
+}
+async function load() {
+  const r = await j('admin/settings');
+  const d = r.data || {};
+  KEYS.forEach(k => { const el = document.getElementById('s-' + k);
+    if (el && d[k] != null) el.value = d[k]; });
+  syncEndpointPick();
+  // RO: un apel cazut (sesiune expirata, 500) nu trebuie sa se prefaca in
+  //     «neconfigurat» — altfel omul cauta setari, nu problema reala.
+  document.getElementById('s-info').innerHTML = r.success === false
+    ? '<span class="err">⚠ ' + esc(r.error || 'apel eșuat') + '</span>'
+    : (d.configured
+      ? '<span class="ok">✅ configurat</span>'
+      : '<span class="err">⚠ neconfigurat — completați endpoint, utilizator și parola</span>');
+  const dd = await j('admin/docs?limit=100');
+  document.querySelector('#dtab tbody').innerHTML = (dd.data || []).map(x =>
+    `<tr><td>${x.doc_cod}</td><td>${esc(x.nrmanual || '')}</td>
+     <td>${x.client_cod || ''}</td><td>${esc(x.client_idno || '')}</td>
+     <td>${x.total == null ? '' : x.total}</td>
+     <td><span class="pill p-${String(x.status || '').toLowerCase()}">${esc(x.status)}</span></td>
+     <td>${esc(x.sent_at || '')}</td><td>${esc((x.err_msg || '').slice(0, 90))}</td></tr>`
+  ).join('') || '<tr><td colspan="8" class="muted">Încă nu s-a trimis nimic</td></tr>';
+  const l = await j('admin/log?limit=200');
+  document.querySelector('#ltab tbody').innerHTML = (l.data || []).map(x =>
+    `<tr><td>${esc(x.ts)}</td><td>${x.doc_cod || ''}</td><td>${esc(x.event)}</td>
+     <td>${esc(x.src || '')}</td><td>${esc((x.detail || '').slice(0, 160))}</td></tr>`).join('');
+}
+async function saveSettings() {
+  const d = {};
+  KEYS.forEach(k => { const el = document.getElementById('s-' + k);
+    if (el) d[k] = el.value; });
+  const pwd = document.getElementById('s-password').value;
+  if (pwd) d.password = pwd;
+  const pwd2 = document.getElementById('s-password2').value;
+  if (pwd2) d.password2 = pwd2;
+  const r = await j('admin/settings', {method: 'POST', body: JSON.stringify(d)});
+  document.getElementById('s-info').innerHTML = r.success
+    ? '<span class="ok">Salvat ✓</span>' : '<span class="err">' + esc(r.error) + '</span>';
+  document.getElementById('s-password').value = '';
+  document.getElementById('s-password2').value = '';
+  load();
+}
+async function loadCalls() {
+  const tb = document.querySelector('#ctab tbody');
+  tb.innerHTML = '<tr><td colspan="8" class="muted">Se încarcă…</td></tr>';
+  const r = await j('admin/calls?limit=100');
+  if (!r.success) { tb.innerHTML = '<tr><td colspan="8" class="err">' + esc(r.error || '') + '</td></tr>'; return; }
+  const cls = x => x.result === 'ok' ? 'ok' : 'err';
+  tb.innerHTML = (r.data || []).map(x =>
+    `<tr style="cursor:pointer" onclick="toggleCall(${x.id})"><td>${esc(x.ts)}</td>
+     <td>${esc(x.src || '')}</td><td>${esc(x.username || '')}</td><td>${esc(x.method || '')}</td>
+     <td>${x.http_status ?? ''}</td><td>${x.duration_ms ?? ''}</td>
+     <td class="${cls(x)}">${esc(x.result || '')}</td><td>${esc((x.summary || '').slice(0, 200))}</td></tr>
+     <tr id="call-${x.id}" hidden><td colspan="8">
+       <div class="muted">${esc(x.endpoint || '')}</div>
+       <b>Trimis:</b>${x.request_truncated ? ' <span class="muted">(trunchiat — <a href="#" onclick="return fullCall(' + x.id + ')">tot textul</a>)</span>' : ''}
+       <pre id="rq-${x.id}" style="white-space:pre-wrap;max-height:320px;overflow:auto;background:#f6f6f6;padding:8px">${esc(x.request_xml || '')}</pre>
+       <b>Răspuns:</b>${x.response_truncated ? ' <span class="muted">(trunchiat — <a href="#" onclick="return fullCall(' + x.id + ')">tot textul</a>)</span>' : ''}
+       <pre id="rs-${x.id}" style="white-space:pre-wrap;max-height:320px;overflow:auto;background:#f6f6f6;padding:8px">${esc(x.response_xml || '')}</pre>
+     </td></tr>`).join('') || '<tr><td colspan="8" class="muted">niciun apel</td></tr>';
+}
+function toggleCall(id) { const e = document.getElementById('call-' + id); e.hidden = !e.hidden; }
+async function fullCall(id) {
+  const r = await j('admin/calls/' + id);
+  if (r.success) {
+    document.getElementById('rq-' + id).textContent = r.data.request_xml || '';
+    document.getElementById('rs-' + id).textContent = r.data.response_xml || '';
+  }
+  return false;
+}
+async function testConn() {
+  const box = document.getElementById('s-test');
+  box.textContent = 'Se testează ambele conturi…';
+  const r = await j('admin/test', {method: 'POST', body: '{}'});
+  const sg = r.signers || {};
+  const line = (t, x) => !x ? '' : (x.skipped
+    ? `<div class="muted">▫ ${t}: ${esc(x.message || 'fără cont')}</div>`
+    : x.success
+      ? `<div class="ok">✅ ${t} (${esc(x.user || '')}): conectat</div>`
+      : `<div class="err">❌ ${t} (${esc(x.user || '')}): ${esc(x.error || 'eșuat')}</div>`);
+  loadCalls();
+  box.innerHTML =
+    `<div><b>Test conexiune</b> — ${esc(new Date().toLocaleTimeString())}, mediul ${esc(r.env || r.endpoint || '')}</div>` +
+    line('1. semnatar', sg.prima_semnatura) + line('2. semnatar', sg.a_doua_semnatura) +
+    (r.hint ? `<div class="err" style="margin-top:6px">💡 ${esc(r.hint)}</div>` : '') +
+    (!sg.prima_semnatura && !r.success ? `<div class="err">❌ ${esc(r.error || 'eșuat')}</div>` : '') +
+    (r.success ? `<div class="ok" style="margin-top:6px">${esc(r.message || '')}</div>` : '');
+}
+function docCod() {
+  const v = parseInt(document.getElementById('d-cod').value, 10);
+  if (!v) { document.getElementById('d-info').textContent = 'Introduceți codul documentului'; }
+  return v;
+}
+async function preview() {
+  const c = docCod(); if (!c) return;
+  const r = await j('admin/preview/' + c);
+  const pre = document.getElementById('xml');
+  pre.style.display = 'block';
+  pre.textContent = r.success ? r.data.xml : ('EROARE: ' + (r.error || ''));
+  document.getElementById('d-info').textContent = r.success
+    ? ('XML pentru contul ' + (r.data.nrmanual || c)) : '';
+}
+async function send() {
+  const c = docCod(); if (!c) return;
+  document.getElementById('d-info').textContent = 'Se trimite…';
+  const r = await j('admin/send/' + c, {method: 'POST', body: '{}'});
+  document.getElementById('d-info').innerHTML = r.success
+    ? '<span class="ok">✅ trimis (status ' + esc(r.data.status) + ')</span>'
+    : '<span class="err">❌ ' + esc(r.error || '') + '</span>';
+  load();
+}
+async function refresh() {
+  document.getElementById('d-info').textContent = 'Se actualizează…';
+  const r = await j('admin/refresh', {method: 'POST', body: '{}'});
+  document.getElementById('d-info').innerHTML = r.success
+    ? '<span class="ok">Statusuri actualizate</span>'
+    : '<span class="err">' + esc(r.error || '') + '</span>';
+  load();
+}
+load();
+loadCalls();
+</script>
+</body></html>

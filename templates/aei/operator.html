@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AEÎ — Operator credite</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --menu-h:32px; --sb-w:220px; --status-h:22px;
+      --bg:#1a1a2e; --bg2:#16213e; --bg3:#0f3460;
+      --accent:#4f8ef7; --green:#22c55e; --yellow:#f59e0b; --red:#ef4444;
+      --text:#e2e8f0; --text-dim:#7c8ba0; --border:#2d3a4f;
+      --c-bg:#f8fafc; --c-text:#1e293b; --c-border:#e2e8f0;
+      --c-blue:#1d4ed8; --c-blue-lt:#dbeafe; --c-gray:#475569;
+      --c-green:#15803d; --c-green-lt:#dcfce7;
+    }
+    html, body { height:100%; width:100%; overflow:hidden;
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+      font-size:13px; background:var(--bg); color:var(--text); }
+
+    /* MENU */
+    .menu-bar { height:var(--menu-h); background:#0d0d1a;
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; padding:0 10px; gap:2px;
+      flex-shrink:0; z-index:200; user-select:none; }
+    .menu-logo { display:flex; align-items:center; gap:8px; margin-right:10px;
+      font-weight:700; font-size:13px; color:var(--accent); }
+    .menu-logo .badge { background:var(--accent); color:#fff;
+      border-radius:3px; padding:1px 6px; font-size:10px; font-weight:700; }
+    .menu-role { font-size:11px; color:#f59e0b; background:rgba(245,158,11,.12);
+      border-radius:3px; padding:2px 8px; margin-left:6px; }
+    .menu-item { padding:4px 10px; font-size:12px; color:var(--text-dim);
+      border-radius:3px; cursor:pointer; transition:background .12s,color .12s; }
+    .menu-item:hover { background:var(--bg3); color:var(--text); }
+    .menu-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+    .menu-user { font-size:11px; color:var(--text-dim); }
+
+    /* APP SHELL */
+    .app-shell { display:flex;
+      height:calc(100vh - var(--menu-h) - var(--status-h)); overflow:hidden; }
+
+    /* SIDEBAR */
+    .sidebar { width:var(--sb-w); min-width:var(--sb-w); background:var(--bg2);
+      border-right:1px solid var(--border);
+      display:flex; flex-direction:column; overflow:hidden; flex-shrink:0; }
+    .sb-header { padding:14px 14px 10px; border-bottom:1px solid var(--border); }
+    .sb-org { font-size:12px; font-weight:700; color:var(--accent); }
+    .sb-sub { font-size:10px; color:var(--text-dim); margin-top:2px; }
+    .sb-section-title { padding:10px 14px 4px; font-size:10px; font-weight:700;
+      letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); }
+    .nav-list { flex:1; overflow-y:auto; padding-bottom:8px; }
+    .nav-item { display:flex; align-items:center; gap:9px;
+      padding:8px 14px; cursor:pointer; font-size:12px; color:var(--text-dim);
+      border-left:3px solid transparent;
+      transition:background .12s,color .12s,border-color .12s; }
+    .nav-item:hover { background:rgba(255,255,255,.05); color:var(--text); }
+    .nav-item.active { background:rgba(79,142,247,.15);
+      border-left-color:var(--accent); color:var(--text); }
+    .nav-icon { width:16px; text-align:center; font-size:13px; }
+    .nav-badge { margin-left:auto; background:var(--red); color:#fff;
+      border-radius:8px; padding:1px 6px; font-size:10px; font-weight:700; display:none; }
+    .nav-badge.show { display:inline; }
+    .sb-footer { padding:10px 14px; border-top:1px solid var(--border);
+      font-size:10px; color:var(--text-dim); line-height:1.6; }
+
+    /* MAIN */
+    .main-area { flex:1; min-width:0; display:flex; flex-direction:column;
+      overflow:hidden; background:var(--c-bg); }
+    .toolbar { height:40px; background:#fff; border-bottom:1px solid var(--c-border);
+      display:flex; align-items:center; padding:0 16px; gap:8px; flex-shrink:0; }
+    .tb-title { font-size:14px; font-weight:700; color:var(--c-blue); }
+    .tb-sep { width:1px; height:20px; background:var(--c-border); margin:0 4px; }
+    .tb-btn { padding:5px 12px; font-size:12px; border:1px solid var(--c-border);
+      border-radius:4px; background:#fff; color:var(--c-text); cursor:pointer;
+      display:flex; align-items:center; gap:5px; transition:background .12s; }
+    .tb-btn:hover { background:#f1f5f9; }
+    .tb-btn.primary { background:var(--c-blue); color:#fff; border-color:var(--c-blue); }
+    .tb-btn.primary:hover { background:#1e40af; }
+    .tb-right { margin-left:auto; display:flex; gap:8px; }
+    .tb-search { padding:5px 10px; font-size:12px; border:1px solid var(--c-border);
+      border-radius:4px; width:200px; outline:none; }
+    .tb-search:focus { border-color:var(--c-blue); }
+    .content-area { flex:1; overflow-y:auto; }
+    .panel { display:none; padding:20px; }
+    .panel.active { display:block; }
+
+    /* KPI */
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr));
+      gap:12px; margin-bottom:20px; }
+    .kpi-card { background:#fff; border:1px solid var(--c-border); border-radius:8px;
+      padding:14px 16px; position:relative; overflow:hidden; }
+    .kpi-card::before { content:''; position:absolute; top:0; left:0;
+      width:4px; height:100%; background:var(--kpi-color,var(--c-blue)); }
+    .kpi-val { font-size:22px; font-weight:700; color:var(--c-blue); line-height:1.2; }
+    .kpi-val.red { color:#dc2626; }
+    .kpi-val.green { color:var(--c-green); }
+    .kpi-val.yellow { color:#92400e; }
+    .kpi-label { font-size:11px; color:var(--c-gray); margin-top:2px; }
+    .kpi-sub { font-size:11px; color:var(--c-gray); margin-top:4px; }
+
+    /* TABLE */
+    .data-table-wrap { background:#fff; border:1px solid var(--c-border);
+      border-radius:8px; overflow:hidden; margin-bottom:16px; }
+    .data-table { width:100%; border-collapse:collapse; }
+    .data-table th { background:var(--c-blue); color:#fff; padding:8px 10px;
+      font-size:11px; text-align:left; white-space:nowrap; font-weight:600; }
+    .data-table td { padding:7px 10px; border-bottom:1px solid #f1f5f9;
+      font-size:12px; color:var(--c-text); }
+    .data-table tr:last-child td { border-bottom:none; }
+    .data-table tr:hover td { background:#f8fafc; }
+    .btn-sm { padding:3px 9px; font-size:11px; border:1px solid var(--c-border);
+      border-radius:3px; cursor:pointer; background:#fff; color:var(--c-text);
+      transition:background .1s; }
+    .btn-sm:hover { background:#f1f5f9; }
+    .btn-sm.blue { background:var(--c-blue); color:#fff; border-color:var(--c-blue); }
+    .btn-sm.green { background:#15803d; color:#fff; border-color:#15803d; }
+    .btn-sm.red { background:#dc2626; color:#fff; border-color:#dc2626; }
+
+    /* BADGE */
+    .badge { display:inline-block; padding:2px 8px; border-radius:10px;
+      font-size:10px; font-weight:700; }
+    .badge-active { background:#dcfce7; color:#15803d; }
+    .badge-overdue { background:#fee2e2; color:#dc2626; }
+    .badge-closed { background:#f1f5f9; color:#475569; }
+    .badge-pending { background:#fef9c3; color:#854d0e; }
+
+    /* FORM */
+    .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .form-grid.cols3 { grid-template-columns:1fr 1fr 1fr; }
+    .form-group { display:flex; flex-direction:column; gap:4px; }
+    .form-group label { font-size:11px; font-weight:600; color:var(--c-gray);
+      text-transform:uppercase; letter-spacing:.04em; }
+    .form-group input, .form-group select, .form-group textarea {
+      padding:8px 10px; font-size:13px; border:1px solid var(--c-border);
+      border-radius:5px; outline:none; color:var(--c-text); background:#fff; }
+    .form-group input:focus, .form-group select:focus { border-color:var(--c-blue); }
+    .form-group.full { grid-column:1/-1; }
+    .form-card { background:#fff; border:1px solid var(--c-border);
+      border-radius:8px; padding:20px; margin-bottom:16px; }
+    .form-card h3 { font-size:13px; font-weight:700; color:var(--c-blue);
+      margin-bottom:14px; padding-bottom:8px; border-bottom:1px solid var(--c-border); }
+    .form-actions { display:flex; gap:8px; margin-top:16px; }
+
+    /* MEMBER SEARCH */
+    .member-picker { background:#f8fafc; border:1px solid var(--c-border);
+      border-radius:6px; padding:12px; margin-bottom:12px; }
+    .member-picker h4 { font-size:12px; color:var(--c-gray); margin-bottom:8px; }
+    .member-search-row { display:flex; gap:8px; }
+    .member-search-row input { flex:1; }
+    .member-result { margin-top:8px; border-radius:4px; overflow:hidden; border:1px solid var(--c-border); }
+    .member-row { padding:7px 10px; background:#fff; cursor:pointer;
+      border-bottom:1px solid #f1f5f9; font-size:12px; transition:background .1s; }
+    .member-row:hover { background:var(--c-blue-lt); }
+    .member-row.selected { background:#dbeafe; border-left:3px solid var(--c-blue); }
+    .member-row:last-child { border-bottom:none; }
+
+    /* SELECTED MEMBER BADGE */
+    .selected-member-info { display:flex; align-items:center; gap:10px;
+      background:var(--c-blue-lt); border:1px solid #93c5fd; border-radius:6px;
+      padding:8px 12px; margin-bottom:12px; }
+    .selected-member-info .smi-name { font-weight:700; color:var(--c-blue); }
+    .selected-member-info .smi-id { font-size:11px; color:var(--c-gray); }
+    .smi-clear { margin-left:auto; cursor:pointer; color:#dc2626; font-size:14px; }
+
+    /* PAYMENT PANEL */
+    .pay-row { display:grid; grid-template-columns:auto 1fr auto auto auto; gap:8px;
+      align-items:center; padding:8px 12px; background:#fff;
+      border-bottom:1px solid #f1f5f9; }
+    .pay-row:last-child { border-bottom:none; }
+
+    /* STATUS BAR */
+    .status-bar { height:var(--status-h); background:#0d0d1a;
+      border-top:1px solid var(--border);
+      display:flex; align-items:center; padding:0 12px; gap:12px;
+      font-size:10px; color:var(--text-dim); flex-shrink:0; }
+    .status-dot { width:6px; height:6px; border-radius:50%;
+      background:#22c55e; display:inline-block; margin-right:4px; }
+
+    /* EMPTY */
+    .empty-state { text-align:center; padding:40px 20px; color:var(--c-gray); }
+    .empty-state .es-icon { font-size:32px; margin-bottom:8px; }
+
+    /* SEC HEADER */
+    .sec-header { display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+    .sec-header h2 { font-size:15px; font-weight:700; color:var(--c-text); }
+    .sec-count { background:var(--c-blue-lt); color:var(--c-blue);
+      border-radius:10px; padding:1px 8px; font-size:11px; font-weight:700; }
+    .filter-row { display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+    .filter-btn { padding:4px 12px; font-size:11px; border:1px solid var(--c-border);
+      border-radius:12px; cursor:pointer; background:#fff; color:var(--c-gray);
+      transition:all .12s; }
+    .filter-btn.active { background:var(--c-blue); color:#fff; border-color:var(--c-blue); }
+  </style>
+</head>
+<body>
+
+<!-- MENU -->
+<div class="menu-bar">
+  <div class="menu-logo">
+    <span class="badge">AEÎ</span>
+    <span>Artgranit Credit Union</span>
+  </div>
+  <span class="menu-role">🏦 Operator Credite</span>
+  <div class="menu-right">
+    <span class="menu-user" id="menuUser">—</span>
+    <a href="/UNA.md/orasldev/aei-admin" class="menu-item">Admin</a>
+    <a href="/UNA.md/orasldev" class="menu-item">← Portal</a>
+  </div>
+</div>
+
+<div class="app-shell">
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="sb-header">
+      <div class="sb-org">AEÎ Operator</div>
+      <div class="sb-sub">Gestionare credite active</div>
+    </div>
+    <div class="nav-list">
+      <div class="sb-section-title">Lucru curent</div>
+      <div class="nav-item active" onclick="showPanel('dashboard')">
+        <span class="nav-icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" onclick="showPanel('loans')">
+        <span class="nav-icon">💳</span> Credite
+        <span class="nav-badge" id="badge-overdue">0</span>
+      </div>
+      <div class="nav-item" onclick="showPanel('new-loan')">
+        <span class="nav-icon">➕</span> Cerere nouă
+      </div>
+      <div class="nav-item" onclick="showPanel('payments')">
+        <span class="nav-icon">💰</span> Plăți
+      </div>
+      <div class="sb-section-title">Referință</div>
+      <div class="nav-item" onclick="showPanel('members')">
+        <span class="nav-icon">👥</span> Membri
+      </div>
+      <div class="nav-item" onclick="showPanel('deposits')">
+        <span class="nav-icon">🏛️</span> Depozite
+      </div>
+    </div>
+    <div class="sb-footer">
+      <div id="statusMsg">Se inițializează...</div>
+      <div style="margin-top:4px">AEÎ v2025 · Oracle DB</div>
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main-area">
+    <div class="toolbar">
+      <span class="tb-title" id="panelTitle">Dashboard operator</span>
+      <div class="tb-sep"></div>
+      <button class="tb-btn" onclick="refreshCurrent()">🔄 Refresh</button>
+      <div class="tb-right">
+        <input class="tb-search" id="globalSearch" placeholder="Caută contract, membru..." oninput="filterTable(this.value)">
+      </div>
+    </div>
+
+    <div class="content-area">
+
+      <!-- DASHBOARD -->
+      <div class="panel active" id="panel-dashboard">
+        <div class="kpi-grid" id="kpi-row"></div>
+        <div class="sec-header"><h2>Credite cu restanțe</h2></div>
+        <div class="data-table-wrap">
+          <table class="data-table" id="overdue-table">
+            <thead><tr>
+              <th>Contract</th><th>Titular</th><th>Principal</th>
+              <th>Rată (%)</th><th>Scadență</th><th>Restanță</th><th>Acțiuni</th>
+            </tr></thead>
+            <tbody id="overdue-body">
+              <tr><td colspan="7"><div class="empty-state"><div class="es-icon">✅</div><p>Nicio restanță</p></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- LOANS LIST -->
+      <div class="panel" id="panel-loans">
+        <div class="sec-header">
+          <h2>Portofoliu credite</h2>
+          <span class="sec-count" id="loans-count">0</span>
+        </div>
+        <div class="filter-row">
+          <button class="filter-btn active" onclick="filterLoans('')" data-status="">Toate</button>
+          <button class="filter-btn" onclick="filterLoans('ACTIVE')" data-status="ACTIVE">Active</button>
+          <button class="filter-btn" onclick="filterLoans('OVERDUE')" data-status="OVERDUE">Restante</button>
+          <button class="filter-btn" onclick="filterLoans('CLOSED')" data-status="CLOSED">Închise</button>
+        </div>
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>Contract</th><th>Titular</th><th>Principal</th>
+              <th>Rată</th><th>Acordat</th><th>Scadență</th>
+              <th>Tip</th><th>Statut</th><th>Acțiuni</th>
+            </tr></thead>
+            <tbody id="loans-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- NEW LOAN -->
+      <div class="panel" id="panel-new-loan">
+        <div class="sec-header"><h2>Cerere credit nouă</h2></div>
+
+        <!-- Member Picker -->
+        <div class="member-picker">
+          <h4>1. Selectați membrul AEÎ</h4>
+          <div id="selected-member-display" style="display:none" class="selected-member-info">
+            <div>
+              <div class="smi-name" id="smi-name">—</div>
+              <div class="smi-id" id="smi-idnp">—</div>
+            </div>
+            <span class="smi-clear" onclick="clearSelectedMember()" title="Schimbă">✕</span>
+          </div>
+          <div id="member-search-block">
+            <div class="member-search-row">
+              <input class="form-group input" id="memberSearchInput" placeholder="Nume, IDNP/IDNO..."
+                style="padding:8px 10px;font-size:13px;border:1px solid var(--c-border);border-radius:5px;outline:none;"
+                oninput="searchMembers(this.value)">
+              <button class="btn-sm blue" onclick="searchMembers(document.getElementById('memberSearchInput').value)">Caută</button>
+            </div>
+            <div id="member-result-list" class="member-result" style="display:none"></div>
+          </div>
+        </div>
+
+        <!-- Loan Form -->
+        <div class="form-card">
+          <h3>2. Date contract credit</h3>
+          <input type="hidden" id="nl-member-id">
+          <div class="form-grid cols3">
+            <div class="form-group">
+              <label>Nr. contract *</label>
+              <input id="nl-contract-no" placeholder="C-2025-007">
+            </div>
+            <div class="form-group">
+              <label>Data semnării *</label>
+              <input type="date" id="nl-sign-date">
+            </div>
+            <div class="form-group">
+              <label>Data acordării *</label>
+              <input type="date" id="nl-disbursement-date">
+            </div>
+            <div class="form-group">
+              <label>Suma (MDL) *</label>
+              <input type="number" id="nl-principal" placeholder="50000">
+            </div>
+            <div class="form-group">
+              <label>Rata dobânzii (% anual) *</label>
+              <input type="number" step="0.1" id="nl-rate" placeholder="15">
+            </div>
+            <div class="form-group">
+              <label>Termen (luni) *</label>
+              <input type="number" id="nl-term" placeholder="12">
+            </div>
+            <div class="form-group">
+              <label>Scadență *</label>
+              <input type="date" id="nl-end-date">
+            </div>
+            <div class="form-group">
+              <label>Tip rambursare *</label>
+              <select id="nl-repayment">
+                <option value="ANNUITY">Anuitate (plată egală)</option>
+                <option value="DECLINING">Descrescător (principal egal)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Penalitate (%/zi)</label>
+              <input type="number" step="0.01" id="nl-penalty" value="0.1">
+            </div>
+            <div class="form-group full">
+              <label>Garanții / Gaj</label>
+              <input id="nl-collateral" placeholder="Ipotecă apartament, gaj auto...">
+            </div>
+            <div class="form-group full">
+              <label>Scop creditului</label>
+              <input id="nl-purpose" placeholder="Consum, construcție, business...">
+            </div>
+            <div class="form-group full">
+              <label>Note</label>
+              <textarea id="nl-notes" rows="2" style="resize:vertical;padding:8px 10px;border:1px solid var(--c-border);border-radius:5px;font-size:13px;color:var(--c-text)"></textarea>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button class="tb-btn primary" onclick="saveLoan()">💾 Salvează & Generează grafic</button>
+            <button class="tb-btn" onclick="clearLoanForm()">✕ Resetează</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- PAYMENTS -->
+      <div class="panel" id="panel-payments">
+        <div class="sec-header">
+          <h2>Înregistrare plăți</h2>
+          <span class="sec-count" id="pay-count">0</span>
+        </div>
+        <div class="filter-row">
+          <button class="filter-btn active" onclick="loadPayableFlows('PENDING')" data-f="PENDING">Neachitate</button>
+          <button class="filter-btn" onclick="loadPayableFlows('OVERDUE')" data-f="OVERDUE">Cu restanță</button>
+        </div>
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>#</th><th>Contract</th><th>Titular</th>
+              <th>Scadență</th><th>Rată totală</th>
+              <th>Achitat</th><th>Restanță</th><th>Zile</th><th>Plată</th>
+            </tr></thead>
+            <tbody id="pay-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- MEMBERS -->
+      <div class="panel" id="panel-members">
+        <div class="sec-header">
+          <h2>Membri AEÎ</h2>
+          <span class="sec-count" id="members-count">0</span>
+        </div>
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>IDNP/IDNO</th><th>Nume</th><th>Tip</th>
+              <th>Telefon</th><th>Email</th><th>Data aderării</th><th>Statut</th>
+            </tr></thead>
+            <tbody id="members-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- DEPOSITS (read-only) -->
+      <div class="panel" id="panel-deposits">
+        <div class="sec-header">
+          <h2>Depozite (vizualizare)</h2>
+          <span class="sec-count" id="dep-count">0</span>
+        </div>
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>Contract</th><th>Titular</th><th>Principal</th>
+              <th>Rata</th><th>Start</th><th>Scadență</th><th>Statut</th>
+            </tr></thead>
+            <tbody id="dep-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- content-area -->
+  </div><!-- main-area -->
+</div><!-- app-shell -->
+
+<div class="status-bar">
+  <span><span class="status-dot"></span>Oracle DB</span>
+  <span id="sb-loans">—</span>
+  <span id="sb-overdue">—</span>
+  <span style="margin-left:auto" id="sb-time"></span>
+</div>
+
+<script>
+/* ── helpers ─────────────────────────────────────── */
+const fmtNum = n => n==null?'—':Number(n).toLocaleString('ro-MD',{minimumFractionDigits:2,maximumFractionDigits:2});
+const badge = s => {
+  const m={ACTIVE:'badge-active Activ',OVERDUE:'badge-overdue Restanță',
+    CLOSED:'badge-closed Închis',PENDING:'badge-pending În așteptare'};
+  const [cls,lbl]=(m[s]||'badge-closed '+s).split(' ');
+  return `<span class="badge ${cls}">${lbl||s}</span>`;
+};
+
+async function api(method,url,body){
+  const opts={method,credentials:'include',headers:{}};
+  if(body){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(body);}
+  const r=await fetch(url,opts);
+  return r.json();
+}
+
+function setStatus(msg){ document.getElementById('statusMsg').textContent=msg; }
+
+/* ── navigation ──────────────────────────────────── */
+let currentPanel='dashboard';
+function showPanel(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n=>{
+    if(n.textContent.trim().toLowerCase().includes(name.replace('-',' ').split(' ')[0].toLowerCase()))
+      n.classList.add('active');
+  });
+  currentPanel=name;
+  const titles={dashboard:'Dashboard operator',loans:'Portofoliu credite',
+    'new-loan':'Cerere credit nouă',payments:'Înregistrare plăți',
+    members:'Membri AEÎ',deposits:'Depozite'};
+  document.getElementById('panelTitle').textContent=titles[name]||name;
+  const loaders={dashboard:loadDashboard,loans:()=>loadLoans(''),
+    payments:()=>loadPayableFlows('PENDING'),members:loadMembers,deposits:loadDeposits};
+  if(loaders[name]) loaders[name]();
+}
+function refreshCurrent(){ showPanel(currentPanel); }
+function filterTable(q){
+  const rows=document.querySelectorAll('#panel-'+currentPanel+' tbody tr[data-search]');
+  rows.forEach(r=>{
+    r.style.display=r.dataset.search.includes(q.toLowerCase())?'':'none';
+  });
+}
+
+/* ── DASHBOARD ───────────────────────────────────── */
+async function loadDashboard(){
+  setStatus('Se încarcă...');
+  const r=await api('GET','/api/aei/dashboard');
+  const d=r.data||{};
+  document.getElementById('kpi-row').innerHTML=`
+    <div class="kpi-card"><div class="kpi-val">${d.total_loans||0}</div><div class="kpi-label">Total credite</div></div>
+    <div class="kpi-card" style="--kpi-color:#15803d"><div class="kpi-val green">${d.active_loans||0}</div><div class="kpi-label">Active</div></div>
+    <div class="kpi-card" style="--kpi-color:#dc2626"><div class="kpi-val red">${d.overdue_loans||0}</div><div class="kpi-label">Cu restanță</div><div class="kpi-sub">${fmtNum(d.overdue_amount)} MDL</div></div>
+    <div class="kpi-card" style="--kpi-color:#f59e0b"><div class="kpi-val">${fmtNum(d.total_loans_amount)}</div><div class="kpi-label">Sold credite MDL</div></div>
+    <div class="kpi-card" style="--kpi-color:#7c6af7"><div class="kpi-val">${d.total_members||0}</div><div class="kpi-label">Membri</div></div>
+  `;
+  // overdue loans table
+  const lr=await api('GET','/api/aei/loans?status=OVERDUE');
+  const loans=lr.data||[];
+  const bdg=document.getElementById('badge-overdue');
+  if(loans.length){bdg.textContent=loans.length;bdg.classList.add('show');}
+  else bdg.classList.remove('show');
+  document.getElementById('sb-overdue').textContent=`Restante: ${loans.length}`;
+  document.getElementById('overdue-body').innerHTML=loans.length
+    ? loans.map(l=>`<tr>
+        <td><strong>${l.contract_no||''}</strong></td>
+        <td>${l.member_name||'—'}</td>
+        <td style="text-align:right">${fmtNum(l.principal)}</td>
+        <td style="text-align:center">${l.interest_rate||''}%</td>
+        <td>${l.end_date||''}</td>
+        <td style="text-align:right;color:#dc2626">—</td>
+        <td><button class="btn-sm blue" onclick="openSchedule(${l.loan_id})">📅 Grafic</button></td>
+      </tr>`).join('')
+    : '<tr><td colspan="7"><div class="empty-state"><div class="es-icon">✅</div><p>Nicio restanță</p></div></td></tr>';
+  setStatus('Actualizat');
+}
+
+/* ── LOANS ───────────────────────────────────────── */
+let allLoans=[];
+async function loadLoans(status){
+  setStatus('Se încarcă credite...');
+  const r=await api('GET','/api/aei/loans'+(status?'?status='+status:''));
+  allLoans=r.data||[];
+  document.getElementById('loans-count').textContent=allLoans.length;
+  document.getElementById('sb-loans').textContent=`Credite: ${allLoans.length}`;
+  renderLoans(allLoans);
+  setStatus('Gata');
+}
+function filterLoans(status){
+  document.querySelectorAll('[data-status]').forEach(b=>b.classList.toggle('active',b.dataset.status===status));
+  loadLoans(status);
+}
+function renderLoans(loans){
+  const body=document.getElementById('loans-body');
+  if(!loans.length){
+    body.innerHTML='<tr><td colspan="9"><div class="empty-state"><div class="es-icon">💳</div><p>Niciun credit</p></div></td></tr>';
+    return;
+  }
+  body.innerHTML=loans.map(l=>`<tr data-search="${(l.contract_no+' '+(l.member_name||'')).toLowerCase()}">
+    <td><strong>${l.contract_no||''}</strong></td>
+    <td>${l.member_name||'—'}</td>
+    <td style="text-align:right">${fmtNum(l.principal)}</td>
+    <td style="text-align:center">${l.interest_rate||''}%</td>
+    <td>${l.disbursement_date||'—'}</td>
+    <td>${l.end_date||'—'}</td>
+    <td style="font-size:11px;color:var(--c-gray)">${l.repayment_type||'—'}</td>
+    <td>${badge(l.status)}</td>
+    <td>
+      <button class="btn-sm blue" onclick="openSchedule(${l.loan_id})" title="Grafic rambursare">📅</button>
+    </td>
+  </tr>`).join('');
+}
+
+/* ── SCHEDULE POPUP ──────────────────────────────── */
+async function openSchedule(loanId){
+  const lr=await api('GET','/api/aei/loans/'+loanId);
+  const d=lr.data||{};
+  const fr=await api('GET','/api/aei/loans/'+loanId+'/flows');
+  const rows=fr.data||[];
+  const totalSched=rows.reduce((s,f)=>s+parseFloat(f.amount_scheduled||0),0);
+  const totalPaid =rows.reduce((s,f)=>s+parseFloat(f.amount_paid||0),0);
+  const totalOverdue=rows.reduce((s,f)=>s+parseFloat(f.amount_overdue||0),0);
+  const remaining=Math.max(parseFloat(d.principal||0)-totalPaid,0);
+  const repayLabel={ANNUITY:'Anuitate',DECLINING:'Descrescător'}[d.repayment_type]||d.repayment_type||'—';
+  const flowRows=rows.map((f,i)=>{
+    const isPaid=parseFloat(f.amount_paid||0)>=parseFloat(f.amount_scheduled||0)*0.99;
+    const isOver=parseFloat(f.amount_overdue||0)>0;
+    const isPartial=parseFloat(f.amount_paid||0)>0&&!isPaid;
+    const rc=isPaid?'lf-paid':isOver?'lf-overdue':isPartial?'lf-partial':'';
+    const icon=isPaid?'✅':isOver?'⚠️':isPartial?'🔸':'⬜';
+    const btn=isPaid?'':`<button onclick="recPayment(${f.flow_id},${f.amount_scheduled},${loanId})" style="padding:2px 8px;font-size:10px;cursor:pointer;border:1px solid #cbd5e1;border-radius:3px;background:#fff">💳 Plată</button>`;
+    return `<tr class="${rc}"><td style="text-align:center;color:#64748b">${i+1}</td>
+      <td>${f.due_date||''}</td><td style="text-align:right">${fmtNum(f.amount_scheduled)}</td>
+      <td style="text-align:right">${parseFloat(f.amount_paid||0)>0?fmtNum(f.amount_paid):'—'}</td>
+      <td style="text-align:right;color:#dc2626">${parseFloat(f.amount_overdue||0)>0?fmtNum(f.amount_overdue):'—'}</td>
+      <td style="text-align:right;color:#475569">${fmtNum(f.balance_principal)}</td>
+      <td>${f.payment_date||'—'}</td><td style="text-align:center">${icon}</td>
+      <td>${btn}</td></tr>`;
+  }).join('');
+  const win=window.open('','_blank','width=1050,height=680');
+  win.document.write(`<!DOCTYPE html><html lang="ro"><head><meta charset="UTF-8">
+  <title>Grafic ${d.contract_no||''}</title>
+  <style>body{font-family:sans-serif;font-size:12px;margin:16px;color:#1e293b}
+  h2{color:#1d4ed8;margin-bottom:8px}.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+  .mf{border:1px solid #e2e8f0;border-radius:4px;padding:8px}.mf .l{font-size:10px;text-transform:uppercase;color:#64748b}
+  .mf .v{font-weight:700;color:#1d4ed8}.summary{display:flex;gap:12px;margin-bottom:12px}
+  .sc{background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px;padding:8px 14px;min-width:120px}
+  .sc .sl{font-size:10px;color:#64748b;text-transform:uppercase}.sc .sv{font-size:16px;font-weight:700}
+  .sc.green .sv{color:#15803d}.sc.red .sv{color:#dc2626}.sc.blue .sv{color:#1d4ed8}
+  table{width:100%;border-collapse:collapse;font-size:11px}
+  th{background:#1d4ed8;color:#fff;padding:6px 8px;text-align:left}
+  td{padding:5px 8px;border-bottom:1px solid #f1f5f9;color:#1e293b}
+  tr.lf-paid td{background:#f0fdf4}tr.lf-overdue td{background:#fff7f7}tr.lf-partial td{background:#fffbeb}
+  .btn-gen{padding:6px 14px;font-size:12px;background:#1d4ed8;color:#fff;border:none;border-radius:4px;cursor:pointer;margin-right:8px}
+  @media print{.no-print{display:none}}</style></head><body>
+  <h2>📅 Grafic de rambursare — ${d.contract_no||''}</h2>
+  <div class="meta">
+    <div class="mf"><div class="l">Titular</div><div class="v">${d.member_name||''}</div></div>
+    <div class="mf"><div class="l">Suma</div><div class="v">${fmtNum(d.principal)} ${d.currency||'MDL'}</div></div>
+    <div class="mf"><div class="l">Rata</div><div class="v">${d.interest_rate||''}% / an</div></div>
+    <div class="mf"><div class="l">Tip</div><div class="v">${repayLabel}</div></div>
+    <div class="mf"><div class="l">Acordat</div><div class="v">${d.disbursement_date||''}</div></div>
+    <div class="mf"><div class="l">Scadență</div><div class="v">${d.end_date||''}</div></div>
+    <div class="mf"><div class="l">Termen</div><div class="v">${d.term_months||''} luni</div></div>
+    <div class="mf"><div class="l">Garanții</div><div class="v">${d.collateral||'—'}</div></div>
+  </div>
+  <div class="summary">
+    <div class="sc blue"><div class="sl">Total rate</div><div class="sv">${fmtNum(totalSched)} MDL</div></div>
+    <div class="sc green"><div class="sl">Achitat</div><div class="sv">${fmtNum(totalPaid)} MDL</div></div>
+    <div class="sc red"><div class="sl">Restanță</div><div class="sv">${fmtNum(totalOverdue)} MDL</div></div>
+    <div class="sc"><div class="sl">Sold principal</div><div class="sv">${fmtNum(remaining)} MDL</div></div>
+  </div>
+  <div class="no-print" style="margin-bottom:10px">
+    <button class="btn-gen" onclick="regen(${loanId})">🔄 Regenerează</button>
+    <button class="btn-gen" style="background:#475569" onclick="window.print()">🖨️ Print</button>
+  </div>
+  <table><thead><tr><th>#</th><th>Scadență</th><th>Rată totală</th><th>Achitat</th>
+  <th>Restanță</th><th>Sold principal</th><th>Data plății</th><th>Statut</th><th class="no-print">Acțiuni</th>
+  </tr></thead><tbody>${flowRows}</tbody></table>
+  </body></html>`);
+  win.document.close();
+  const s=win.document.createElement('script');
+  s.textContent=`
+    async function regen(lid){
+      if(!confirm('Regenerează graficul?')) return;
+      const r=await fetch('/api/aei/loans/'+lid+'/generate-schedule',{method:'POST',credentials:'include'});
+      const d=await r.json();
+      if(d.success){alert(d.message);window.location.reload();}else alert('Eroare: '+d.error);
+    }
+    async function recPayment(fid,sched,lid){
+      const a=prompt('Suma achitată (MDL):',sched.toFixed(2));if(!a)return;
+      const amt=parseFloat(a);if(isNaN(amt)||amt<=0){alert('Sumă invalidă');return;}
+      const t=new Date(),dd=String(t.getDate()).padStart(2,'0')+'.'+String(t.getMonth()+1).padStart(2,'0')+'.'+t.getFullYear();
+      const dt=prompt('Data plății (DD.MM.YYYY):',dd);if(!dt)return;
+      const r=await fetch('/api/aei/loans/payment',{method:'POST',credentials:'include',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({flow_id:fid,amount_paid:amt,payment_date:dt})});
+      const d=await r.json();
+      if(d.success)window.location.reload();else alert('Eroare: '+d.error);
+    }
+  `;
+  win.document.head.appendChild(s);
+}
+
+/* ── PAYMENTS PANEL ──────────────────────────────── */
+async function loadPayableFlows(filterType){
+  document.querySelectorAll('[data-f]').forEach(b=>b.classList.toggle('active',b.dataset.f===filterType));
+  setStatus('Se încarcă plăți...');
+  const lr=await api('GET','/api/aei/loans?status=ACTIVE');
+  const loans=lr.data||[];
+  const loansOverdue=await api('GET','/api/aei/loans?status=OVERDUE');
+  const allLoans=[...loans,...(loansOverdue.data||[])];
+  // load flows for all loans
+  const flowPromises=allLoans.map(l=>api('GET','/api/aei/loans/'+l.loan_id+'/flows').then(r=>(r.data||[]).map(f=>({...f,contract_no:l.contract_no,member_name:l.member_name}))));
+  const allFlowsArr=await Promise.all(flowPromises);
+  let allFlows=allFlowsArr.flat().filter(f=>parseFloat(f.amount_paid||0)<parseFloat(f.amount_scheduled||0)*0.99);
+  if(filterType==='OVERDUE') allFlows=allFlows.filter(f=>parseFloat(f.amount_overdue||0)>0);
+  document.getElementById('pay-count').textContent=allFlows.length;
+  const body=document.getElementById('pay-body');
+  if(!allFlows.length){
+    body.innerHTML='<tr><td colspan="9"><div class="empty-state"><div class="es-icon">💰</div><p>Nicio plată în așteptare</p></div></td></tr>';
+    setStatus('Gata');return;
+  }
+  body.innerHTML=allFlows.map((f,i)=>`<tr>
+    <td style="color:#64748b;font-size:11px">${i+1}</td>
+    <td><strong>${f.contract_no||''}</strong></td>
+    <td>${f.member_name||'—'}</td>
+    <td>${f.due_date||''}</td>
+    <td style="text-align:right">${fmtNum(f.amount_scheduled)}</td>
+    <td style="text-align:right;color:#15803d">${parseFloat(f.amount_paid||0)>0?fmtNum(f.amount_paid):'—'}</td>
+    <td style="text-align:right;color:#dc2626">${parseFloat(f.amount_overdue||0)>0?fmtNum(f.amount_overdue):'—'}</td>
+    <td style="text-align:center">${parseFloat(f.days_overdue||0)>0?f.days_overdue+' zile':'—'}</td>
+    <td><button class="btn-sm green" onclick="doPayment(${f.flow_id},${f.amount_scheduled})">💳 Plată</button></td>
+  </tr>`).join('');
+  setStatus('Gata');
+}
+
+async function doPayment(flowId,sched){
+  const a=prompt('Suma achitată (MDL):',parseFloat(sched).toFixed(2));if(!a)return;
+  const amt=parseFloat(a);if(isNaN(amt)||amt<=0){alert('Sumă invalidă');return;}
+  const t=new Date(),dd=String(t.getDate()).padStart(2,'0')+'.'+String(t.getMonth()+1).padStart(2,'0')+'.'+t.getFullYear();
+  const dt=prompt('Data plății (DD.MM.YYYY):',dd);if(!dt)return;
+  const r=await api('POST','/api/aei/loans/payment',{flow_id:flowId,amount_paid:amt,payment_date:dt});
+  if(r.success){setStatus('Plată înregistrată ✓');loadPayableFlows('PENDING');}
+  else alert('Eroare: '+r.error);
+}
+
+/* ── MEMBERS ─────────────────────────────────────── */
+let allMembersCache=[];
+async function loadMembers(){
+  setStatus('Se încarcă membri...');
+  const r=await api('GET','/api/aei/members');
+  allMembersCache=r.data||[];
+  document.getElementById('members-count').textContent=allMembersCache.length;
+  document.getElementById('members-body').innerHTML=allMembersCache.map(m=>`
+    <tr data-search="${(m.last_name+' '+m.first_name+' '+(m.idnp||'')+(m.idno||'')).toLowerCase()}">
+      <td>${m.idnp||m.idno||'—'}</td>
+      <td><strong>${m.last_name||''}</strong> ${m.first_name||''}</td>
+      <td>${m.member_type==='COMPANY'?'Juridică':'Fizică'}</td>
+      <td>${m.phone||'—'}</td><td>${m.email||'—'}</td>
+      <td>${m.join_date||'—'}</td>
+      <td>${badge(m.status)}</td>
+    </tr>`).join('') || '<tr><td colspan="7"><div class="empty-state"><div class="es-icon">👥</div><p>Niciun membru</p></div></td></tr>';
+  setStatus('Gata');
+}
+
+/* member search for new loan */
+async function searchMembers(q){
+  if(!q||q.length<2){document.getElementById('member-result-list').style.display='none';return;}
+  if(!allMembersCache.length) await loadMembersCache();
+  const lq=q.toLowerCase();
+  const found=allMembersCache.filter(m=>(m.last_name+' '+m.first_name+' '+(m.idnp||'')+(m.idno||'')).toLowerCase().includes(lq));
+  const el=document.getElementById('member-result-list');
+  if(!found.length){el.style.display='block';el.innerHTML='<div class="member-row" style="color:#94a3b8">Niciun rezultat</div>';return;}
+  el.style.display='block';
+  el.innerHTML=found.slice(0,8).map(m=>`<div class="member-row" onclick="selectMember(${m.member_id},'${(m.last_name+' '+m.first_name).replace(/'/g,"\\'")}','${(m.idnp||m.idno||'').replace(/'/g,"\\'")}')">
+    <strong>${m.last_name} ${m.first_name||''}</strong>
+    <span style="color:#64748b;font-size:11px;margin-left:8px">${m.idnp||m.idno||''}</span>
+    <span style="float:right;font-size:10px;color:#94a3b8">${m.member_type==='COMPANY'?'SRL/SA':'Persoană fizică'}</span>
+  </div>`).join('');
+}
+async function loadMembersCache(){
+  const r=await api('GET','/api/aei/members');
+  allMembersCache=r.data||[];
+}
+function selectMember(id,name,idnp){
+  document.getElementById('nl-member-id').value=id;
+  document.getElementById('smi-name').textContent=name;
+  document.getElementById('smi-idnp').textContent=idnp;
+  document.getElementById('selected-member-display').style.display='flex';
+  document.getElementById('member-search-block').style.display='none';
+}
+function clearSelectedMember(){
+  document.getElementById('nl-member-id').value='';
+  document.getElementById('selected-member-display').style.display='none';
+  document.getElementById('member-search-block').style.display='block';
+  document.getElementById('memberSearchInput').value='';
+  document.getElementById('member-result-list').style.display='none';
+}
+
+/* ── DEPOSITS ────────────────────────────────────── */
+async function loadDeposits(){
+  setStatus('Se încarcă depozite...');
+  const r=await api('GET','/api/aei/deposits');
+  const deps=r.data||[];
+  document.getElementById('dep-count').textContent=deps.length;
+  document.getElementById('dep-body').innerHTML=deps.map(d=>`<tr>
+    <td><strong>${d.contract_no||''}</strong></td>
+    <td>${d.member_name||'—'}</td>
+    <td style="text-align:right">${fmtNum(d.principal)}</td>
+    <td style="text-align:center">${d.interest_rate||''}%</td>
+    <td>${d.start_date||'—'}</td><td>${d.end_date||'—'}</td>
+    <td>${badge(d.status)}</td>
+  </tr>`).join('') || '<tr><td colspan="7"><div class="empty-state"><div class="es-icon">🏛️</div><p>Niciun depozit</p></div></td></tr>';
+  setStatus('Gata');
+}
+
+/* ── SAVE LOAN ───────────────────────────────────── */
+async function saveLoan(){
+  const memberId=document.getElementById('nl-member-id').value;
+  if(!memberId){alert('Selectați membrul mai întâi!');return;}
+  const payload={
+    member_id:parseInt(memberId),
+    contract_no:document.getElementById('nl-contract-no').value.trim(),
+    sign_date:document.getElementById('nl-sign-date').value,
+    disbursement_date:document.getElementById('nl-disbursement-date').value,
+    end_date:document.getElementById('nl-end-date').value,
+    principal:parseFloat(document.getElementById('nl-principal').value)||0,
+    interest_rate:parseFloat(document.getElementById('nl-rate').value)||0,
+    term_months:parseInt(document.getElementById('nl-term').value)||0,
+    repayment_type:document.getElementById('nl-repayment').value,
+    penalty_rate:parseFloat(document.getElementById('nl-penalty').value)||0.1,
+    collateral:document.getElementById('nl-collateral').value.trim(),
+    purpose:document.getElementById('nl-purpose').value.trim(),
+    notes:document.getElementById('nl-notes').value.trim(),
+    currency:'MDL',status:'ACTIVE',
+  };
+  const required=['contract_no','sign_date','disbursement_date','end_date'];
+  const missing=required.filter(f=>!payload[f]);
+  if(missing.length||!payload.principal||!payload.interest_rate||!payload.term_months){
+    alert('Completați toate câmpurile obligatorii (*)');return;
+  }
+  setStatus('Se salvează...');
+  const r=await api('POST','/api/aei/loans',payload);
+  if(!r.success){alert('Eroare: '+r.error);setStatus('Eroare');return;}
+  const loanId=r.loan_id;
+  if(loanId){
+    setStatus('Generare grafic...');
+    const gr=await api('POST','/api/aei/loans/'+loanId+'/generate-schedule');
+    if(gr.success) setStatus('Credit salvat + '+gr.message+' ✓');
+    else setStatus('Credit salvat, grafic: '+gr.error);
+  } else {
+    setStatus('Credit salvat ✓');
+  }
+  clearLoanForm();
+  showPanel('loans');
+}
+function clearLoanForm(){
+  ['nl-contract-no','nl-sign-date','nl-disbursement-date','nl-end-date',
+   'nl-principal','nl-rate','nl-term','nl-collateral','nl-purpose','nl-notes'].forEach(id=>{
+    const el=document.getElementById(id);if(el)el.value='';
+  });
+  document.getElementById('nl-penalty').value='0.1';
+  clearSelectedMember();
+}
+
+/* ── INIT ────────────────────────────────────────── */
+(async function init(){
+  await loadMembersCache();
+  loadDashboard();
+  setInterval(()=>{
+    document.getElementById('sb-time').textContent=new Date().toLocaleTimeString('ro-MD');
+  },1000);
+})();
+</script>
+</body>
+</html>

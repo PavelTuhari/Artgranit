@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Весовой билет / Tichet cantarire</title>
+<style>
+@media print { body { margin: 0; } .no-print { display: none !important; } @page { size: A4; margin: 15mm 20mm; } }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Times New Roman', serif; font-size: 12pt; color: #000; max-width: 210mm; margin: 0 auto; padding: 20mm; }
+.header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+.header h1 { font-size: 16pt; margin-bottom: 4px; }
+.header .company { font-size: 10pt; color: #555; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 20px; font-size: 11pt; }
+.info-grid .label { color: #555; }
+.info-grid .value { font-weight: bold; }
+.weight-box { border: 2px solid #000; padding: 16px; margin: 20px 0; text-align: center; }
+.weight-box .big { font-size: 28pt; font-weight: bold; }
+.weight-box .label { font-size: 10pt; color: #555; }
+table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+th, td { border: 1px solid #000; padding: 6px 8px; text-align: center; font-size: 11pt; }
+th { background: #f0f0f0; }
+.signatures { display: flex; justify-content: space-between; margin-top: 40px; }
+.sig-block { width: 40%; }
+.sig-block .line { border-bottom: 1px solid #000; height: 30px; margin-top: 20px; }
+.sig-block .label { font-size: 10pt; color: #555; margin-top: 4px; }
+.no-print { text-align: center; margin-bottom: 16px; }
+.no-print button { padding: 10px 30px; font-size: 14px; cursor: pointer; background: #059669; color: #fff; border: none; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="no-print"><button onclick="window.print()">Печать / Tipareste</button></div>
+<div class="header">
+    <div class="company">{{ company_name or 'AGRO Company SRL' }}</div>
+    <h1>ВЕСОВОЙ БИЛЕТ / TICHET DE CANTARIRE</h1>
+</div>
+<div class="info-grid">
+    <div><span class="label">Номер / Nr.:</span> <span class="value">{{ ticket_number or '—' }}</span></div>
+    <div><span class="label">Дата / Data:</span> <span class="value">{{ ticket_date or '—' }}</span></div>
+    <div><span class="label">Поставщик / Furnizor:</span> <span class="value">{{ supplier_name or '—' }}</span></div>
+    <div><span class="label">Продукция / Produs:</span> <span class="value">{{ item_name or '—' }}</span></div>
+    <div><span class="label">Транспорт / Vehicul:</span> <span class="value">{{ vehicle_number or '—' }}</span></div>
+    <div><span class="label">Партия / Lot:</span> <span class="value">{{ batch_number or '—' }}</span></div>
+</div>
+<table>
+    <tr><th>Показатель / Indicator</th><th>Значение / Valoare</th><th>Единица / UM</th></tr>
+    <tr><td>Вес брутто / Greutate bruta</td><td><strong>{{ '%.1f'|format(gross_weight_kg|float) if gross_weight_kg else '—' }}</strong></td><td>кг / kg</td></tr>
+    <tr><td>Вес тары / Greutate tara</td><td><strong>{{ '%.1f'|format(tare_weight_kg|float) if tare_weight_kg else '—' }}</strong></td><td>кг / kg</td></tr>
+</table>
+<div class="weight-box">
+    <div class="label">ВЕС НЕТТО / GREUTATE NETA</div>
+    <div class="big">{{ '%.1f'|format(net_weight_kg|float) if net_weight_kg else '—' }} кг</div>
+</div>
+<div class="info-grid">
+    <div><span class="label">Кол-во ящиков / Nr. lazi:</span> <span class="value">{{ crate_count or '—' }}</span></div>
+    <div><span class="label">Время взвеш. / Ora cantaririi:</span> <span class="value">{{ weigh_time or '—' }}</span></div>
+</div>
+<div class="signatures">
+    <div class="sig-block"><div class="line"></div><div class="label">Весовщик / Cantaragiu</div></div>
+    <div class="sig-block"><div class="line"></div><div class="label">Водитель / Sofer</div></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Экспортная декларация / Declaratie de export</title>
+<style>
+@media print { body { margin: 0; } .no-print { display: none !important; } @page { size: A4; margin: 15mm 20mm; } }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Times New Roman', serif; font-size: 12pt; color: #000; max-width: 210mm; margin: 0 auto; padding: 20mm; }
+.header { text-align: center; margin-bottom: 16px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+.header h1 { font-size: 15pt; margin-bottom: 4px; }
+.header .company { font-size: 10pt; color: #555; }
+.section { margin-bottom: 16px; }
+.section-title { font-size: 11pt; font-weight: bold; background: #f0f0f0; padding: 6px 10px; border: 1px solid #000; margin-bottom: 8px; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11pt; }
+.info-grid .label { color: #555; }
+.info-grid .value { font-weight: bold; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 11pt; }
+th, td { border: 1px solid #000; padding: 5px 8px; text-align: left; }
+th { background: #f0f0f0; font-weight: bold; font-size: 10pt; }
+.total-row td { font-weight: bold; }
+.cert-box { border: 2px solid #000; padding: 12px; margin: 16px 0; }
+.cert-box .title { font-weight: bold; text-align: center; margin-bottom: 8px; }
+.signatures { display: flex; justify-content: space-between; margin-top: 40px; }
+.sig-block { width: 30%; }
+.sig-block .line { border-bottom: 1px solid #000; height: 25px; margin-top: 20px; }
+.sig-block .label { font-size: 9pt; color: #555; margin-top: 4px; text-align: center; }
+.stamp-area { text-align: center; margin-top: 20px; font-size: 10pt; color: #999; border: 1px dashed #ccc; padding: 15px; }
+.no-print { text-align: center; margin-bottom: 16px; }
+.no-print button { padding: 10px 30px; font-size: 14px; cursor: pointer; background: #059669; color: #fff; border: none; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="no-print"><button onclick="window.print()">Печать / Tipareste</button></div>
+<div class="header">
+    <div class="company">{{ company_name or 'AGRO Company SRL' }}</div>
+    <h1>ЭКСПОРТНАЯ ДЕКЛАРАЦИЯ / DECLARATIE DE EXPORT</h1>
+</div>
+<div class="section">
+    <div class="section-title">1. Общие сведения / Date generale</div>
+    <div class="info-grid">
+        <div><span class="label">Номер / Nr.:</span> <span class="value">{{ decl_number or '—' }}</span></div>
+        <div><span class="label">Дата / Data:</span> <span class="value">{{ decl_date or '—' }}</span></div>
+        <div><span class="label">Документ продажи / Doc. vanzare:</span> <span class="value">{{ doc_number or '—' }}</span></div>
+        <div><span class="label">Статус:</span> <span class="value">{{ status or 'new' }}</span></div>
+    </div>
+</div>
+<div class="section">
+    <div class="section-title">2. Экспортёр / Exportator</div>
+    <div class="info-grid">
+        <div><span class="label">Наименование:</span> <span class="value">{{ company_name or '—' }}</span></div>
+        <div><span class="label">Адрес:</span> <span class="value">{{ company_address or '—' }}</span></div>
+    </div>
+</div>
+<div class="section">
+    <div class="section-title">3. Получатель / Destinatar</div>
+    <div class="info-grid">
+        <div><span class="label">Наименование:</span> <span class="value">{{ customer_name or '—' }}</span></div>
+        <div><span class="label">Страна / Tara:</span> <span class="value">{{ destination_country or '—' }}</span></div>
+    </div>
+</div>
+<div class="section">
+    <div class="section-title">4. Товары / Marfuri</div>
+    <table>
+        <thead><tr><th>#</th><th>Наименование / Denumire</th><th>Кол-во кг / Cant. kg</th><th>Стоимость / Valoare</th></tr></thead>
+        <tbody>
+        {% for line in lines or [] %}
+        <tr><td>{{ loop.index }}</td><td>{{ line.item_name or '—' }}</td><td>{{ '%.1f'|format(line.qty_kg|float) if line.qty_kg else '—' }}</td><td>{{ '%.2f'|format(line.line_total|float) if line.line_total else '—' }}</td></tr>
+        {% endfor %}
+        </tbody>
+        <tfoot><tr class="total-row"><td colspan="2">ИТОГО / TOTAL</td><td>{{ '%.1f'|format(total_qty_kg|float) if total_qty_kg else '—' }}</td><td>{{ '%.2f'|format(total_amount|float) if total_amount else '—' }} {{ currency_code or '' }}</td></tr></tfoot>
+    </table>
+</div>
+<div class="section">
+    <div class="section-title">5. Транспорт / Transport</div>
+    <div class="info-grid">
+        <div><span class="label">Вид / Mod:</span> <span class="value">{{ transport_mode or '—' }}</span></div>
+        <div><span class="label">Порт выхода / Port iesire:</span> <span class="value">{{ port_of_exit or '—' }}</span></div>
+    </div>
+</div>
+<div class="cert-box">
+    <div class="title">6. Фитосанитарный сертификат / Certificat fitosanitar</div>
+    <div class="info-grid">
+        <div><span class="label">Номер / Nr.:</span> <span class="value">{{ phytosanitary_cert or '—' }}</span></div>
+        <div><span class="label">Дата выдачи:</span> <span class="value">{{ phyto_date or '—' }}</span></div>
+    </div>
+</div>
+{% if notes %}
+<div class="section" style="margin-top:12px;font-size:11pt;"><strong>Примечания / Observatii:</strong> {{ notes }}</div>
+{% endif %}
+<div class="signatures">
+    <div class="sig-block"><div class="line"></div><div class="label">Экспортёр / Exportator</div></div>
+    <div class="sig-block"><div class="line"></div><div class="label">Таможня / Vama</div></div>
+    <div class="sig-block"><div class="line"></div><div class="label">Фитоинспектор</div></div>
+</div>
+<div class="stamp-area">М.П. / L.S.</div>
+</body>
+</html>

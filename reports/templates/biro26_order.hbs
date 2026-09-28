@@ -1,0 +1,72 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "DejaVu Sans", Arial, sans-serif; font-size: 10.5px; color: #000; padding: 24px 28px; }
+  h1 { font-size: 14px; margin-bottom: 12px; border-bottom: 2px solid #000; padding-bottom: 6px; }
+  .who { margin: 3px 0; }
+  .who b { display: inline-block; min-width: 74px; }
+  table.items { width: 100%; border-collapse: collapse; margin: 12px 0 6px; }
+  table.items th, table.items td { border: 1px solid #000; padding: 5px; vertical-align: middle; }
+  table.items th { font-size: 9.5px; font-weight: bold; text-align: center; background: #fff; }
+  td.num { text-align: right; white-space: nowrap; }
+  td.ctr { text-align: center; }
+  .totline { margin: 6px 0; }
+  .totals { text-align: right; margin: 4px 0; }
+  .totals b { display: inline-block; min-width: 110px; text-align: right; }
+  .sig { display: flex; justify-content: space-between; margin-top: 30px; }
+  .sig div { width: 46%; border-top: 1px solid #000; padding-top: 3px; font-size: 10px; }
+  .bold-label { font-family: "DejaVu Sans", Arial, sans-serif; font-weight: bold; }
+</style>
+</head>
+<body>
+
+{{#if logo}}<div style="text-align:right; margin-bottom:4px"><img src="{{logo}}" style="height:38px"></div>{{/if}}
+<h1>Comanda cumpărătorului № {{nrmanual}} din {{date_ro}}</h1>
+
+<div class="who"><b>Executor:</b> {{firm.name}}, Cod fiscal {{firm.fiscal_code}}, {{firm.address}}<br>
+  <b>IBAN:</b> {{firm.iban}} &nbsp; {{firm.bank}}{{#if firm.branch}} {{firm.branch}}{{/if}}</div>
+<div class="who"><b>Client:</b> {{client.name}}{{#if client.fiscal_code}}, Cod fiscal {{client.fiscal_code}}{{/if}}{{#if client.address}}, {{client.address}}{{/if}}{{#if client.phone}}, tel.: {{client.phone}}{{/if}}{{#if client.iban}}<br><b>IBAN:</b> {{client.iban}}{{#if client.bank}} &nbsp; {{client.bank}}{{/if}}{{#if client.bic}} &nbsp; BIC: {{client.bic}}{{/if}}{{/if}}</div>
+
+<table class="items">
+  <thead>
+    <tr>
+      <th style="width:26px">№</th>
+      <th>Mărfuri (lucrări, servicii)</th>
+      <th style="width:92px">Cod</th>
+      <th style="width:56px">Cant-tea</th>
+      <th style="width:54px">Un. mas.</th>
+      <th style="width:74px">Prețul</th>
+      <th style="width:84px">Suma</th>
+    </tr>
+  </thead>
+  <tbody>
+    {{#each items}}
+    <tr>
+      <td class="ctr">{{inc @index}}</td>
+      <td>{{name}}</td>
+      <td class="ctr">{{cod}}</td>
+      <td class="num">{{qty}}</td>
+      <td class="ctr">{{um}}</td>
+      <td class="num">{{fmt price}}</td>
+      <td class="num">{{fmt sum}}</td>
+    </tr>
+    {{/each}}
+  </tbody>
+</table>
+
+<div class="totline">Total denumiri {{items.length}}, în sumă de {{fmt total}} lei<br>
+<b>{{roAmount total}}</b></div>
+
+<div class="totals"><b>Total:</b> &nbsp; {{fmt total}}</div>
+<div class="totals"><b>{{#if tva_label}}{{tva_label}}{{else}}Inclusiv TVA:{{/if}}</b> &nbsp; {{#if tva_text}}{{tva_text}}{{else}}{{fmt tva}}{{/if}}</div>
+
+<div class="sig">
+  <div>Executor</div>
+  <div>Cumpărător <span style="font-size:9px;color:#333">(nume complet / semnătura)</span></div>
+</div>
+
+</body>
+</html>

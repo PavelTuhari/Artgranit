@@ -1,0 +1,1020 @@
+!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Artgranit OCI &mdash; Developer Guide v2.0</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-muted: #8b949e;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --accent3: #d2a8ff;
+    --red: #f85149;
+    --orange: #d29922;
+    --code-bg: #1c2128;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    padding: 0;
+  }
+
+  /* --- layout --- */
+  .wrapper { display: flex; min-height: 100vh; }
+  nav.sidebar {
+    width: 280px;
+    min-width: 280px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 16px;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  nav.sidebar h2 { font-size: 14px; color: var(--accent); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 12px; }
+  nav.sidebar a {
+    display: block;
+    color: var(--text-muted);
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 13px;
+    margin-bottom: 2px;
+  }
+  nav.sidebar a:hover { color: var(--text); background: rgba(88,166,255,.08); }
+  nav.sidebar a.l2 { padding-left: 20px; font-size: 12px; }
+  nav.sidebar hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
+
+  main.content {
+    flex: 1;
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 40px 48px 80px;
+  }
+
+  /* --- typography --- */
+  h1 { font-size: 32px; margin-bottom: 8px; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+  h1 small { font-size: 14px; color: var(--text-muted); font-weight: 400; }
+  h2 { font-size: 24px; margin-top: 48px; margin-bottom: 16px; color: var(--text); border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+  h3 { font-size: 18px; margin-top: 32px; margin-bottom: 12px; color: var(--accent3); }
+  h4 { font-size: 15px; margin-top: 20px; margin-bottom: 8px; color: var(--text); }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 16px 24px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  /* --- code --- */
+  code {
+    font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', Consolas, monospace;
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 13px;
+    color: var(--accent2);
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; color: var(--text); }
+
+  /* sql highlight */
+  .kw { color: #ff7b72; }
+  .cm { color: #8b949e; font-style: italic; }
+  .str { color: #a5d6ff; }
+
+  /* --- tables --- */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 16px;
+    font-size: 14px;
+  }
+  th {
+    background: var(--surface);
+    color: var(--text);
+    text-align: left;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    font-weight: 600;
+  }
+  td {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    vertical-align: top;
+  }
+  tr:nth-child(even) td { background: rgba(22,27,34,.5); }
+
+  /* --- badges --- */
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-right: 4px;
+  }
+  .badge-green { background: rgba(63,185,80,.15); color: var(--accent2); }
+  .badge-blue  { background: rgba(88,166,255,.15); color: var(--accent); }
+  .badge-red   { background: rgba(248,81,73,.15); color: var(--red); }
+  .badge-orange { background: rgba(210,169,34,.15); color: var(--orange); }
+
+  /* --- checklist --- */
+  .checklist { list-style: none; margin-left: 0; }
+  .checklist li { padding: 4px 0; }
+  .checklist li::before { content: "\2610 "; color: var(--text-muted); margin-right: 4px; }
+
+  /* --- callout --- */
+  .callout {
+    border-left: 4px solid var(--accent);
+    background: rgba(88,166,255,.06);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    border-radius: 0 6px 6px 0;
+  }
+  .callout.warn { border-left-color: var(--orange); background: rgba(210,169,34,.06); }
+  .callout.danger { border-left-color: var(--red); background: rgba(248,81,73,.06); }
+
+  @media (max-width: 900px) {
+    nav.sidebar { display: none; }
+    main.content { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+<!-- ───────── SIDEBAR ───────── -->
+<nav class="sidebar">
+  <h2>Developer Guide</h2>
+  <a href="#s1">1. Architecture</a>
+  <a href="#s2">2. Modules</a>
+  <a href="#s2-1" class="l2">Shell</a>
+  <a href="#s2-2" class="l2">Dashboard</a>
+  <a href="#s2-3" class="l2">BUS</a>
+  <a href="#s2-4" class="l2">CRED</a>
+  <a href="#s2-5" class="l2">NUF (Nufarul)</a>
+  <a href="#s2-6" class="l2">DIGI</a>
+  <a href="#s2-7" class="l2">DECOR</a>
+  <a href="#s2-8" class="l2">CLS (Colass)</a>
+  <a href="#s2-9" class="l2">AGRO</a>
+  <hr>
+  <a href="#s3">3. Oracle ADB / APEX</a>
+  <a href="#s3-1" class="l2">OCI infra</a>
+  <a href="#s3-2" class="l2">Connection</a>
+  <a href="#s3-3" class="l2">.env vars</a>
+  <a href="#s3-4" class="l2">Download wallet</a>
+  <a href="#s3-5" class="l2">Wallet paths</a>
+  <hr>
+  <a href="#s4">4. Git Migration</a>
+  <a href="#s5">5. Oracle DDL</a>
+  <a href="#s5-1" class="l2">Script order</a>
+  <a href="#s5-2" class="l2">Deploy commands</a>
+  <a href="#s5-3" class="l2">Security</a>
+  <hr>
+  <a href="#s6">6. Remote Deploy</a>
+  <a href="#s7">7. Local Run</a>
+  <hr>
+  <a href="#s8">8. New Module Guide</a>
+  <a href="#s8-1" class="l2">8.1 Prefix</a>
+  <a href="#s8-2" class="l2">8.2 DDL</a>
+  <a href="#s8-3" class="l2">8.3 Register deploy</a>
+  <a href="#s8-4" class="l2">8.4 Model</a>
+  <a href="#s8-5" class="l2">8.5 Controller</a>
+  <a href="#s8-6" class="l2">8.6 Routes</a>
+  <a href="#s8-7" class="l2">8.7 Template</a>
+  <a href="#s8-8" class="l2">8.8 Shell reg</a>
+  <a href="#s8-9" class="l2">8.9 Version reg</a>
+  <a href="#s8-10" class="l2">8.10 Docs</a>
+  <a href="#s8-11" class="l2">8.11 Checklist</a>
+  <hr>
+  <a href="#s9">9. Anti-patterns</a>
+  <a href="#s10">10. Commands</a>
+</nav>
+
+<!-- ───────── MAIN ───────── -->
+<main class="content">
+
+<h1>Artgranit OCI &mdash; Developer Guide v2.0 <br><small>Architecture &middot; Modules &middot; Oracle ADB &middot; Deploy &middot; New-module howto</small></h1>
+
+<!-- ═══════ 1. ARCHITECTURE ═══════ -->
+<h2 id="s1">1. Architecture</h2>
+
+<p>Artgranit OCI &mdash; это мультимодульная платформа, построенная вокруг единственного источника истины: Oracle Autonomous Database в облаке. Задача платформы &mdash; предоставить набор бизнес-модулей (кредиты, строительные сметы, складской учёт, химчистка и др.), каждый из которых работает в рамках одного веб-приложения, одной базы данных и одного development workflow.</p>
+
+<p>Выбор технологий обусловлен несколькими принципиальными решениями. <strong>Flask</strong> выбран как легковесный фреймворк, который не навязывает ORM и позволяет работать напрямую с Oracle через нативный драйвер <code>oracledb</code>. Это критично, потому что Oracle ADB поддерживает PL/SQL-пакеты, представления и триггеры, которые являются частью бизнес-логики, и ORM вроде SQLAlchemy скорее мешал бы, чем помогал. <strong>Vanilla JS</strong> на фронтенде &mdash; сознательный выбор: каждый модуль самодостаточен, нет общего SPA-фреймворка, а значит нет и единой точки отказа при обновлении React/Vue версий. <strong>WebSockets</strong> через Flask-SocketIO используются только для dashboard-метрик, где нужен настоящий real-time &mdash; остальные модули работают по классическому HTTP request-response.</p>
+
+<p>Ключевой архитектурный принцип: <em>все бизнес-данные живут в Oracle, а не в файлах или SQLite</em>. Это кажется очевидным, но исторически ряд модулей начинали жить в JSON-файлах как &laquo;временное решение&raquo;. Переход на нормализованные Oracle-таблицы произошёл в процессе эволюции проекта, и теперь это зафиксировано как обязательное правило для всех новых модулей (подробнее см. раздел 9 &laquo;Anti-patterns&raquo;).</p>
+
+<h3>Stack</h3>
+<table>
+<tr><th>Layer</th><th>Technology</th></tr>
+<tr><td>Backend</td><td>Python 3.12 + Flask</td></tr>
+<tr><td>Real-time</td><td>Flask-SocketIO (WebSockets, threading)</td></tr>
+<tr><td>Database</td><td>Oracle Autonomous Database (OCI) via <code>oracledb</code></td></tr>
+<tr><td>Auth wallet</td><td>Oracle Wallet (mTLS)</td></tr>
+<tr><td>Frontend</td><td>Vanilla JS + HTML5/CSS3 + Socket.IO client</td></tr>
+<tr><td>Deploy</td><td>tar.gz + SSH/SCP (shell scripts)</td></tr>
+</table>
+
+<h3>MVC structure</h3>
+
+<p>Проект следует классическому паттерну MVC, но с одной особенностью, которая может удивить разработчика, привыкшего к Django или Rails: все маршруты определены в одном файле <code>app.py</code> (~200 KB). Это не случайность и не лень &mdash; Flask не навязывает декомпозицию на blueprints, а все маршруты собраны вместе сознательно, чтобы при чтении кода сразу было видно полную карту URL-пространства приложения. Контроллеры, напротив, разнесены по отдельным файлам &mdash; каждый модуль имеет свой контроллер, а зачастую и свою модель-хранилище (<code>*_oracle_store.py</code>). Таким образом, <code>app.py</code> выполняет роль маршрутизатора и точки входа, а бизнес-логика живёт в контроллерах.</p>
+<pre><code>Artgranit/
+&#9500;&#9472;&#9472; app.py                      # Entry point, all routes, SocketIO events
+&#9500;&#9472;&#9472; config.py                   # Config from .env
+&#9500;&#9472;&#9472; requirements.txt            # Python deps
+&#9500;&#9472;&#9472; .env                        # Secrets (NOT in git)
+&#9500;&#9472;&#9472; .env.example                # .env template
+&#9474;
+&#9500;&#9472;&#9472; controllers/                # Controllers (business logic + API)
+&#9474;   &#9500;&#9472;&#9472; auth_controller.py
+&#9474;   &#9500;&#9472;&#9472; dashboard_controller.py
+&#9474;   &#9500;&#9472;&#9472; sql_controller.py
+&#9474;   &#9500;&#9472;&#9472; objects_controller.py
+&#9474;   &#9500;&#9472;&#9472; shell_controller.py
+&#9474;   &#9500;&#9472;&#9472; credit_controller.py
+&#9474;   &#9500;&#9472;&#9472; nufarul_controller.py
+&#9474;   &#9500;&#9472;&#9472; colass_controller.py
+&#9474;   &#9500;&#9472;&#9472; digi_marketing_controller.py
+&#9474;   &#9500;&#9472;&#9472; agro_*_controller.py       (5 controllers)
+&#9474;   &#9500;&#9472;&#9472; documentation_controller.py
+&#9474;   &#9492;&#9472;&#9472; combo_scenario_controller.py
+&#9474;
+&#9500;&#9472;&#9472; models/                     # Data models &amp; Oracle stores
+&#9474;   &#9500;&#9472;&#9472; database.py             # Connection pool, query helper
+&#9474;   &#9500;&#9472;&#9472; shell_project.py        # UNA_SHELL_PROJECTS
+&#9474;   &#9500;&#9472;&#9472; decor_oracle_store.py   # DECOR_* normalized store
+&#9474;   &#9500;&#9472;&#9472; agro_oracle_store.py    # AGRO_* normalized store
+&#9474;   &#9492;&#9472;&#9472; oracle_runtime_store.py # Append-only event log helper
+&#9474;
+&#9500;&#9472;&#9472; services/                   # Services
+&#9500;&#9472;&#9472; integrations/               # External APIs (EasyCredit, Iute)
+&#9500;&#9472;&#9472; templates/                  # Jinja2 HTML
+&#9500;&#9472;&#9472; static/                     # CSS, JS, images
+&#9500;&#9472;&#9472; sql/                        # Oracle DDL, views, triggers, demo data
+&#9500;&#9472;&#9472; dashboards/                 # JSON dashboard configs (00-10)
+&#9500;&#9472;&#9472; docs/                       # Project documentation
+&#9500;&#9472;&#9472; data/                       # Runtime JSON (settings, NOT primary state)
+&#9492;&#9472;&#9472; translations/               # i18n (ru, ro, en)</code></pre>
+
+<!-- ═══════ 2. MODULES ═══════ -->
+<h2 id="s2">2. Modules</h2>
+
+<p>Платформа Artgranit состоит из девяти бизнес-модулей, каждый из которых проектировался для конкретной предметной области. Модули между собой взаимодействуют минимально: общая для них &mdash; процедура аутентификации, Shell-оболочка для навигации и единая база данных Oracle. Такая слабая связанность &mdash; намеренное архитектурное решение: каждый модуль можно развивать, тестировать и деплоить как логически независимую единицу.</p>
+
+<p>Каждый модуль характеризуется:</p>
+<ul>
+  <li><strong>Oracle-префиксом</strong> &mdash; короткое имя (3-5 символов), которым начинаются все объекты БД этого модуля. Например, <code>CRED_BANKS</code>, <code>AGRO_ITEMS</code>, <code>CLS_RESOURCES</code>. Это позволяет мгновенно понять принадлежность любого объекта в схеме.</li>
+  <li><strong>DDL-скриптами</strong> в <code>sql/</code> &mdash; полное описание схемы данных модуля: таблицы, sequences, triggers, views, демо-данные.</li>
+  <li><strong>Контроллером</strong> &mdash; Python-класс с бизнес-логикой, вызываемый из маршрутов <code>app.py</code>.</li>
+  <li><strong>HTML-шаблоном</strong> &mdash; самостоятельная страница с JavaScript-логикой (не SPA-компонент, а полноценная страница).</li>
+  <li><strong>API-маршрутами</strong> под <code>/api/&lt;module&gt;/*</code> &mdash; JSON REST API для AJAX-запросов из фронтенда.</li>
+</ul>
+
+<p>Ниже каждый модуль описан подробно: что он делает, какие таблицы использует, где лежит код, и &mdash; что особенно важно &mdash; почему он устроен именно так.</p>
+
+<!-- Shell -->
+<h3 id="s2-1">2.1 Shell <span class="badge badge-blue">UNA_SHELL_*</span></h3>
+<table>
+<tr><th>Param</th><th>Value</th></tr>
+<tr><td>Oracle prefix</td><td><code>UNA_SHELL_*</code></td></tr>
+<tr><td>Tables</td><td><code>UNA_SHELL_PROJECTS</code></td></tr>
+<tr><td>DDL</td><td><code>sql/13_shell_projects.sql</code></td></tr>
+<tr><td>Controller</td><td><code>controllers/shell_controller.py</code></td></tr>
+<tr><td>Model</td><td><code>models/shell_project.py</code></td></tr>
+<tr><td>Templates</td><td><code>shell_projects.html</code>, <code>shell_dashboard_mdi.html</code></td></tr>
+<tr><td>UI URL</td><td><code>/UNA.md/orasldev/</code> (main MDI)</td></tr>
+</table>
+<p>Shell &mdash; root app shell. Stores project list (slug, name, dashboard_ids) in normalized table <code>UNA_SHELL_PROJECTS</code>. Each project leads to its own set of dashboards.</p>
+
+<p>Shell можно воспринимать как &laquo;рабочий стол&raquo; всей платформы. Когда пользователь заходит на <code>/UNA.md/orasldev/</code>, он попадает в MDI-интерфейс (Multiple Document Interface) &mdash; среду с плавающими окнами, аналогичную Oracle SQL Developer. Оттуда открываются SQL-воркшиты, браузер объектов, дашборды. Shell &mdash; это именно оболочка, в которую встроены все остальные модули.</p>
+
+<p>Таблица <code>UNA_SHELL_PROJECTS</code> играет роль реестра проектов. Каждый проект &mdash; это запись с <code>slug</code> (уникальный URL-идентификатор), <code>name</code>, <code>description</code> и строкой <code>dashboard_ids</code> (список ID дашбордов через запятую). Когда добавляется новый модуль, он регистрируется в этой таблице, чтобы появиться в навигации Shell. Это аналог <code>TForm</code> с <code>TMainMenu</code> в Delphi/C++ Builder: Shell &mdash; главная форма, а модули &mdash; дочерние формы, вызываемые через меню.</p>
+
+<!-- Dashboard -->
+<h3 id="s2-2">2.2 Dashboard</h3>
+<table>
+<tr><th>Param</th><th>Value</th></tr>
+<tr><td>Controller</td><td><code>controllers/dashboard_controller.py</code></td></tr>
+<tr><td>Templates</td><td><code>dashboard_mdi.html</code>, <code>dashboard.html</code></td></tr>
+<tr><td>Configs</td><td><code>dashboards/dashboard_00.json</code> &ndash; <code>dashboard_10.json</code></td></tr>
+<tr><td>UI URL</td><td><code>/UNA.md/orasldev/dashboard</code>, <code>/UNA.md/orasldev/dashboard/&lt;id&gt;</code></td></tr>
+</table>
+<p>Real-time Oracle metrics: CPU, RAM, Sessions, Top SQL, Tablespaces. WebSocket updates every 60s. Fullscreen mode for individual panels.</p>
+
+<p>Dashboard &mdash; это панель мониторинга Oracle, аналогичная тому, что вы видели бы в Oracle Enterprise Manager, но встроенная прямо в приложение. Дашборд конфигурируется через JSON-файлы (<code>dashboards/dashboard_00.json</code> &ndash; <code>dashboard_10.json</code>), каждый из которых описывает набор виджетов: какой SQL-запрос выполняется, как часто обновляются данные, в каком виде отображаются (карточка, таблица, график). WebSocket-соединение инициируется при открытии дашборда, и далее сервер каждые 60 секунд отправляет обновлённые метрики без повторных HTTP-запросов. Это особенно важно для метрики Top SQL: запрос к <code>v$sqlarea</code> может быть ресурсоёмким, и контроллер использует упрощённую выборку без тяжёлого поля <code>sql_text</code>, чтобы не перегружать ADB.</p>
+
+<!-- BUS -->
+<h3 id="s2-3">2.3 BUS <span class="badge badge-blue">BUS_*</span></h3>
+<table>
+<tr><th>Param</th><th>Value</th></tr>
+<tr><td>Tables</td><td><code>BUS_ROUTES</code>, <code>BUS_DEPARTURES</code></td></tr>
+<tr><td>Views</td><td><code>V_BUS_DEPARTURES_TODAY</code></td></tr>
+<tr><td>Packages</td><td><code>BUS_PKG</code></td></tr>
+<tr><td>DDL</td><td><code>sql/01-04_bus_*.sql</code></td></tr>
+</table>
+
+<p>BUS &mdash; модуль табло отправлений автовокзала. Это самый компактный модуль в платформе и, по сути, первый, с которого началась разработка Artgranit. Модуль демонстрирует базовый паттерн: нормализованная Oracle-схема (маршруты + рейсы), представление для фильтрации &laquo;сегодняшних&raquo; отправлений, PL/SQL-пакет <code>BUS_PKG</code> для бизнес-операций, триггеры для автогенерации ID. Если вы хотите понять, как устроен &laquo;минимальный модуль&raquo; Artgranit &mdash; начните с BUS.</p>
+
+<!-- CRED -->
+<h3 id="s2-4">2.4 CRED <span class="badge badge-blue">CRED_*</span></h3>
+<table>
+<tr><th>Param</th><th>Value</th></tr>
+<tr><td>Tables</td><td><code>CRED_BANKS</code>, <code>CRED_CATEGORIES</code>, <code>CRED_BRANDS</code>, <code>CRED_PROGRAMS</code>, <code>CRED_PROGRAM_CATEGORIES</code>, <code>CRED_PROGRAM_EXCLUDED_BRANDS</code>, <code>CRED_PRODUCTS</code>, <code>CRED_APPLICATIONS</code>, <code>CRED_EVENT_LOG</code>, <code>CRED_REPORTS</code>, <code>CRED_REPORT_PARAMS</code></td></tr>
+<tr><td>Packages</td><td><code>CRED_ADMIN_PKG</code>, <code>CRED_OPERATOR_PKG</code>, <code>CRED_REPORTS_PKG</code>, <code>CRED_REPORT_LOGIC_PKG</code></td></tr>
+<tr><td>DDL</td><td><code>sql/05-12_cred_*.sql</code></td></tr>
+<tr><td>Controller</td><td><code>controllers/credit_controller.py</code></td></tr>
+<tr><td>Integrations</td><td><code>integrations/easycredit_client.py</code>, <code>integrations/iute_client.py</code></td></tr>
+<tr><td>UI URLs</td><td><code>/UNA.md/orasldev/credit-admin</code>, <code>credit-operator</code>, <code>credit-portfolio-bomba</code>, <code>credit-easycredit</code>, <code>credit-iute</code></td></tr>
+</table>
+<p>Credit event logging &mdash; append-only <code>CRED_EVENT_LOG</code>, not generic KV.</p>
+
+<p>Кредитный модуль &mdash; один из самых развитых в платформе. Он обслуживает полный цикл оформления потребительского кредита в рознице: администратор настраивает банки, категории товаров и кредитные программы (с матрицей &laquo;программа-категория&raquo; и списком исключённых брендов), а оператор в торговом зале оформляет заявку на конкретный товар. Интеграции с внешними кредитными API (EasyCredit и Iute) реализованы как отдельные клиенты в <code>integrations/</code> и позволяют отправлять заявки, проверять статусы и получать решения в реальном времени.</p>
+
+<p>Важная деталь: журнал событий кредитного модуля хранится в <code>CRED_EVENT_LOG</code> &mdash; это <em>append-only</em> лог (данные только добавляются, никогда не перезаписываются). Такая архитектура была принята после того, как ранние версии пытались использовать generic-таблицу <code>APP_EVENT_LOG</code> для всех модулей, что приводило к путанице и невозможности построить нормальные отчёты. Сейчас каждый модуль, которому нужен event log, обязан создавать свой собственный.</p>
+
+<p>PL/SQL-пакеты <code>CRED_ADMIN_PKG</code> и <code>CRED_OPERATOR_PKG</code> инкапсулируют серверную логику: администратор вызывает процедуры пакета админки, оператор &mdash; свои. Пакеты <code>CRED_REPORTS_PKG</code> и <code>CRED_REPORT_LOGIC_PKG</code> отвечают за настраиваемые отчёты, где администратор определяет SQL-запрос, параметры и формат вывода.</p>
+
+<!-- NUF -->
+<h3 id="s2-5">2.5 NUF (Nufarul) <span class="badge badge-blue">NUF_*</span></h3>
+<table>
+<tr><th>Param</th><th>Value</th></tr>
+<tr><td>DDL</td><td><code>sql/14-22_nufarul_*.sql</code></td></tr>
+<tr><td>Controller</td><td><code>controllers/nufarul_controller.py</code></td></tr>
+<tr><td>Templates</td><td><code>nufarul_admin.html</code>, <code>nufarul_operator.html</code>, <code>nufarul/document_*.html</code></td></tr>
+<tr><td>UI URLs</td><td><code>/UNA.md/orasldev/nufarul-admin</code>, <code>/UNA.md/orasldev/nufarul-operator</code></td></tr>
+</table>
+<p>Dry-cleaning / laundry services. Service groups (RU/RO/EN), orders, statuses, barcodes, primary documents (Bon de Comanda, Comanda, Jurnal Registru). Vector search, blockchain orders, photos.</p>
+
+<p>Nufarul &mdash; модуль для реальной химчистки/прачечной, где бизнес-процесс выглядит так: клиент приносит вещи, оператор регистрирует заказ (выбирая услуги из каталога), присваивает штрих-код, печатает квитанцию. Далее заказ проходит по статусам (принят &rarr; в работе &rarr; готов &rarr; выдан). Именно поэтому в Nufarul есть отдельный UI для администратора (управление услугами и тарифами) и для оператора (приём/выдача в зале).</p>
+
+<p>Особенность Nufarul &mdash; трёхъязычный каталог услуг (RU/RO/EN). Каждая услуга хранится с переводами, и интерфейс переключается между языками через Flask-Babel. Первичные документы (Bon de Comanda, Comanda, Jurnal Registru) &mdash; это HTML-шаблоны в подкаталоге <code>templates/nufarul/</code>, которые генерируются из данных заказа и предназначены для печати на обычном принтере прямо из браузера.</p>
+
+<p>Продвинутые функции &mdash; vector search (поиск услуг по семантическому сходству, использует Oracle AI Vector Search), blockchain-заказы (хэширование для гарантии неизменности) и фото-галерея &mdash; реализованы как отдельные SQL-скрипты, которые выполняются вручную при необходимости (не включены в основной deploy).</p>
+
+<!-- DIGI -->
+<h3 id="s2-6">2.6 DIGI <span class="badge badge-blue">DIGI_*</span></h3>
+<table>
+<tr><th>Param</th><th>Value</th></tr>
+<tr><td>DDL</td><td><code>sql/20-23_digi_*.sql</code></td></tr>
+<tr><td>Controller</td><td><code>controllers/digi_marketing_controller.py</code></td></tr>
+<tr><td>Templates</td><td><code>digi_marketing.html</code></td></tr>
+<tr><td>UI URLs</td><td><code>/UNA.md/orasldev/digi-marketing</code>, <code>/UNA.md/orasldev/digi-sm</code></td></tr>
+</table>
+
+<p>DigiMarketing &mdash; модуль управления маркетинговыми кампаниями в социальных медиа. Цель модуля &mdash; дать маркетологу инструмент для планирования, создания и аналитики контента для социальных сетей. Данные хранятся в таблицах с префиксом <code>DIGI_*</code>, бизнес-логика вынесена в PL/SQL-пакет. Контроллер (<code>digi_marketing_controller.py</code>, ~57 KB) достаточно объёмный, поскольку покрывает полный CRUD цикл кампаний, постов, расписаний и аналитики.</p>
+
+<!-- DECOR -->
+<h3 id="s2-7">2.7 DECOR <span class="badge badge-green">DECOR_*</span> <span class="badge badge-green">reference module</span></h3>
+<table>
+<tr><th>Param</th><th>Value</th></tr>
+<tr><td>Tables</td><td><code>DECOR_MATERIALS</code>, <code>DECOR_STATUSES</code>, <code>DECOR_SETTINGS</code>, <code>DECOR_ORDERS</code>, <code>DECOR_ORDER_ITEMS</code>, <code>DECOR_SLIDING_*</code>, etc.</td></tr>
+<tr><td>DDL</td><td><code>sql/19_decor_shell_project.sql</code>, <code>sql/24_decor_runtime_tables.sql</code></td></tr>
+<tr><td>Model</td><td><code>models/decor_oracle_store.py</code></td></tr>
+<tr><td>Templates</td><td><code>decor_admin.html</code>, <code>decor_operator.html</code></td></tr>
+<tr><td>UI URLs</td><td><code>/UNA.md/orasldev/decor-admin</code>, <code>/UNA.md/orasldev/decor</code>, <code>/UNA.md/orasldev/decor-operator</code></td></tr>
+</table>
+<p><strong>Reference module</strong> for normalized Oracle storage. Materials, settings, orders + items, sliding systems &mdash; all in separate tables.</p>
+
+<p>DECOR занимает особое место в архитектуре Artgranit. Это <em>эталонный модуль</em>, на который нужно ориентироваться при создании новых модулей. Именно здесь впервые была реализована полная нормализованная Oracle-схема взамен ранее существовавшего JSON-хранилища.</p>
+
+<p>Бизнес-домен DECOR &mdash; алюминиевые фасадные и раздвижные системы. Оператор собирает заказ из материалов (профили, стекло, фурнитура), система рассчитывает стоимость с учётом курса валюты, наценки, процента отходов. Все справочные данные &mdash; материалы, статусы, настройки расчёта &mdash; хранятся в отдельных таблицах, а не в одном JSON-поле. Заказы разделены на документ-шапку (<code>DECOR_ORDERS</code>) и строки (<code>DECOR_ORDER_ITEMS</code>) &mdash; классический паттерн &laquo;master-detail&raquo;, хорошо знакомый каждому, кто работал с учётными системами.</p>
+
+<p>Модель данных реализована в <code>models/decor_oracle_store.py</code> (55 KB) &mdash; это единый класс, который предоставляет CRUD-методы для всех таблиц <code>DECOR_*</code>. Публичный API возвращает nested dict для удобства фронтенда, но persistence под ним строго нормализована. Если вам нужно понять, как строить Oracle store для нового модуля &mdash; начните с чтения <code>decor_oracle_store.py</code>.</p>
+
+<!-- CLS / Colass -->
+<h3 id="s2-8">2.8 CLS (Colass) <span class="badge badge-blue">CLS_*</span> <span class="badge badge-blue">CLS_CRM_*</span> <span class="badge badge-blue">CLS_CONTRACT_*</span></h3>
+<table>
+<tr><th>Param</th><th>Value</th></tr>
+<tr><td>Catalog tables</td><td><code>CLS_RESOURCE_TYPES</code>, <code>CLS_RESOURCES</code>, <code>CLS_WORK_CATALOG</code>, <code>CLS_WORK_RESOURCES</code>, <code>CLS_PROJECTS</code>, <code>CLS_ESTIMATES</code>, <code>CLS_ESTIMATE_SECTIONS</code>, <code>CLS_ESTIMATE_ITEMS</code></td></tr>
+<tr><td>CRM tables</td><td><code>CLS_CRM_SOURCES</code>, <code>CLS_CRM_STAGES</code>, <code>CLS_CRM_LEADS</code>, <code>CLS_CRM_ACTIVITIES</code>, <code>CLS_CRM_EMAIL_INTAKE</code></td></tr>
+<tr><td>Contract tables</td><td><code>CLS_CONTRACT_MASTER</code>, <code>CLS_CONTRACT_EMAILS</code>, <code>CLS_CONTRACT_PHONES</code>, <code>CLS_CONTRACT_ROUTES</code>, <code>CLS_CONTRACT_ITEMS</code>, <code>CLS_CONTRACT_ATTACHMENTS</code>, <code>CLS_CONTRACT_APPROVALS</code>, <code>CLS_CONTRACT_APPROVAL_STEPS</code></td></tr>
+<tr><td>DDL</td><td><code>sql/25-32_colass_*.sql</code></td></tr>
+<tr><td>Controller</td><td><code>controllers/colass_controller.py</code> (114 KB)</td></tr>
+<tr><td>Templates</td><td><code>colass_catalog.html</code>, <code>colass_estimator.html</code>, <code>colass_crm.html</code>, <code>colass_contracts.html</code></td></tr>
+<tr><td>UI URLs</td><td><code>/UNA.md/orasldev/colass-catalog</code>, <code>colass-estimator</code>, <code>colass-crm</code>, <code>colass-contracts</code></td></tr>
+<tr><td>API prefix</td><td><code>/api/colass/*</code></td></tr>
+</table>
+<p>Work catalog (F5), resources (F3), norms. Estimator: projects, estimates, sections, items. CRM: leads, funnel, activities. Contracts: register, attachments, approval workflow.</p>
+
+<p>Colass &mdash; строительная сметная система, и это самый крупный модуль по объёму кода (контроллер 114 KB). Домен разделён на три связанных подсистемы, каждая со своим набором таблиц:</p>
+
+<p><strong>Каталог</strong> (<code>CLS_*</code>) &mdash; база нормативных данных: типы ресурсов, ресурсы с ценами и единицами измерения (из документов F3), каталог работ (из F5), нормы расхода ресурсов на единицу работы. Сметчик позволяет создать проект, внутри него сметы, разделить смету на разделы и добавлять позиции из каталога. При добавлении позиции система автоматически подтягивает нормы и рассчитывает стоимость.</p>
+
+<p><strong>CRM</strong> (<code>CLS_CRM_*</code>) &mdash; управление лидами: от первого контакта (источник, этап воронки) до активностей (звонки, встречи, письма). Email intake позволяет автоматически создавать лиды из входящих писем. Таблицы CRM спроектированы независимо от сметного каталога &mdash; связь между ними возникает только на уровне договора.</p>
+
+<p><strong>Contracts</strong> (<code>CLS_CONTRACT_*</code>) &mdash; реестр договоров, который связывает CRM-лида с конкретной сметой. Договор хранит контактную информацию (emails, phones, routes = адреса доставки), снэпшот позиций из сметы на момент подписания, вложения и workflow многоуровнего согласования (цепочка <code>CLS_CONTRACT_APPROVALS</code> &rarr; <code>CLS_CONTRACT_APPROVAL_STEPS</code>).</p>
+
+<p>Обратите внимание на использование трёх подпрефиксов: <code>CLS_</code>, <code>CLS_CRM_</code>, <code>CLS_CONTRACT_</code>. Это допустимый паттерн, когда модуль содержит несколько самостоятельных предметных подобластей. Альтернатива &mdash; разделить на три отдельных модуля &mdash; была отвергнута, т.к. все три подсистемы тесно связаны бизнес-процессом &laquo;лид &rarr; смета &rarr; договор&raquo;.</p>
+
+<!-- AGRO -->
+<h3 id="s2-9">2.9 AGRO <span class="badge badge-blue">AGRO_*</span></h3>
+<table>
+<tr><th>Param</th><th>Value</th></tr>
+<tr><td>Tables (36)</td><td><code>AGRO_SUPPLIERS</code>, <code>AGRO_CUSTOMERS</code>, <code>AGRO_WAREHOUSES</code>, <code>AGRO_ITEMS</code>, <code>AGRO_PURCHASE_DOCS</code>, <code>AGRO_PURCHASE_LINES</code>, <code>AGRO_BATCHES</code>, <code>AGRO_SALES_DOCS</code>, <code>AGRO_SALES_LINES</code>, <code>AGRO_QA_*</code>, <code>AGRO_HACCP_*</code>, etc.</td></tr>
+<tr><td>DDL</td><td><code>sql/35-38_agro_*.sql</code></td></tr>
+<tr><td>Controllers (5)</td><td><code>agro_admin</code>, <code>agro_field</code>, <code>agro_qa</code>, <code>agro_sales</code>, <code>agro_warehouse</code></td></tr>
+<tr><td>Model</td><td><code>models/agro_oracle_store.py</code> (141 KB)</td></tr>
+<tr><td>Templates</td><td><code>agro_mdi.html</code>, <code>agro_admin.html</code>, <code>agro_field.html</code>, <code>agro_warehouse.html</code>, <code>agro_qa.html</code>, <code>agro_sales.html</code></td></tr>
+<tr><td>UI URLs</td><td><code>/UNA.md/orasldev/agro</code>, <code>agro-admin</code>, <code>agro-field</code>, <code>agro-warehouse</code>, <code>agro-qa</code>, <code>agro-sales</code></td></tr>
+<tr><td>API prefix</td><td><code>/api/agro/*</code></td></tr>
+</table>
+<p>Suppliers, customers, warehouses, storage cells, items, packaging, transport, currencies, barcodes, purchases, batches, stock movements, QA checklists, HACCP, sales, export declarations, audit log.</p>
+
+<p>AGRO &mdash; самый масштабный модуль по количеству Oracle-объектов (36 таблиц, 36 sequences). Он моделирует полный цикл работы фруктово-овощного склада: от закупки партии у поставщика до продажи клиенту с промежуточными этапами хранения, контроля качества и переработки.</p>
+
+<p>Архитектурно AGRO разделён на пять контроллеров по ролям пользователей: <strong>admin</strong> (справочники: товары, поставщики, клиенты, валюты, формулы ценообразования), <strong>field</strong> (приёмка товара на складе с подключением весов &mdash; см. <code>services/scale_emulator.py</code>), <strong>warehouse</strong> (движение товара по ячейкам хранения, температурный мониторинг), <strong>qa</strong> (чек-листы качества, HACCP-планы, критические контрольные точки), <strong>sales</strong> (формирование документов продажи, экспортные декларации). Такое разделение контроллеров по ролям &mdash; хорошая практика для крупного модуля, потому что иначе один контроллер вырос бы до неуправляемых размеров.</p>
+
+<p>Модель данных (<code>models/agro_oracle_store.py</code>, 141 KB) &mdash; самая объёмная в проекте. Она реализует CRUD для всех 36 таблиц и содержит бизнес-логику: расчёт стоимости партии, движение товара (приход/расход/перемещение между ячейками), формулы ценообразования с учётом курсов валют. Аудит-лог (<code>AGRO_AUDIT_LOG</code>) фиксирует каждое изменение сущностей для полной трассируемости &mdash; это требование пищевой безопасности, которое пронизывает весь модуль.</p>
+
+<!-- ═══════ 3. ORACLE ADB ═══════ -->
+<h2 id="s3">3. Oracle ADB / APEX Connection</h2>
+
+<p>Один из ключевых вопросов, возникающих у нового разработчика: &laquo;Как приложение подключается к базе данных?&raquo;. В случае обычного PostgreSQL или MySQL всё просто: host, port, user, password &mdash; и готово. С Oracle Autonomous Database (ADB) всё несколько сложнее, но зато значительно безопаснее.</p>
+
+<p>ADB в Oracle Cloud работает через mTLS (mutual TLS) &mdash; это означает, что не только клиент проверяет сертификат сервера, но и сервер проверяет сертификат клиента. Этот клиентский сертификат и ключи упакованы в так называемый <strong>Oracle Wallet</strong> &mdash; папку с набором файлов (<code>ewallet.pem</code>, <code>cwallet.sso</code>, <code>keystore.jks</code> и др.). Wallet скачивается из OCI Console один раз, и далее используется для всех подключений. Без wallet подключиться к ADB невозможно &mdash; никакой пароль не поможет.</p>
+
+<p>Все модули подключаются к <strong>одной базе данных Oracle Autonomous Database</strong> (OCI), используя <strong>один аккаунт ADMIN</strong>. Подключение через Oracle Wallet (mTLS).</p>
+
+<h3 id="s3-1">3.1 OCI Infrastructure</h3>
+<pre><code>Oracle Cloud Account
+&#9492;&#9472;&#9472; Autonomous Database (ADB-S)
+    &#9500;&#9472;&#9472; Name:     HXPAVUNKCLU9HE7Q
+    &#9500;&#9472;&#9472; Region:   eu-frankfurt-1
+    &#9500;&#9472;&#9472; Type:     Shared (ADB-S)
+    &#9500;&#9472;&#9472; User:     ADMIN
+    &#9492;&#9472;&#9472; APEX:     runs inside the same ADB</code></pre>
+
+<div class="callout">
+  <strong>APEX and ADB are the same service.</strong> APEX runs inside ADB, no separate connection needed. APEX Workspaces are created by admin inside the same DB. Частый вопрос: &laquo;Нужен ли отдельный аккаунт или подключение для APEX?&raquo; Ответ: нет. APEX &mdash; это компонент, установленный внутри ADB. Он работает на том же сервере, с теми же таблицами, в том же schema. Если вы создаёте таблицу через Python-приложение, она видна в APEX, и наоборот. APEX Workspaces &mdash; это логическое разделение внутри той же БД, создаваемое администратором через APEX Administration.
+</div>
+
+<h3 id="s3-2">3.2 Connection Flow</h3>
+
+<p>Разберём механизм подключения подробно. Python-библиотека <code>oracledb</code> (начиная с версии 2.0) работает в <em>thin mode</em> &mdash; это значит, что для подключения не нужен установленный Oracle Client. Библиотека сама умеет парсить файлы wallet, устанавливать TLS-соединение и обмениваться данными по протоколу Oracle Net. Подключение происходит в <code>models/database.py</code> &mdash; класс <code>DatabaseConnection</code> сначала проверяет, что <code>WALLET_DIR</code> указывает на существующую папку, затем определяет метод подключения: если в wallet есть <code>ewallet.pem</code>, используется <code>wallet_location + wallet_password</code>; если нет &mdash; <code>config_dir</code> (для SSO-wallet без пароля). Соединения управляются через connection pool (2-10 соединений), чтобы не открывать TLS-handshake на каждый HTTP-запрос.</p>
+<pre><code>Application (Python / oracledb)
+    &#9474;
+    &#9500;&#9472;&#9472; .env                        # DB_USER, DB_PASSWORD, WALLET_*, CONNECT_STRING
+    &#9474;
+    &#9500;&#9472;&#9472; Oracle Wallet (folder)       # Downloaded from OCI Console once
+    &#9474;   &#9500;&#9472;&#9472; tnsnames.ora
+    &#9474;   &#9500;&#9472;&#9472; sqlnet.ora
+    &#9474;   &#9500;&#9472;&#9472; cwallet.sso
+    &#9474;   &#9500;&#9472;&#9472; ewallet.p12 / ewallet.pem
+    &#9474;   &#9492;&#9472;&#9472; keystore.jks / truststore.jks
+    &#9474;
+    &#9492;&#9472;&#9472; oracledb.connect(
+          user     = DB_USER,       # ADMIN
+          password = DB_PASSWORD,
+          dsn      = CONNECT_STRING,  # full TNS descriptor
+          wallet_location = WALLET_DIR,
+          wallet_password = WALLET_PASSWORD
+        )</code></pre>
+
+<h3 id="s3-3">3.3 .env Variables for Oracle</h3>
+
+<p>Все секреты подключения хранятся в файле <code>.env</code> (который <strong>не коммитится в Git</strong>). Файл <code>.env.example</code> содержит шаблон с описаниями всех переменных. Обратите внимание на <code>CONNECT_STRING</code> &mdash; это полный TNS descriptor, а не короткий alias. Полный descriptor надёжнее, т.к. не зависит от содержимого <code>tnsnames.ora</code> в wallet и содержит всё необходимое для подключения: хост, порт, имя сервиса, параметры retry и TLS.</p>
+<pre><code><span class="cm"># DB user</span>
+DB_USER=ADMIN
+
+<span class="cm"># DB password (DO NOT commit!)</span>
+DB_PASSWORD=&lt;your_password&gt;
+
+<span class="cm"># Oracle wallet password (DO NOT commit!)</span>
+WALLET_PASSWORD=&lt;your_wallet_password&gt;
+
+<span class="cm"># Path to unpacked wallet folder</span>
+<span class="cm"># Local:  WALLET_DIR=wallet_HXPAVUNKCLU9HE7Q             (relative)</span>
+<span class="cm"># Remote: WALLET_DIR=/home/ubuntu/oracle_wallets/wallet_HXPAVUNKCLU9HE7Q  (absolute!)</span>
+WALLET_DIR=wallet_HXPAVUNKCLU9HE7Q
+
+<span class="cm"># TNS alias (optional)</span>
+TNS_ALIAS=hxpavunkclu9he7q_high
+
+<span class="cm"># Full TNS connect string (REQUIRED)</span>
+CONNECT_STRING=(description= (retry_count=20)(retry_delay=3)...)</code></pre>
+
+<h3 id="s3-4">3.4 How to Download Oracle Wallet</h3>
+<ol>
+  <li>Login to <a href="https://cloud.oracle.com">https://cloud.oracle.com</a></li>
+  <li>Navigate: <strong>Oracle Database</strong> &rarr; <strong>Autonomous Database</strong> &rarr; select DB</li>
+  <li>Click <strong>DB Connection</strong> &rarr; <strong>Download Wallet</strong></li>
+  <li>Set wallet password (this becomes <code>WALLET_PASSWORD</code>)</li>
+  <li>Unzip into folder</li>
+  <li>Set path in <code>WALLET_DIR</code></li>
+</ol>
+
+<h3 id="s3-5">3.5 Wallet Locations</h3>
+<table>
+<tr><th>Environment</th><th>Wallet path</th></tr>
+<tr><td>Local</td><td><code>./wallet_HXPAVUNKCLU9HE7Q/</code> (project root, in .gitignore)</td></tr>
+<tr><td>Remote</td><td><code>/home/ubuntu/oracle_wallets/wallet_HXPAVUNKCLU9HE7Q</code></td></tr>
+</table>
+
+<div class="callout warn">
+  <strong>Wallet is NOT in Git</strong> (<code>.gitignore</code>: <code>wallet_*/</code>, <code>Wallet_*.zip</code>). On remote, wallet lives outside deploy directory so <code>deploy_to_remote.sh</code> cannot lose it. Это принципиальный момент: wallet &mdash; это эквивалент приватного ключа SSL-сертификата. Если он попадёт в Git, любой с доступом к репозиторию получит полный доступ к Oracle ADB. На remote-сервере wallet хранится <em>вне</em> каталога <code>/home/ubuntu/artgranit</code>, а именно в <code>/home/ubuntu/oracle_wallets/</code>, чтобы скрипт <code>deploy_to_remote.sh</code>, который пересоздаёт каталог проекта, не мог случайно удалить wallet.
+</div>
+
+<!-- ═══════ 4. GIT MIGRATION ═══════ -->
+<h2 id="s4">4. Git Migration (from scratch)</h2>
+
+<p>Этот раздел &mdash; полная инструкция для разработчика, который получил доступ к репозиторию и хочет запустить проект на своей машине. Процедура спроектирована так, чтобы от момента <code>git clone</code> до работающего приложения прошло не более 10-15 минут. Единственная задержка &mdash; получение Oracle Wallet у администратора, но это одноразовая операция.</p>
+
+<p>Важно понимать логику разделения: Git хранит <em>код и DDL-скрипты</em> (всё, что можно безопасно разделить с командой). Wallet, пароли, API-ключи &mdash; это <em>секреты</em>, которые передаются отдельно и никогда не попадают в репозиторий. Oracle-объекты (таблицы, вью, пакеты) создаются скриптом <code>deploy_oracle_objects.py</code> из DDL-файлов &mdash; они тоже в Git, поэтому любой разработчик может воссоздать полную схему БД с нуля.</p>
+
+<h3>Prerequisites</h3>
+<ul>
+  <li>Python 3.12+ (macOS: <code>brew install python@3.12</code>, Ubuntu: <code>apt install python3.12</code>)</li>
+  <li>Git</li>
+  <li>Oracle Wallet ZIP (get from OCI admin or download from OCI Console)</li>
+  <li>Oracle Cloud account access (single shared account)</li>
+</ul>
+
+<h3>Steps</h3>
+<pre><code><span class="cm"># 1. Clone repository</span>
+git clone https://github.com/&lt;org&gt;/Artgranit.git
+cd Artgranit
+
+<span class="cm"># 2. Create virtual environment</span>
+python3 -m venv venv
+source venv/bin/activate
+
+<span class="cm"># 3. Install dependencies</span>
+pip install -r requirements.txt
+
+<span class="cm"># 4. Configure .env</span>
+cp .env.example .env
+<span class="cm"># Edit .env: set real DB_PASSWORD, WALLET_PASSWORD</span>
+
+<span class="cm"># 5. Unpack Oracle Wallet</span>
+unzip Wallet_HXPAVUNKCLU9HE7Q.zip -d wallet_HXPAVUNKCLU9HE7Q
+
+<span class="cm"># 6. Deploy Oracle objects (tables, views, triggers, packages, demo data)</span>
+python deploy_oracle_objects.py
+<span class="cm"># For full recreate: python deploy_oracle_objects.py --drop</span>
+
+<span class="cm"># 7. Run application</span>
+./run_local.sh
+<span class="cm"># Or manually: export ENVIRONMENT=LOCAL PORT=3003 SERVER_HOST=0.0.0.0 && python app.py</span></code></pre>
+
+<h3>Verification after launch</h3>
+<table>
+<tr><th>Check</th><th>URL</th></tr>
+<tr><td>Login</td><td><code>http://localhost:3003/login</code></td></tr>
+<tr><td>SQL Worksheet (shell)</td><td><code>http://localhost:3003/UNA.md/orasldev/</code></td></tr>
+<tr><td>Dashboard</td><td><code>http://localhost:3003/UNA.md/orasldev/dashboard</code></td></tr>
+<tr><td>Credits (admin)</td><td><code>http://localhost:3003/UNA.md/orasldev/credit-admin</code></td></tr>
+<tr><td>Nufarul (operator)</td><td><code>http://localhost:3003/UNA.md/orasldev/nufarul-operator</code></td></tr>
+<tr><td>DECOR (operator)</td><td><code>http://localhost:3003/UNA.md/orasldev/decor-operator</code></td></tr>
+<tr><td>Colass (catalog)</td><td><code>http://localhost:3003/UNA.md/orasldev/colass-catalog</code></td></tr>
+<tr><td>Colass (estimator)</td><td><code>http://localhost:3003/UNA.md/orasldev/colass-estimator</code></td></tr>
+<tr><td>Colass (CRM)</td><td><code>http://localhost:3003/UNA.md/orasldev/colass-crm</code></td></tr>
+<tr><td>Colass (contracts)</td><td><code>http://localhost:3003/UNA.md/orasldev/colass-contracts</code></td></tr>
+<tr><td>AGRO (multi-tab)</td><td><code>http://localhost:3003/UNA.md/orasldev/agro</code></td></tr>
+<tr><td>Documentation</td><td><code>http://localhost:3003/UNA.md/orasldev/docs</code></td></tr>
+<tr><td>Test page</td><td><code>http://localhost:3003/test.html</code></td></tr>
+</table>
+
+<!-- ═══════ 5. ORACLE DDL ═══════ -->
+<h2 id="s5">5. Oracle DDL &mdash; Full DB Script</h2>
+
+<p>Все SQL-скрипты для создания объектов Oracle находятся в каталоге <code>sql/</code> и <strong>отслеживаются в Git</strong>. Это одно из ключевых правил проекта: DDL &mdash; это часть кода, и она должна версионироваться наравне с Python-файлами.</p>
+
+<p>Скрипты пронумерованы в порядке выполнения: сначала таблицы (они создают структуры), затем представления (зависят от таблиц), затем триггеры и пакеты (зависят от таблиц), и в конце &mdash; демо-данные (INSERT, который зависит от всех предыдущих объектов). Нумерация не непрерывная: между группами оставлены пробелы (например, BUS: 01-04, CRED: 05-12, NUF: 14-22, DIGI: 20-23, DECOR: 24, CLS: 25-32, AGRO: 35-38), чтобы можно было добавлять скрипты внутри группы без перенумерации.</p>
+
+<p>Скрипт <code>deploy_oracle_objects.py</code> умеет разбирать SQL*Plus-синтаксис (разделитель <code>/</code> между блоками), определять PL/SQL-блоки (пакеты, триггеры) и DDL/DML-команды, правильно обрабатывать строковые литералы с одинарными кавычками. Если таблица уже существует, CREATE получит ошибку ORA-00955, которая будет залогирована, но не остановит выполнение &mdash; это нормальное поведение для идемпотентного deploy.</p>
+
+<h3 id="s5-1">5.1 Script Execution Order</h3>
+<table>
+<tr><th>#</th><th>File</th><th>Module</th><th>Creates</th></tr>
+<tr><td>00</td><td><code>00_drop.sql</code></td><td>(all)</td><td>DROP all objects (only with <code>--drop</code>)</td></tr>
+<tr><td>01</td><td><code>01_bus_tables.sql</code></td><td>BUS</td><td><code>BUS_ROUTES</code>, <code>BUS_DEPARTURES</code></td></tr>
+<tr><td>02</td><td><code>02_bus_views.sql</code></td><td>BUS</td><td><code>V_BUS_DEPARTURES_TODAY</code></td></tr>
+<tr><td>03</td><td><code>03_bus_triggers.sql</code></td><td>BUS</td><td>Auto-ID triggers</td></tr>
+<tr><td>04</td><td><code>04_bus_package.sql</code></td><td>BUS</td><td><code>BUS_PKG</code></td></tr>
+<tr><td>05</td><td><code>05_cred_tables.sql</code></td><td>CRED</td><td>Banks, categories, brands, programs, applications</td></tr>
+<tr><td>06</td><td><code>06_cred_views.sql</code></td><td>CRED</td><td>Views</td></tr>
+<tr><td>07</td><td><code>07_cred_triggers.sql</code></td><td>CRED</td><td>Triggers</td></tr>
+<tr><td>08</td><td><code>08_cred_admin_package.sql</code></td><td>CRED</td><td><code>CRED_ADMIN_PKG</code></td></tr>
+<tr><td>09</td><td><code>09_cred_operator_package.sql</code></td><td>CRED</td><td><code>CRED_OPERATOR_PKG</code></td></tr>
+<tr><td>10</td><td><code>10_demo_data.sql</code></td><td>BUS+CRED</td><td>Demo data</td></tr>
+<tr><td>11</td><td><code>11_cred_program_products.sql</code></td><td>CRED</td><td>Product-program links</td></tr>
+<tr><td>12</td><td><code>12_cred_reports.sql</code></td><td>CRED</td><td>Reports, <code>CRED_REPORTS_PKG</code></td></tr>
+<tr><td>13</td><td><code>13_shell_projects.sql</code></td><td>SHELL</td><td><code>UNA_SHELL_PROJECTS</code> + demo</td></tr>
+<tr><td>14</td><td><code>14_nufarul_tables.sql</code></td><td>NUF</td><td>Nufarul tables</td></tr>
+<tr><td>15</td><td><code>15_nufarul_views.sql</code></td><td>NUF</td><td>Nufarul views</td></tr>
+<tr><td>19</td><td><code>19_decor_shell_project.sql</code></td><td>DECOR</td><td>DECOR shell project INSERT</td></tr>
+<tr><td>20</td><td><code>20_digi_tables.sql</code></td><td>DIGI</td><td>DigiMarketing tables</td></tr>
+<tr><td>21</td><td><code>21_digi_views.sql</code></td><td>DIGI</td><td>DigiMarketing views</td></tr>
+<tr><td>22</td><td><code>22_digi_package.sql</code></td><td>DIGI</td><td>DigiMarketing package</td></tr>
+<tr><td>23</td><td><code>23_digi_demo_data.sql</code></td><td>DIGI</td><td>DigiMarketing demo data</td></tr>
+<tr><td>24</td><td><code>24_decor_runtime_tables.sql</code></td><td>DECOR</td><td><code>DECOR_MATERIALS</code>, <code>DECOR_ORDERS</code>, <code>DECOR_SETTINGS</code>, etc.</td></tr>
+<tr><td>25</td><td><code>25_colass_tables.sql</code></td><td>CLS</td><td>8 tables <code>CLS_*</code></td></tr>
+<tr><td>26</td><td><code>26_colass_demo_data.sql</code></td><td>CLS</td><td>404 INSERTs (F3/F5 resources)</td></tr>
+<tr><td>27</td><td><code>27_colass_crm_tables.sql</code></td><td>CLS</td><td>5 tables <code>CLS_CRM_*</code></td></tr>
+<tr><td>28</td><td><code>28_colass_crm_demo_data.sql</code></td><td>CLS</td><td>Demo leads &amp; activities</td></tr>
+<tr><td>29</td><td><code>29_colass_contracts_tables.sql</code></td><td>CLS</td><td>5 tables <code>CLS_CONTRACT_*</code></td></tr>
+<tr><td>30</td><td><code>30_colass_contracts_demo_data.sql</code></td><td>CLS</td><td>Demo contract</td></tr>
+<tr><td>31</td><td><code>31_colass_contracts_workflow_tables.sql</code></td><td>CLS</td><td>Attachments + approval workflow</td></tr>
+<tr><td>32</td><td><code>32_colass_contracts_workflow_demo_data.sql</code></td><td>CLS</td><td>Demo attachments</td></tr>
+<tr><td>35</td><td><code>35_agro_tables.sql</code></td><td>AGRO</td><td>36 tables <code>AGRO_*</code></td></tr>
+<tr><td>36</td><td><code>36_agro_views.sql</code></td><td>AGRO</td><td>AGRO views</td></tr>
+<tr><td>37</td><td><code>37_agro_triggers.sql</code></td><td>AGRO</td><td>AGRO triggers</td></tr>
+<tr><td>38</td><td><code>38_agro_demo_data.sql</code></td><td>AGRO</td><td>AGRO demo data</td></tr>
+</table>
+
+<h4>Additional scripts (manual execution)</h4>
+<table>
+<tr><th>File</th><th>Purpose</th></tr>
+<tr><td><code>13_shell_projects_fix_gara.sql</code></td><td>Gara project fix</td></tr>
+<tr><td><code>16_nufarul_services_data.sql</code></td><td>Nufarul services data</td></tr>
+<tr><td><code>17_nufarul_service_groups.sql</code></td><td>Service groups</td></tr>
+<tr><td><code>18_nufarul_name_en.sql</code></td><td>English names</td></tr>
+<tr><td><code>19_nufarul_photos.sql</code></td><td>Nufarul photos</td></tr>
+<tr><td><code>20_nufarul_ro_translations.sql</code></td><td>Romanian translations</td></tr>
+<tr><td><code>21_nufarul_vector_search.sql</code></td><td>Vector search</td></tr>
+<tr><td><code>22_nufarul_blockchain_orders.sql</code></td><td>Blockchain orders</td></tr>
+</table>
+
+<h3 id="s5-2">5.2 Deploy Commands</h3>
+<pre><code><span class="cm"># Deploy all objects (without dropping existing)</span>
+python deploy_oracle_objects.py
+
+<span class="cm"># Full recreate (DROP + CREATE)</span>
+python deploy_oracle_objects.py --drop
+
+<span class="cm"># Dry-run (show only)</span>
+python deploy_oracle_objects.py --dry-run</code></pre>
+
+<h3 id="s5-3">5.3 Security: What is NOT in Git</h3>
+<table>
+<tr><th>File/folder</th><th>In .gitignore</th><th>Reason</th></tr>
+<tr><td><code>.env</code></td><td><span class="badge badge-green">Yes</span></td><td>Contains DB_PASSWORD, WALLET_PASSWORD</td></tr>
+<tr><td><code>wallet_*/</code></td><td><span class="badge badge-green">Yes</span></td><td>Oracle Wallet with PEM/JKS keys</td></tr>
+<tr><td><code>Wallet_*.zip</code></td><td><span class="badge badge-green">Yes</span></td><td>Wallet archive</td></tr>
+<tr><td><code>oracle_connections.json</code></td><td><span class="badge badge-green">Yes</span></td><td>Connection passwords</td></tr>
+<tr><td><code>data/easycredit_settings.json</code></td><td><span class="badge badge-green">Yes</span></td><td>EasyCredit API credentials</td></tr>
+<tr><td><code>data/iute_settings.json</code></td><td><span class="badge badge-green">Yes</span></td><td>Iute API key</td></tr>
+<tr><td><code>data/credit_log.jsonl</code></td><td><span class="badge badge-green">Yes</span></td><td>May contain PII</td></tr>
+</table>
+
+<!-- ═══════ 6. REMOTE DEPLOY ═══════ -->
+<h2 id="s6">6. Remote Deploy</h2>
+
+<p>Deploy в Artgranit разделён на два независимых шага: <em>кодовый deploy</em> (обновление Python-кода, шаблонов, статики) и <em>DDL deploy</em> (создание/обновление Oracle-объектов). Это принципиальное решение: кодовый deploy происходит часто (при каждом обновлении), а DDL deploy &mdash; только когда добавляются новые таблицы или меняется схема. Поскольку все окружения (local и remote) работают с <em>одной и той же</em> Oracle ADB, DDL достаточно выполнить один раз с любой машины.</p>
+
+<p>Deploy реализован &laquo;по-старинке&raquo; &mdash; через tar.gz + SSH/SCP, без Docker, Kubernetes или CI/CD. Это сознательный выбор для проекта текущего масштаба: один remote-сервер, один разработчик, minimal overhead. Скрипт <code>deploy_to_remote.sh</code> выполняет всю работу одной командой, но при этом надёжно сохраняет <code>.env</code> и wallet.</p>
+
+<h3>6.1 Code Deploy</h3>
+<pre><code><span class="cm"># From local machine:</span>
+./deploy_to_remote.sh</code></pre>
+
+<p>What the script does:</p>
+<ol>
+  <li>Creates backup of current remote project</li>
+  <li>Archives local project (excluding <code>.env</code>, <code>wallet_*</code>, <code>venv/</code>, <code>__pycache__/</code>)</li>
+  <li>Copies archive to remote via SCP</li>
+  <li>Saves remote <code>.env</code> and relative wallet (if any)</li>
+  <li>Unpacks new code</li>
+  <li>Restores <code>.env</code> and wallet</li>
+  <li>Installs dependencies (<code>pip install -r requirements.txt</code>)</li>
+  <li>Restarts <code>app.py</code></li>
+</ol>
+
+<h3>6.2 Deploy Oracle DDL (separate step)</h3>
+<pre><code><span class="cm"># Locally (shared ADB &mdash; single DB for all environments):</span>
+python deploy_oracle_objects.py
+
+<span class="cm"># On remote if needed:</span>
+DEPLOY_ORACLE_ON_REMOTE=1 ./deploy_to_remote.sh</code></pre>
+
+<h3>6.3 Remote Server</h3>
+<table>
+<tr><th>Param</th><th>Value</th></tr>
+<tr><td>Host</td><td><code>92.5.3.187</code></td></tr>
+<tr><td>Port</td><td><code>8000</code></td></tr>
+<tr><td>Path</td><td><code>/home/ubuntu/artgranit</code></td></tr>
+<tr><td>Wallet</td><td><code>/home/ubuntu/oracle_wallets/wallet_HXPAVUNKCLU9HE7Q</code></td></tr>
+<tr><td>Python venv</td><td><code>/home/ubuntu/artgranit/venv</code></td></tr>
+<tr><td>Logs</td><td><code>/home/ubuntu/artgranit/app.log</code></td></tr>
+<tr><td>URL</td><td><code>http://92.5.3.187:8000/login</code></td></tr>
+</table>
+
+<!-- ═══════ 7. LOCAL RUN ═══════ -->
+<h2 id="s7">7. Local Run</h2>
+
+<p>Локальная разработка ведётся на macOS. Приложение запускается на порту 3003 (чтобы не конфликтовать с remote на порту 8000 и с другими локальными сервисами). Скрипт <code>run_local.sh</code> инкапсулирует всю подготовку: создание виртуального окружения, установку зависимостей, настройку переменных окружения. При повторных запусках он пропускает уже выполненные шаги, так что запуск занимает несколько секунд.</p>
+
+<p>Приложение слушает на <code>0.0.0.0</code> (а не на <code>127.0.0.1</code>), чтобы к нему можно было обращаться не только через <code>localhost</code>, но и по IP-адресу локальной сети &mdash; например, для тестирования с мобильного устройства или с другого компьютера в той же сети.</p>
+
+<h3>Quick start (macOS)</h3>
+<pre><code>cd /Users/pt/Projects.AI/Artgranit
+./run_local.sh</code></pre>
+
+<p><code>run_local.sh</code> automatically:</p>
+<ul>
+  <li>Creates <code>venv</code> if missing</li>
+  <li>Activates it</li>
+  <li>Installs dependencies if needed</li>
+  <li>Sets <code>ENVIRONMENT=LOCAL</code>, <code>PORT=3003</code></li>
+  <li>Runs <code>python app.py</code></li>
+</ul>
+
+<h3>Manual run</h3>
+<pre><code>cd /Users/pt/Projects.AI/Artgranit
+source venv/bin/activate
+export ENVIRONMENT=LOCAL PORT=3003 SERVER_HOST=0.0.0.0
+python app.py</code></pre>
+
+<h3>Ports</h3>
+<table>
+<tr><th>Environment</th><th>Port</th></tr>
+<tr><td>LOCAL</td><td>3003</td></tr>
+<tr><td>REMOTE</td><td>8000</td></tr>
+</table>
+
+<!-- ═══════ 8. NEW MODULE ═══════ -->
+<h2 id="s8">8. How to Create a New Module</h2>
+
+<p>Это, пожалуй, самый важный раздел документации. Он описывает полный цикл создания нового модуля &mdash; от выбора имени до final checklist перед merge. Инструкция написана так, чтобы быть одинаково полезной и для разработчика, читающего её глазами, и для AI-агента (Claude Code, Cursor, GitHub Copilot), выполняющего задачу автоматически.</p>
+
+<p>Каждый шаг содержит не только &laquo;что делать&raquo;, но и &laquo;почему именно так&raquo; и &laquo;как проверить, что сделано правильно&raquo;. Порядок шагов имеет значение: DDL создаётся <em>до</em> модели, модель &mdash; <em>до</em> контроллера, контроллер &mdash; <em>до</em> маршрутов. Каждый последующий слой зависит от предыдущего.</p>
+
+<p>Аналогия с C++ Builder: если вы когда-либо создавали новый модуль данных (TDataModule) с набором TTable/TQuery, потом форму (TForm) с DBGrid и привязкой к источнику данных, и наконец регистрировали форму в главном меню &mdash; здесь та же самая последовательность, только вместо TTable у нас Oracle DDL, вместо TDataModule &mdash; Python model, вместо TForm &mdash; HTML template, а вместо MainMenu &mdash; Shell projects.</p>
+
+<h3 id="s8-1">8.1 Choose a Prefix</h3>
+<p>Pick a short (3-5 char) unique prefix. All Oracle objects of the module are named <code>PREFIX_*</code>.</p>
+
+<p>Выбор префикса &mdash; это первое и одно из самых важных решений при создании модуля. Префикс должен быть коротким (3-5 символов), уникальным и интуитивно понятным. Он будет использоваться <em>повсюду</em>: в именах таблиц, sequences, triggers, views, PL/SQL-пакетов. Хороший префикс &mdash; это аббревиатура предметной области: <code>AGRO</code> для агро-модуля, <code>CLS</code> для Colass, <code>CRED</code> для кредитов. Плохой префикс &mdash; это что-то слишком общее (<code>APP_</code>, <code>DATA_</code>) или слишком длинное (<code>LOGISTICS_WAREHOUSE_</code>).</p>
+
+<p>Почему это важно: когда в одной Oracle-схеме живут 150+ объектов от 9 модулей, единственный способ быстро понять, кому принадлежит таблица &mdash; это посмотреть на её префикс. Команда <code>SELECT OBJECT_NAME FROM USER_OBJECTS WHERE OBJECT_NAME LIKE 'AGRO_%'</code> мгновенно покажет все 36 объектов AGRO-модуля.</p>
+
+<div class="callout">
+  <strong>Used prefixes:</strong> <code>BUS_</code>, <code>CRED_</code>, <code>NUF_</code>, <code>UNA_SHELL_</code>, <code>DIGI_</code>, <code>DECOR_</code>, <code>CLS_</code>, <code>CLS_CRM_</code>, <code>CLS_CONTRACT_</code>, <code>AGRO_</code>
+</div>
+
+<p>Example for new module "Logistics": <code>LOG_</code> or <code>LOGIS_</code>.</p>
+
+<h3 id="s8-2">8.2 Create Oracle DDL</h3>
+<p>Create SQL files in <code>sql/</code> continuing the numbering:</p>
+
+<p>DDL &mdash; это &laquo;фундамент&raquo; модуля. Без правильной схемы данных всё остальное развалится. Обратите внимание на структуру шаблона ниже: сначала sequences (генераторы ID), затем master data (справочники), затем documents (документы-шапки), затем document items (строки документов), и наконец event log. Это классическая последовательность для любой учётной системы &mdash; тот же паттерн, что и в Oracle E-Business Suite, SAP или 1С.</p>
+
+<p>Каждая таблица имеет поля <code>CREATED_AT</code> и <code>UPDATED_AT</code> с <code>DEFAULT CURRENT_TIMESTAMP</code> &mdash; это обеспечивает автоматическую метку времени создания без дополнительного кода. Флаг <code>IS_ACTIVE CHAR(1) DEFAULT 'Y'</code> с CHECK-constraint &mdash; стандарт проекта для &laquo;мягкого удаления&raquo;: записи не удаляются физически, а деактивируются. Trigger auto-ID (<code>BEFORE INSERT ... WHEN (NEW.ID IS NULL)</code>) позволяет как автоматическую генерацию ID из sequence, так и явную вставку с заданным ID (полезно для миграций и seed-данных).</p>
+<pre><code>sql/40_logis_tables.sql        # Tables and sequences
+sql/41_logis_views.sql         # Views
+sql/42_logis_triggers.sql      # Triggers
+sql/43_logis_demo_data.sql     # Demo data</code></pre>
+
+<h4>Template <code>sql/40_logis_tables.sql</code>:</h4>
+<pre><code><span class="cm">-- ============================================================</span>
+<span class="cm">-- LOGIS module (LOGIS_*) &mdash; logistics management</span>
+<span class="cm">-- ============================================================</span>
+
+<span class="cm">-- Sequences</span>
+<span class="kw">CREATE SEQUENCE</span> LOGIS_ORDERS_SEQ <span class="kw">START WITH</span> 1 <span class="kw">INCREMENT BY</span> 1 NOCACHE;
+<span class="kw">CREATE SEQUENCE</span> LOGIS_ORDER_ITEMS_SEQ <span class="kw">START WITH</span> 1 <span class="kw">INCREMENT BY</span> 1 NOCACHE;
+
+<span class="cm">-- Master data</span>
+<span class="kw">CREATE TABLE</span> LOGIS_WAREHOUSES (
+  ID             <span class="kw">NUMBER</span>         <span class="kw">NOT NULL</span>,
+  CODE           <span class="kw">VARCHAR2</span>(30)   <span class="kw">NOT NULL</span>,
+  NAME           <span class="kw">VARCHAR2</span>(200)  <span class="kw">NOT NULL</span>,
+  IS_ACTIVE      <span class="kw">CHAR</span>(1)        <span class="kw">DEFAULT</span> <span class="str">'Y'</span> <span class="kw">NOT NULL</span>,
+  CREATED_AT     <span class="kw">TIMESTAMP</span>      <span class="kw">DEFAULT CURRENT_TIMESTAMP</span> <span class="kw">NOT NULL</span>,
+  UPDATED_AT     <span class="kw">TIMESTAMP</span>      <span class="kw">DEFAULT CURRENT_TIMESTAMP</span> <span class="kw">NOT NULL</span>,
+  <span class="kw">CONSTRAINT</span> PK_LOGIS_WAREHOUSES <span class="kw">PRIMARY KEY</span> (ID),
+  <span class="kw">CONSTRAINT</span> UK_LOGIS_WAREHOUSES_CODE <span class="kw">UNIQUE</span> (CODE),
+  <span class="kw">CONSTRAINT</span> CHK_LOGIS_WAREHOUSES_ACT <span class="kw">CHECK</span> (IS_ACTIVE <span class="kw">IN</span> (<span class="str">'Y'</span>,<span class="str">'N'</span>))
+);
+/
+
+<span class="cm">-- Auto-ID trigger</span>
+<span class="kw">CREATE OR REPLACE TRIGGER</span> LOGIS_WAREHOUSES_BI
+<span class="kw">BEFORE INSERT ON</span> LOGIS_WAREHOUSES <span class="kw">FOR EACH ROW</span>
+<span class="kw">WHEN</span> (NEW.ID <span class="kw">IS NULL</span>) <span class="kw">BEGIN</span> :NEW.ID := LOGIS_ORDERS_SEQ.NEXTVAL; <span class="kw">END</span>;
+/
+
+<span class="cm">-- Documents</span>
+<span class="kw">CREATE TABLE</span> LOGIS_ORDERS (
+  ID             <span class="kw">NUMBER</span>         <span class="kw">NOT NULL</span>,
+  ORDER_NO       <span class="kw">VARCHAR2</span>(30)   <span class="kw">NOT NULL</span>,
+  WAREHOUSE_ID   <span class="kw">NUMBER</span>         <span class="kw">NOT NULL</span>,
+  STATUS         <span class="kw">VARCHAR2</span>(30)   <span class="kw">DEFAULT</span> <span class="str">'DRAFT'</span>,
+  TOTAL_AMOUNT   <span class="kw">NUMBER</span>(18,2)   <span class="kw">DEFAULT</span> 0,
+  CREATED_AT     <span class="kw">TIMESTAMP</span>      <span class="kw">DEFAULT CURRENT_TIMESTAMP</span>,
+  <span class="kw">CONSTRAINT</span> PK_LOGIS_ORDERS <span class="kw">PRIMARY KEY</span> (ID),
+  <span class="kw">CONSTRAINT</span> FK_LOGIS_ORDERS_WH <span class="kw">FOREIGN KEY</span> (WAREHOUSE_ID) <span class="kw">REFERENCES</span> LOGIS_WAREHOUSES(ID)
+);
+/
+
+<span class="cm">-- Event log (append-only)</span>
+<span class="kw">CREATE TABLE</span> LOGIS_EVENT_LOG (
+  ID             <span class="kw">NUMBER</span>         <span class="kw">NOT NULL</span>,
+  EVENT_TYPE     <span class="kw">VARCHAR2</span>(60)   <span class="kw">NOT NULL</span>,
+  ENTITY_TYPE    <span class="kw">VARCHAR2</span>(60),
+  ENTITY_ID      <span class="kw">NUMBER</span>,
+  PAYLOAD        <span class="kw">CLOB</span>,
+  CREATED_AT     <span class="kw">TIMESTAMP</span>      <span class="kw">DEFAULT CURRENT_TIMESTAMP</span>,
+  <span class="kw">CONSTRAINT</span> PK_LOGIS_EVENT_LOG <span class="kw">PRIMARY KEY</span> (ID)
+);
+/</code></pre>
+
+<h4>Key rules:</h4>
+<ul>
+  <li>Normalized tables, not KV/blob</li>
+  <li>Separate: master data, settings, documents, document items, event log</li>
+  <li><code>CHAR(1)</code> for flags (<code>IS_ACTIVE</code>), <code>TIMESTAMP DEFAULT CURRENT_TIMESTAMP</code></li>
+  <li>Primary key on sequence + trigger auto-ID</li>
+  <li>Foreign keys between module tables</li>
+</ul>
+
+<h3 id="s8-3">8.3 Register DDL in deploy</h3>
+<p>Add new files to <code>order</code> array in <code>deploy_oracle_objects.py</code>:</p>
+<pre><code>order = [
+    ...existing files...
+    "40_logis_tables.sql",
+    "41_logis_views.sql",
+    "42_logis_triggers.sql",
+    "43_logis_demo_data.sql",
+]</code></pre>
+<p>Run: <code>python deploy_oracle_objects.py</code></p>
+
+<h3 id="s8-4">8.4 Create Model (Oracle store)</h3>
+<p>Create <code>models/logis_oracle_store.py</code>:</p>
+
+<p>Модель (Oracle store) &mdash; это слой абстракции над SQL-запросами. Его задача &mdash; скрыть от контроллера детали работы с Oracle (формирование SQL, передача параметров, парсинг результатов) и предоставить чистый Python API: <code>get_warehouses()</code>, <code>create_order()</code>, <code>update_status()</code>. Это аналог TDataModule в C++ Builder: он инкапсулирует доступ к данным и предоставляет готовые методы для форм.</p>
+
+<p>Обратите внимание на паттерн <code>with DatabaseModel() as db:</code> &mdash; это context manager, который автоматически получает соединение из pool и возвращает его после завершения. Результат <code>db.execute_query()</code> &mdash; словарь с ключами <code>"success"</code>, <code>"columns"</code>, <code>"data"</code>. Конструкция <code>dict(zip(cols, row))</code> превращает позиционный tuple Oracle в именованный словарь.</p>
+<pre><code><span class="cm">"""Normalized Oracle store for LOGIS module."""</span>
+from models.database import DatabaseModel
+
+
+class LogisStore:
+    <span class="cm">"""CRUD for LOGIS_* tables."""</span>
+
+    @staticmethod
+    def get_warehouses(active_only=True):
+        with DatabaseModel() as db:
+            sql = "SELECT ID, CODE, NAME, IS_ACTIVE FROM LOGIS_WAREHOUSES"
+            if active_only:
+                sql += " WHERE IS_ACTIVE = 'Y'"
+            sql += " ORDER BY NAME"
+            result = db.execute_query(sql)
+            if not result.get("success"):
+                return []
+            cols = result.get("columns", [])
+            return [dict(zip(cols, row)) for row in result["data"]]</code></pre>
+<p>See <code>models/decor_oracle_store.py</code> and <code>models/agro_oracle_store.py</code> as reference.</p>
+
+<h3 id="s8-5">8.5 Create Controller</h3>
+<p>Create <code>controllers/logis_controller.py</code>:</p>
+
+<p>Контроллер &mdash; это &laquo;мозг&raquo; модуля. Он принимает параметры из HTTP-запроса (через маршрут в <code>app.py</code>), вызывает методы модели, при необходимости трансформирует данные (агрегирует, фильтрует, вычисляет) и возвращает результат. Контроллер <em>не должен</em> содержать SQL-запросы напрямую &mdash; это ответственность модели. И наоборот, модель <em>не должна</em> знать о HTTP, request, response &mdash; это ответственность контроллера и маршрута. Такое разделение позволяет тестировать бизнес-логику отдельно от веб-слоя.</p>
+<pre><code><span class="cm">"""LOGIS module controller: business logic + API."""</span>
+from models.logis_oracle_store import LogisStore
+
+
+class LogisController:
+    @staticmethod
+    def get_warehouses():
+        return LogisStore.get_warehouses()
+
+    @staticmethod
+    def get_orders(warehouse_id=None):
+        return LogisStore.get_orders(warehouse_id)</code></pre>
+
+<h3 id="s8-6">8.6 Add Routes to app.py</h3>
+
+<p>Маршруты регистрируются в <code>app.py</code> и делятся на два типа: <strong>UI-маршруты</strong> (возвращают HTML-страницу) и <strong>API-маршруты</strong> (возвращают JSON). UI-маршруты всегда начинаются с <code>/UNA.md/orasldev/</code>, API-маршруты &mdash; с <code>/api/</code>. Каждый маршрут проверяет аутентификацию вызовом <code>AuthController.is_authenticated()</code> &mdash; это стандартный boilerplate, который нужно копировать без изменений.</p>
+<pre><code>from controllers.logis_controller import LogisController
+
+<span class="cm"># UI routes</span>
+@app.route('/UNA.md/orasldev/logis')
+def logis_main():
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('logis_main.html')
+
+<span class="cm"># API routes</span>
+@app.route('/api/logis/warehouses')
+def api_logis_warehouses():
+    if not AuthController.is_authenticated():
+        return jsonify({"error": "unauthorized"}), 401
+    return jsonify(LogisController.get_warehouses())</code></pre>
+
+<p>All UI under <code>/UNA.md/orasldev/logis*</code>, all API under <code>/api/logis/*</code>.</p>
+
+<h3 id="s8-7">8.7 Create HTML Template</h3>
+<p>Create <code>templates/logis_main.html</code>. Use existing templates as reference (e.g. <code>colass_catalog.html</code> or <code>agro_admin.html</code>).</p>
+
+<h3 id="s8-8">8.8 Register in Shell</h3>
+<pre><code><span class="kw">INSERT INTO</span> UNA_SHELL_PROJECTS (SLUG, NAME, DESCRIPTION, DASHBOARD_IDS, SORT_ORDER, IS_ACTIVE)
+<span class="kw">VALUES</span> (<span class="str">'logis'</span>, <span class="str">'Logistics'</span>, <span class="str">'Logistics module'</span>, <span class="str">'00,01'</span>, 40, <span class="str">'Y'</span>);
+<span class="kw">COMMIT</span>;</code></pre>
+
+<h3 id="s8-9">8.9 Add to version_registry.py</h3>
+<p>In <code>version_registry.py</code> &rarr; <code>_default_manifest()</code> &rarr; <code>modules</code>:</p>
+<pre><code>"logis": {"name": "Logistics", "version": "0.1.0", "updated_at": ts, "notes": "Warehouse logistics"},</code></pre>
+
+<h3 id="s8-10">8.10 Update Documentation</h3>
+<ol>
+  <li>Update <code>DEVELOPER_GUIDE.md</code>: add module section in &sect;2</li>
+  <li>Update <code>README.md</code>: add module description</li>
+  <li>Create <code>docs/Logis/README.md</code> with Oracle objects, routes, API</li>
+  <li>Update <code>sql/README.md</code>: add module scripts</li>
+</ol>
+
+<h3 id="s8-11">8.11 Checklist Before Merge</h3>
+<ul class="checklist">
+  <li>DDL files in <code>sql/</code> on git</li>
+  <li>DDL files added to <code>deploy_oracle_objects.py</code></li>
+  <li><code>python deploy_oracle_objects.py</code> runs without errors</li>
+  <li>Oracle objects visible: <code>SELECT * FROM USER_OBJECTS WHERE OBJECT_NAME LIKE 'LOGIS_%'</code></li>
+  <li>Controller created, imported in <code>app.py</code></li>
+  <li>UI routes under <code>/UNA.md/orasldev/logis*</code></li>
+  <li>API routes under <code>/api/logis/*</code></li>
+  <li>HTML template created and renders</li>
+  <li>Module registered in <code>UNA_SHELL_PROJECTS</code></li>
+  <li>Module added to <code>version_registry.py</code></li>
+  <li>No SQLite/JSON primary storage</li>
+  <li>No generic KV tables (<code>APP_RUNTIME_KV</code>)</li>
+  <li><code>README.md</code> updated</li>
+  <li><code>DEVELOPER_GUIDE.md</code> updated</li>
+  <li>Local run <code>./run_local.sh</code> works, module responds</li>
+</ul>
+
+<!-- ═══════ 9. ANTI-PATTERNS ═══════ -->
+<h2 id="s9">9. Anti-patterns <span class="badge badge-red">PROHIBITED</span></h2>
+
+<p>Этот раздел &mdash; результат прожитого опыта. Каждый пункт ниже &mdash; это ошибка, которая была допущена хотя бы один раз в истории проекта, потребовала значительных усилий для исправления, и теперь зафиксирована как запрет. Аналогия с C++ Builder: вы бы не стали хранить все записи TTable в одном TMemoField вместо нормальных полей &mdash; по той же причине мы не храним бизнес-данные в JSON blob.</p>
+
+<div class="callout danger">
+<ol>
+  <li><code>APP_RUNTIME_KV</code>, <code>MODULE_RUNTIME_KV</code> &mdash; generic KV tables for primary state</li>
+  <li><code>APP_EVENT_LOG</code> as shared container for different domains</li>
+  <li>JSON blob in single CLOB field as entire module model</li>
+  <li><code>data/*.json</code>, <code>data/*.jsonl</code>, SQLite as authoritative storage for business data</li>
+  <li>Module without DDL, without Oracle prefix, without documentation</li>
+  <li>Remote <code>.env</code> with <code>WALLET_DIR</code> inside deploy directory (on remote always use absolute path)</li>
+  <li>Wallet in Git</li>
+</ol>
+</div>
+
+<!-- ═══════ 10. COMMANDS ═══════ -->
+<h2 id="s10">10. Useful Commands</h2>
+
+<pre><code><span class="cm"># Local run</span>
+./run_local.sh
+
+<span class="cm"># Deploy to remote</span>
+./deploy_to_remote.sh
+
+<span class="cm"># Deploy Oracle DDL</span>
+python deploy_oracle_objects.py
+python deploy_oracle_objects.py --drop      <span class="cm"># Full recreate</span>
+python deploy_oracle_objects.py --dry-run   <span class="cm"># Show only</span>
+
+<span class="cm"># Deploy Oracle DDL on remote</span>
+DEPLOY_ORACLE_ON_REMOTE=1 ./deploy_to_remote.sh
+
+<span class="cm"># View logs (remote, via SSH)</span>
+ssh ubuntu@92.5.3.187 'tail -f /home/ubuntu/artgranit/app.log'
+
+<span class="cm"># Restart remote server</span>
+ssh ubuntu@92.5.3.187 'cd ~/artgranit && ./full_restart.sh'
+
+<span class="cm"># Check Oracle objects from Python</span>
+python -c "
+from models.database import DatabaseModel
+with DatabaseModel() as db:
+    r = db.execute_query('SELECT OBJECT_TYPE, OBJECT_NAME FROM USER_OBJECTS ORDER BY 1,2')
+    for row in r.get('data', []):
+        print(row)
+"</code></pre>
+
+<hr>
+<p style="color:var(--text-muted);font-size:13px;text-align:center;margin-top:40px;">Artgranit OCI &mdash; Developer Guide v2.0 &middot; Updated 2026-03-20</p>
+
+</main>
+</div>
+</body>
+</html>

@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<title>Пакет документов заказа — прогон #{{ pkg.run_id }}</title>
+<style>
+/* Печатная форма: чёрным по белому, без интерфейсного хрома.
+   Кнопка печати прячется правилом @media print — браузерное «Сохранить
+   в PDF» даёт готовый файл для отправки поставщику. */
+:root{ --line:#cbd5e1; --muted:#64748b; }
+*{ margin:0; padding:0; box-sizing:border-box; }
+body{ font:14px/1.55 Georgia, 'Times New Roman', serif; color:#0f172a;
+      background:#f1f5f9; padding:28px; }
+.sheet{ background:#fff; max-width:900px; margin:0 auto 24px; padding:44px 52px;
+        box-shadow:0 2px 14px rgba(15,23,42,.12); page-break-after:always; }
+h1{ font-size:21px; margin-bottom:4px; }
+h2{ font-size:16px; margin:22px 0 8px; }
+.muted{ color:var(--muted); font-size:12.5px; }
+table{ width:100%; border-collapse:collapse; margin-top:10px; font-size:13px; }
+th{ text-align:left; border-bottom:2px solid #0f172a; padding:6px 8px;
+    font-size:11px; text-transform:uppercase; letter-spacing:.05em; }
+td{ border-bottom:1px solid var(--line); padding:6px 8px; vertical-align:top; }
+td.num, th.num{ text-align:right; white-space:nowrap; }
+.total td{ border-bottom:none; border-top:2px solid #0f172a; font-weight:bold; }
+.adj{ background:#fefce8; }
+.sign{ display:flex; gap:60px; margin-top:44px; }
+.sign div{ flex:1; border-top:1px solid #0f172a; padding-top:6px;
+           font-size:12px; color:var(--muted); }
+.toolbar{ max-width:900px; margin:0 auto 18px; display:flex; gap:10px; align-items:center; }
+.btn{ border:1px solid var(--line); background:#fff; border-radius:8px;
+      padding:8px 18px; font:600 13.5px system-ui; cursor:pointer; }
+.btn.primary{ background:#1d4ed8; color:#fff; border-color:#1d4ed8; }
+@media print{ body{ background:#fff; padding:0; } .toolbar{ display:none; }
+              .sheet{ box-shadow:none; margin:0; max-width:none; } }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button class="btn primary" onclick="window.print()">Печать / сохранить в PDF</button>
+  <a class="btn" href="/UNA.md/orasldev/planograms#orders" style="text-decoration:none;color:inherit">← к автозаказу</a>
+  <span class="muted">Прогон #{{ pkg.run_id }} · корректировок: {{ pkg.adjusted_count }} ·
+        итого {{ '%.2f'|format(pkg.total_amount or 0) }} MDL</span>
+</div>
+
+{% for g in pkg.groups %}
+<div class="sheet">
+  <h1>Заказ поставщику · спецификация</h1>
+  <div class="muted">Прогон прогноза #{{ pkg.run_id }} · сформировано автоматически,
+       количества учитывают корректировки закупщика</div>
+
+  <h2>Поставщик: {{ g.supplier }}</h2>
+
+  <table>
+    <thead><tr>
+      <th style="width:34%">Товар</th><th>Код</th><th>Категория</th>
+      <th class="num">Модель</th><th class="num">К заказу</th>
+      <th class="num">Цена</th><th class="num">Сумма</th><th>Причина правки</th>
+    </tr></thead>
+    <tbody>
+    {% for it in g['items'] %}
+      <tr {% if it.is_adjusted %}class="adj"{% endif %}>
+        <td>{{ it.product_name }}</td>
+        <td>{{ it.product_code }}</td>
+        <td>{{ it.category_name or '—' }}</td>
+        <td class="num">{{ it.qty_model or 0 }}</td>
+        <td class="num"><b>{{ it.qty_final }}</b></td>
+        <td class="num">{{ '%.2f'|format(it.price or 0) }}</td>
+        <td class="num">{{ '%.2f'|format(it.amount_final or 0) }}</td>
+        <td class="muted">{{ it.adj_note or (it.adj_reason if it.is_adjusted else '') }}</td>
+      </tr>
+    {% endfor %}
+      <tr class="total">
+        <td colspan="6">Итого по поставщику</td>
+        <td class="num">{{ '%.2f'|format(g.amount) }}</td><td></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="sign">
+    <div>Сформировал: {{ generated_by }}</div>
+    <div>Утвердил (категорийный менеджер)</div>
+    <div>Дата</div>
+  </div>
+</div>
+{% else %}
+<div class="sheet"><h1>Пакет пуст</h1>
+  <p class="muted">В выбранном прогоне нет позиций с положительным заказом.</p></div>
+{% endfor %}
+</body>
+</html>

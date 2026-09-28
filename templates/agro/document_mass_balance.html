@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Баланс массы / Bilant de masa</title>
+<style>
+@media print { body { margin: 0; } .no-print { display: none !important; } @page { size: A4 landscape; margin: 15mm 20mm; } }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Times New Roman', serif; font-size: 11pt; color: #000; max-width: 297mm; margin: 0 auto; padding: 15mm; }
+.header { text-align: center; margin-bottom: 16px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+.header h1 { font-size: 15pt; margin-bottom: 4px; }
+.header .company { font-size: 10pt; color: #555; }
+.doc-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11pt; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10pt; }
+th, td { border: 1px solid #000; padding: 5px 6px; text-align: right; }
+th { background: #f0f0f0; font-weight: bold; font-size: 9pt; text-align: center; }
+td:first-child, th:first-child { text-align: left; }
+.total-row td { font-weight: bold; background: #f8f8f8; border-top: 2px solid #000; }
+.balance-box { display: flex; justify-content: space-around; margin: 20px 0; }
+.balance-item { text-align: center; border: 2px solid #000; padding: 14px 20px; min-width: 150px; }
+.balance-item .val { font-size: 20pt; font-weight: bold; }
+.balance-item .lbl { font-size: 9pt; color: #555; margin-top: 4px; }
+.balance-item.negative .val { color: #991b1b; }
+.balance-item.positive .val { color: #065f46; }
+.signatures { display: flex; justify-content: space-between; margin-top: 40px; }
+.sig-block { width: 30%; }
+.sig-block .line { border-bottom: 1px solid #000; height: 25px; margin-top: 20px; }
+.sig-block .label { font-size: 9pt; color: #555; margin-top: 4px; text-align: center; }
+.no-print { text-align: center; margin-bottom: 16px; }
+.no-print button { padding: 10px 30px; font-size: 14px; cursor: pointer; background: #059669; color: #fff; border: none; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="no-print"><button onclick="window.print()">Печать / Tipareste</button></div>
+<div class="header">
+    <div class="company">{{ company_name or 'AGRO Company SRL' }}</div>
+    <h1>БАЛАНС МАССЫ / BILANT DE MASA</h1>
+</div>
+<div class="doc-row">
+    <div>Период / Perioada: <strong>{{ date_from or '—' }}</strong> — <strong>{{ date_to or '—' }}</strong></div>
+    <div>Склад / Depozit: <strong>{{ warehouse_name or 'Все / Toate' }}</strong></div>
+</div>
+
+<div class="balance-box">
+    <div class="balance-item positive"><div class="val">{{ '%.1f'|format(total_received_kg|float) if total_received_kg else '0.0' }}</div><div class="lbl">Принято кг / Primit kg</div></div>
+    <div class="balance-item negative"><div class="val">{{ '%.1f'|format(total_shipped_kg|float) if total_shipped_kg else '0.0' }}</div><div class="lbl">Отгружено кг / Livrat kg</div></div>
+    <div class="balance-item negative"><div class="val">{{ '%.1f'|format(total_waste_kg|float) if total_waste_kg else '0.0' }}</div><div class="lbl">Отходы кг / Deseuri kg</div></div>
+    <div class="balance-item"><div class="val">{{ '%.1f'|format(current_stock_kg|float) if current_stock_kg else '0.0' }}</div><div class="lbl">Остаток кг / Stoc kg</div></div>
+</div>
+
+<table>
+    <thead><tr>
+        <th>Продукция / Produs</th>
+        <th>Нач. остаток / Stoc initial</th>
+        <th>Поступления / Intrari</th>
+        <th>Отгрузки / Iesiri</th>
+        <th>Отходы / Deseuri</th>
+        <th>Потери / Pierderi</th>
+        <th>Кон. остаток / Stoc final</th>
+        <th>Баланс / Bilant</th>
+    </tr></thead>
+    <tbody>
+    {% for row in items or [] %}
+    <tr>
+        <td>{{ row.item_name or '—' }}</td>
+        <td>{{ '%.1f'|format(row.opening_qty_kg|float) if row.opening_qty_kg else '0.0' }}</td>
+        <td style="color:#065f46;">+{{ '%.1f'|format(row.received_qty_kg|float) if row.received_qty_kg else '0.0' }}</td>
+        <td style="color:#991b1b;">-{{ '%.1f'|format(row.shipped_qty_kg|float) if row.shipped_qty_kg else '0.0' }}</td>
+        <td style="color:#991b1b;">-{{ '%.1f'|format(row.waste_qty_kg|float) if row.waste_qty_kg else '0.0' }}</td>
+        <td style="color:#991b1b;">-{{ '%.1f'|format(row.loss_qty_kg|float) if row.loss_qty_kg else '0.0' }}</td>
+        <td style="font-weight:bold;">{{ '%.1f'|format(row.closing_qty_kg|float) if row.closing_qty_kg else '0.0' }}</td>
+        <td style="font-weight:bold;">{{ '%.1f'|format(row.balance_diff|float) if row.balance_diff else '0.0' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    <tfoot><tr class="total-row">
+        <td>ИТОГО / TOTAL</td>
+        <td>{{ '%.1f'|format(total_opening|float) if total_opening else '0.0' }}</td>
+        <td>+{{ '%.1f'|format(total_received_kg|float) if total_received_kg else '0.0' }}</td>
+        <td>-{{ '%.1f'|format(total_shipped_kg|float) if total_shipped_kg else '0.0' }}</td>
+        <td>-{{ '%.1f'|format(total_waste_kg|float) if total_waste_kg else '0.0' }}</td>
+        <td>-{{ '%.1f'|format(total_loss_kg|float) if total_loss_kg else '0.0' }}</td>
+        <td>{{ '%.1f'|format(current_stock_kg|float) if current_stock_kg else '0.0' }}</td>
+        <td>{{ '%.1f'|format(total_balance|float) if total_balance else '0.0' }}</td>
+    </tr></tfoot>
+</table>
+
+{% if notes %}<div style="margin:16px 0;font-size:11pt;"><strong>Примечания / Observatii:</strong> {{ notes }}</div>{% endif %}
+
+<div class="signatures">
+    <div class="sig-block"><div class="line"></div><div class="label">Складской учёт / Gestionar</div></div>
+    <div class="sig-block"><div class="line"></div><div class="label">Бухгалтер / Contabil</div></div>
+    <div class="sig-block"><div class="line"></div><div class="label">Директор / Director</div></div>
+</div>
+</body>
+</html>

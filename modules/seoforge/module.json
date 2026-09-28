@@ -1,0 +1,16 @@
+{
+  "title": {
+    "ru": "SEOForge — AI-SEO продвижение",
+    "ro": "SEOForge — promovare AI-SEO",
+    "en": "SEOForge — AI-SEO promotion"
+  },
+  "icon": "🚀",
+  "order": 115,
+  "url": "/UNA.md/orasldev/seoforge",
+  "sql_prefix": "YSEO_",
+  "descr": "Сайты, кампании, бюджет план/факт, ROI по каналам",
+  "docs": "SEOForge",
+  "pages": {
+    "seoforge": {"ru": "SEOForge", "ro": "SEOForge", "en": "SEOForge"}
+  }
+}

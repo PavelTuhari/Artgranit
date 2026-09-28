@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proiect AGRO — Documentație</title>
+    <style>
+        :root { --primary: #0d9488; --bg: #f0fdfa; --card: #fff; --text: #134e4a; --muted: #64748b; --border: #99f6e4; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; padding: 24px; max-width: 800px; margin: 0 auto; }
+        h1 { font-size: 24px; margin-bottom: 8px; color: var(--text); }
+        h2 { font-size: 17px; margin-top: 28px; margin-bottom: 12px; color: var(--primary); border-bottom: 1px solid var(--border); padding-bottom: 6px; }
+        ul { list-style: none; margin-left: 0; }
+        li { margin-bottom: 12px; padding: 12px 16px; background: var(--card); border-radius: 10px; border: 1px solid var(--border); }
+        li a { color: var(--primary); font-weight: 600; text-decoration: none; }
+        li a:hover { text-decoration: underline; }
+        li span { display: block; font-size: 13px; color: var(--muted); margin-top: 4px; }
+        .lead { margin-bottom: 20px; padding: 16px; background: #ccfbf1; border-radius: 10px; font-size: 15px; }
+        .lead a { color: var(--primary); font-weight: 600; }
+        .meta { font-size: 14px; color: var(--muted); margin-bottom: 20px; }
+        .badge { display: inline-block; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; background: #f0fdfa; border: 1px solid var(--border); color: var(--primary); border-radius: 6px; padding: 2px 8px; margin-left: 8px; vertical-align: middle; }
+    </style>
+</head>
+<body>
+    <h1>Proiect AGRO — Documentație</h1>
+    <p class="meta">Modulul de gestionare a operațiunilor cu produse agricole. Prefix Oracle: <strong>AGRO_</strong></p>
+
+    <p class="lead">
+        <a href="TZ.html">Caietul de sarcini (specificații tehnice) în format HTML</a> — descrierea completă a cerințelor, arhitecturii, tabelelor Oracle și interfe&#x21a3;elor UI.
+    </p>
+
+    <h2>Documentație</h2>
+    <ul>
+        <li>
+            <a href="TZ.html">TZ.html — Caietul de sarcini</a>
+            <span>Specificații tehnice complete: arhitectură, tabele Oracle, rute UI, API, deploiere, checklist de verificare</span>
+        </li>
+        <li>
+            <a href="LINKS.md">LINKS.md — Legături rapide</a>
+            <span>Toate URL-urile modulului AGRO: localhost și server remote (92.5.3.187:8000)</span>
+        </li>
+        <li>
+            <a href="priemka_specification.html">Specificația modulului Recepție (Field / Приёмка)</a>
+            <span>Arhitectură, navigare, jurnal documente, formular, pagini autonome, API, design-sistem CSS, GAP-analiză</span>
+        </li>
+        <li>
+            <a href="scale_kiosk_specification.html">ScaleKiosk — Specificația completă</a> <span class="badge">NOU</span>
+            <span>Componentă UI partajată: constructor, arbore DOM, CSS 3 coloane, evenimente, paletă culori, passport produs, captură, emulare automată, lifecycle, 34 metode, checklist verificare</span>
+        </li>
+    </ul>
+
+    <h2>Standarde de achiziție <span class="badge">NOU</span></h2>
+    <ul>
+        <li>
+            <a href="achizitie standard/kaufland_metro_linella_requirements_md.html">Cerințe Kaufland / Metro / Linella pentru recepția fructelor</a>
+            <span>Cerințe publice de acceptare, profiluri de recepție pe rețea, criterii de calitate, temperatură, proslediabilitate. Referință pentru departamentul QA.</span>
+        </li>
+        <li>
+            <a href="achizitie standard/supplier_spec_template_fruit_md.html">Șablon specificație tehnică furnizor fructe</a>
+            <span>Formular de pre-aprobare: clasă comercială, calibru, defecte, maturitate, Brix, ambalare, logistică, reguli de recepție. Anexă la contract.</span>
+        </li>
+        <li>
+            <a href="achizitie standard/fruit_acceptance_model_moldova.xlsx">Model de acceptare fructe Moldova (XLSX)</a>
+            <span>Tabel Excel cu parametri de recepție, toleranțe pe produs, formule de calcul. Vizualizare online în browser.</span>
+        </li>
+        <li>
+            <a href="achizitie standard/dipp_fruct_supplier_pack.html">DIPP FRUCT SRL — Supplier Quality Pack</a> <span class="badge">NOU</span>
+            <span>Pachet complet de calitate furnizor: cerințe minime de reglementare, comparație rețele, profil de acceptare, scală defecte (D01–D30), ghid foto, anexe ambalare și etichetare.</span>
+        </li>
+    </ul>
+
+    <h2>Surse și reglementări <span class="badge">Referințe</span></h2>
+    <ul>
+        <li>
+            <a href="https://eur-lex.europa.eu/eli/reg_del/2023/2429/oj/eng" target="_blank">EU Delegated Regulation 2023/2429 — Standarde de comercializare fructe și legume</a>
+            <span>Regulamentul delegat UE: cerințe de calitate, clasare, ambalare și etichetare pentru produse proaspete. În vigoare din 01.01.2025</span>
+        </li>
+        <li>
+            <a href="https://www.legis.md/cautare/rezultate/22719" target="_blank">Legis.md — HG 929/2009: Cerințe de marketing fructe și legume</a>
+            <span>Hotărârea Guvernului Republicii Moldova privind cerințele de calitate și comercializare a fructelor și legumelor proaspete</span>
+        </li>
+        <li>
+            <a href="https://www.cbi.eu/market-information/fresh-fruit-vegetables/buyer-requirements" target="_blank">CBI (Netherlands) — Buyer requirements for fresh fruit &amp; vegetables in Europe</a>
+            <span>Cerințe europene pentru importatori: siguranță alimentară, calitate, ambalare, proslediabilitate, certificări (GlobalG.A.P., BRCGS)</span>
+        </li>
+        <li>
+            <a href="https://business-partner.kaufland.com/content/dam/kaufland/website/bpp/de_DE/download/document/Allgemein%20_%20ANA_Food%20EN.pdf" target="_blank">Kaufland — General Sustainability Requirements (GSR) Food [PDF]</a>
+            <span>Cerințe obligatorii Kaufland pentru toți furnizorii alimentari: calitate, siguranță, proslediabilitate, audit, materii prime sustenabile</span>
+        </li>
+        <li>
+            <a href="https://media.kaufland.com/images/PPIM/AP_MarketingDocument/deu/27/12/Asset_3392712.pdf" target="_blank">Kaufland — Transparenz-Report Obst und Gemüse 2019 [PDF]</a>
+            <span>Politica internă Kaufland privind reziduurile de pesticide, substanțe active interzise, control laborator</span>
+        </li>
+        <li>
+            <a href="https://www.metro.md/despre-noi" target="_blank">METRO Moldova — Despre noi</a>
+            <span>Pagina oficială METRO Moldova: ISO 22000, HACCP, control calitate, 600+ angajați, 3 magazine, 25.000+ articole</span>
+        </li>
+        <li>
+            <a href="https://reports.metroag.de/corporate-responsibility-report/2018-2019/" target="_blank">METRO AG — Corporate Responsibility Report 2018/19</a>
+            <span>Raport responsabilitate corporativă METRO: GlobalG.A.P., limite pesticide, audit furnizori, produce benchmark</span>
+        </li>
+        <li>
+            <a href="https://www.freshplaza.com/latin-america/article/9484833/supermarket-linella-when-it-comes-to-quality-we-don-t-compromise/" target="_blank">FreshPlaza — Linella: &laquo;When it comes to quality, we don't compromise&raquo;</a>
+            <span>Interviu director Linella: cerințe stricte de calitate, returnare partide neconforme, 150 magazine, aprovizionare locală</span>
+        </li>
+        <li>
+            <a href="https://www.linella.md/misiunea-si-valorile" target="_blank">Linella — Misiunea și valorile</a>
+            <span>Pagina oficială Linella: prospețime, calitate, relații verificate cu producătorii domestici</span>
+        </li>
+        <li>
+            <a href="https://www.rvo.nl/sites/default/files/2025-04/Report_Moldovan_Dutch_horticulture_opportunities.pdf" target="_blank">RVO Netherlands — Moldovan-Dutch Horticulture Opportunities 2025 [PDF]</a>
+            <span>Contextul pieței de retail din Moldova, condiții mai stricte ale rețelelor, oportunități horticole olandeze-moldovenești</span>
+        </li>
+    </ul>
+
+    <h2>Module UI</h2>
+    <ul>
+        <li>
+            <a href="/UNA.md/orasldev/agro">AGRO MDI Shell</a>
+            <span class="badge">Interfață principală</span>
+            <span>Interfața principală cu tab-uri pentru toate modulele AGRO — punct de intrare unificat</span>
+        </li>
+        <li>
+            <a href="/UNA.md/orasldev/agro-admin">AGRO Admin</a>
+            <span class="badge">Administrare</span>
+            <span>Date de referință (furnizori, clienți, depozite, articole), configurare sistem, rapoarte și export XLSX/CSV</span>
+        </li>
+        <li>
+            <a href="/UNA.md/orasldev/agro-field">AGRO Recepție (Field)</a>
+            <span class="badge">Operator câmp</span>
+            <span>Achiziții de la producători, cântărire lăzi, generare și scanare coduri de bare — interfață optimizată pentru tabletă</span>
+        </li>
+        <li>
+            <a href="/UNA.md/orasldev/agro-warehouse">AGRO Depozit (Warehouse)</a>
+            <span class="badge">Operator depozit</span>
+            <span>Gestionarea stocurilor și mișcărilor, monitorizare temperatură în celule frigorifice, sarcini depozit, alerte automate</span>
+        </li>
+        <li>
+            <a href="/UNA.md/orasldev/agro-qa">AGRO Calitate / HACCP (QA)</a>
+            <span class="badge">Inspector calitate</span>
+            <span>Liste de verificare GMP/HACCP, controale de calitate pe loturi, blocări automate la neconformitate critică, planuri HACCP și înregistrări CCP</span>
+        </li>
+        <li>
+            <a href="/UNA.md/orasldev/agro-sales">AGRO Vânzări (Sales)</a>
+            <span class="badge">Operator vânzări</span>
+            <span>Documente de vânzare, alocare loturi FIFO, expedieri la export, declarații vamale</span>
+        </li>
+    </ul>
+
+    <h2>Obiecte Oracle</h2>
+    <ul>
+        <li>
+            <a href="TZ.html#oracle">36 tabele normalizate + 5 vizualizări</a>
+            <span>Prefix AGRO_ — master data, operațiuni, vânzări, calitate/HACCP, audit. 36 triggere auto-ID + 3 triggere audit.</span>
+        </li>
+    </ul>
+
+    <h2>Navigare rapidă</h2>
+    <ul>
+        <li>
+            <a href="/login">Autentificare</a>
+            <span>Pagina de login a platformei UNA.md/orasldev</span>
+        </li>
+        <li>
+            <a href="/UNA.md/orasldev">SQL Developer — pagina principală</a>
+            <span>Accesul la toate modulele platformei</span>
+        </li>
+        <li>
+            <a href="/UNA.md/orasldev/docs">Documentație — index general</a>
+            <span>Lista tuturor documentațiilor disponibile în platformă</span>
+        </li>
+    </ul>
+</body>
+</html>

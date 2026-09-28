@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} · Creditare</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;background:#f6f8fb;color:#1e293b;font-size:14px}
+.top{background:#0d0d1a;color:#e2e8f0;padding:12px 18px;font-weight:700}
+.top a{color:#93c5fd;text-decoration:none;font-weight:400;margin-left:14px;font-size:13px}
+.wrap{max-width:1150px;margin:18px auto;padding:0 14px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin-bottom:16px}
+h3{margin:0 0 10px}
+.hint{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:12.5px;margin-bottom:10px}
+.btn{background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer}
+.btn.gray{background:#e2e8f0;color:#334155}
+.btn.green{background:#15803d}
+.btn-sm{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:6px 7px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:middle}
+th{color:#64748b;font-weight:600}
+td input,td select{padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font:inherit;font-size:12.5px;width:100%}
+td input.num{width:76px}
+.muted{color:#64748b}
+.badge{border-radius:10px;padding:1px 8px;font-size:11px;font-weight:700}
+.badge.on{background:#dcfce7;color:#166534}
+.badge.off{background:#fee2e2;color:#991b1b}
+.toast{position:fixed;bottom:20px;right:16px;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;z-index:200;font-size:13px}
+.toast.err{background:#dc2626}
+.simbox{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;font-size:13px}
+</style>
+</head>
+<body>
+
+<div class="top">{{ app_name }} · Creditare — organizații & pachete
+  <a href="/UNA.md/orasldev/biro26-backoffice">← Backoffice</a>
+  <a href="/UNA.md/orasldev/biro26-notify-settings">Setări</a>
+</div>
+
+<div class="wrap">
+  <section style="margin-bottom:18px">
+    <h2 style="font-size:15px;margin:0 0 4px">Provideri API · API-провайдеры</h2>
+    <div class="muted" style="font-size:12px;margin-bottom:8px">
+      Setările se păstrează în TMS_CREDITE_PROVIDER (OfficePlus). Cîmpul unui secret
+      lăsat gol înseamnă «nu schimba». ·
+      Настройки хранятся в TMS_CREDITE_PROVIDER; пустое поле секрета — «не менять».
+    </div>
+    <div id="providers" style="display:flex;flex-wrap:wrap;gap:12px"></div>
+  </section>
+
+  <div class="card">
+    <h3>🏦 Organizații de creditare · Кредитные организации</h3>
+    <div class="hint">Listă DINAMICĂ: adăugați orice partener. <b>Mod manual</b> — condițiile
+      (pachetele) se setează mai jos; <b>mod API</b> — se salvează URL-ul API al partenerului,
+      iar adaptorul de integrare se activează per organizație (la cerere).
+      Doar organizațiile «Activ» apar în magazin.</div>
+    <table data-export="organizatii-creditare">
+      <thead><tr><th style="width:40px">ID</th><th>Denumire</th><th style="width:80px">Activ</th>
+        <th style="width:110px">Mod</th><th>Provider API</th><th>API URL</th><th>Info (afișat clientului)</th>
+        <th style="width:56px">Ord.</th>
+        <th style="width:110px">Majorare fără transport, % · Надбавка за отменённый транспорт, %</th>
+        <th style="width:70px"></th></tr></thead>
+      <tbody id="orgs"></tbody>
+    </table>
+    <button class="btn gray" style="margin-top:8px" onclick="addOrgRow()">➕ Adaugă organizație</button>
+  </div>
+
+  <div class="card">
+    <h3>📦 Pachete de credit · Кредитные пакеты</h3>
+    <div class="hint"><b>Metoda de calcul la credit</b>: prețul mărfii se majorează cu
+      «Comision magazin %» (pachetele 0%); rata lunară = finanțat/luni + finanțat×(dobânda
+      anuală/12) + finanțat×comision lunar; total = avans + rate×luni + taxă emitere.
+      Sursa condițiilor: tabelul EasyCredit.</div>
+    <table data-export="pachete-rate">
+      <thead><tr><th>Organizație</th><th>Denumire pachet</th><th>Luni min–max</th>
+        <th>Sumă min–max</th><th>Comision magazin %</th><th>Dobândă an %</th>
+        <th>Comision lunar %</th><th>Taxă emitere</th><th>Avans min %</th>
+        <th>Activ</th><th style="width:96px"></th></tr></thead>
+      <tbody id="plans"></tbody>
+    </table>
+    <button class="btn gray" style="margin-top:8px" onclick="addPlanRow()">➕ Adaugă pachet</button>
+  </div>
+
+  <div class="card">
+    <h3>📨 Cereri de credit/rate · Заявки <button class="btn-sm" style="float:right" onclick="loadReqs()">↻</button></h3>
+    <div class="hint">Cererile din formularul «Solicitați un împrumut» de pe paginile produselor.
+      Nivelul de integrare per organizație: <b>manual</b> (minim — notificare, managerul sună) /
+      <b>API</b> (maxim — cererea se trimite și la API-ul organizației; coloanele «Provider / Ref / Status API»).</div>
+    <table data-export="cereri-credit">
+      <thead><tr><th>Data</th><th>Client / Telefon</th><th>Produs</th><th>Sumă → credit</th>
+        <th>Pachet</th><th>Rata</th><th>Provider</th><th>Ref</th><th>Status API</th><th>Status</th><th></th></tr></thead>
+      <tbody id="reqs"><tr><td colspan="11" class="muted">…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>🧮 Simulator (verificare) · Симулятор</h3>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div><label style="font-size:12px">Preț produs (lei)</label><br>
+        <input id="sim-amount" type="number" value="12000" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px;width:120px"></div>
+      <div><label style="font-size:12px">Pachet</label><br><select id="sim-plan" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px"></select></div>
+      <div><label style="font-size:12px">Luni</label><br>
+        <input id="sim-months" type="number" value="" placeholder="max" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px;width:70px"></div>
+      <div><label style="font-size:12px">Avans (lei)</label><br>
+        <input id="sim-avans" type="number" value="0" style="padding:7px;border:1px solid #cbd5e1;border-radius:6px;width:100px"></div>
+      <button class="btn green" onclick="simulate()">Calculează</button>
+    </div>
+    <div id="sim-out" class="simbox" style="margin-top:10px;display:none"></div>
+  </div>
+</div>
+
+<script>
+function toast(m, err) {
+  const d = document.createElement('div');
+  d.className = 'toast' + (err ? ' err' : ''); d.textContent = m;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 5000);
+}
+async function j(url, opts) {
+  opts = opts || {}; opts.headers = {'Content-Type': 'application/json'}; opts.credentials = 'include';
+  const r = await fetch(url, opts); const b = await r.json().catch(() => ({}));
+  if (!b.success && b.error) toast(b.error, true);
+  return b;
+}
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+var PROVIDERS = [];
+
+function provCard(p, i) {
+  var fields = (p.param_defs || []).map(function (d) {
+    var v = (p.params || {})[d.name] || '';
+    return '<label style="display:block;font-size:11.5px;margin-top:6px">' + esc(d.name) +
+      (d.secret ? ' <span class="muted">(secret)</span>' : '') +
+      '<input data-prov="' + i + '" data-param="' + esc(d.name) + '" value="' +
+      (d.secret ? '' : esc(v)) + '" placeholder="' +
+      (d.secret && v ? esc(v) : '') +
+      '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px"></label>';
+  }).join('');
+  return '<div style="border:1px solid #e2e8f0;border-left:4px solid ' + esc(p.color || '#0066CC') +
+    ';border-radius:8px;padding:10px;width:290px">' +
+    '<div style="font-weight:700;font-size:13.5px">' + esc(p.icon || '') + ' ' + esc(p.name) +
+    ' <span style="font-weight:400;font-size:11.5px;color:' +
+    (p.configured ? '#059669' : '#b91c1c') + '">' +
+    (p.configured ? 'configurat' : 'neconfigurat') + '</span></div>' +
+    '<label style="display:block;font-size:11.5px;margin-top:6px">' +
+    '<input type="checkbox" data-prov="' + i + '" data-field="enabled"' +
+    (p.enabled ? ' checked' : '') + '> activ / включён</label>' +
+    '<label style="display:block;font-size:11.5px;margin-top:6px">env' +
+    '<select data-prov="' + i + '" data-field="env" onchange="onProvEnvChange(' + i + ')" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px">' +
+    '<option value="sandbox"' + (p.env === 'sandbox' ? ' selected' : '') + '>sandbox</option>' +
+    '<option value="production"' + (p.env === 'production' ? ' selected' : '') + '>production</option>' +
+    '</select></label>' +
+    '<label style="display:block;font-size:11.5px;margin-top:6px">base_url' +
+    '<input data-prov="' + i + '" data-field="base_url" oninput="onProvBaseUrlInput(' + i + ')" value="' +
+    esc(p.base_url || '') +
+    '" style="width:100%;padding:5px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px"></label>' +
+    '<div id="base-url-warn-' + i + '" style="display:none;color:#b91c1c;font-size:11px;margin-top:2px">' +
+    '⚠ URL nu corespunde mediului selectat · URL не соответствует выбранному окружению</div>' +
+    fields +
+    '<div style="margin-top:9px;display:flex;gap:6px">' +
+    '<button onclick="saveProv(' + i + ')" style="flex:1;padding:6px;border:0;border-radius:6px;background:#111827;color:#fff;font-size:12px;cursor:pointer">Salvează</button>' +
+    '<button onclick="testProv(' + i + ')" style="flex:1;padding:6px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;font-size:12px;cursor:pointer">Test conexiune</button>' +
+    '</div><div id="prov-res-' + i + '" class="muted" style="font-size:11.5px;margin-top:5px"></div></div>';
+}
+
+function renderProviders() {
+  document.getElementById('providers').innerHTML =
+    PROVIDERS.map(function (p, i) { return provCard(p, i); }).join('');
+  // Finding 4: verifica imediat dupa randare (nu doar la change/input), ca sa
+  // se vada si o discrepanta env/base_url deja salvata la incarcarea paginii.
+  PROVIDERS.forEach(function (p, i) { onProvBaseUrlInput(i); });
+}
+
+function provPayload(i) {
+  var p = PROVIDERS[i], out = {code: p.code, params: {}};
+  document.querySelectorAll('[data-prov="' + i + '"]').forEach(function (el) {
+    if (el.dataset.field === 'enabled') out.enabled = el.checked;
+    else if (el.dataset.field) out[el.dataset.field] = el.value;
+    else if (el.dataset.param) out.params[el.dataset.param] = el.value;
+  });
+  return out;
+}
+
+function provUrlEl(i) {
+  return document.querySelector('[data-prov="' + i + '"][data-field="base_url"]');
+}
+function provWarnEl(i) {
+  return document.getElementById('base-url-warn-' + i);
+}
+function norm(u) { return (u || '').trim().replace(/\/+$/, ''); }
+
+// Finding 2: la schimbarea env, completeaza base_url cu dezfaultul mediului
+// nou DACA cimpul e gol sau contine dezfaultul CELUILALT mediu (nu atingem
+// un URL introdus manual de operator — doar afisam un avertisment).
+function onProvEnvChange(i) {
+  var p = PROVIDERS[i], urlEl = provUrlEl(i);
+  if (!urlEl) return;
+  var envEl = document.querySelector('[data-prov="' + i + '"][data-field="env"]');
+  var newEnv = envEl ? envEl.value : p.env;
+  var defaults = p.default_base_url || {};
+  var otherEnv = newEnv === 'production' ? 'sandbox' : 'production';
+  var cur = norm(urlEl.value);
+  var matchesOther = defaults[otherEnv] && cur === norm(defaults[otherEnv]);
+  if (!cur || matchesOther) {
+    urlEl.value = defaults[newEnv] || '';
+  }
+  onProvBaseUrlInput(i);
+}
+function onProvBaseUrlInput(i) {
+  var p = PROVIDERS[i], urlEl = provUrlEl(i), warnEl = provWarnEl(i);
+  if (!urlEl || !warnEl) return;
+  var envEl = document.querySelector('[data-prov="' + i + '"][data-field="env"]');
+  var env = envEl ? envEl.value : p.env;
+  var defaults = p.default_base_url || {};
+  var cur = norm(urlEl.value);
+  var mismatch = cur && defaults[env] && cur !== norm(defaults[env]);
+  warnEl.style.display = mismatch ? '' : 'none';
+}
+
+async function saveProv(i) {
+  var r = await j('/api/biro26/credit/providers',
+    {method: 'PUT', body: JSON.stringify(provPayload(i))});
+  if (!r.success) { toast(r.error || 'Eroare', true); return; }
+  toast('Salvat');
+  await loadProviders();
+}
+
+async function testProv(i) {
+  var out = document.getElementById('prov-res-' + i);
+  out.textContent = '…';
+  var r = await j('/api/biro26/credit/providers/' + PROVIDERS[i].code + '/test',
+    {method: 'POST'});
+  out.textContent = r.success
+    ? '✅ OK · ' + ((r.data || {}).duration_ms || 0) + ' ms'
+    : '❌ ' + (r.error || 'eroare');
+  out.style.color = r.success ? '#059669' : '#b91c1c';
+}
+
+async function loadProviders() {
+  var r = await j('/api/biro26/credit/providers');
+  PROVIDERS = (r && r.success) ? r.data : [];
+  renderProviders();
+}
+
+let ORGS = [], PLANS = [];
+
+function orgRow(o, i) {
+  return '<tr data-i="' + i + '">' +
+    '<td class="muted">' + (o.id || 'nou') + '</td>' +
+    '<td><input value="' + esc(o.name || '') + '" data-f="name"></td>' +
+    '<td><select data-f="enabled"><option value="1"' + (o.enabled === '1' ? ' selected' : '') + '>Activ</option>' +
+      '<option value="0"' + (o.enabled !== '1' ? ' selected' : '') + '>Oprit</option></select></td>' +
+    '<td><select data-f="org_mode"><option value="manual"' + (o.org_mode !== 'api' ? ' selected' : '') + '>manual</option>' +
+      '<option value="api"' + (o.org_mode === 'api' ? ' selected' : '') + '>API</option></select></td>' +
+    '<td><select data-org="' + i + '" data-f="provider_id" style="padding:4px;border:1px solid #cbd5e1;border-radius:6px;font-size:12px">' +
+    '<option value="">— manual —</option>' +
+    PROVIDERS.map(function (p) {
+      return '<option value="' + esc(p.id || '') + '"' +
+        (String(o.provider_id || '') === String(p.id) ? ' selected' : '') + '>' +
+        esc(p.icon) + ' ' + esc(p.name) + (p.enabled ? '' : ' (dezactivat)') + '</option>';
+    }).join('') + '</select></td>' +
+    '<td><input value="' + esc(o.api_url || '') + '" data-f="api_url" placeholder="https://…"></td>' +
+    '<td><input value="' + esc(o.info || '') + '" data-f="info"></td>' +
+    '<td><input class="num" value="' + (o.ord || 0) + '" data-f="ord"></td>' +
+    '<td><input class="num" value="' + (o.transport_markup_pct || 0) + '" data-f="transport_markup_pct"></td>' +
+    '<td><button class="btn-sm" onclick="saveOrg(' + i + ')">💾</button></td></tr>';
+}
+function renderOrgs() {
+  document.getElementById('orgs').innerHTML = ORGS.map(orgRow).join('');
+}
+function addOrgRow() { ORGS.push({enabled: '1', org_mode: 'manual', ord: ORGS.length + 1}); renderOrgs(); }
+async function saveOrg(i) {
+  const tr = document.querySelector('#orgs tr[data-i="' + i + '"]');
+  const o = ORGS[i];
+  tr.querySelectorAll('[data-f]').forEach(el => o[el.dataset.f] = el.value);
+  var sel = document.querySelector('[data-org="' + i + '"][data-f="provider_id"]');
+  o.provider_id = sel && sel.value ? parseInt(sel.value, 10) : null;
+  const r = await j('/api/biro26/credit/orgs', {method: 'PUT', body: JSON.stringify(o)});
+  if (r.success) { toast('Salvat ✓'); load(); }
+}
+
+function planRow(p, i) {
+  const orgSel = ORGS.filter(o => o.id).map(o =>
+    '<option value="' + o.id + '"' + (p.org_id == o.id ? ' selected' : '') + '>' + esc(o.name) + '</option>').join('');
+  return '<tr data-i="' + i + '">' +
+    '<td><select data-f="org_id">' + orgSel + '</select></td>' +
+    '<td><input value="' + esc(p.name || '') + '" data-f="name"></td>' +
+    '<td><input class="num" value="' + (p.months_min || 1) + '" data-f="months_min" style="width:46px">–' +
+        '<input class="num" value="' + (p.months_max || 1) + '" data-f="months_max" style="width:46px"></td>' +
+    '<td><input class="num" value="' + (p.amount_min || 1000) + '" data-f="amount_min">–' +
+        '<input class="num" value="' + (p.amount_max || 100000) + '" data-f="amount_max"></td>' +
+    '<td><input class="num" value="' + (p.markup_pct || 0) + '" data-f="markup_pct"></td>' +
+    '<td><input class="num" value="' + (p.annual_pct || 0) + '" data-f="annual_pct"></td>' +
+    '<td><input class="num" value="' + (p.monthly_fee_pct || 0) + '" data-f="monthly_fee_pct"></td>' +
+    '<td><input class="num" value="' + (p.issue_fee || 0) + '" data-f="issue_fee"></td>' +
+    '<td><input class="num" value="' + (p.avans_min_pct || 0) + '" data-f="avans_min_pct"></td>' +
+    '<td><select data-f="enabled"><option value="1"' + (p.enabled === '1' ? ' selected' : '') + '>Da</option>' +
+      '<option value="0"' + (p.enabled !== '1' ? ' selected' : '') + '>Nu</option></select></td>' +
+    '<td><button class="btn-sm" onclick="savePlan(' + i + ')">💾</button> ' +
+        (p.id ? '<button class="btn-sm" style="color:#dc2626" onclick="delPlan(' + p.id + ')">🗑</button>' : '') +
+    '</td></tr>';
+}
+function renderPlans() {
+  document.getElementById('plans').innerHTML = PLANS.map(planRow).join('');
+  document.getElementById('sim-plan').innerHTML = PLANS.filter(p => p.id).map(p =>
+    '<option value="' + p.id + '">' + esc(p.org_name || '') + ' — ' + esc(p.name) + '</option>').join('');
+}
+function addPlanRow() {
+  PLANS.push({org_id: (ORGS[0] || {}).id, enabled: '1',
+              months_min: 6, months_max: 6, amount_min: 1000, amount_max: 100000});
+  renderPlans();
+}
+async function savePlan(i) {
+  const tr = document.querySelector('#plans tr[data-i="' + i + '"]');
+  const p = PLANS[i];
+  tr.querySelectorAll('[data-f]').forEach(el => p[el.dataset.f] = el.value);
+  const r = await j('/api/biro26/credit/plans', {method: 'PUT', body: JSON.stringify(p)});
+  if (r.success) { toast('Salvat ✓'); load(); }
+}
+async function delPlan(id) {
+  if (!confirm('Ștergeți pachetul?')) return;
+  const r = await j('/api/biro26/credit/plans/' + id, {method: 'DELETE'});
+  if (r.success) { toast('Șters ✓'); load(); }
+}
+
+async function simulate() {
+  const r = await j('/api/biro26/shop/credit/calc', {method: 'POST', body: JSON.stringify({
+    amount: parseFloat(document.getElementById('sim-amount').value) || 0,
+    plan_id: parseInt(document.getElementById('sim-plan').value, 10),
+    months: parseInt(document.getElementById('sim-months').value, 10) || null,
+    avans: parseFloat(document.getElementById('sim-avans').value) || 0})});
+  const box = document.getElementById('sim-out');
+  if (!r.success) { box.style.display = 'none'; return; }
+  const d = r.data;
+  box.style.display = '';
+  box.innerHTML = '<b>' + esc(d.org) + ' — ' + esc(d.plan) + '</b> · ' + d.months + ' luni<br>' +
+    'Preț standard: <b>' + d.price.toFixed(2) + '</b> lei · ' +
+    'Preț la credit (+' + d.markup_pct + '%): <b>' + d.credit_price.toFixed(2) + '</b> lei<br>' +
+    'Avans: ' + d.avans.toFixed(2) + ' · Finanțat: ' + d.financed.toFixed(2) +
+    (d.issue_fee ? ' · Taxă emitere: ' + d.issue_fee.toFixed(2) : '') + '<br>' +
+    '<span style="font-size:16px">Rata lunară: <b>' + d.monthly.toFixed(2) + ' lei</b></span> · ' +
+    'Total: <b>' + d.total.toFixed(2) + '</b> lei (supracost ' + d.overcost.toFixed(2) + ')' +
+    '<div class="muted" style="font-size:11.5px;margin-top:4px">Calcul estimativ — oferta fermă aparține organizației de creditare.</div>';
+}
+
+async function loadReqs() {
+  const r = await j('/api/biro26/credit/requests?limit=50');
+  if (!r.success) return;
+  document.getElementById('reqs').innerHTML = (r.data || []).map(q =>
+    '<tr><td>' + esc(q.created) + '</td>' +
+    '<td><b>' + esc(q.client_name) + '</b><br>' + esc(q.phone) + '</td>' +
+    '<td style="max-width:220px">' + esc(q.product_name || '') + ' × ' + q.qty + '</td>' +
+    '<td>' + (q.amount || 0).toFixed(2) + ' → <b>' + (q.credit_price || 0).toFixed(2) + '</b></td>' +
+    '<td class="muted">' + esc(q.org_name || '') + ' · ' + q.months + ' luni</td>' +
+    '<td><b>' + (q.monthly || 0).toFixed(2) + '</b></td>' +
+    '<td class="muted">' + esc(q.provider_code || '—') + '</td>' +
+    '<td style="font-size:11.5px">' + esc(q.ext_ref || '—') + '</td>' +
+    '<td style="font-size:11.5px">' + esc(q.api_status || '—') +
+    (q.ext_ref ? ' <button onclick="refreshReq(' + q.id + ')" style="border:0;background:none;cursor:pointer" title="Actualizează statusul">🔄</button>' +
+      ' <button onclick="showEvents(' + q.id + ')" style="border:0;background:none;cursor:pointer" title="Jurnal API">📋</button>' : '') +
+    '</td>' +
+    '<td><span class="badge ' + (q.status === 'NEW' ? 'off' : 'on') + '">' + esc(q.status) + '</span></td>' +
+    '<td>' + (q.status === 'NEW'
+      ? '<button class="btn-sm" onclick="markReq(' + q.id + ')">✔ Procesat</button>' : '') + '</td></tr>'
+  ).join('') || '<tr><td colspan="11" class="muted">Nicio cerere încă</td></tr>';
+}
+
+async function refreshReq(id) {
+  var r = await j('/api/biro26/credit/requests/' + id + '/refresh', {method: 'POST'});
+  toast(r.success ? ('Status: ' + ((r.data || {}).status || '—')) : (r.error || 'Eroare'), !r.success);
+  await loadReqs();
+}
+
+async function showEvents(id) {
+  var r = await j('/api/biro26/credit/requests/' + id + '/events');
+  if (!r.success) { toast(r.error || 'Eroare', true); return; }
+  var lines = (r.data || []).map(function (e) {
+    return e.created + ' · ' + e.op + ' · ' + (e.is_error === '1' ? 'EROARE' : 'OK') +
+      ' · ' + (e.duration_ms || 0) + ' ms\n    ' + (e.result || '').slice(0, 300);
+  }).join('\n');
+  alert(lines || 'Fără evenimente API');
+}
+async function markReq(id) {
+  const r = await j('/api/biro26/credit/requests/' + id, {method: 'PUT',
+    body: JSON.stringify({status: 'PROCESSED'})});
+  if (r.success) loadReqs();
+}
+
+async function load() {
+  await loadProviders();
+  const ro = await j('/api/biro26/credit/orgs');
+  ORGS = ro.data || []; renderOrgs();
+  const rp = await j('/api/biro26/credit/plans');
+  PLANS = rp.data || []; renderPlans();
+  loadReqs();
+}
+load();
+</script>
+<script src="/static/biro26/grid-export.js"></script>
+</body>
+</html>

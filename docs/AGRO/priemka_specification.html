@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Спецификация модуля AGRO Field (Приёмка) — Artgranit</title>
+<style>
+:root {
+    --bg: #0a0a1a;
+    --card: #12122a;
+    --border: #1a1a3e;
+    --accent: #53d769;
+    --accent2: #4fc3f7;
+    --danger: #e94560;
+    --warn: #f5a623;
+    --text: #e0e0f0;
+    --muted: #8888aa;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:var(--bg); color:var(--text); line-height:1.7; padding:24px; max-width:1100px; margin:0 auto; }
+h1 { font-size:28px; color:var(--accent); margin-bottom:6px; }
+h2 { font-size:22px; color:var(--accent2); margin:36px 0 12px; padding-bottom:6px; border-bottom:1px solid var(--border); }
+h3 { font-size:17px; color:var(--text); margin:20px 0 8px; }
+h4 { font-size:14px; color:var(--muted); text-transform:uppercase; letter-spacing:0.5px; margin:14px 0 6px; }
+p, li { font-size:15px; }
+ul, ol { padding-left:24px; margin-bottom:12px; }
+li { margin-bottom:4px; }
+code { background:#1a1a2e; padding:2px 6px; border-radius:4px; font-size:13px; color:var(--accent); }
+pre { background:#0d0d20; padding:16px; border-radius:8px; border:1px solid var(--border); overflow-x:auto; margin:10px 0 16px; font-size:13px; line-height:1.5; }
+pre code { background:none; padding:0; }
+.card { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:20px; margin:14px 0; }
+.tag { display:inline-block; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; margin-right:4px; }
+.tag-page { background:#0f346040; color:var(--accent2); border:1px solid #0f3460; }
+.tag-api { background:#53d76920; color:var(--accent); border:1px solid #53d76944; }
+.tag-crit { background:#e9456020; color:var(--danger); border:1px solid #e9456044; }
+.tag-new { background:#f5a62320; color:var(--warn); border:1px solid #f5a62344; }
+table { width:100%; border-collapse:collapse; margin:10px 0 16px; font-size:14px; }
+th, td { padding:8px 12px; text-align:left; border:1px solid var(--border); }
+th { background:#0d0d20; color:var(--muted); font-size:12px; text-transform:uppercase; }
+.subtitle { font-size:14px; color:var(--muted); margin-bottom:24px; }
+.toc { background:var(--card); border:1px solid var(--border); border-radius:10px; padding:20px; margin:20px 0; }
+.toc a { color:var(--accent2); text-decoration:none; }
+.toc a:hover { text-decoration:underline; }
+.toc ol { list-style:none; counter-reset:toc; padding-left:0; }
+.toc > ol > li { counter-increment:toc; margin-bottom:6px; }
+.toc > ol > li::before { content:counter(toc) ". "; color:var(--accent); font-weight:700; }
+.toc ol ol { padding-left:24px; margin-top:4px; counter-reset:toc2; }
+.toc ol ol li { counter-increment:toc2; }
+.toc ol ol li::before { content:counter(toc) "." counter(toc2) " "; color:var(--muted); }
+.screenshot-note { font-size:12px; color:var(--muted); font-style:italic; margin:4px 0 12px; }
+.gap-indicator { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; }
+.gap-ok { background:var(--accent); }
+.gap-partial { background:var(--warn); }
+.gap-missing { background:var(--danger); }
+</style>
+</head>
+<body>
+
+<h1>📋 Спецификация модуля AGRO Field (Приёмка)</h1>
+<div class="subtitle">Полная документация интерфейса, бизнес-логики и требований к UI — v1.0, 28.03.2026</div>
+
+<div class="toc">
+<strong>Содержание</strong>
+<ol>
+    <li><a href="#arch">Архитектура и навигация</a>
+        <ol>
+            <li><a href="#sidebar">Боковое меню (Sidebar)</a></li>
+            <li><a href="#pages">Страницы модуля</a></li>
+        </ol>
+    </li>
+    <li><a href="#journal">Журнал документов (стиль 1С)</a>
+        <ol>
+            <li><a href="#journal-tabs">Вкладки статусов</a></li>
+            <li><a href="#journal-search">Поиск</a></li>
+            <li><a href="#journal-master">Мастер-таблица</a></li>
+            <li><a href="#journal-detail">Детальная панель</a></li>
+            <li><a href="#journal-instructions">Пользовательская инструкция</a></li>
+        </ol>
+    </li>
+    <li><a href="#doc-form">Форма документа (создание / редактирование)</a>
+        <ol>
+            <li><a href="#doc-header">Шапка документа</a></li>
+            <li><a href="#doc-lines">Табличная часть (позиции/строки)</a></li>
+            <li><a href="#doc-actions">Действия: Черновик / Подтвердить</a></li>
+        </ol>
+    </li>
+    <li><a href="#scale-touchscreen">Точскрин-режим весов (Scale Kiosk Modal)</a>
+        <ol>
+            <li><a href="#kiosk-layout">3-колоночный layout</a></li>
+            <li><a href="#kiosk-products">Левая панель: Продукция (тач-кнопки)</a></li>
+            <li><a href="#kiosk-scale">Центральная панель: Весы + Numpad</a></li>
+            <li><a href="#kiosk-camera">Правая панель: AI Camera</a></li>
+            <li><a href="#kiosk-passport">Паспорт продукции</a></li>
+            <li><a href="#kiosk-workflow">Рабочий процесс взвешивания</a></li>
+            <li><a href="#kiosk-api">API весов</a></li>
+        </ol>
+    </li>
+    <li><a href="#scale-page">Страница весов (автономная)</a></li>
+    <li><a href="#scan-page">Страница сканирования (Scan / Приёмка)</a></li>
+    <li><a href="#barcodes">Штрихкоды</a></li>
+    <li><a href="#requests">Заявки на закупку</a></li>
+    <li><a href="#inspections">Приёмка партий / Контроль качества</a></li>
+    <li><a href="#api-reference">Справочник API</a></li>
+    <li><a href="#css-theme">Дизайн-система и CSS</a></li>
+    <li><a href="#gap-analysis">GAP-анализ: Отгрузка vs Приёмка</a></li>
+</ol>
+</div>
+
+<!-- ==================== 1. ARCHITECTURE ==================== -->
+<h2 id="arch">1. Архитектура и навигация</h2>
+
+<h3 id="sidebar">1.1. Боковое меню (Sidebar)</h3>
+<div class="card">
+<p>Меню разбито на секции с разделителями. Все пункты — ссылки <code>&lt;a class="nav-link" data-page="..."&gt;</code>. Активная страница подсвечивается CSS-классом <code>.active</code>.</p>
+
+<table>
+<thead><tr><th>Секция</th><th>Пункт меню</th><th>data-page</th><th>Описание</th></tr></thead>
+<tbody>
+<tr><td rowspan="4"><strong>Операции / Operatii</strong></td><td>Scan / Приёмка</td><td><code>scan</code></td><td>Камера, ручной ввод штрихкода, привязка к ящику</td></tr>
+<tr><td>Закупка / Achizitie</td><td><code>purchase</code></td><td>Форма создания документа закупки</td></tr>
+<tr><td>Штрихкоды / Coduri</td><td><code>barcodes</code></td><td>Генерация и печать штрихкодов</td></tr>
+<tr><td>Список / Lista</td><td><code>purchases-list</code></td><td>Журнал документов (стиль 1С)</td></tr>
+<tr><td><strong>Весы / Cântar</strong></td><td>Весы / Cântar</td><td><code>scale</code></td><td>Автономная страница весов</td></tr>
+<tr><td rowspan="2"><strong>Заявки и приёмка</strong></td><td>Заявки / Cereri</td><td><code>requests</code></td><td>Заявки поставщикам</td></tr>
+<tr><td>Приёмка партий / Receptie</td><td><code>inspections</code></td><td>Контроль качества партий</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3 id="pages">1.2. Страницы модуля</h3>
+<div class="card">
+<p>Каждая страница — <code>div.page</code>. Отображается одна, переключение через <code>navigateTo(pageName)</code>.</p>
+<table>
+<thead><tr><th>Page ID</th><th>Название</th><th>Контент</th></tr></thead>
+<tbody>
+<tr><td><code>page-scan</code></td><td>Scan / Приёмка</td><td>Камера, поле штрихкода, панель ящика (тип упаковки, брутто, тара, нетто), кнопка «Сохранить»</td></tr>
+<tr><td><code>page-purchase</code></td><td>Закупка / Achizitie</td><td>Шапка (поставщик, склад, дата) + табличная часть позиций + итого + кнопки Draft/Confirm</td></tr>
+<tr><td><code>page-barcodes</code></td><td>Штрихкоды / Coduri</td><td>Генерация N штрихкодов, таблица, чекбоксы, кнопка печати</td></tr>
+<tr><td><code>page-purchases-list</code></td><td>Журнал закупок</td><td><span class="tag tag-crit">KEY</span> Master-detail journal (подробнее → §2)</td></tr>
+<tr><td><code>page-scale</code></td><td>Весы / Cântar</td><td>Live вес (72px), Zero/Tare/Capture, эмулятор, зафиксированный вес</td></tr>
+<tr><td><code>page-requests</code></td><td>Заявки</td><td>Фильтр статусов, таблица заявок, форма создания с позициями</td></tr>
+<tr><td><code>page-inspections</code></td><td>Приёмка партий</td><td>Выбор партии, чек-лист (4 группы), D-коды дефектов, фото-грид, история</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ==================== 2. JOURNAL ==================== -->
+<h2 id="journal">2. Журнал документов (стиль 1С)</h2>
+
+<p>Журнал построен по принципу <strong>master-detail</strong> — верхняя таблица показывает шапки документов, нижняя панель — содержимое выбранного документа. Этот паттерн аналогичен журналу документов в 1С:Предприятие.</p>
+
+<h3 id="journal-tabs">2.1. Вкладки статусов</h3>
+<div class="card">
+<p>Горизонтальная полоса вкладок <code>.status-tabs</code> позволяет фильтровать документы по статусу. Каждая вкладка показывает счётчик.</p>
+<table>
+<thead><tr><th>Вкладка</th><th>filter-value</th><th>Счётчик ID</th><th>Описание</th></tr></thead>
+<tbody>
+<tr><td><strong>Все</strong></td><td><code>all</code></td><td><code>countAll</code></td><td>Показать все документы</td></tr>
+<tr><td><strong>Черновик</strong></td><td><code>DRAFT</code></td><td><code>countDraft</code></td><td>Не подтверждённые документы</td></tr>
+<tr><td><strong>Подтв.</strong></td><td><code>CONFIRMED</code></td><td><code>countConfirmed</code></td><td>Подтверждённые документы</td></tr>
+<tr><td><strong>Закрыт</strong></td><td><code>CLOSED</code></td><td><code>countClosed</code></td><td>Закрытые/архивные документы</td></tr>
+</tbody>
+</table>
+<p><strong>CSS:</strong> активная вкладка — <code>.status-tab.active</code> (белый текст, яркий нижний бордер). Счётчик — <code>.tab-count</code> (маленький badge).</p>
+<p><strong>JS:</strong> клик вызывает <code>filterPurchases(status)</code>, который обновляет UI и перезагружает данные.</p>
+</div>
+
+<h3 id="journal-search">2.2. Поиск</h3>
+<div class="card">
+<p>Поле <code>&lt;input class="search-input"&gt;</code> под вкладками. Фильтрует по:</p>
+<ul>
+<li>Номеру документа</li>
+<li>Имени поставщика / Furnizor</li>
+<li>Дате</li>
+</ul>
+<p>Фильтрация — клиентская, мгновенная (событие <code>oninput</code>).</p>
+</div>
+
+<h3 id="journal-master">2.3. Мастер-таблица</h3>
+<div class="card">
+<p>Блок <code>.journal-master</code> содержит таблицу шапок документов:</p>
+<table>
+<thead><tr><th>Колонка</th><th>Ширина</th><th>Выравнивание</th><th>Описание</th></tr></thead>
+<tbody>
+<tr><td><strong>№</strong></td><td>80px</td><td>left</td><td>Номер документа</td></tr>
+<tr><td><strong>Дата</strong></td><td>110px</td><td>left</td><td>Дата документа</td></tr>
+<tr><td><strong>Поставщик / Furnizor</strong></td><td>auto</td><td>left</td><td>Имя поставщика/контрагента</td></tr>
+<tr><td><strong>Склад</strong></td><td>90px</td><td>left</td><td>Склад приёмки</td></tr>
+<tr><td><strong>Статус</strong></td><td>100px</td><td>left</td><td>Badge (DRAFT/CONFIRMED/CLOSED)</td></tr>
+<tr><td><strong>Кг</strong></td><td>90px</td><td>right</td><td>Итоговый вес нетто</td></tr>
+<tr><td><strong>Сумма</strong></td><td>100px</td><td>right</td><td>Итоговая сумма в валюте</td></tr>
+</tbody>
+</table>
+<p><strong>Поведение:</strong></p>
+<ul>
+<li>Клик по строке → загружает и отображает подробности в детальной панели</li>
+<li>Строка подсвечивается (<code>.journal-master tr:hover</code>)</li>
+<li>Badge-стили: <code>.badge-draft</code> (серый), <code>.badge-confirmed</code> (зелёный), <code>.badge-closed</code> (голубой)</li>
+</ul>
+</div>
+
+<h3 id="journal-detail">2.4. Детальная панель</h3>
+<div class="card">
+<p>Блок <code>.journal-detail</code> (#purchaseDetailPanel) под мастер-таблицей. По умолчанию сообщение «Выберите документ из списка».</p>
+<p><strong>Содержимое при выборе документа:</strong></p>
+<ul>
+<li>Номер документа (крупно) + дата + поставщик + склад + статус badge</li>
+<li>Таблица позиций: Продукт | Кол-во кг | Цена/кг | Сумма</li>
+<li>Итоговая сумма</li>
+<li>Кнопка «Открыть» (для перехода к редактированию)</li>
+</ul>
+<p><strong>Layout:</strong> <code>.journal-master-detail</code> — вертикальный flex с <code>gap:0</code>. Мастер — верхняя половина (~50%), детали — нижняя.</p>
+</div>
+
+<h3 id="journal-instructions">2.5. Встроенная инструкция</h3>
+<div class="card">
+<p>Сворачиваемая панель <code>.instructions-panel</code> с заголовком «📖 Инструкция / Instructiuni de utilizare». Содержит 6 пунктов (нумерованный список <code>ol</code>):</p>
+<ol>
+<li>В верхней таблице — <b>список документов</b>. Кликните для просмотра.</li>
+<li>Используйте <b>вкладки статусов</b> для фильтрации.</li>
+<li>Поле <b>поиска</b> фильтрует по номеру, поставщику и дате.</li>
+<li>В <b>нижней панели</b> — строки выбранного документа.</li>
+<li>Для <b>редактирования</b> нажмите «Открыть» в нижней панели.</li>
+<li>Кнопка <kbd>+ Новая закупка</kbd> создаёт новый документ.</li>
+</ol>
+</div>
+
+<!-- ==================== 3. DOCUMENT FORM ==================== -->
+<h2 id="doc-form">3. Форма документа (создание / редактирование)</h2>
+
+<h3 id="doc-header">3.1. Шапка документа</h3>
+<div class="card">
+<p>Блок <code>.card &gt; .field-row</code> с тремя полями:</p>
+<table>
+<thead><tr><th>Поле</th><th>Тип</th><th>ID</th><th>Обязательность</th></tr></thead>
+<tbody>
+<tr><td><strong>Поставщик / Furnizor</strong></td><td><code>&lt;select&gt;</code></td><td><code>purchaseSupplier</code></td><td>Обязательно</td></tr>
+<tr><td><strong>Склад / Depozit</strong></td><td><code>&lt;select&gt;</code></td><td><code>purchaseWarehouse</code></td><td>Обязательно</td></tr>
+<tr><td><strong>Дата / Data</strong></td><td><code>&lt;input type="date"&gt;</code></td><td><code>purchaseDate</code></td><td>Обязательно (default=today)</td></tr>
+</tbody>
+</table>
+</div>
+
+<h3 id="doc-lines">3.2. Табличная часть (позиции / строки)</h3>
+<div class="card">
+<p>Контейнер <code>#purchaseLines</code>. Над ним — заголовок «Позиции / Linii» + кнопка «+ Добавить позицию».</p>
+<p><strong>Шапка строки</strong> <code>.purchase-line.purchase-line-header</code>:</p>
+<table>
+<thead><tr><th>Колонка</th><th>Тип поля</th><th>CSS-класс</th><th>Описание</th></tr></thead>
+<tbody>
+<tr><td><strong>Продукция / Produs</strong></td><td><code>&lt;select&gt;</code></td><td><code>.line-item</code></td><td>Выбор из справочника items</td></tr>
+<tr><td><strong>Паллет</strong></td><td><code>&lt;input number&gt;</code></td><td><code>.line-pallet</code></td><td>Номер паллета</td></tr>
+<tr><td><strong>Ящики</strong></td><td><code>&lt;input number&gt;</code></td><td><code>.line-crates</code></td><td>Количество ящиков</td></tr>
+<tr><td><strong>Брутто</strong></td><td><code>&lt;input number&gt;</code></td><td><code>.line-gross</code></td><td>Вес брутто (заполняется весами или вручную)</td></tr>
+<tr><td><strong>Тара</strong></td><td><code>&lt;input number&gt;</code></td><td><code>.line-tare</code></td><td>Тара (заполняется весами или вручную)</td></tr>
+<tr><td><strong>Нетто</strong></td><td>display only</td><td>—</td><td>Расчёт: gross − tare</td></tr>
+<tr><td><strong>Цена/кг</strong></td><td><code>&lt;input number&gt;</code></td><td><code>.line-price</code></td><td>Цена за кг</td></tr>
+<tr><td><strong>Весы</strong> ⚖</td><td><code>&lt;button&gt;</code></td><td><code>.btn-weigh</code></td><td><span class="tag tag-crit">KEY</span> Открывает полноэкранный кисок весов</td></tr>
+<tr><td>✕</td><td><code>&lt;button&gt;</code></td><td>—</td><td>Удалить строку</td></tr>
+</tbody>
+</table>
+<p><strong>CSS Grid:</strong> <code>.purchase-line</code> — <code>grid-template-columns: 2fr 1fr 1fr 1fr 1fr auto 1fr auto auto</code> (9 колонок).</p>
+<p><strong>Кнопка ⚖:</strong> вызывает <code>weighPurchaseLine(lineId)</code> → открывает полноэкранный модал кисока весов.</p>
+</div>
+
+<h3 id="doc-actions">3.3. Действия</h3>
+<div class="card">
+<ul>
+<li><strong>Черновик / Draft</strong> (<code>btn-ghost</code>) — <code>savePurchaseDraft()</code> — сохраняет как черновик</li>
+<li><strong>Подтвердить / Confirma</strong> (<code>btn-primary</code>) — <code>confirmPurchase()</code> — подтверждает, партии формируются</li>
+</ul>
+<p>Итого: <code>#purchaseTotal</code> — сумма (Нетто × Цена) всех строк, в валюте MDL.</p>
+</div>
+
+<!-- ==================== 4. SCALE KIOSK ==================== -->
+<h2 id="scale-touchscreen">4. Точскрин-режим весов (Scale Kiosk Modal)</h2>
+
+<p><span class="tag tag-crit">КРИТИЧЕСКИ ВАЖНО</span> Это ключевой интерфейс для операторов весов. Открывается нажатием ⚖ в строке документа.</p>
+
+<h3 id="kiosk-layout">4.1. 3-колоночный layout</h3>
+<div class="card">
+<p>Модал <code>#scaleModal</code> занимает <strong>100% экрана</strong> (position:fixed, z-index:9999).</p>
+<pre><code>┌─────────────────────────────────────────────────────────┐
+│ ⚖️ Весы / Cântar — Эмулятор    ● Stable    [⏸] [✕]     │  ← sk-header
+├──────────────┬──────────────────┬────────────────────────┤
+│              │                  │                        │
+│  ПРОДУКЦИЯ   │   ВЕСЫ (Gross)   │    AI CAMERA           │
+│  (тач-кнопки │   Tare / Net     │    Pictogram + %       │
+│   с иконками)│   [Zero] [Tare]  │                        │
+│              │                  │                        │
+│ ──────────── │   ┌──────────┐   │    ┌──────────────┐    │
+│  Паспорт     │   │ Numpad   │   │    │ AI Results   │    │
+│  продукции:  │   │ 7 8 9    │   │    │ Распознано:  │    │
+│  - Калибр    │   │ 4 5 6    │   │    │ Персик 95.2% │    │
+│  - Brix      │   │ 1 2 3    │   │    └──────────────┘    │
+│  - t°C       │   │ 0 . ⌫   │   │                        │
+│  - Свежесть  │   │ [Apply]  │   │                        │
+│  - Дефекты   │   └──────────┘   │                        │
+│  - Упаковка  │                  │                        │
+│  - Маркировка│  [⚖ СНЯТЬ ВЕС]  │                        │
+│              │                  │                        │
+└──────────────┴──────────────────┴────────────────────────┘</code></pre>
+<p><strong>CSS:</strong> <code>.sk-body { display:flex; gap:32px }</code> — три flex-колонки: <code>.sk-products</code> + <code>.sk-scale</code> + <code>.sk-camera</code>.</p>
+</div>
+
+<h3 id="kiosk-products">4.2. Левая панель: Продукция (тач-кнопки)</h3>
+<div class="card">
+<p>Грид <code>.sk-product-grid</code> с квадратными кнопками продуктов. Каждая кнопка:</p>
+<ul>
+<li>Иконка продукта (img)</li>
+<li>Название (RU / RO)</li>
+<li>Клик → выделяет продукт, показывает паспорт</li>
+</ul>
+<p><strong>Грид:</strong> <code>grid-template-columns: repeat(auto-fill, minmax(80px, 1fr))</code></p>
+<p><strong>Интеграция:</strong> при захвате веса выбранный продукт автоматически заполняет <code>.line-item</code> (select) в строке документа.</p>
+</div>
+
+<h3 id="kiosk-scale">4.3. Центральная панель: Весы + Numpad</h3>
+<div class="card">
+<p><strong>Дисплей веса:</strong></p>
+<ul>
+<li><code>.sk-weight-gross</code> — огромный шрифт (в field 56px, в практике ~40-56px), зелёный, <code>font-family: 'Courier New', monospace</code></li>
+<li>Единица: <code>.sk-weight-unit</code> — "kg"</li>
+<li>Субэлементы: <code>.sk-weight-sub</code> — Тара и Нетто в двух боксах</li>
+</ul>
+<p><strong>Кнопки управления:</strong></p>
+<ul>
+<li><code class="tag tag-api">Zero</code> — <code>modalScaleZero()</code> → POST <code>/api/agro-scale/zero</code></li>
+<li><code class="tag tag-api">Tare</code> — <code>modalScaleTare()</code> → POST <code>/api/agro-scale/tare</code></li>
+</ul>
+<p><strong>Numpad:</strong> <code>.sk-numpad</code> — ручной ввод веса.</p>
+<ul>
+<li>3×4 грид кнопок: 7-8-9, 4-5-6, 1-2-3, 0-.-⌫</li>
+<li>Текстовое поле <code>#numpadInput</code> (readonly — только через кнопки)</li>
+<li>Кнопка «Применить / Aplica» — <code>numpadApply()</code></li>
+</ul>
+<p><strong>Главная кнопка захвата:</strong> <code>.sk-capture-btn</code> — «⚖️ Снять вес / Cântărește»</p>
+<ul>
+<li>Красная, крупная (min-height:60px, font-size:18px)</li>
+<li>Заблокирована (<code>disabled</code>) пока статус не «stable»</li>
+<li>Вызывает <code>modalScaleCapture()</code></li>
+</ul>
+</div>
+
+<h3 id="kiosk-camera">4.4. Правая панель: AI Camera</h3>
+<div class="card">
+<p>Блок <code>.sk-camera</code> — камера с AI-распознаванием продукции.</p>
+<ul>
+<li>Заголовок: «📷 AI Camera» + badge «AI»</li>
+<li>Viewport <code>#cameraViewport</code>: показывает анимацию сканирования, затем pictogram + confidence bar</li>
+<li>Результат: <code>#aiResult</code> — «Распознано: [Продукт]», «Точность: 95.2% | Вес: 123.45 кг»</li>
+</ul>
+<p><strong>Авто-эмуляция:</strong> каждые 20 секунд:</p>
+<ol>
+<li>Симуляция случайного веса (50-500 кг)</li>
+<li>Показ анимации сканирования</li>
+<li>Выбор случайного продукта</li>
+<li>Показ pictogram + confidence в viewport</li>
+<li>Выделение продукта в гриде + показ паспорта</li>
+</ol>
+</div>
+
+<h3 id="kiosk-passport">4.5. Паспорт продукции</h3>
+<div class="card">
+<p>Панель <code>.sk-passport</code> под гридом продуктов. Появляется при выборе продукта.</p>
+<p><strong>Поля паспорта (все — тач-оптимизированы):</strong></p>
+<table>
+<thead><tr><th>Поле</th><th>Виджет</th><th>ID</th><th>Описание</th></tr></thead>
+<tbody>
+<tr><td>Сорт / Soi</td><td>Грид кнопок</td><td><code>passportVarietyGrid</code></td><td>Варианты сорта для выбранного продукта</td></tr>
+<tr><td>Калибр, мм</td><td>Stepper (−/+)</td><td><code>ppCalibr</code></td><td>Шаг 1, min 0</td></tr>
+<tr><td>Brix, °</td><td>Stepper (−/+)</td><td><code>ppBrix</code></td><td>Шаг 0.5, min 0</td></tr>
+<tr><td>Окраска, %</td><td>Range slider</td><td><code>ppColorSlider</code></td><td>0-100%, с color reference</td></tr>
+<tr><td>t °C</td><td>Stepper (−/+)</td><td><code>ppTemp</code></td><td>Шаг 0.5</td></tr>
+<tr><td>Свежесть</td><td>Rating 1-5</td><td><code>ppFreshness</code></td><td>Тач-кнопки 1-5</td></tr>
+<tr><td>Срок хран.</td><td>Readonly</td><td><code>ppShelfLife</code></td><td>Автоматически рассчитывается</td></tr>
+<tr><td>Дефекты</td><td>Btn-group</td><td><code>ppDefects</code></td><td>Нет / Мин. / Серьёз.</td></tr>
+<tr><td>% дефектных</td><td>Stepper</td><td><code>ppDefectPct</code></td><td>Шаг 1, 0-100% (показывается если дефекты ≠ Нет)</td></tr>
+<tr><td>Упаковка</td><td>Btn-group</td><td><code>ppPackaging</code></td><td>✓ OK / Поврежд. / Нет</td></tr>
+<tr><td>Маркировка</td><td>Btn-group</td><td><code>ppLabel</code></td><td>✓ OK / Частичн. / Нет</td></tr>
+<tr><td>Заметки</td><td>Textarea</td><td><code>ppNotes</code></td><td>Свободный текст</td></tr>
+</tbody>
+</table>
+<p>При захвате веса данные паспорта сохраняются в <code>data-passport</code> атрибут строки.</p>
+</div>
+
+<h3 id="kiosk-workflow">4.6. Рабочий процесс взвешивания</h3>
+<div class="card">
+<ol>
+<li>Оператор нажимает <strong>⚖</strong> в строке документа</li>
+<li>Открывается полноэкранный модал</li>
+<li>Начинается автоматический polling весов (<code>setInterval(pollModalScale, 1000)</code>)</li>
+<li>Запускается авто-эмуляция (каждые 20с — новый вес + AI-распознавание)</li>
+<li>Вес отображается в реальном времени:
+    <ul>
+        <li>Серый индикатор <code>#666</code> → Idle</li>
+        <li>Жёлтый <code>#ffc107</code> → Settling (стабилизация)</li>
+        <li>Зелёный <code>#53d769</code> → Stable (кнопка Capture разблокируется)</li>
+    </ul>
+</li>
+<li>Оператор может:
+    <ul>
+        <li>Выбрать продукт из грида (или AI выберет автоматически)</li>
+        <li>Заполнить паспорт продукции</li>
+        <li>Ввести вес вручную через numpad</li>
+        <li>Нажать Zero / Tare</li>
+    </ul>
+</li>
+<li>Нажатие <strong>Capture</strong>:
+    <ul>
+        <li>POST <code>/api/agro-scale/capture</code></li>
+        <li>Gross/Tare заполняются в строку документа</li>
+        <li>Если выбран продукт — заполняется <code>.line-item</code> (select)</li>
+        <li>Данные паспорта сохраняются в <code>data-passport</code></li>
+        <li><code>recalcPurchaseLine(lineId)</code> пересчитывает нетто и сумму</li>
+        <li>Модал закрывается</li>
+        <li>Toast: «Вес снят: X.XX кг — Продукт»</li>
+    </ul>
+</li>
+</ol>
+</div>
+
+<h3 id="kiosk-api">4.7. API весов</h3>
+<div class="card">
+<table>
+<thead><tr><th>Метод</th><th>Endpoint</th><th>Описание</th><th>Тело запроса</th></tr></thead>
+<tbody>
+<tr><td>GET</td><td><code>/api/agro-scale/read</code></td><td>Текущее состояние весов</td><td><code>?scale_id=default</code></td></tr>
+<tr><td>POST</td><td><code>/api/agro-scale/capture</code></td><td>Зафиксировать текущий вес</td><td><code>{ scale_id: 'default' }</code></td></tr>
+<tr><td>POST</td><td><code>/api/agro-scale/zero</code></td><td>Обнуление</td><td><code>{ scale_id: 'default' }</code></td></tr>
+<tr><td>POST</td><td><code>/api/agro-scale/tare</code></td><td>Установить тару</td><td><code>{ scale_id: 'default' }</code></td></tr>
+<tr><td>POST</td><td><code>/api/agro-scale/simulate</code></td><td>Эмулятор: задать вес</td><td><code>{ scale_id, weight_kg? random? min_kg? max_kg? }</code></td></tr>
+</tbody>
+</table>
+<p><strong>Формат ответа <code>/read</code>:</strong></p>
+<pre><code>{
+  "success": true,
+  "data": {
+    "gross_kg": 125.500,
+    "tare_kg": 0.000,
+    "net_kg": 125.500,
+    "status": "stable" | "settling" | "idle",
+    "stable": true | false,
+    "timestamp": "2026-03-28T14:30:00"
+  }
+}</code></pre>
+</div>
+
+<!-- ==================== 5. SCALE PAGE ==================== -->
+<h2 id="scale-page">5. Страница весов (автономная)</h2>
+<div class="card">
+<p>Страница <code>page-scale</code> — автономный интерфейс для работы с весами вне контекста документа.</p>
+<p><strong>Блоки:</strong></p>
+<ol>
+<li><strong>Live вес</strong> — индикатор статуса (кружок), текст статуса, gross (72px шрифт), тара/нетто боксы</li>
+<li><strong>Кнопки:</strong> Zero / Tare / Capture</li>
+<li><strong>Эмулятор:</strong> поле ввода веса, кнопки «Поставить», «Случайный», «Снять»</li>
+<li><strong>Зафиксированный вес:</strong> (скрыт до capture) — карточка с gross/tare/net + кнопки «Применить к строке» / «Сбросить»</li>
+<li><strong>Конфигурация:</strong> max capacity, resolution, settle time, mode</li>
+</ol>
+<p><strong>Polling:</strong> <code>setInterval(pollScale, 1000)</code> — идёт всё время, пока страница активна.</p>
+</div>
+
+<!-- ==================== 6. SCAN ==================== -->
+<h2 id="scan-page">6. Страница сканирования (Scan / Приёмка)</h2>
+<div class="card">
+<p>Страница <code>page-scan</code> — сканирование штрихкодов ящиков.</p>
+<ul>
+<li><strong>Вьюфайндер камеры</strong> — <code>.camera-viewfinder</code></li>
+<li><strong>Поле штрихкода:</strong> ручной ввод + кнопка «Найти»</li>
+<li><strong>Панель ящика:</strong>
+    <ul>
+        <li>Тип упаковки (select: Стандартный ящик, Паллет, Картон, Мешок)</li>
+        <li>Брутто кг (input number)</li>
+        <li>Тара кг (display/input)</li>
+        <li>Нетто кг (auto-calculated)</li>
+    </ul>
+</li>
+<li><strong>Кнопка «Сохранить»</strong> → привязывает вес к ящику</li>
+</ul>
+</div>
+
+<!-- ==================== 7. BARCODES ==================== -->
+<h2 id="barcodes">7. Штрихкоды</h2>
+<div class="card">
+<p>Страница <code>page-barcodes</code> — генерация и печать штрихкодов для ящиков.</p>
+<ul>
+<li><strong>Ввод количества</strong> + кнопка «Генерировать»</li>
+<li><strong>Таблица:</strong> чекбокс | Штрихкод (mono) | Статус | Дата</li>
+<li><strong>Кнопки:</strong> «Выбрать все» / «Печатать выбранные»</li>
+<li><strong>Print:</strong> скрытый контейнер <code>#barcodePrintContainer</code> — формат для термо-принтера</li>
+</ul>
+</div>
+
+<!-- ==================== 8. REQUESTS ==================== -->
+<h2 id="requests">8. Заявки на закупку</h2>
+<div class="card">
+<p>Страница <code>page-requests</code> — управление заявками поставщикам.</p>
+<ul>
+<li><strong>Фильтр:</strong> select с статусами (Все / Черновик / Утверждена / Выполнена / Отменена)</li>
+<li><strong>Таблица:</strong> №, Дата, Поставщик, Склад, Профиль, Ожид. кг, Строк, Статус</li>
+<li><strong>Форма создания:</strong> hidden (открывается кнопкой «+ Новая заявка»)</li>
+<li><strong>Позиции заявки:</strong> Продукт + Кол-во кг + Сорт + Примечание</li>
+<li><strong>Действия:</strong> Сохранить / Утвердить</li>
+</ul>
+<p><strong>Статусы:</strong></p>
+<table>
+<thead><tr><th>Статус</th><th>Цвет</th><th>Значение</th></tr></thead>
+<tbody>
+<tr><td>DRAFT</td><td>#888</td><td>Черновик</td></tr>
+<tr><td>APPROVED</td><td>#53d769</td><td>Утверждена</td></tr>
+<tr><td>FULFILLED</td><td>#4fc3f7</td><td>Выполнена</td></tr>
+<tr><td>CANCELLED</td><td>#e94560</td><td>Отменена</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ==================== 9. INSPECTIONS ==================== -->
+<h2 id="inspections">9. Приёмка партий / Контроль качества</h2>
+<div class="card">
+<p>Страница <code>page-inspections</code> — комплексная проверка качества партий.</p>
+
+<h4>9.1. Выбор партии</h4>
+<ul>
+<li>Закупка (select) → Партия (select, обновляется при смене закупки) → Профиль приёмки (select)</li>
+</ul>
+
+<h4>9.2. Чек-лист (4 группы, грид 2×2)</h4>
+<table>
+<thead><tr><th>Группа</th><th>Пункты</th></tr></thead>
+<tbody>
+<tr><td><strong>Качество / Calitate</strong></td><td>Класс (КРИТ), Калибр, Подкалибр, Мин. дефекты, Серьёзные (КРИТ), Разнокалибр.</td></tr>
+<tr><td><strong>Зрелость и t°</strong></td><td>Brix, Температура (КРИТ), Свежесть 0-5</td></tr>
+<tr><td><strong>Документы</strong></td><td>Лаборатория (КРИТ), Фитосанитарный (КРИТ), Трассируемость (КРИТ), Упаковка, Маркировка</td></tr>
+<tr><td><strong>Пестициды</strong></td><td>Кол-во в.в., Одно в.в., Сумма в.в., Глифосат</td></tr>
+</tbody>
+</table>
+
+<h4>9.3. D-Коды дефектов</h4>
+<table>
+<thead><tr><th>Группа</th><th>Коды</th></tr></thead>
+<tbody>
+<tr><td><span style="color:var(--danger);font-weight:700;">Критические</span></td><td>D01-D09 (Гниль, Плесень, Вредители, Запах, Класс, Темп., Лаб., Фито, Трассир.)</td></tr>
+<tr><td><span style="color:var(--warn);font-weight:700;">Значительные</span></td><td>D10-D14 (Нажимы, Деформ., ...)</td></tr>
+<tr><td><span style="color:var(--muted);font-weight:700;">Незначительные</span></td><td>D20-D23</td></tr>
+</tbody>
+</table>
+
+<h4>9.4. Фото-грид</h4>
+<p>D-коды с привязкой к фото: D01-D06 + D10-D14 + D20-D23 (15 ячеек).</p>
+
+<h4>9.5. Score Preview</h4>
+<p>Автоматический расчёт баллов на основе чек-листа и D-кодов. Предварительная оценка партии.</p>
+</div>
+
+<!-- ==================== 10. API REFERENCE ==================== -->
+<h2 id="api-reference">10. Справочник API</h2>
+<div class="card">
+<table>
+<thead><tr><th>Метод</th><th>Endpoint</th><th>Описание</th></tr></thead>
+<tbody>
+<tr><td colspan="3"><h4 style="margin:0;">Документы закупки</h4></td></tr>
+<tr><td>GET</td><td><code>/api/agro-field/purchases</code></td><td>Список документов (?status=)</td></tr>
+<tr><td>GET</td><td><code>/api/agro-field/purchases/:id</code></td><td>Детали документа + строки</td></tr>
+<tr><td>POST</td><td><code>/api/agro-field/purchases</code></td><td>Создать документ (draft)</td></tr>
+<tr><td>PUT</td><td><code>/api/agro-field/purchases/:id/confirm</code></td><td>Подтвердить документ</td></tr>
+<tr><td colspan="3"><h4 style="margin:0;">Справочники</h4></td></tr>
+<tr><td>GET</td><td><code>/api/agro-field/suppliers</code></td><td>Список поставщиков</td></tr>
+<tr><td>GET</td><td><code>/api/agro-field/warehouses</code></td><td>Склады</td></tr>
+<tr><td>GET</td><td><code>/api/agro-field/items</code></td><td>Номенклатура</td></tr>
+<tr><td colspan="3"><h4 style="margin:0;">Штрихкоды</h4></td></tr>
+<tr><td>POST</td><td><code>/api/agro-field/barcodes/generate</code></td><td>Генерация N штрихкодов</td></tr>
+<tr><td>GET</td><td><code>/api/agro-field/barcodes</code></td><td>Список штрихкодов</td></tr>
+<tr><td>GET</td><td><code>/api/agro-field/barcodes/:code</code></td><td>Информация по штрихкоду</td></tr>
+<tr><td>POST</td><td><code>/api/agro-field/crate-weigh</code></td><td>Привязать вес к ящику</td></tr>
+<tr><td colspan="3"><h4 style="margin:0;">Заявки</h4></td></tr>
+<tr><td>GET</td><td><code>/api/agro-field/requests</code></td><td>Список заявок (?status=)</td></tr>
+<tr><td>POST</td><td><code>/api/agro-field/requests</code></td><td>Создать заявку</td></tr>
+<tr><td>PUT</td><td><code>/api/agro-field/requests/:id/approve</code></td><td>Утвердить заявку</td></tr>
+<tr><td colspan="3"><h4 style="margin:0;">Инспекции</h4></td></tr>
+<tr><td>GET</td><td><code>/api/agro-field/inspection-profiles</code></td><td>Профили приёмки</td></tr>
+<tr><td>POST</td><td><code>/api/agro-field/inspections</code></td><td>Создать инспекцию</td></tr>
+<tr><td>GET</td><td><code>/api/agro-field/inspections</code></td><td>Список инспекций</td></tr>
+<tr><td colspan="3"><h4 style="margin:0;">Весы</h4></td></tr>
+<tr><td>GET</td><td><code>/api/agro-scale/read</code></td><td>Текущее состояние весов</td></tr>
+<tr><td>POST</td><td><code>/api/agro-scale/capture</code></td><td>Захватить вес</td></tr>
+<tr><td>POST</td><td><code>/api/agro-scale/zero</code></td><td>Обнуление</td></tr>
+<tr><td>POST</td><td><code>/api/agro-scale/tare</code></td><td>Установить тару</td></tr>
+<tr><td>POST</td><td><code>/api/agro-scale/simulate</code></td><td>Эмулятор</td></tr>
+<tr><td>GET</td><td><code>/api/agro-scale/config</code></td><td>Конфигурация весов</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ==================== 11. CSS / THEME ==================== -->
+<h2 id="css-theme">11. Дизайн-система и CSS</h2>
+<div class="card">
+<h4>Тёмная тема (Dark theme)</h4>
+<pre><code>:root {
+    --bg: #0a0a1a;          /* Фон приложения */
+    --card-bg: #12122a;     /* Фон карточек */
+    --border: #1a1a3e;      /* Бордеры */
+    --text: #e0e0f0;        /* Основной текст */
+    --text-muted: #8888aa;  /* Приглушённый текст */
+    --accent: #53d769;      /* Акцент (зелёный) */
+    --accent2: #4fc3f7;     /* Акцент2 (голубой) */
+    --danger: #e94560;      /* Ошибка/опасность */
+    --warning: #f5a623;     /* Предупреждение */
+}</code></pre>
+
+<h4>Ключевые CSS-классы</h4>
+<table>
+<thead><tr><th>Группа</th><th>Классы</th><th>Назначение</th></tr></thead>
+<tbody>
+<tr><td>Layout</td><td><code>.main-layout, .sidebar, .main</code></td><td>Основная раскладка (sidebar 220px + main)</td></tr>
+<tr><td>Навигация</td><td><code>.nav-link, .sidebar-section, .sidebar-divider</code></td><td>Пункты меню, секции, разделители</td></tr>
+<tr><td>Журнал</td><td><code>.journal-toolbar, .journal-master-detail, .journal-master, .journal-detail</code></td><td>Master-detail layout</td></tr>
+<tr><td>Статусы</td><td><code>.status-tabs, .status-tab, .tab-count</code></td><td>Вкладки фильтрации</td></tr>
+<tr><td>Карточки</td><td><code>.card</code></td><td>Контейнер контента</td></tr>
+<tr><td>Формы</td><td><code>.field-row, .field</code></td><td>Строка полей, поле</td></tr>
+<tr><td>Badges</td><td><code>.badge, .badge-draft, .badge-confirmed, .badge-closed</code></td><td>Статус-бейджи</td></tr>
+<tr><td>Кнопки</td><td><code>.btn, .btn-primary, .btn-accent, .btn-ghost, .btn-danger, .btn-sm</code></td><td>Стили кнопок</td></tr>
+<tr><td>Строки</td><td><code>.purchase-line, .purchase-line-header</code></td><td>Строки табличной части (CSS Grid)</td></tr>
+<tr><td>Весы</td><td><code>.scale-kiosk-overlay, .sk-*</code></td><td>Полноэкранный модал весов</td></tr>
+<tr><td>Инструкция</td><td><code>.instructions-panel, .instructions-toggle, .instructions-body</code></td><td>Сворачиваемая панель</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ==================== 12. GAP ANALYSIS ==================== -->
+<h2 id="gap-analysis">12. GAP-анализ: Отгрузка vs Приёмка</h2>
+
+<p>Сравнение текущего состояния модуля Отгрузки (<code>agro_sales.html</code>) с эталонной Приёмкой (<code>agro_field.html</code>).</p>
+
+<div class="card">
+<table>
+<thead><tr><th>Функция</th><th>Приёмка (Field)</th><th>Отгрузка (Sales)</th><th>Статус</th></tr></thead>
+<tbody>
+<tr>
+    <td><strong>Боковое меню</strong></td>
+    <td>3 секции: Операции (4), Весы (1), Заявки (2)</td>
+    <td>3 секции: Документы (3), Весы (2), Экспорт (1)</td>
+    <td><span class="gap-indicator gap-ok"></span> OK</td>
+</tr>
+<tr>
+    <td><strong>Журнал (master-detail)</strong></td>
+    <td>Status tabs + search + master table (7 col) + detail panel + instructions</td>
+    <td>Status tabs + search + master table (6 col) + detail panel</td>
+    <td><span class="gap-indicator gap-partial"></span> Частично (нет инструкции, нет колонки Кг)</td>
+</tr>
+<tr>
+    <td><strong>Форма документа</strong></td>
+    <td>3 поля шапки + 9-колоночный грид строк + Draft/Confirm</td>
+    <td>4 поля шапки + 8-колоночный грид + Draft/Confirm/Allocate</td>
+    <td><span class="gap-indicator gap-ok"></span> OK</td>
+</tr>
+<tr>
+    <td><strong>⚖ Кнопка Weigh → модал</strong></td>
+    <td>Открывает полноэкранный Scale Kiosk Modal</td>
+    <td>Открывает полноэкранный модал (добавлено)</td>
+    <td><span class="gap-indicator gap-ok"></span> OK</td>
+</tr>
+<tr>
+    <td><strong>Scale Kiosk: 3-колоночный</strong></td>
+    <td>Products grid + Scale + AI Camera</td>
+    <td>Только Scale (1 колонка)</td>
+    <td><span class="gap-indicator gap-partial"></span> Упрощённый (нет продуктов/AI — не нужны для отгрузки)</td>
+</tr>
+<tr>
+    <td><strong>Scale: Auto-emulation</strong></td>
+    <td>Каждые 20с — случайный вес + AI распознавание</td>
+    <td>Нет авто-эмуляции (ручной эмулятор есть)</td>
+    <td><span class="gap-indicator gap-partial"></span> Можно добавить</td>
+</tr>
+<tr>
+    <td><strong>Паспорт продукции</strong></td>
+    <td>12 полей (калибр, Brix, t°C, дефекты...)</td>
+    <td>Нет (не требуется для отгрузки)</td>
+    <td><span class="gap-indicator gap-ok"></span> N/A</td>
+</tr>
+<tr>
+    <td><strong>Scale: Pause button</strong></td>
+    <td>⏸ Пауза / Pauză в хедере модала</td>
+    <td>Нет</td>
+    <td><span class="gap-indicator gap-missing"></span> Отсутствует</td>
+</tr>
+<tr>
+    <td><strong>Scale: Driver info</strong></td>
+    <td>«Driver: Emulator, Max: 600 kg» в хедере</td>
+    <td>Нет</td>
+    <td><span class="gap-indicator gap-missing"></span> Отсутствует</td>
+</tr>
+<tr>
+    <td><strong>Инструкция в журнале</strong></td>
+    <td>📖 Сворачиваемая, 6 пунктов</td>
+    <td>Нет</td>
+    <td><span class="gap-indicator gap-missing"></span> Отсутствует</td>
+</tr>
+<tr>
+    <td><strong>Колонка «Кг» в журнале</strong></td>
+    <td>Есть (итого нетто)</td>
+    <td>Нет</td>
+    <td><span class="gap-indicator gap-missing"></span> Отсутствует</td>
+</tr>
+<tr>
+    <td><strong>Страница весов (автономная)</strong></td>
+    <td>Полная (live вес 72px + эмулятор + capture card + config)</td>
+    <td>Есть (page-weighing) но упрощённая</td>
+    <td><span class="gap-indicator gap-partial"></span> Упрощённая</td>
+</tr>
+<tr>
+    <td><strong>Акты взвешивания (tickets)</strong></td>
+    <td>Нет (в Field)</td>
+    <td>Есть (page-tickets) — полный CRUD</td>
+    <td><span class="gap-indicator gap-ok"></span> Sales-specific</td>
+</tr>
+<tr>
+    <td><strong>Заявки</strong></td>
+    <td>page-requests — заявки поставщикам</td>
+    <td>Нет (не требуется)</td>
+    <td><span class="gap-indicator gap-ok"></span> N/A</td>
+</tr>
+<tr>
+    <td><strong>Инспекции/QC</strong></td>
+    <td>page-inspections — полный чек-лист + D-коды</td>
+    <td>Нет (не требуется для отгрузки)</td>
+    <td><span class="gap-indicator gap-ok"></span> N/A</td>
+</tr>
+<tr>
+    <td><strong>Остатки/Stock</strong></td>
+    <td>Нет</td>
+    <td>page-stock — доступные остатки для продажи</td>
+    <td><span class="gap-indicator gap-ok"></span> Sales-specific</td>
+</tr>
+</tbody>
+</table>
+</div>
+
+<div class="card">
+<h3>Сводка: что нужно доработать в Отгрузке</h3>
+<ol>
+<li><span class="tag tag-new">NEW</span> <strong>Инструкция в журнале</strong> — добавить <code>.instructions-panel</code> с 6 пунктами (аналог field)</li>
+<li><span class="tag tag-new">NEW</span> <strong>Колонка «Кг»</strong> в мастер-таблице журнала</li>
+<li><span class="tag tag-new">NEW</span> <strong>Driver info</strong> в хедере Scale Kiosk Modal</li>
+<li><span class="tag tag-new">NEW</span> <strong>Auto-emulation</strong> в модале весов (20с цикл)</li>
+<li><span class="tag tag-new">IMPROVE</span> <strong>Автономная страница весов</strong> — добавить captured reading card + config info</li>
+</ol>
+</div>
+
+<hr style="border-color:var(--border);margin:40px 0;">
+<p style="text-align:center;color:var(--muted);font-size:12px;">Artgranit AGRO — Спецификация модуля Приёмка (Field) — v1.0 — 28.03.2026</p>
+
+</body>
+</html>

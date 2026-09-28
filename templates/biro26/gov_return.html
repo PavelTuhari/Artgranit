@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="ro"><head><meta charset="UTF-8">
+<title>Contragenti — date primite</title>
+<style>body{font:14px system-ui;padding:24px;color:#0f172a}</style></head>
+<body>
+<p id="m">Se transmit datele în back-office…</p>
+<script>
+/* RO: utilitarul local Contragenti ne-a redirectionat AICI cu datele in
+   query-string (return_to). Le predam ferestrei-parinte (back-office) prin
+   postMessage si inchidem fereastra — asa datele ajung in sistemul care
+   le-a cerut, nu raman pe o pagina intermediara.
+   EN: receive the data from the local utility and hand it to the opener. */
+(function () {
+  var q = new URLSearchParams(location.search), d = {};
+  q.forEach(function (v, k) { d[k] = v; });
+  try {
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage({source: 'contragenti', data: d}, location.origin);
+      document.getElementById('m').textContent =
+        'Datele au fost transmise. Puteți închide fereastra.';
+      setTimeout(function () { window.close(); }, 600);
+      return;
+    }
+  } catch (e) {}
+  document.getElementById('m').textContent =
+    'Fereastra-părinte nu este disponibilă. Date: ' + JSON.stringify(d);
+})();
+</script>
+</body></html>

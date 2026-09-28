@@ -1,0 +1,8 @@
+{
+  "title": {"ru": "AGRO — приёмка и весовая", "ro": "AGRO — recepție și cântar", "en": "AGRO — intake & weighing"},
+  "icon": "🌾",
+  "order": 50,
+  "url": "/UNA.md/orasldev/agro",
+  "sql_prefix": "AGRO_",
+  "descr": "Полевая приёмка, весовая, склад, качество, продажи"
+}

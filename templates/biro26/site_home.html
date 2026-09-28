@@ -1,0 +1,489 @@
+{% extends "biro26/site_base.html" %}
+{% block title %}{{ app_name }} – Totul de ce ai nevoie într-un singur loc{% endblock %}
+{% block css %}
+    .deal-image.live{background:#fff center/contain no-repeat;min-height:220px;cursor:pointer}
+    .category-img{background-position:center;background-size:cover;position:relative;overflow:hidden}
+    .category-emoji{position:absolute;inset:0;display:grid;place-items:center;font-size:56px;opacity:.9}
+    .hero-slide-visual.s2{background:linear-gradient(135deg,#355c1a 0%,#58ba13 55%,#7ed321 100%)}
+    .hero-slide-visual.s3{background:linear-gradient(135deg,#a34d0e 0%,#ea6f21 55%,#ffb800 100%)}
+    /* RO: bannerul Microinvest — verde-petrol, ca in formularul de cerere */
+    .hero-slide-visual.s4{background:linear-gradient(135deg,#0b3d3a 0%,#0f766e 55%,#14b8a6 100%)}
+    /* RO: bannerul Liber Card — albastrul maib */
+    .hero-slide-visual.s5{background:linear-gradient(135deg,#062a5a 0%,#0055a5 55%,#3b9ae1 100%)}
+    .hero-partner-logo{max-height:38px;margin-top:14px;background:#fff;border-radius:8px;
+      padding:5px 10px;display:none}
+    /* About & Contact LIVE (stil Figma, date din WP) */
+    .about-live{display:flex;gap:44px;align-items:center;background:#fff;border-radius:20px;
+      box-shadow:0 12px 40px rgba(0,0,0,.08);padding:40px}
+    .about-img{width:46%;flex:none}
+    .about-img img{border-radius:14px;width:100%;height:auto}
+    .about-txt{flex:1;min-width:0}
+    .about-txt h2{font-size:32px;margin:4px 0 14px;font-weight:700}
+    .about-txt p{font-size:14.5px;line-height:1.6;color:#444}
+    .contact-live{background:#fff;border-radius:20px;box-shadow:0 12px 40px rgba(0,0,0,.08);
+      padding:40px;max-width:860px;margin:0 auto}
+    .contact-cols{display:flex;gap:28px;flex-wrap:wrap;margin-bottom:24px}
+    .contact-col{flex:1;min-width:180px;display:flex;flex-direction:column;gap:6px;font-size:14.5px}
+    .contact-col b{font-size:16px}
+    .contact-col a{color:#194681}
+    .contact-ico{width:44px;height:44px;border-radius:12px;border:1.5px solid #194681;
+      display:grid;place-items:center;font-size:20px}
+    .contact-map iframe{width:100%;height:300px;border:0;border-radius:12px}
+    .brand img{max-height:44px;max-width:80%;object-fit:contain}
+    @media (max-width:1024px){.about-live{flex-direction:column;padding:22px}
+      .about-img{width:100%}}
+{% endblock %}
+{% block content %}
+        <!-- ===== HERO: slider + product of the day ===== -->
+        <section class="hero">
+          <div class="hero-slider">
+            <div class="hero-slide">
+              <div class="hero-slide-visual" id="hero-visual">
+                <div class="hero-slide-content" id="hero-content">
+                  <p class="hero-kicker"></p>
+                  <h2 class="hero-title"></h2>
+                  <p class="hero-sub"></p>
+                  <a class="btn-orange" href="/catalog" data-t="seeOffer">Vezi oferta</a>
+                  <img class="hero-partner-logo" id="hero-logo" alt="">
+                </div>
+                <div class="hero-slide-art" aria-hidden="true"></div>
+              </div>
+              <div class="slider-controls">
+                <button class="slider-arrow" type="button" aria-label="Previous" onclick="heroGo(-1)">‹</button>
+                <span class="slider-count" id="hero-count">1 / 3</span>
+                <button class="slider-arrow" type="button" aria-label="Next" onclick="heroGo(1)">›</button>
+              </div>
+              <div class="slider-dots" id="hero-dots" aria-hidden="true"></div>
+            </div>
+          </div>
+
+          <aside class="deal-card" id="deal">
+            <div class="deal-head">
+              <span class="deal-label" data-t="dealOfDay">Produsul zilei</span>
+              <div class="deal-timer" id="deal-timer">
+                <span>00H :</span><span>00M :</span><span>00S</span>
+              </div>
+            </div>
+            <div class="deal-stock">
+              <span class="deal-stock-text" data-t="limited">Stoc limitat</span>
+              <div class="deal-stock-bar"><i id="deal-bar" style="width:42%"></i></div>
+            </div>
+            <div class="deal-image skel" id="deal-img" aria-hidden="true">
+              <div class="deal-image-placeholder">🛍️</div>
+            </div>
+            <p class="deal-name" id="deal-name">…</p>
+            <p class="deal-price" id="deal-price"></p>
+            <button class="btn-buy" type="button" id="deal-buy">
+              <span data-t="buy">Cumpără</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 6h15l-1.5 9h-12L6 6z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/>
+                <path d="M6 6L5 3H2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </aside>
+        </section>
+
+        <!-- ===== H1 + categories ===== -->
+        <section class="section categories-section" data-sec="categories">
+          <h1 class="page-h1" data-t="h1">Magazin online de birotică și papetărie în Moldova</h1>
+          <div class="categories" id="cats"></div>
+          <div class="row-nav">
+            <button class="nav-pill" type="button" aria-label="Previous" onclick="catsGo(-1)">‹</button>
+            <span class="row-count" id="cats-count">1 / 1</span>
+            <button class="nav-pill" type="button" aria-label="Next" onclick="catsGo(1)">›</button>
+          </div>
+        </section>
+
+        <!-- ===== Best products row ===== -->
+        <section class="section products-section" data-sec="best">
+          <div class="section-head">
+            <div>
+              <p class="section-tag" data-t="tag">Oferte OfficePlus</p>
+              <h2 class="section-title" data-t="best">Cei mai buni</h2>
+              <p class="section-sub" data-t="bestSub">Reduceri actuale la produsele populare pentru birou și studii</p>
+            </div>
+            <a class="see-all" href="/catalog?sort=price_desc" data-t="seeAll">Vezi toate <span aria-hidden="true">→</span></a>
+          </div>
+          <div class="product-grid" id="row-best"></div>
+          <div class="row-nav">
+            <button class="nav-pill" type="button" aria-label="Previous" onclick="rowGo('best',-1)">‹</button>
+            <span class="row-count" id="best-count">1 / 1</span>
+            <button class="nav-pill" type="button" aria-label="Next" onclick="rowGo('best',1)">›</button>
+          </div>
+        </section>
+
+        <!-- ===== Popular products ===== -->
+        <section class="section products-section" data-sec="popular">
+          <div class="section-head">
+            <div>
+              <p class="section-tag" data-t="tag">Oferte OfficePlus</p>
+              <h2 class="section-title" data-t="popular">Cele mai populare</h2>
+              <p class="section-sub" data-t="popularSub">Produse populare, alese cel mai des de clienții noștri</p>
+            </div>
+            <a class="see-all" href="/catalog" data-t="seeAll">Vezi toate <span aria-hidden="true">→</span></a>
+          </div>
+          <div class="product-grid" id="row-pop"></div>
+          <div class="row-nav">
+            <button class="nav-pill" type="button" aria-label="Previous" onclick="rowGo('pop',-1)">‹</button>
+            <span class="row-count" id="pop-count">1 / 1</span>
+            <button class="nav-pill" type="button" aria-label="Next" onclick="rowGo('pop',1)">›</button>
+          </div>
+        </section>
+
+        <!-- ===== Brands ===== -->
+        <section class="section brands-section" data-sec="brands">
+          <div class="section-head compact">
+            <h2 class="section-title brands-title" data-t="brands">Branduri populare</h2>
+            <a class="see-all" href="/catalog" data-t="all">Toate</a>
+          </div>
+          <div class="brands" id="brands"></div>
+        </section>
+
+        <!-- ===== Category tabs + products ===== -->
+        <section class="section tab-products" data-sec="tabs">
+          <div class="section-head">
+            <div>
+              <p class="section-tag" data-t="tag">Oferte OfficePlus</p>
+              <h2 class="section-title" data-t="byCat">Pe categorii</h2>
+            </div>
+          </div>
+          <div class="tabs" role="tablist" id="tabs"></div>
+          <div class="product-grid five" id="row-tab"></div>
+          <div class="row-nav">
+            <button class="nav-pill" type="button" aria-label="Previous" onclick="rowGo('tab',-1)">‹</button>
+            <span class="row-count" id="tab-count">1 / 1</span>
+            <button class="nav-pill" type="button" aria-label="Next" onclick="rowGo('tab',1)">›</button>
+          </div>
+        </section>
+
+        <!-- ===== About: continutul (text+foto, RO/RU) vine din paginile WP
+             «site-about» / «site-about-ru» — editabile de non-admin ===== -->
+        <section class="section" data-sec="about">
+          <div class="about-live" id="about-live" style="display:none">
+            <div class="about-img" id="about-img"></div>
+            <div class="about-txt">
+              <p class="section-tag">OFFICEPLUS.MD</p>
+              <div id="about-html"></div>
+              <a class="btn-orange" href="/catalog" data-t="goCatalog" style="margin-top:18px">Mergi la catalog</a>
+            </div>
+          </div>
+        </section>
+
+        <!-- ===== Contact: datele vin din pagina WP «site-contact» ===== -->
+        <section class="section" data-sec="contact">
+          <div class="contact-live" id="contact-live" style="display:none">
+            <h2 class="section-title" style="margin-bottom:22px" data-t="contactUs">Contactați-ne</h2>
+            <div class="contact-cols">
+              <div class="contact-col"><div class="contact-ico">✉️</div>
+                <b>Email</b><a id="ct-email" href="#"></a></div>
+              <div class="contact-col"><div class="contact-ico">📞</div>
+                <b data-t="phone">Telefon</b><a id="ct-tel" href="#"></a></div>
+              <div class="contact-col"><div class="contact-ico">📍</div>
+                <b data-t="addr">Adresa</b><span id="ct-adr"></span></div>
+            </div>
+            <div class="contact-map" id="ct-map"></div>
+          </div>
+        </section>
+{% endblock %}
+{% block js %}
+<script>
+/* =====================================================================
+   RO: Pagina principala LIVE — datele din API Biro26 + configuratia
+       vitrinei din limited admin (/api/biro26/site/config): hero slides,
+       "produsul zilei" (override), sectiuni activate/dezactivate.
+   ===================================================================== */
+
+/* ── randuri paginate (5 pe pagina, ca in Figma) ─────────────────────── */
+const ROWS = {best: {items: [], page: 0}, pop: {items: [], page: 0}, tab: {items: [], page: 0}};
+function renderRow(key) {
+  const r = ROWS[key], per = 5;
+  const pages = Math.max(1, Math.ceil(r.items.length / per));
+  r.page = ((r.page % pages) + pages) % pages;
+  document.getElementById('row-' + key).innerHTML =
+    r.items.slice(r.page * per, r.page * per + per).map(cardHtml).join('');
+  document.getElementById((key === 'pop' ? 'pop' : key) + '-count').textContent =
+    (r.page + 1) + ' / ' + pages;
+}
+function rowGo(key, d) { ROWS[key].page += d; renderRow(key); }
+
+/* ── HERO slider: implicit 3 sliduri; limited admin le poate inlocui ── */
+let SLIDES = [
+  {cls: '', kicker: {ro: 'Promoție de vară', ru: 'Летняя акция'},
+   title: {ro: 'Gadgeturi și tehnică<br>pentru birou și casă', ru: 'Гаджеты и техника<br>для офиса и дома'},
+   sub: {ro: 'Livrare rapidă în toată Moldova · Plată comodă · Garanție', ru: 'Быстрая доставка по всей Молдове · Удобная оплата · Гарантия'},
+   href: '/catalog?grupa=' + encodeURIComponent('Accesorii IT')},
+  {cls: 's2', kicker: {ro: 'Totul pentru școală', ru: 'Всё для школы'},
+   title: {ro: 'Papetărie și rechizite<br>la prețuri accesibile', ru: 'Канцтовары и принадлежности<br>по доступным ценам'},
+   sub: {ro: 'Caiete, pixuri, ghiozdane — tot ce trebuie pentru studii', ru: 'Тетради, ручки, рюкзаки — всё для учёбы'},
+   href: '/catalog'},
+  {cls: 's3', kicker: {ro: 'Plată în rate', ru: 'Оплата в рассрочку'},
+   title: {ro: 'Cumpără acum,<br>achită în rate 0%', ru: 'Покупай сейчас,<br>плати в рассрочку 0%'},
+   sub: {ro: 'Rate 0% la 4 și 6 luni · EasyCredit · Liber Card MAIB · Microinvest',
+         ru: 'Рассрочка 0% на 4 и 6 месяцев · EasyCredit · Liber Card MAIB · Microinvest'},
+   href: '/catalog'},
+  // RO: bannerul partenerului de creditare Microinvest (acord nr. 554/2026):
+  //     duce direct la formularul de cerere (2 pasi + acte).
+  // EN: Microinvest lending-partner banner → the 2-step application form.
+  {cls: 's4', kicker: {ro: 'Credit de la Microinvest', ru: 'Кредит от Microinvest'},
+   title: {ro: 'Credit până la<br>500 000 lei, 4–48 luni',
+           ru: 'Кредит до<br>500 000 леев, 4–48 месяцев'},
+   sub: {ro: 'Rate 0% la 4 și 6 luni · cererea online, doar buletinul · răspuns rapid',
+         ru: 'Рассрочка 0% на 4 и 6 месяцев · заявка онлайн, нужен только паспорт · быстрый ответ'},
+   href: '/cerere-credit'},
+  // RO: parteneriatul Liber Card MAIB — conform contractului, rata este de 6.
+  //     Sigla oficiala se ridica automat din /static/biro26/pay/libercard.svg
+  //     imediat ce fisierul primit de la banca este pus acolo.
+  // EN: Liber Card MAIB partnership slide (6 instalments per the contract).
+  {cls: 's5', kicker: {ro: 'Liber Card de la maib', ru: 'Liber Card от maib'},
+   title: {ro: 'Cumpără în <b>6 rate</b><br>fără dobândă',
+           ru: 'Покупай в <b>6 платежей</b><br>без процентов'},
+   sub: {ro: 'Cu cardul Liber de la maib · 0% dobândă · fără comisioane ascunse',
+         ru: 'С картой Liber от maib · 0% годовых · без скрытых комиссий'},
+   logo: 'libercard', href: '/cos'}];
+let heroI = 0, heroTimer = null;
+function renderHero() {
+  const l = curLang(), s = SLIDES[heroI];
+  if (!s) return;
+  const v = document.getElementById('hero-visual');
+  v.className = 'hero-slide-visual ' + (s.cls || '');
+  if (s.bg) v.style.background = s.bg; else v.style.background = '';
+  v.querySelector('.hero-kicker').textContent = (s.kicker[l] || s.kicker.ro || '');
+  v.querySelector('.hero-title').innerHTML = (s.title[l] || s.title.ro || '');
+  v.querySelector('.hero-sub').textContent = (s.sub[l] || s.sub.ro || '');
+  v.querySelector('.btn-orange').href = s.href || '/catalog';
+  // RO: sigla partenerului (Liber Card / maib) apare DOAR daca fisierul
+  //     oficial exista pe server — lista window.PAY_LOGOS vine din backend.
+  //     Nu desenam sigle „aproximative": marcile sint protejate.
+  // EN: the partner logo shows only when the official file is present.
+  const lg = document.getElementById('hero-logo');
+  if (lg) {
+    const have = Array.isArray(window.PAY_LOGOS) ? window.PAY_LOGOS : [];
+    if (s.logo && have.indexOf(s.logo) !== -1) {
+      lg.src = '/static/biro26/pay/' + s.logo + '.svg';
+      lg.alt = s.logo; lg.style.display = 'block';
+    } else { lg.style.display = 'none'; lg.removeAttribute('src'); }
+  }
+  document.getElementById('hero-count').textContent = (heroI + 1) + ' / ' + SLIDES.length;
+  document.getElementById('hero-dots').innerHTML = SLIDES.map((_, i) =>
+    '<span class="dot' + (i === heroI ? ' is-active' : '') + '"></span>').join('');
+}
+function heroGo(d) { heroI = ((heroI + d) % SLIDES.length + SLIDES.length) % SLIDES.length;
+  renderHero(); clearInterval(heroTimer); heroTimer = setInterval(() => heroGo(1), 7000); }
+
+/* ── Produsul zilei ──────────────────────────────────────────────────── */
+let DEAL = null, DEAL_END = null;
+function renderDeal() {
+  if (!DEAL) return;
+  const p = DEAL, price = pprice(p);
+  PMAP[p.cod] = p;
+  const img = document.getElementById('deal-img');
+  img.classList.remove('skel');
+  if (p.image) { img.className = 'deal-image live'; img.innerHTML = '';
+    img.style.backgroundImage = "url('" + p.image + "')"; }
+  // RO: si "produsul zilei" primeste o legatura reala — e pe pagina principala,
+  //     cea mai vizitata de motoarele de cautare.
+  // EN: the deal of the day gets a real link too — it sits on the home page.
+  img.onclick = () => openProd(p.cod);
+  img.style.cursor = 'pointer';
+  const dn = document.getElementById('deal-name');
+  dn.innerHTML = '';
+  const a = document.createElement('a');
+  a.href = prodURL(p.cod);
+  a.style.color = 'inherit';
+  a.style.textDecoration = 'none';
+  a.textContent = pname(p);
+  dn.appendChild(a);
+  document.getElementById('deal-price').textContent = fmtLei(price);
+  document.getElementById('deal-bar').style.width = (20 + (p.cod % 60)) + '%';
+  document.getElementById('deal-buy').onclick = () =>
+    addToCart(p.cod, p.denumirea || '', price);
+}
+function tickTimer() {
+  const now = new Date();
+  let end = DEAL_END ? new Date(DEAL_END) : null;
+  if (!end || isNaN(end) || end < now) { end = new Date(now); end.setHours(23, 59, 59, 999); }
+  let s = Math.max(0, Math.floor((end - now) / 1000));
+  const h = Math.floor(s / 3600); s -= h * 3600;
+  const m = Math.floor(s / 60); s -= m * 60;
+  document.getElementById('deal-timer').innerHTML =
+    '<span>' + String(h).padStart(2, '0') + 'H :</span>' +
+    '<span>' + String(m).padStart(2, '0') + 'M :</span>' +
+    '<span>' + String(s).padStart(2, '0') + 'S</span>';
+}
+setInterval(tickTimer, 1000); tickTimer();
+
+/* ── Categorii (7 carduri) ───────────────────────────────────────────── */
+let CATS = [], catsPage = 0;
+function renderCats() {
+  const per = 7, pages = Math.max(1, Math.ceil(CATS.length / per));
+  catsPage = ((catsPage % pages) + pages) % pages;
+  document.getElementById('cats').innerHTML =
+    CATS.slice(catsPage * per, catsPage * per + per).map((c, i) =>
+      '<article class="category-card" onclick="location.href=\'/catalog?grupa=' +
+        encodeURIComponent(c.grupa) + '\'">' +
+      '<div class="category-img c' + ((i % 7) + 1) + '">' +
+        '<span class="category-emoji">' + c.emoji + '</span></div>' +
+      '<h2 class="category-title">' + esc(c.label()) + '</h2></article>').join('');
+  document.getElementById('cats-count').textContent = (catsPage + 1) + ' / ' + pages;
+}
+function catsGo(d) { catsPage += d; renderCats(); }
+const CAT_EMOJI = [['birou', '🖇️'], ['bucatarie', '🍳'], ['papet', '📎'], ['carti', '📚'],
+  ['carte', '📚'], ['arta', '🎨'], ['scoala', '🎒'], ['scolare', '🎒'], ['it', '💻'],
+  ['electro', '🔌'], ['tehnica', '🖨️'], ['jucarii', '🧸'], ['joc', '🎲'], ['hartie', '📄'],
+  ['igiena', '🧼'], ['curatenie', '🧽'], ['mobilier', '🪑'], ['accesorii', '🎧']];
+function catEmoji(name) {
+  const n = (name || '').toLowerCase();
+  for (const [k, e] of CAT_EMOJI) if (n.includes(k)) return e;
+  return '🛍️';
+}
+
+/* ── Tabs pe categorii ───────────────────────────────────────────────── */
+let TABS = [], tabIdx = 0;
+function renderTabs() {
+  document.getElementById('tabs').innerHTML = TABS.map((t, i) =>
+    '<button class="tab' + (i === tabIdx ? ' is-active' : '') +
+    '" type="button" onclick="pickTab(' + i + ')">' + esc(t.label()) + '</button>').join('');
+}
+async function pickTab(i) {
+  tabIdx = i; renderTabs();
+  document.getElementById('row-tab').innerHTML =
+    '<article class="product-card skel"></article>'.repeat(5);
+  const r = await j(API + '/products?limit=40&categorie=' + encodeURIComponent(TABS[i].categorie));
+  const rows = uniq(r.data || []);
+  ROWS.tab.items = rows.filter(p => p.image).concat(rows.filter(p => !p.image)).slice(0, 25);
+  ROWS.tab.page = 0; renderRow('tab');
+}
+
+/* ── About & Contact: continut LIVE din paginile WP «site-*» ─────────── */
+async function loadAbout() {
+  // RO: textele + imaginea vin din adminka standard WordPress — paginile
+  //     «site-about» (RO) / «site-about-ru» (RU) / «site-about-en» (EN)
+  const l = localStorage.getItem('biro26_lang') || 'ro';
+  const slug = l === 'ru' ? 'site-about-ru'
+             : l === 'en' ? 'site-about-en' : 'site-about';
+  let r = await j('/api/biro26/site/info/' + slug);
+  if (!r.success && slug !== 'site-about') r = await j('/api/biro26/site/info/site-about');
+  if (!r.success) return;
+  const box = document.getElementById('about-live');
+  box.style.display = '';
+  // RO: prima imagine din pagina -> colajul din stinga; restul -> text
+  const tmp = document.createElement('div'); tmp.innerHTML = r.data.html || '';
+  const img = tmp.querySelector('img');
+  document.getElementById('about-img').innerHTML = img ? img.outerHTML : '';
+  if (img) img.remove();
+  document.getElementById('about-html').innerHTML = tmp.innerHTML;
+}
+async function loadContact() {
+  const r = await j('/api/biro26/site/info/site-contact');
+  if (!r.success) return;
+  const text = (r.data.html || '').replace(/<br\s*\/?>/gi, '\n').replace(/<[^>]+>/g, '\n');
+  const d = {};
+  text.split('\n').forEach(l => {
+    const m = l.match(/^\s*(email|telefon|adresa|harta)\s*:\s*(.+)$/i);
+    if (m) d[m[1].toLowerCase()] = m[2].trim();
+  });
+  if (!d.email && !d.telefon) return;
+  document.getElementById('contact-live').style.display = '';
+  const em = document.getElementById('ct-email');
+  em.textContent = d.email || ''; em.href = 'mailto:' + (d.email || '');
+  const tl = document.getElementById('ct-tel');
+  tl.textContent = d.telefon || ''; tl.href = 'tel:' + (d.telefon || '').replace(/[^+0-9]/g, '');
+  document.getElementById('ct-adr').textContent = d.adresa || '';
+  if (d.harta) document.getElementById('ct-map').innerHTML =
+    '<iframe loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="' +
+    d.harta.replace(/&#0?38;/g, '&').replace(/&amp;/g, '&') + '"></iframe>';
+}
+
+/* ── redare completa (si la schimbarea limbii) ───────────────────────── */
+window.onLangChange = function () { renderHero(); renderDeal(); renderCats();
+  renderTabs(); renderRow('best'); renderRow('pop'); loadAbout(); };
+
+/* ── init: config vitrina (limited admin) + date live din API ────────── */
+(async function init() {
+  renderHero();
+  heroTimer = setInterval(() => heroGo(1), 7000);
+  document.getElementById('row-best').innerHTML =
+    document.getElementById('row-pop').innerHTML =
+    '<article class="product-card skel"></article>'.repeat(5);
+
+  const [cfg, tree, brands, best] = await Promise.all([
+    j('/api/biro26/site/config'), j(API + '/tree'), j(API + '/brands'),
+    j(API + '/products?limit=100&sort=price_desc&price_min=100&price_max=20000')]);
+
+  // RO: sectiuni oprite din limited admin -> ascunse
+  const C = (cfg && cfg.data) || {};
+  (C.sections || []).forEach(s => {
+    if (s.enabled !== '1') document.querySelectorAll(
+      '[data-sec="' + s.code + '"]').forEach(e => e.style.display = 'none');
+  });
+  // RO: hero slides din admin (daca exista) inlocuiesc slidurile implicite
+  if ((C.hero || []).length) {
+    SLIDES = C.hero.map(h => ({
+      cls: '', bg: h.bg || '',
+      kicker: {ro: h.kicker_ro || '', ru: h.kicker_ru || h.kicker_ro || ''},
+      title: {ro: h.title_ro || '', ru: h.title_ru || h.title_ro || ''},
+      sub: {ro: h.sub_ro || '', ru: h.sub_ru || h.sub_ro || ''},
+      href: h.cta_url || '/catalog'}));
+    heroI = 0; renderHero();
+  }
+
+  // categorii: agregam pe grupa, top dupa numar produse
+  const byG = {};
+  (tree.data || []).forEach(t => {
+    const g = byG[t.grupa] = byG[t.grupa] || {grupa: t.grupa, ru: t.grupa_ru, cnt: 0};
+    g.cnt += (t.cnt || 0); if (!g.ru && t.grupa_ru) g.ru = t.grupa_ru;
+  });
+  CATS = Object.values(byG).sort((a, b) => b.cnt - a.cnt).slice(0, 21)
+    .map(c => ({...c, emoji: catEmoji(c.grupa),
+      label() { return (curLang() === 'ru' && this.ru) ? this.ru : this.grupa; }}));
+  renderCats();
+
+  // RO: branduri cu LOGO din pagina WP «site-branduri»; fallback: API
+  const wpb = await j('/api/biro26/site/brands');
+  if ((wpb.data || []).length) {
+    document.getElementById('brands').innerHTML = wpb.data.slice(0, 14).map(b =>
+      '<a class="brand" title="' + esc(b.brand) + '" href="/catalog?q=' +
+      encodeURIComponent(b.brand) + '"><img loading="lazy" referrerpolicy="no-referrer" src="' +
+      esc(b.img) + '" alt="' + esc(b.brand) + '" onerror="this.replaceWith(this.alt)"></a>').join('') +
+      '<a class="brand" href="/branduri" style="font-weight:800">+' +
+      (wpb.data.length - 14) + ' …</a>';
+  } else {
+    const bs = (brands.data || []).filter(b => b.brand && b.brand !== 'NULL')
+      .sort((a, b) => b.cnt - a.cnt).slice(0, 14);
+    document.getElementById('brands').innerHTML = bs.map(b =>
+      '<a class="brand" href="/catalog?brand=' + encodeURIComponent(b.brand) + '">' +
+      esc(b.brand) + '</a>').join('');
+  }
+
+  // "Cei mai buni": scumpe cu imagine
+  const bestRows = uniq((best.data || []).filter(p => p.image));
+  ROWS.best.items = bestRows.slice(0, 25); renderRow('best');
+
+  // RO: "Cele mai populare": lista setata in backoffice (limited admin);
+  //     goala -> esantion automat din catalog
+  if ((C.featured || []).length) {
+    ROWS.pop.items = C.featured; renderRow('pop');
+  } else {
+    const pop = await j(API + '/products?limit=120&price_min=20');
+    ROWS.pop.items = uniq((pop.data || []).filter(p => p.image)).slice(0, 25); renderRow('pop');
+  }
+  loadAbout(); loadContact();
+
+  // produsul zilei: override din limited admin sau determinist dupa zi
+  const pool = ROWS.pop.items.length ? ROWS.pop.items : bestRows;
+  if (C.deal && C.deal.product) {
+    DEAL = C.deal.product; DEAL_END = C.deal.ends_at || null; renderDeal();
+  } else if (pool.length) {
+    const day = Math.floor(Date.now() / 86400000);
+    DEAL = pool[day % pool.length]; renderDeal();
+  }
+
+  // tabs: top categorii
+  TABS = (tree.data || []).filter(t => t.categorie)
+    .sort((a, b) => (b.cnt || 0) - (a.cnt || 0)).slice(0, 8)
+    .map(t => ({categorie: t.categorie, ru: t.cat_ru,
+      label() { return (curLang() === 'ru' && this.ru) ? this.ru : this.categorie; }}));
+  renderTabs(); if (TABS.length) pickTab(0);
+})();
+</script>
+{% endblock %}

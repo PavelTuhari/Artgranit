@@ -1,0 +1,8 @@
+{
+  "title": {"ru": "Colass — CRM и договоры", "ro": "Colass — CRM și contracte", "en": "Colass — CRM & contracts"},
+  "icon": "📇",
+  "order": 100,
+  "url": "/UNA.md/orasldev/colass-crm",
+  "sql_prefix": "COLASS_",
+  "descr": "Каталог, CRM, договоры, калькулятор"
+}

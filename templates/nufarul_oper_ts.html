@@ -1,0 +1,1962 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Nufarul — Touchscreen</title>
+<style>
+/* ── Reset ── */
+* { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+body { background:#1a1a2e; font-family:'Segoe UI',system-ui,-apple-system,sans-serif; color:#e0e0f0; overflow:hidden; height:100vh; }
+button, input, select, textarea { font-family:inherit; }
+
+/* ── Layout ── */
+.kiosk { display:flex; flex-direction:column; height:100vh; }
+
+/* ── Header ── */
+.hdr {
+  display:flex; align-items:center; gap:10px; flex-shrink:0;
+  padding:7px 14px; background:#0d0d1a; border-bottom:1px solid #1e1e4a;
+  min-height:46px;
+}
+.hdr-title { color:#53d769; font-weight:800; font-size:14px; flex-shrink:0; letter-spacing:.3px; }
+.mode-toggle { display:flex; border-radius:7px; overflow:hidden; border:1px solid #2a2a5a; flex-shrink:0; }
+.mode-btn { padding:5px 13px; font-size:11px; font-weight:700; cursor:pointer; border:none; transition:background .2s,color .2s; }
+.mode-btn.intake { background:#22c55e; color:#000; }
+.mode-btn.issue  { background:#1e1e3a; color:#555; }
+.mode-btn.issue.active { background:#3b82f6; color:#000; }
+.hdr-client { display:flex; gap:7px; align-items:center; flex-shrink:0; }
+.hdr-input { background:#12122a; border:1px solid #2a2a5a; border-radius:6px; color:#e0e0f0; padding:4px 9px; font-size:12px; width:120px; }
+.hdr-input::placeholder { color:#444; }
+.hdr-right { margin-left:auto; display:flex; gap:7px; align-items:center; }
+.second-screen-btn {
+  display:flex; align-items:center; gap:5px; padding:4px 10px; border-radius:7px;
+  font-size:11px; font-weight:700; cursor:pointer; border:1px solid #2a3a6a;
+  background:#1a2a4a; color:#7dd3fc; transition:opacity .2s;
+}
+.second-screen-btn .dot { width:7px; height:7px; border-radius:50%; background:#3b82f6; box-shadow:0 0 5px #3b82f6; }
+
+/* ── Body: 4 columns ── */
+.body { flex:1; display:grid; grid-template-columns:155px 1fr 300px; overflow:hidden; min-height:0; }
+.body.no-customer { grid-template-columns:155px 1fr 0px; }
+.body.no-customer .col-customer { display:none; }
+
+/* ── Col 1: Groups ── */
+.col-groups { background:#0f0f22; border-right:1px solid #1e1e4a; display:flex; flex-direction:column; overflow:hidden; }
+.col-title { padding:7px 11px; font-size:10px; font-weight:700; color:#3a3a5a; text-transform:uppercase; letter-spacing:.5px; border-bottom:1px solid #1e1e4a; flex-shrink:0; }
+.group-btn {
+  display:flex; align-items:center; gap:9px; padding:13px 11px;
+  font-size:12px; font-weight:600; cursor:pointer; border:none; background:none;
+  color:#666; border-bottom:1px solid #15152a; text-align:left; width:100%;
+  transition:background .15s, color .15s; border-left:3px solid transparent;
+}
+.group-btn:active { background:#1e1e3a; }
+.group-btn.active { background:#192a19; color:#53d769; border-left-color:#22c55e; }
+.group-btn .g-icon { font-size:18px; flex-shrink:0; }
+.group-btn .g-sub { font-size:10px; color:#3a3a5a; margin-top:1px; }
+
+/* ── Col 2: Centre ── */
+.col-center { background:#12122a; display:flex; flex-direction:column; overflow:hidden; min-height:0; }
+
+/* AI bar */
+.ai-bar { flex-shrink:0; padding:8px 10px; border-bottom:1px solid #1e1e4a; background:#0e0e20; }
+.ai-row { display:flex; gap:6px; align-items:center; margin-bottom:5px; }
+.ai-input {
+  flex:1; background:#12122a; border:1px solid #2a2a5a; border-radius:7px;
+  color:#e0e0f0; padding:7px 10px; font-size:13px; outline:none;
+}
+.ai-input:focus { border-color:#3b82f6; box-shadow:0 0 0 2px #3b82f620; }
+.ai-icon-btn {
+  padding:7px 11px; border-radius:7px; font-size:15px; cursor:pointer; border:none; flex-shrink:0;
+  transition:background .15s;
+}
+.ai-send { background:#3b82f6; color:#fff; }
+.ai-send:disabled { opacity:.4; cursor:not-allowed; }
+.ai-mic { background:#1e2a3a; color:#60a5fa; border:1px solid #2a3a5a; }
+.ai-mic.recording { background:#2a1414; color:#f87171; border-color:#ef4444; animation:pulse 1s infinite; }
+.ai-cam { background:#1e2a3a; color:#a78bfa; border:1px solid #2a3a5a; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+.ai-meta { display:flex; align-items:center; gap:8px; }
+.ai-backend-label { font-size:10px; color:#3a3a5a; }
+.ai-backend-sel { font-size:10px; padding:2px 6px; border-radius:5px; border:1px solid #2a2a5a; background:#12122a; color:#7dd3fc; cursor:pointer; }
+.ai-status { font-size:10px; color:#444; margin-left:auto; }
+.ai-results { display:none; margin-top:6px; background:#0a1a0a; border:1px solid #22c55e44; border-radius:7px; padding:6px 8px; max-height:120px; overflow-y:auto; }
+.ai-results.visible { display:block; }
+/* Subgroups bar */
+.subgroups-bar { display:none; flex-shrink:0; padding:7px 8px; gap:6px; overflow-x:auto; border-bottom:1px solid #1e1e4a; background:#0a0a1a; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; }
+.subgroups-bar.visible { display:flex; animation:sgSlideDown .2s ease; }
+@keyframes sgSlideDown { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+.subgrp-btn { display:flex; flex-direction:column; align-items:center; gap:3px; padding:6px 10px; border-radius:9px; border:1px solid #2a2a5a; background:#12122a; cursor:pointer; flex-shrink:0; transition:background .15s,border-color .15s; scroll-snap-align:start; min-width:72px; }
+.subgrp-btn:active { background:#1e1e3a; }
+.subgrp-btn.active { background:#192a19; border-color:#22c55e; }
+.subgrp-btn .sg-icon { font-size:22px; }
+.subgrp-btn .sg-label { font-size:10px; color:#7dd3fc; font-weight:600; text-align:center; line-height:1.2; max-width:70px; white-space:normal; }
+.subgrp-btn.active .sg-label { color:#53d769; }
+.ai-result-row { display:flex; align-items:center; gap:6px; padding:4px 0; border-bottom:1px solid #0f1e0f; font-size:11px; }
+.ai-result-row:last-child { border:none; }
+.ai-result-name { flex:1; color:#7dd3fc; font-weight:600; }
+.ai-result-qty { color:#aaa; font-size:10px; }
+.ai-result-price { color:#53d769; font-weight:700; min-width:52px; text-align:right; }
+.ai-result-add { background:#22c55e; color:#000; border:none; border-radius:5px; padding:3px 9px; font-size:11px; font-weight:700; cursor:pointer; flex-shrink:0; }
+
+/* Services section */
+.svc-section { display:flex; flex-direction:column; overflow:hidden; flex:1; min-height:0; }
+.svc-hdr { padding:6px 10px; border-bottom:1px solid #1e1e4a; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.svc-hdr-title { font-size:11px; font-weight:700; color:#7dd3fc; }
+.svc-search { background:#0f0f22; border:1px solid #2a2a5a; border-radius:5px; color:#e0e0f0; padding:3px 7px; font-size:11px; width:130px; }
+.svc-search::placeholder { color:#444; }
+.svc-grid { overflow-y:auto; padding:8px; display:grid; grid-template-columns:repeat(auto-fill,minmax(108px,1fr)); gap:6px; align-content:start; flex:1; }
+.svc-card { background:#0f1a2a; border:1px solid #1e2a3a; border-radius:9px; padding:9px 8px; text-align:center; cursor:pointer; transition:border-color .15s,background .15s; }
+.svc-card:active { background:#1a2a3a; }
+.svc-card.selected { background:#192a19; border:2px solid #22c55e; }
+.svc-card .sn { font-size:11px; color:#7dd3fc; font-weight:600; line-height:1.3; margin-bottom:3px; }
+.svc-card .sp { font-size:11px; color:#53d769; font-weight:700; }
+.svc-card .su { font-size:9px; color:#3a3a5a; }
+
+/* Cart section */
+.cart-section { flex-shrink:0; border-top:2px solid #22c55e33; display:flex; flex-direction:column; background:#070d07; max-height:38%; min-height:110px; }
+.cart-hdr { display:flex; align-items:center; justify-content:space-between; padding:6px 10px; border-bottom:1px solid #0e1e0e; cursor:pointer; user-select:none; flex-shrink:0; }
+.cart-hdr-left { display:flex; align-items:center; gap:7px; }
+.cart-badge { background:#22c55e; color:#000; border-radius:50%; width:17px; height:17px; font-size:9px; font-weight:800; display:inline-flex; align-items:center; justify-content:center; }
+.cart-label { font-size:11px; font-weight:700; color:#53d769; }
+.cart-total-h { font-size:13px; font-weight:800; color:#53d769; }
+.cart-chevron { font-size:10px; color:#3a3a5a; }
+.cart-grid { overflow-y:auto; padding:6px 8px; display:grid; grid-template-columns:repeat(auto-fill,minmax(128px,1fr)); gap:5px; align-content:start; flex:1; }
+.cart-card { background:#0d1e0d; border:1px solid #1e3a1e; border-radius:8px; padding:7px 8px; position:relative; }
+.cart-card .cc-name { font-size:11px; color:#7dd3fc; font-weight:600; line-height:1.3; margin-bottom:3px; padding-right:14px; }
+.cart-card .cc-par { font-size:9px; color:#2a4a2a; line-height:1.5; margin-bottom:3px; }
+.cart-card .cc-price { font-size:11px; color:#53d769; font-weight:700; }
+.cart-card .cc-qty { font-size:9px; color:#3a5a3a; }
+.cart-card .cc-del { position:absolute; top:4px; right:5px; background:none; border:none; color:#2a3a2a; font-size:12px; cursor:pointer; padding:1px; line-height:1; }
+.cart-card .cc-del:hover { color:#ef4444; }
+
+/* Checkout card — last in cart grid */
+.checkout-card {
+  background:#12100a; border:2px solid #f59e0b; border-radius:8px;
+  padding:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  cursor:pointer; min-height:72px; position:relative; overflow:hidden;
+  animation: border-pulse 10s ease-in-out infinite;
+}
+.checkout-card:active { background:#1e1800; }
+.checkout-card .co-total { font-size:10px; color:#7a5a0a; font-weight:600; position:relative; z-index:1; }
+.checkout-card .co-label { font-size:12px; font-weight:800; color:#f59e0b; text-align:center; line-height:1.3; padding:0 6px; position:relative; z-index:1; }
+.checkout-card::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(105deg,transparent 30%,#fbbf2455 50%,transparent 70%);
+  animation:shimmer-sweep 10s ease-in-out infinite;
+  pointer-events:none; z-index:0;
+}
+@keyframes shimmer-sweep {
+  0%   { transform:translateX(-130%) skewX(-15deg); opacity:0; }
+  5%   { opacity:1; }
+  40%  { transform:translateX(130%) skewX(-15deg); opacity:0; }
+  100% { transform:translateX(130%) skewX(-15deg); opacity:0; }
+}
+@keyframes border-pulse {
+  0%,100% { box-shadow:0 0 0 0 #f59e0b44; border-color:#f59e0b; }
+  50%      { box-shadow:0 0 0 5px #f59e0b22; border-color:#fbbf24; }
+}
+
+/* ── Col 3: Params ── */
+/* ── Param modal ── */
+.param-modal-overlay { display:none; position:fixed; inset:0; z-index:8000; background:rgba(0,0,0,.75); align-items:center; justify-content:center; }
+.param-modal-overlay.open { display:flex; }
+.param-modal-box { background:#0a0a18; border:2px solid #2a2a5a; border-radius:18px; width:min(96vw,var(--param-modal-w,1000px)); max-height:90vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 20px 60px #000a; }
+.param-modal-hdr { padding:14px 16px 12px; border-bottom:1px solid #1e1e4a; display:flex; align-items:flex-start; gap:10px; flex-shrink:0; background:#0d0d22; }
+.param-modal-hdr-info { flex:1; }
+.param-modal-name { font-size:15px; font-weight:800; color:#e0e0f0; }
+.param-modal-price { font-size:13px; color:#53d769; margin-top:3px; }
+.param-modal-close { background:#1e1e3a; border:none; border-radius:8px; color:#888; font-size:18px; cursor:pointer; padding:6px 10px; flex-shrink:0; }
+.param-modal-close:hover { color:#e0e0f0; }
+.param-modal-body { flex:1; overflow-y:auto; padding:14px; }
+.param-modal-footer { padding:12px 14px; border-top:1px solid #1e1e4a; flex-shrink:0; display:flex; flex-direction:column; gap:8px; }
+.param-modal-footer .add-btn { margin:0; width:100%; }
+.pm-ready-btn { display:flex; align-items:center; gap:10px; background:#0d1a0d; border:2px solid #1e3a1e; border-radius:10px; padding:11px 14px; cursor:pointer; width:100%; text-align:left; transition:border-color .15s; }
+.pm-ready-btn:hover { border-color:#f59e0b; }
+.pm-ready-ico { font-size:22px; flex-shrink:0; }
+.pm-ready-lbl { font-size:11px; color:#888; font-weight:600; flex-shrink:0; line-height:1.2; }
+.pm-ready-val { font-size:15px; font-weight:800; color:#f59e0b; flex:1; }
+/* Calendar modal */
+.cal-overlay { display:none; position:fixed; inset:0; z-index:9500; background:rgba(0,0,0,.88); align-items:center; justify-content:center; }
+.cal-overlay.open { display:flex; }
+.cal-box { background:#0a0a18; border:2px solid #2a2a5a; border-radius:20px; width:min(96vw,440px); padding:20px; box-shadow:0 20px 60px #000c; }
+.cal-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.cal-nav { background:#1e1e3a; border:none; color:#e0e0f0; font-size:20px; border-radius:10px; padding:10px 20px; cursor:pointer; }
+.cal-nav:active { background:#2a2a5a; }
+.cal-month-lbl { font-size:18px; font-weight:800; color:#e0e0f0; }
+.cal-grid { display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.cal-dh { text-align:center; font-size:11px; color:#555; padding:4px 0; font-weight:600; }
+.cal-day { text-align:center; padding:12px 2px; border-radius:10px; cursor:pointer; font-size:15px; font-weight:700; color:#c0c0e0; background:#0d0d22; border:none; width:100%; }
+.cal-day:active { background:#2a2a5a; }
+.cal-day.today { outline:2px solid #4a4a9a; }
+.cal-day.selected { background:#22c55e !important; color:#000 !important; }
+.cal-day.empty { background:transparent; cursor:default; }
+.cal-time { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:16px; padding:14px 0 8px; border-top:1px solid #1e1e3a; }
+.cal-t-lbl { font-size:12px; color:#888; }
+.cal-t-val { font-size:24px; font-weight:800; color:#e0e0f0; min-width:40px; text-align:center; }
+.cal-t-btn { background:#1e1e3a; border:none; color:#e0e0f0; font-size:22px; border-radius:8px; padding:8px 16px; cursor:pointer; }
+.cal-t-btn:active { background:#2a2a5a; }
+.cal-acts { display:flex; gap:10px; margin-top:16px; }
+.cal-btn-cancel { flex:1; background:#1e1e3a; border:none; color:#888; border-radius:12px; padding:16px; font-size:15px; cursor:pointer; }
+.cal-btn-ok { flex:2; background:#22c55e; border:none; color:#000; border-radius:12px; padding:16px; font-size:16px; font-weight:800; cursor:pointer; }
+/* legacy refs kept for JS compat */
+.params-hdr { display:none; }
+.params-body { display:none; }
+.param-sec { margin-bottom:12px; }
+.param-lbl { font-size:10px; font-weight:700; color:#3a3a5a; text-transform:uppercase; letter-spacing:.5px; margin-bottom:5px; }
+/* color circles */
+.color-row { display:flex; gap:5px; flex-wrap:wrap; }
+.color-dot { width:26px; height:26px; border-radius:50%; cursor:pointer; border:2px solid transparent; flex-shrink:0; transition:border-color .15s; }
+.color-dot.active { border-color:#fff; box-shadow:0 0 0 2px #22c55e; }
+/* chips */
+.chip-row { display:flex; gap:4px; flex-wrap:wrap; }
+.chip { padding:5px 9px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid #2a2a5a; background:#11111e; color:#666; transition:all .15s; }
+.chip.active { background:#192a19; border-color:#22c55e; color:#53d769; }
+/* defect chips */
+.defect-chips { display:flex; gap:4px; flex-wrap:wrap; max-height:200px; overflow-y:auto; margin-bottom:6px; padding-right:2px; }
+.defect-chips::-webkit-scrollbar { width:3px; } .defect-chips::-webkit-scrollbar-thumb { background:#2a4a2a; border-radius:2px; }
+.defect-chip { padding:5px 8px; border-radius:6px; font-size:10px; font-weight:600; cursor:pointer; border:1px solid #2a2a5a; background:#11111e; color:#888; transition:all .15s; user-select:none; }
+.defect-chip:active { background:#1e1e3a; }
+.defect-chip.active { background:#1a2a1a; border-color:#22c55e; color:#53d769; }
+.defect-detail-input { width:100%; background:#11111e; border:1px solid #2a2a5a; border-radius:6px; color:#e0e0f0; padding:6px 9px; font-size:12px; margin-top:4px; }
+.defect-detail-input:focus { outline:none; border-color:#3b82f6; }
+/* yes/no */
+.yn-row { display:flex; gap:5px; }
+.yn-btn { flex:1; padding:6px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; border:1px solid #2a2a5a; background:#11111e; color:#666; }
+.yn-btn.yes.active { background:#2a1414; border-color:#ef4444; color:#f87171; }
+.yn-btn.no.active  { background:#192a19; border-color:#22c55e; color:#53d769; }
+/* counter */
+.counter-row { display:flex; align-items:center; gap:9px; }
+.cnt-btn { width:30px; height:30px; border-radius:6px; background:#1e2a3a; border:none; color:#fff; font-size:17px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; }
+.cnt-val { font-size:17px; font-weight:700; color:#fff; min-width:26px; text-align:center; }
+/* numeric */
+.num-input { background:#0f0f22; border:1px solid #2a2a5a; border-radius:6px; color:#7dd3fc; padding:6px 9px; font-size:14px; font-weight:700; width:100px; }
+/* notes */
+.notes-input { width:100%; background:#0f0f22; border:1px solid #2a2a5a; border-radius:5px; color:#e0e0f0; padding:5px 7px; font-size:11px; resize:none; height:42px; }
+.add-btn { background:#22c55e; border:none; border-radius:8px; padding:11px; width:100%; color:#000; font-size:13px; font-weight:800; cursor:pointer; flex-shrink:0; transition:opacity .2s; }
+.add-btn:disabled { opacity:.3; cursor:not-allowed; }
+/* numeric stepper (size_m2) */
+.num-stepper { display:flex; align-items:center; gap:8px; }
+.num-stepper-val { min-width:52px; text-align:center; font-size:18px; font-weight:800; color:#e0e0f0; background:#11111e; border-radius:8px; padding:5px 10px; }
+/* subgroup page badge */
+.sg-page { font-size:9px; color:#888; display:block; margin-top:1px; }
+/* per-item ready date in checkout summary */
+.co-item-ready { display:flex; align-items:center; gap:6px; padding:3px 0 5px 4px; border-bottom:1px solid #0f1e0f; }
+.co-item-ready:last-child { border:none; }
+.co-item-ready-lbl { font-size:10px; color:#f59e0b; flex-shrink:0; }
+.co-item-ready input[type=datetime-local] { background:#0a0a1a; border:1px solid #2a3a1a; border-radius:6px; color:#f59e0b; padding:3px 6px; font-size:11px; flex:1; min-width:0; }
+.co-summary-block { margin-bottom:2px; }
+
+/* ── Col 4: Customer screen preview ── */
+.col-customer { background:#0a1020; border-left:2px solid #3b82f6; display:flex; flex-direction:column; overflow:hidden; }
+.cust-hdr { padding:7px 11px; background:#0d1728; border-bottom:1px solid #1e3060; display:flex; align-items:center; gap:7px; flex-shrink:0; }
+.cust-badge { background:#1e3060; color:#7dd3fc; font-size:9px; font-weight:700; padding:2px 7px; border-radius:8px; border:1px solid #3b82f6; }
+.cust-title { font-size:11px; font-weight:700; color:#7dd3fc; }
+.cust-body { flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:8px; }
+.cust-welcome { text-align:center; padding:10px 0; }
+.cust-logo { font-size:26px; }
+.cust-welcome h2 { font-size:14px; color:#e0e0f0; margin:4px 0 2px; }
+.cust-welcome p { font-size:10px; color:#2a3a5a; }
+.cust-adding { background:#0d2a0d; border:2px solid #22c55e; border-radius:9px; padding:9px 10px; display:none; }
+.cust-adding.visible { display:block; }
+.cust-adding-lbl { font-size:9px; color:#22c55e; font-weight:700; margin-bottom:3px; text-transform:uppercase; }
+.cust-adding-name { font-size:13px; color:#e0e0f0; font-weight:700; }
+.cust-adding-par { font-size:10px; color:#3a6a3a; margin-top:2px; }
+.cust-adding-price { font-size:14px; color:#53d769; font-weight:800; margin-top:3px; }
+.cust-sec-lbl { font-size:9px; font-weight:700; color:#2a3a5a; text-transform:uppercase; letter-spacing:.5px; }
+.cust-item { background:#0d1a30; border:1px solid #1e2a4a; border-radius:7px; padding:7px 9px; }
+.cust-item .cn { font-size:11px; color:#7dd3fc; font-weight:600; }
+.cust-item .cp { font-size:9px; color:#2a3a5a; margin-top:1px; }
+.cust-item .cv { font-size:12px; color:#53d769; font-weight:700; margin-top:3px; }
+.cust-total { display:flex; justify-content:space-between; align-items:center; padding:5px 0; }
+.cust-total .tl { font-size:10px; color:#444; }
+.cust-total .tv { font-size:17px; font-weight:800; color:#53d769; }
+.cust-footer { padding:7px 10px; background:#0d1020; border-top:1px solid #1e3060; text-align:center; flex-shrink:0; }
+.cust-footer p { font-size:9px; color:#1e2a4a; }
+
+/* ── Issue mode: search panel (replaces service grid) ── */
+.issue-panel { flex:1; display:none; flex-direction:column; padding:16px; gap:14px; overflow-y:auto; }
+.issue-panel.visible { display:flex; }
+.issue-label { font-size:12px; color:#7dd3fc; font-weight:700; }
+.issue-input-wrap { display:flex; gap:8px; }
+.issue-input { flex:1; background:#12122a; border:1px solid #2a2a5a; border-radius:7px; color:#e0e0f0; padding:9px 12px; font-size:14px; font-weight:600; }
+.issue-btn { background:#3b82f6; color:#fff; border:none; border-radius:7px; padding:9px 16px; font-size:13px; font-weight:700; cursor:pointer; }
+.issue-result { background:#0d1728; border:1px solid #1e3060; border-radius:10px; padding:12px; display:none; }
+.issue-result.visible { display:block; }
+.issue-result .ir-num { font-size:13px; font-weight:800; color:#7dd3fc; margin-bottom:4px; }
+.issue-result .ir-client { font-size:12px; color:#aaa; margin-bottom:6px; }
+.issue-result .ir-item { font-size:11px; color:#7dd3fc; padding:3px 0; border-bottom:1px solid #1e2a4a; }
+.issue-result .ir-item:last-of-type { border:none; }
+.issue-result .ir-total { font-size:13px; font-weight:700; color:#53d769; margin-top:6px; }
+.issue-confirm-btn { background:#22c55e; color:#000; border:none; border-radius:8px; padding:12px; width:100%; font-size:13px; font-weight:800; cursor:pointer; margin-top:10px; }
+
+/* ── Camera modal ── */
+.camera-modal { display:none; position:fixed; inset:0; z-index:9999; background:#000; flex-direction:column; align-items:center; justify-content:center; }
+.camera-modal.open { display:flex; }
+.camera-modal video { width:100%; max-height:70vh; object-fit:contain; background:#111; border-radius:8px; }
+.camera-modal canvas { display:none; }
+.camera-modal-controls { display:flex; gap:14px; margin-top:14px; }
+.cam-btn { padding:12px 28px; border:none; border-radius:40px; font-size:15px; font-weight:700; cursor:pointer; min-width:100px; }
+.cam-snap { background:#fff; color:#000; }
+.cam-close { background:rgba(255,255,255,.2); color:#fff; }
+
+/* ── Checkout modal ── */
+.checkout-modal { display:none; position:fixed; inset:0; z-index:8888; background:rgba(0,0,0,.88); align-items:center; justify-content:center; }
+.checkout-modal.open { display:flex; }
+.checkout-box { background:#0d1728; border:2px solid #f59e0b; border-radius:20px; padding:18px; width:96%; max-width:860px; max-height:94vh; overflow-y:auto; }
+.co-two-col { display:flex; gap:16px; align-items:flex-start; }
+.co-left { flex:1; min-width:0; }
+.co-right { flex:0 0 310px; display:flex; flex-direction:column; gap:10px; }
+@media(max-width:640px){ .co-two-col{flex-direction:column;} .co-right{flex:none;} }
+.co-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+.co-header h2 { font-size:16px; font-weight:800; color:#f59e0b; margin:0; }
+.co-total-badge { background:#192e19; border:1px solid #22c55e55; border-radius:12px; padding:6px 16px; font-size:18px; font-weight:800; color:#53d769; }
+.co-summary { background:#060c06; border-radius:10px; padding:8px 12px; margin-bottom:12px; max-height:110px; overflow-y:auto; }
+.co-summary-item { font-size:11px; color:#7dd3fc; padding:3px 0; border-bottom:1px solid #0f1e0f; display:flex; justify-content:space-between; gap:6px; }
+.co-summary-item:last-child { border:none; }
+.co-summary-name { flex:1; }
+.co-summary-amt { color:#53d769; white-space:nowrap; }
+.co-client-toggle { display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:10px; user-select:none; }
+.co-client-toggle input[type=checkbox] { width:18px; height:18px; cursor:pointer; accent-color:#3b82f6; }
+.co-client-toggle label { font-size:13px; color:#7dd3fc; cursor:pointer; }
+.co-anon-badge { font-size:11px; color:#555; margin-left:auto; }
+.co-client-fields { display:none; margin-bottom:12px; }
+.co-client-fields.open { display:block; }
+.co-field { margin-bottom:10px; }
+.co-field label { font-size:10px; color:#555; display:block; margin-bottom:3px; }
+.co-field input { width:100%; background:#12122a; border:1px solid #2a2a5a; border-radius:8px; color:#e0e0f0; padding:10px 12px; font-size:14px; }
+.co-field input:focus { outline:none; border-color:#3b82f6; }
+/* payment – large touchscreen buttons */
+.co-pay-label { font-size:10px; color:#555; margin-bottom:8px; text-transform:uppercase; letter-spacing:.5px; }
+.co-pay-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.co-pay-btn { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px; padding:16px 8px; border-radius:16px; border:2px solid #1e1e4a; background:#0a0a1a; cursor:pointer; transition:background .12s,border-color .12s; min-height:90px; }
+.co-pay-btn:active { transform:scale(.94); }
+.co-pay-btn.selected { border-color:#22c55e; background:#0d1e0d; box-shadow:0 0 16px #22c55e22; }
+.co-pay-icon { font-size:34px; line-height:1; }
+.co-pay-name { font-size:15px; font-weight:800; color:#e0e0f0; }
+.co-pay-desc { font-size:10px; color:#666; text-align:center; line-height:1.3; }
+.co-pay-btn.selected .co-pay-name { color:#53d769; }
+/* cash panel */
+.co-cash-panel { display:none; background:#060d06; border:1px solid #1a3a1a; border-radius:14px; padding:12px; }
+.co-cash-panel.open { display:flex; flex-direction:column; gap:10px; }
+.co-cash-display { text-align:right; background:#000; border-radius:10px; padding:10px 14px; }
+.co-cash-recv-lbl { font-size:10px; color:#555; }
+.co-cash-recv-val { font-size:30px; font-weight:800; color:#f59e0b; font-family:'Courier New',monospace; }
+.co-cash-change { display:flex; justify-content:space-between; align-items:center; padding:8px 14px; border-radius:8px; margin-top:6px; background:#111; }
+.co-cash-change.ok { background:#0d1e0d; }
+.co-cash-change.low { background:#1e0d0d; }
+.co-change-lbl { font-size:12px; color:#aaa; }
+.co-change-val { font-size:24px; font-weight:800; font-family:'Courier New',monospace; color:#555; }
+.co-cash-change.ok .co-change-val { color:#53d769; }
+.co-cash-change.low .co-change-val { color:#ef4444; }
+/* banknotes */
+.co-banknotes { display:flex; gap:7px; overflow-x:auto; padding-bottom:2px; }
+.co-banknotes::-webkit-scrollbar { height:3px; } .co-banknotes::-webkit-scrollbar-thumb { background:#2a4a2a; border-radius:2px; }
+.co-banknote { flex-shrink:0; padding:10px 16px; border-radius:10px; border:1px solid #2a4a2a; background:#0f1e0f; color:#86efac; font-size:14px; font-weight:700; cursor:pointer; }
+.co-banknote:active { background:#1a3a1a; transform:scale(.94); }
+/* numpad */
+.co-numpad { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; }
+.co-numpad-btn { border:none; border-radius:12px; height:60px; font-size:24px; font-weight:700; cursor:pointer; display:flex; align-items:center; justify-content:center; user-select:none; }
+.co-numpad-btn:active { transform:scale(.91); }
+.co-numpad-btn.num { background:#162436; color:#e0e0f0; }
+.co-numpad-btn.num:active { background:#1e3450; }
+.co-numpad-btn.del { background:#2a1e1e; color:#f87171; font-size:20px; }
+.co-numpad-btn.clr { background:#1a1e2a; color:#60a5fa; font-size:13px; font-weight:800; }
+/* ready date */
+.co-ready-row { background:#0a0a1a; border:1px solid #1e1e4a; border-radius:10px; padding:10px 14px; margin-top:10px; }
+.co-ready-label { font-size:10px; color:#555; text-transform:uppercase; letter-spacing:.5px; margin-bottom:4px; }
+.co-ready-val { font-size:16px; font-weight:700; color:#f59e0b; }
+.co-ready-input { width:100%; background:#12122a; border:1px solid #2a2a5a; border-radius:8px; color:#e0e0f0; padding:8px 12px; font-size:14px; margin-top:4px; box-sizing:border-box; }
+/* actions */
+.co-actions { display:flex; gap:10px; }
+.co-confirm { flex:1; background:#22c55e; border:none; border-radius:12px; padding:15px; color:#000; font-size:15px; font-weight:800; cursor:pointer; min-height:54px; }
+.co-confirm:disabled { opacity:.45; cursor:not-allowed; }
+.co-cancel { background:#1e1e3a; border:1px solid #2a2a5a; border-radius:12px; padding:15px 20px; color:#aaa; font-size:14px; cursor:pointer; }
+/* success */
+.checkout-success { display:none; text-align:center; padding:14px 0; }
+.checkout-success h3 { font-size:20px; color:#53d769; margin-bottom:6px; }
+.co-success-pay { display:inline-block; font-size:13px; background:#0d1e0d; border:1px solid #22c55e44; border-radius:8px; padding:5px 14px; color:#53d769; margin-bottom:4px; }
+.co-success-change { font-size:13px; color:#f59e0b; margin:4px 0 8px; min-height:20px; }
+.checkout-barcode { font-family:'Courier New',monospace; font-size:20px; letter-spacing:4px; color:#fff; background:#0f0f22; padding:12px; border-radius:10px; margin:10px 0; border:2px dashed #22c55e44; }
+.checkout-success-btns { display:flex; gap:8px; justify-content:center; margin-top:12px; flex-wrap:wrap; }
+.co-print-bon { background:#f59e0b; border:none; border-radius:10px; padding:12px 18px; color:#000; font-size:13px; font-weight:700; cursor:pointer; }
+.co-print-act { background:#3b82f6; border:none; border-radius:10px; padding:12px 18px; color:#fff; font-size:13px; font-weight:700; cursor:pointer; }
+.co-new-order-btn { background:#374151; border:none; border-radius:10px; padding:12px 18px; color:#e0e0f0; font-size:13px; font-weight:700; cursor:pointer; }
+/* ── Document modals ── */
+.doc-modal { display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.94); align-items:center; justify-content:center; }
+.doc-modal.open { display:flex; }
+.doc-wrap { display:flex; flex-direction:column; align-items:center; max-height:92vh; }
+.doc-box { background:#fff; color:#000; border-radius:8px; overflow-y:auto; max-height:74vh; }
+.doc-actions { display:flex; gap:8px; margin-top:12px; }
+.doc-print-btn { background:#22c55e; border:none; border-radius:8px; padding:12px 24px; font-size:14px; font-weight:800; cursor:pointer; }
+.doc-close-btn { background:#555; border:none; border-radius:8px; padding:12px 20px; font-size:14px; cursor:pointer; color:#fff; }
+/* Bon fiscal */
+.bon-box { width:272px; padding:16px 14px; font-family:'Courier New',monospace; font-size:11px; line-height:1.65; }
+.bon-center { text-align:center; }
+.bon-hr { border:none; border-top:1px dashed #000; margin:5px 0; }
+.bon-row { display:flex; justify-content:space-between; gap:4px; font-size:11px; }
+.bon-name { flex:1; word-break:break-word; }
+.bon-total { font-weight:800; font-size:13px; }
+.bon-footer { text-align:center; font-size:9px; color:#555; margin-top:6px; }
+/* Act de primire */
+.act-box { width:min(560px,90vw); padding:24px 28px; font-family:'Arial',sans-serif; font-size:12px; line-height:1.6; }
+.act-company { text-align:center; margin-bottom:12px; }
+.act-company-name { font-size:16px; font-weight:800; }
+.act-company-sub { font-size:10px; color:#555; }
+.act-title { text-align:center; font-size:14px; font-weight:800; text-transform:uppercase; letter-spacing:1px; border:2px solid #000; padding:8px; margin:10px 0; }
+.act-meta { display:grid; grid-template-columns:auto 1fr; gap:3px 14px; margin-bottom:12px; font-size:11px; }
+.act-meta-lbl { color:#555; white-space:nowrap; }
+.act-meta-val { font-weight:600; }
+.act-table { width:100%; border-collapse:collapse; margin-bottom:12px; font-size:10px; }
+.act-table th { background:#000; color:#fff; padding:5px 6px; text-align:left; }
+.act-table td { border-bottom:1px solid #ddd; padding:4px 6px; vertical-align:top; }
+.act-table tr:nth-child(even) td { background:#f9f9f9; }
+.act-params-cell { font-size:9px; color:#666; }
+.act-total-row td { border-top:2px solid #000; font-weight:800; background:#f0f0f0; padding:6px; }
+.act-payment { background:#f5f5f5; border:1px solid #ddd; border-radius:4px; padding:8px 12px; margin-bottom:12px; display:flex; justify-content:space-between; font-size:11px; align-items:center; }
+.act-change { font-weight:700; }
+.act-qr-block { display:flex; align-items:center; gap:14px; background:#f5f5f5; border-radius:6px; padding:10px 14px; margin-bottom:14px; }
+.act-qr-block img { width:80px; height:80px; flex-shrink:0; }
+.act-qr-text { font-size:10px; color:#555; }
+.act-qr-title { font-size:11px; font-weight:700; color:#000; margin-bottom:3px; }
+.act-sigs { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin-top:16px; }
+.act-sig-line { border-top:1px solid #000; padding-top:3px; font-size:10px; color:#555; margin-top:30px; }
+.act-ru { border-top:2px dashed #aaa; margin:14px 0 10px; padding-top:12px; font-size:11px; }
+.act-ru-title { font-size:9px; color:#888; text-transform:uppercase; letter-spacing:1px; margin-bottom:8px; font-weight:700; }
+/* print */
+@media print {
+  body > * { display:none !important; }
+  body.print-bon #bonPrintArea { display:block !important; position:static !important; background:#fff; color:#000; }
+  body.print-act #actPrintArea { display:block !important; position:static !important; background:#fff; color:#000; }
+}
+#bonPrintArea, #actPrintArea { display:none; }
+</style>
+</head>
+<body>
+<div class="kiosk">
+
+  <!-- ── Header ── -->
+  <div class="hdr">
+    <span class="hdr-title">✂️ NUFARUL</span>
+    <div class="mode-toggle" id="modeToggle">
+      <button class="mode-btn intake" id="btnIntake">📥 ПРИЁМ</button>
+      <button class="mode-btn issue"  id="btnIssue">📤 ВЫДАЧА</button>
+    </div>
+    <div class="hdr-client">
+      <input class="hdr-input" id="inpName"  placeholder="Имя клиента">
+      <input class="hdr-input" id="inpPhone" placeholder="Телефон">
+    </div>
+    <div class="hdr-right">
+      <button class="second-screen-btn" id="btnSecondScreen">
+        <span class="dot"></span>
+        <span>Экран покупателя 🖥️</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Body ── -->
+  <div class="body no-customer" id="body">
+
+    <!-- Col 1: Groups -->
+    <div class="col-groups">
+      <div class="col-title">Группы</div>
+      <div id="groupsList"></div>
+    </div>
+
+    <!-- Col 2: Centre -->
+    <div class="col-center">
+
+      <!-- AI bar -->
+      <div class="ai-bar">
+        <div class="ai-row">
+          <input class="ai-input" id="aiInput" placeholder="Набрать или продиктовать: «2 пальто, шуба...»">
+          <button class="ai-icon-btn ai-mic" id="aiMic" title="Голос">🎙</button>
+          <button class="ai-icon-btn ai-cam" id="aiCam" title="Камера">📷</button>
+          <button class="ai-icon-btn ai-send" id="aiSend">➜</button>
+        </div>
+        <div class="ai-meta">
+          <span class="ai-backend-label">⚙ Бэкенд:</span>
+          <select class="ai-backend-sel" id="aiBackend">
+            <option value="local">🐍 Local (rapidfuzz)</option>
+            <option value="oracle" selected>🔮 Oracle AI</option>
+          </select>
+          <span class="ai-status" id="aiStatus">Готов</span>
+        </div>
+        <div class="ai-results" id="aiResults"></div>
+      </div>
+
+      <!-- Subgroups bar -->
+      <div class="subgroups-bar" id="subgroupsBar"></div>
+
+      <!-- Services grid (intake) -->
+      <div class="svc-section" id="svcSection">
+        <div class="svc-hdr">
+          <span class="svc-hdr-title" id="svcGroupTitle">Выберите группу</span>
+          <input class="svc-search" id="svcSearch" placeholder="🔍 Поиск...">
+        </div>
+        <div class="svc-grid" id="svcGrid"></div>
+      </div>
+
+      <!-- Issue search panel (replaces service grid in ISSUE mode) -->
+      <div class="issue-panel" id="issuePanel">
+        <div class="issue-label">🔍 Поиск заказа по штрихкоду или номеру</div>
+        <div class="issue-input-wrap">
+          <input class="issue-input" id="issueInput" placeholder="Сканировать или ввести номер заказа..." autofocus>
+          <button class="issue-btn" id="issueSearchBtn">Найти</button>
+        </div>
+        <div class="issue-result" id="issueResult"></div>
+      </div>
+
+      <!-- Cart section -->
+      <div class="cart-section" id="cartSection">
+        <div class="cart-hdr" id="cartHdr">
+          <div class="cart-hdr-left">
+            <span class="cart-label">🛒 Корзина</span>
+            <span class="cart-badge" id="cartBadge">0</span>
+          </div>
+          <span class="cart-total-h" id="cartTotalH">0 MDL</span>
+          <span class="cart-chevron" id="cartChevron">▲</span>
+        </div>
+        <div class="cart-grid" id="cartGrid"></div>
+      </div>
+
+    </div>
+
+    <!-- Col 3: Customer screen preview -->
+    <div class="col-customer" id="colCustomer">
+      <div class="cust-hdr">
+        <span class="cust-badge">ЭКРАН ПОКУПАТЕЛЯ</span>
+        <span class="cust-title">window.open → second display</span>
+      </div>
+      <div class="cust-body" id="custBody">
+        <div class="cust-welcome">
+          <div class="cust-logo">✂️</div>
+          <h2>Nufarul Химчистка</h2>
+          <p>Добро пожаловать!</p>
+        </div>
+        <div class="cust-adding" id="custAdding">
+          <div class="cust-adding-lbl">▶ Добавляется сейчас</div>
+          <div class="cust-adding-name" id="custAddingName">—</div>
+          <div class="cust-adding-par" id="custAddingPar"></div>
+          <div class="cust-adding-price" id="custAddingPrice"></div>
+        </div>
+        <div class="cust-sec-lbl" id="custOrderLbl" style="display:none;">Ваш заказ</div>
+        <div id="custItems"></div>
+        <hr id="custDivider" style="border:none;border-top:1px solid #1e2a4a;display:none;">
+        <div class="cust-total" id="custTotal" style="display:none;">
+          <span class="tl">Итого</span>
+          <span class="tv" id="custTotalVal">0 MDL</span>
+        </div>
+      </div>
+      <div class="cust-footer"><p>Содержимое отображается на мониторе покупателя</p></div>
+    </div>
+  </div>
+</div>
+
+<!-- Param modal -->
+<div class="param-modal-overlay" id="paramModal">
+  <div class="param-modal-box">
+    <div class="param-modal-hdr">
+      <div class="param-modal-hdr-info">
+        <div class="param-modal-name" id="paramModalName"></div>
+        <div class="param-modal-price" id="paramModalPrice"></div>
+      </div>
+      <button class="param-modal-close" onclick="closeParamModal()">✕</button>
+    </div>
+    <div class="param-modal-body" id="paramModalBody"></div>
+    <div class="param-modal-footer">
+      <button class="pm-ready-btn" type="button" onclick="openCalModal()">
+        <span class="pm-ready-ico">📅</span>
+        <div style="display:flex;flex-direction:column;gap:2px;flex:1">
+          <span class="pm-ready-lbl">⏱ Termen de executare</span>
+          <span class="pm-ready-val" id="pmReadyVal">—</span>
+        </div>
+        <span style="font-size:14px;color:#555">▼</span>
+      </button>
+      <input type="hidden" id="paramModalReadyDate">
+      <button class="add-btn" id="addBtn" disabled>+ ДОБАВИТЬ В КОРЗИНУ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Calendar modal -->
+<div class="cal-overlay" id="calModal">
+  <div class="cal-box">
+    <div class="cal-hdr">
+      <button class="cal-nav" onclick="calNavMonth(-1)">◀</button>
+      <span class="cal-month-lbl" id="calMonthLbl"></span>
+      <button class="cal-nav" onclick="calNavMonth(1)">▶</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-time">
+      <span class="cal-t-lbl">Ora:</span>
+      <button class="cal-t-btn" onclick="calChgHour(-1)">−</button>
+      <span class="cal-t-val" id="calHourVal">15</span>
+      <button class="cal-t-btn" onclick="calChgHour(1)">+</button>
+      <span class="cal-t-lbl">:</span>
+      <button class="cal-t-btn" onclick="calChgMin(-15)">−</button>
+      <span class="cal-t-val" id="calMinVal">00</span>
+      <button class="cal-t-btn" onclick="calChgMin(15)">+</button>
+    </div>
+    <div class="cal-acts">
+      <button class="cal-btn-cancel" onclick="closeCalModal()">Отмена</button>
+      <button class="cal-btn-ok" onclick="confirmCalModal()">✓ Подтвердить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Camera modal -->
+<div class="camera-modal" id="cameraModal">
+  <video id="camVideo" autoplay playsinline></video>
+  <canvas id="camCanvas"></canvas>
+  <div style="margin-top:10px;">
+    <select id="camDeviceSel" style="padding:7px 10px;border-radius:7px;border:1px solid #555;background:#222;color:#fff;font-size:13px;max-width:90vw;"></select>
+  </div>
+  <div class="camera-modal-controls">
+    <button class="cam-btn cam-close" id="camClose">✕ Закрыть</button>
+    <button class="cam-btn cam-snap" id="camSnap">📸 Снимок</button>
+  </div>
+</div>
+
+<!-- Checkout modal -->
+<div class="checkout-modal" id="checkoutModal">
+  <div class="checkout-box">
+    <div id="checkoutForm">
+      <div class="co-header">
+        <h2>📋 Оформление</h2>
+        <div class="co-total-badge" id="coTotalBadge">0 MDL</div>
+      </div>
+
+      <div class="co-two-col">
+        <!-- LEFT: summary, client, payment method -->
+        <div class="co-left">
+          <div class="co-summary" id="coSummary"></div>
+
+          <div class="co-client-toggle">
+            <input type="checkbox" id="coClientToggle">
+            <label for="coClientToggle">Указать клиента</label>
+            <span class="co-anon-badge" id="coAnonBadge">Аноним</span>
+          </div>
+          <div class="co-client-fields" id="coClientFields">
+            <div class="co-field">
+              <label>Имя / Фамилия</label>
+              <input id="coName" placeholder="Иванов Иван" autocomplete="off">
+            </div>
+            <div class="co-field">
+              <label>Телефон</label>
+              <input id="coPhone" placeholder="+373 69 123 456" type="tel" autocomplete="off">
+            </div>
+          </div>
+
+          <div class="co-pay-label">Способ оплаты</div>
+          <div class="co-pay-grid">
+            <button class="co-pay-btn selected" data-pay="cash">
+              <span class="co-pay-icon">💵</span>
+              <span class="co-pay-name">Numerar</span>
+              <span class="co-pay-desc">Наличные</span>
+            </button>
+            <button class="co-pay-btn" data-pay="card">
+              <span class="co-pay-icon">💳</span>
+              <span class="co-pay-name">Card POS</span>
+              <span class="co-pay-desc">Visa / Mastercard</span>
+            </button>
+            <button class="co-pay-btn" data-pay="mia">
+              <span class="co-pay-icon">📱</span>
+              <span class="co-pay-name">MIA</span>
+              <span class="co-pay-desc">MAIB, transfer instant</span>
+            </button>
+            <button class="co-pay-btn" data-pay="mpay">
+              <span class="co-pay-icon">🏛</span>
+              <span class="co-pay-name">MPay</span>
+              <span class="co-pay-desc">Portalul e-guvernare</span>
+            </button>
+          </div>
+
+          <!-- Execution deadline shown per-item in summary above -->
+        </div>
+
+        <!-- RIGHT: cash panel (numpad + banknotes) + confirm -->
+        <div class="co-right">
+          <div class="co-cash-panel open" id="coCashPanel">
+            <div class="co-cash-display">
+              <div class="co-cash-recv-lbl">Primit / Получено (MDL)</div>
+              <div class="co-cash-recv-val" id="coCashVal">0</div>
+              <div class="co-cash-change" id="coCashChange">
+                <span class="co-change-lbl">Rest / Сдача</span>
+                <span class="co-change-val" id="coChangeVal">—</span>
+              </div>
+            </div>
+            <div class="co-banknotes">
+              <button class="co-banknote" data-bn="1">1</button>
+              <button class="co-banknote" data-bn="5">5</button>
+              <button class="co-banknote" data-bn="10">10</button>
+              <button class="co-banknote" data-bn="20">20</button>
+              <button class="co-banknote" data-bn="50">50</button>
+              <button class="co-banknote" data-bn="100">100</button>
+              <button class="co-banknote" data-bn="200">200</button>
+              <button class="co-banknote" data-bn="500">500</button>
+            </div>
+            <div class="co-numpad">
+              <button class="co-numpad-btn num" data-d="1">1</button>
+              <button class="co-numpad-btn num" data-d="2">2</button>
+              <button class="co-numpad-btn num" data-d="3">3</button>
+              <button class="co-numpad-btn num" data-d="4">4</button>
+              <button class="co-numpad-btn num" data-d="5">5</button>
+              <button class="co-numpad-btn num" data-d="6">6</button>
+              <button class="co-numpad-btn num" data-d="7">7</button>
+              <button class="co-numpad-btn num" data-d="8">8</button>
+              <button class="co-numpad-btn num" data-d="9">9</button>
+              <button class="co-numpad-btn clr" id="coNumClr">C</button>
+              <button class="co-numpad-btn num" data-d="0">0</button>
+              <button class="co-numpad-btn del" id="coNumDel">⌫</button>
+            </div>
+          </div>
+
+          <div class="co-actions">
+            <button class="co-confirm" id="coConfirmBtn">✓ ПОДТВЕРДИТЬ</button>
+            <button class="co-cancel" id="coCancelBtn">Отмена</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="checkout-success" id="checkoutSuccess">
+      <h3>✓ Заказ принят!</h3>
+      <div id="coSuccessNum" style="font-size:13px;color:#aaa;margin-bottom:4px;"></div>
+      <div class="co-success-pay" id="coSuccessPay"></div>
+      <div class="co-success-change" id="coSuccessChange"></div>
+      <div id="coReadySuccess" style="font-size:13px;color:#f59e0b;margin:4px 0 8px;display:none;"></div>
+      <div class="checkout-barcode" id="coBarcode"></div>
+      <div class="checkout-success-btns">
+        <button class="co-print-bon" id="coPrintBon">🖨 Bon Fiscal</button>
+        <button class="co-print-act" id="coPrintAct">📄 Act Primire</button>
+        <button class="co-new-order-btn" id="coNewOrderBtn">Новый заказ</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bon Fiscal document modal -->
+<div class="doc-modal" id="bonModal">
+  <div class="doc-wrap">
+    <div class="doc-box">
+      <div class="bon-box" id="bonContent"></div>
+    </div>
+    <div class="doc-actions">
+      <button class="doc-print-btn" onclick="printBon()">🖨 Imprimare</button>
+      <button class="doc-close-btn" onclick="document.getElementById('bonModal').classList.remove('open')">Închide</button>
+    </div>
+  </div>
+</div>
+
+<!-- Act de Primire document modal -->
+<div class="doc-modal" id="actModal">
+  <div class="doc-wrap">
+    <div class="doc-box">
+      <div class="act-box" id="actContent"></div>
+    </div>
+    <div class="doc-actions">
+      <button class="doc-print-btn" onclick="printAct()">🖨 Imprimare</button>
+      <button class="doc-close-btn" onclick="document.getElementById('actModal').classList.remove('open')">Închide</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden printable areas -->
+<div id="bonPrintArea"></div>
+<div id="actPrintArea"></div>
+
+<script>
+'use strict';
+const API_OP = '/api/nufarul-operator';
+const API_TS = '/api/nufarul-ts';
+
+// ── State ──────────────────────────────────────────────────────────────
+const PAGE_SIZE = 20;      // max items per subgroup page before splitting
+let groups = [];           // [{group_key, label_ru, icon, params_json, subgroups_json, ...}]
+let services = [];         // [{id, name_ru, price, unit, service_group, service_subgroup, ...}]
+let activeGroup = null;    // group_key string
+let selectedSvc = null;    // service object
+let groupParams = {};      // {group_key: parsed_params_array}
+let groupSubgroups = {};   // {group_key: [{key, label_ru, label_ro, icon, sort_order}]}
+let activeSubgroup = null; // subgroup key string | null = show all
+let activeSubgroupPage = 0; // current page within subgroup (0-based)
+let paramValues = {};      // {param_key: value} — current param panel state
+let cart = [];             // [{service_id, name, price, qty, params, params_summary}]
+let mode = 'intake';       // 'intake' | 'issue'
+let customerWin = null;  // window reference for second screen
+let cartOpen = true;
+let camStream = null;
+let recognition = null;
+let lastOrder = null;    // last confirmed order (for receipt)
+let selectedPayment = 'cash'; // default payment method
+
+// ── Boot ───────────────────────────────────────────────────────────────
+async function boot() {
+  await Promise.all([loadGroups(), loadServices(), loadSystemSettings()]);
+  renderGroups();
+  if (groups.length) selectGroup(groups[0].group_key);
+  renderCart();
+  initVoice();
+}
+
+async function loadSystemSettings() {
+  try {
+    const r = await apiFetch(API_TS + '/system-settings');
+    if (r.success && r.data && r.data.param_modal_width) {
+      const w = parseInt(r.data.param_modal_width.value, 10);
+      if (w > 0) document.documentElement.style.setProperty('--param-modal-w', w + 'px');
+    }
+  } catch(e) { /* keep CSS default */ }
+}
+
+async function loadGroups() {
+  try {
+    const r = await apiFetch(API_TS + '/group-params');
+    if (r.success) {
+      groups = r.data;
+      groups.forEach(g => {
+        try { groupParams[g.group_key] = JSON.parse(g.params_json || '[]'); }
+        catch(_) { groupParams[g.group_key] = []; }
+        try { groupSubgroups[g.group_key] = JSON.parse(g.subgroups_json || '[]'); }
+        catch(_) { groupSubgroups[g.group_key] = []; }
+      });
+    }
+  } catch(e) { console.error('loadGroups', e); }
+}
+
+async function loadServices() {
+  try {
+    const r = await apiFetch(API_OP + '/services');
+    if (r.success) services = r.data || [];
+  } catch(e) { console.error('loadServices', e); }
+}
+
+// ── Groups ─────────────────────────────────────────────────────────────
+function renderGroups() {
+  const el = document.getElementById('groupsList');
+  el.innerHTML = groups.map(g => {
+    const cnt = services.filter(s => s.service_group === g.group_key).length;
+    return `<button class="group-btn" data-gk="${esc(g.group_key)}" onclick="selectGroup('${esc(g.group_key)}')">
+      <span class="g-icon">${g.icon || '📦'}</span>
+      <div><div>${esc(g.label_ru || g.group_key)}</div><div class="g-sub">${cnt} услуг</div></div>
+    </button>`;
+  }).join('');
+}
+
+function selectGroup(gk) {
+  activeGroup = gk;
+  activeSubgroup = null;
+  activeSubgroupPage = 0;
+  document.querySelectorAll('.group-btn').forEach(b => b.classList.toggle('active', b.dataset.gk === gk));
+  const g = groups.find(x => x.group_key === gk);
+  document.getElementById('svcGroupTitle').textContent = (g ? (g.icon + ' ' + g.label_ru) : gk);
+  document.getElementById('svcSearch').value = '';
+  renderSubgroupsBar();
+  renderServices('');
+  clearParams();
+}
+
+// ── Subgroups ──────────────────────────────────────────────────────────
+function renderSubgroupsBar() {
+  const bar = document.getElementById('subgroupsBar');
+  const subs = groupSubgroups[activeGroup] || [];
+  if (!subs.length) {
+    bar.innerHTML = '';
+    bar.classList.remove('visible');
+    return;
+  }
+  const allBtn = `<button class="subgrp-btn${activeSubgroup===null?' active':''}" onclick="selectSubgroup(null,0)">
+    <span class="sg-icon">🔸</span>
+    <span class="sg-label">Все</span>
+  </button>`;
+  const subBtns = subs.map(s => {
+    const cnt = services.filter(x => x.service_group === activeGroup && x.service_subgroup === s.key).length;
+    if (cnt <= PAGE_SIZE) {
+      const isActive = activeSubgroup === s.key;
+      return `<button class="subgrp-btn${isActive?' active':''}" onclick="selectSubgroup('${esc(s.key)}',0)">
+        <span class="sg-icon">${esc(s.icon||'📦')}</span>
+        <span class="sg-label">${esc(s.label_ru||s.key)}</span>
+      </button>`;
+    }
+    // Split into pages
+    const pages = Math.ceil(cnt / PAGE_SIZE);
+    return Array.from({length: pages}, (_, pg) => {
+      const from = pg * PAGE_SIZE + 1;
+      const to = Math.min((pg+1) * PAGE_SIZE, cnt);
+      const isActive = activeSubgroup === s.key && activeSubgroupPage === pg;
+      return `<button class="subgrp-btn${isActive?' active':''}" onclick="selectSubgroup('${esc(s.key)}',${pg})">
+        <span class="sg-icon">${esc(s.icon||'📦')}</span>
+        <span class="sg-label">${esc(s.label_ru||s.key)}</span>
+        <span class="sg-page">${from}–${to}</span>
+      </button>`;
+    }).join('');
+  }).join('');
+  bar.innerHTML = allBtn + subBtns;
+  bar.classList.add('visible');
+}
+
+function selectSubgroup(key, page) {
+  activeSubgroup = key;
+  activeSubgroupPage = page || 0;
+  renderSubgroupsBar();
+  renderServices(document.getElementById('svcSearch').value);
+}
+
+// ── Services ───────────────────────────────────────────────────────────
+function renderServices(filter) {
+  const grid = document.getElementById('svcGrid');
+  let filtered = activeGroup
+    ? services.filter(s => s.service_group === activeGroup)
+    : services;
+  if (activeSubgroup) {
+    filtered = filtered.filter(s => s.service_subgroup === activeSubgroup);
+    // Apply page slice (only when not searching)
+    if (!filter) {
+      const start = activeSubgroupPage * PAGE_SIZE;
+      filtered = filtered.slice(start, start + PAGE_SIZE);
+    }
+  }
+  if (filter) {
+    filtered = filtered.filter(s => (s.name_ru || s.name || '').toLowerCase().includes(filter.toLowerCase()));
+  }
+  grid.innerHTML = filtered.map(s =>
+    `<div class="svc-card${selectedSvc && selectedSvc.id===s.id?' selected':''}" onclick="selectService(${s.id})">
+       <div class="sn">${esc(s.name_ru || s.name || '')}</div>
+       <div class="sp">${(s.price||0).toLocaleString('ru')} MDL</div>
+       <div class="su">/ ${esc(s.unit||'шт')}</div>
+     </div>`
+  ).join('');
+}
+
+document.getElementById('svcSearch').addEventListener('input', e => renderServices(e.target.value));
+
+function selectService(id) {
+  selectedSvc = services.find(s => s.id === id) || null;
+  if (!selectedSvc) return;
+  renderParamsPanel();
+  document.getElementById('addBtn').disabled = false;
+  updateCustomerAdding();
+}
+
+// ── Params modal ────────────────────────────────────────────────────────
+function clearParams() {
+  selectedSvc = null;
+  paramValues = {};
+  document.getElementById('addBtn').disabled = true;
+  closeParamModal();
+}
+
+function closeParamModal() {
+  document.getElementById('paramModal').classList.remove('open');
+}
+
+function renderParamsPanel() {
+  if (!selectedSvc) return;
+  document.getElementById('paramModalName').textContent = selectedSvc.name_ru || selectedSvc.name || '';
+  document.getElementById('paramModalPrice').textContent =
+    (selectedSvc.price||0).toLocaleString('ru') + ' MDL / ' + (selectedSvc.unit||'шт');
+
+  const params = groupParams[activeGroup] || [];
+  paramValues = {};
+  params.forEach(p => {
+    if (p.type === 'counter') paramValues[p.key] = p.min || 1;
+    else if (p.type === 'numeric') paramValues[p.key] = p.min || null;
+    else if (p.type === 'toggle') paramValues[p.key] = false;
+    else paramValues[p.key] = null;
+  });
+
+  document.getElementById('paramModalBody').innerHTML = params.map(p => renderParam(p)).join('');
+
+  // Pre-populate ready date from group lead_days
+  const grp = groups.find(g => g.group_key === (selectedSvc && selectedSvc.service_group));
+  const leadDays = grp && grp.lead_days != null ? Number(grp.lead_days) : null;
+  const rdInp = document.getElementById('paramModalReadyDate');
+  if (leadDays != null) {
+    const rd = addWorkingDays(new Date(), leadDays);
+    const localISO = rd.getFullYear() + '-' + String(rd.getMonth()+1).padStart(2,'0') + '-' + String(rd.getDate()).padStart(2,'0') + 'T' + String(rd.getHours()).padStart(2,'0') + ':' + String(rd.getMinutes()).padStart(2,'0');
+    rdInp.value = localISO;
+    document.getElementById('pmReadyVal').textContent = _fmtDate(rd);
+  } else {
+    rdInp.value = '';
+    document.getElementById('pmReadyVal').textContent = '— (не задан)';
+  }
+
+  document.getElementById('paramModal').classList.add('open');
+}
+
+function renderParam(p) {
+  const lbl = `<div class="param-lbl">${esc(p.label_ru||p.key)}</div>`;
+  switch(p.type) {
+    case 'color':
+      return `<div class="param-sec">${lbl}<div class="color-row">${
+        (p.options||[]).map(c =>
+          `<div class="color-dot" style="background:${esc(c)};" data-pk="${esc(p.key)}" data-val="${esc(c)}"
+               onclick="setParam('${esc(p.key)}','${esc(c)}',this,'color-dot')"></div>`
+        ).join('')
+      }</div></div>`;
+    case 'chips':
+      return `<div class="param-sec">${lbl}<div class="chip-row">${
+        (p.options||[]).map(o =>
+          `<span class="chip" data-pk="${esc(p.key)}" data-val="${esc(o)}"
+                onclick="setChip('${esc(p.key)}','${esc(o)}',this,${p.multi?'true':'false'})">${esc(o)}</span>`
+        ).join('')
+      }</div></div>`;
+    case 'toggle':
+      return `<div class="param-sec">${lbl}<div class="yn-row">
+        <button class="yn-btn yes" data-pk="${esc(p.key)}" data-val="true"
+                onclick="setParam('${esc(p.key)}',true,this,'yn-btn yes')">Есть / Да</button>
+        <button class="yn-btn no active" data-pk="${esc(p.key)}" data-val="false"
+                onclick="setParam('${esc(p.key)}',false,this,'yn-btn no')">Нет</button>
+      </div></div>`;
+    case 'counter':
+      return `<div class="param-sec">${lbl}<div class="counter-row">
+        <button class="cnt-btn" onclick="changeCount('${esc(p.key)}',-1)">−</button>
+        <span class="cnt-val" id="cnt_${esc(p.key)}">${p.min||1}</span>
+        <button class="cnt-btn" onclick="changeCount('${esc(p.key)}',1)">+</button>
+      </div></div>`;
+    case 'numeric': {
+      const step = p.step || null;
+      const minV = p.min != null ? p.min : 0;
+      const initV = minV || 0;
+      if (step) {
+        return `<div class="param-sec">${lbl}<div class="num-stepper">
+          <button class="cnt-btn" onclick="changeNumeric('${esc(p.key)}',${-step},${minV},${step})">−</button>
+          <span class="num-stepper-val" id="nst_${esc(p.key)}">${initV}</span>
+          <button class="cnt-btn" onclick="changeNumeric('${esc(p.key)}',${step},${minV},${step})">+</button>
+        </div></div>`;
+      }
+      return `<div class="param-sec">${lbl}
+        <input class="num-input" type="number" inputmode="decimal" step="0.1" min="0"
+               placeholder="${esc(p.placeholder||'0')}"
+               onchange="paramValues['${esc(p.key)}']=parseFloat(this.value)||null">
+      </div>`;
+    }
+    case 'notes':
+      return `<div class="param-sec">${lbl}
+        <textarea class="notes-input" placeholder="Комментарий..."
+                  oninput="paramValues['${esc(p.key)}']=this.value||null"></textarea>
+      </div>`;
+    case 'defects':
+      return `<div class="param-sec">${lbl}<div class="defect-chips">${
+        (p.options||[]).map(o =>
+          `<span class="defect-chip" data-pk="${esc(p.key)}" data-val="${esc(o)}"
+                onclick="toggleDefect('${esc(p.key)}','${esc(o)}',this)">${esc(o)}</span>`
+        ).join('')
+      }</div><input class="defect-detail-input" type="text" inputmode="text"
+        placeholder="Detaliu... (ex: la guler)"
+        oninput="paramValues['${esc(p.key)}__detail']=this.value||null">
+      </div>`;
+    default: return '';
+  }
+}
+
+function setParam(key, val, el, selector) {
+  paramValues[key] = val;
+  const row = el.closest('.yn-row, .color-row');
+  if (row) row.querySelectorAll('.' + selector.split(' ')[0]).forEach(x => x.classList.remove('active'));
+  el.classList.add('active');
+  updateCustomerAdding();
+}
+
+function setChip(key, val, el, multi) {
+  if (multi) {
+    if (!Array.isArray(paramValues[key])) paramValues[key] = [];
+    const idx = paramValues[key].indexOf(val);
+    if (idx >= 0) { paramValues[key].splice(idx,1); el.classList.remove('active'); }
+    else { paramValues[key].push(val); el.classList.add('active'); }
+  } else {
+    paramValues[key] = val;
+    el.closest('.chip-row').querySelectorAll('.chip').forEach(x => x.classList.remove('active'));
+    el.classList.add('active');
+  }
+  updateCustomerAdding();
+}
+
+function toggleDefect(key, val, el) {
+  if (!Array.isArray(paramValues[key])) paramValues[key] = [];
+  const idx = paramValues[key].indexOf(val);
+  if (idx >= 0) { paramValues[key].splice(idx, 1); el.classList.remove('active'); }
+  else { paramValues[key].push(val); el.classList.add('active'); }
+  updateCustomerAdding();
+}
+
+function changeCount(key, delta) {
+  const params = groupParams[activeGroup] || [];
+  const def = params.find(p => p.key === key);
+  const min = (def && def.min) || 1;
+  paramValues[key] = Math.max(min, (paramValues[key] || min) + delta);
+  const el = document.getElementById('cnt_' + key);
+  if (el) el.textContent = paramValues[key];
+  updateCustomerAdding();
+}
+
+function changeNumeric(key, delta, min, step) {
+  const cur = paramValues[key] || min;
+  const next = Math.max(min, Math.round((cur + delta) * 100) / 100);
+  paramValues[key] = next;
+  const el = document.getElementById('nst_' + key);
+  if (el) el.textContent = next % 1 === 0 ? next : next.toFixed(1);
+  updateCustomerAdding();
+}
+
+function buildParamSummary() {
+  const parts = [];
+  const params = groupParams[activeGroup] || [];
+  params.forEach(p => {
+    const v = paramValues[p.key];
+    if (p.type === 'defects') {
+      const chips = Array.isArray(v) ? v : [];
+      const detail = paramValues[p.key + '__detail'] || '';
+      if (chips.length || detail) {
+        let s = chips.join(', ');
+        if (detail) s += (s ? ' — ' : '') + detail;
+        parts.push(s);
+      }
+      return;
+    }
+    if (v === null || v === undefined || v === '' || v === false) return;
+    if (p.type === 'color') { parts.push('●'); return; }
+    if (p.type === 'toggle' && v === true) { parts.push(p.label_ru); return; }
+    if (p.type === 'counter') { /* skip — shown in qty */ return; }
+    if (Array.isArray(v)) { if(v.length) parts.push(v.join(', ')); return; }
+    parts.push(String(v));
+  });
+  return parts.join(' · ');
+}
+
+// ── Cart ───────────────────────────────────────────────────────────────
+document.getElementById('addBtn').addEventListener('click', () => {
+  if (!selectedSvc) return;
+  const itemCount = paramValues['qty'] || 1;
+  const size_m2 = (typeof paramValues['size_m2'] === 'number' && paramValues['size_m2'] > 0)
+    ? paramValues['size_m2'] : null;
+  const qty = size_m2 ? Math.round(size_m2 * itemCount * 100) / 100 : itemCount;
+  const summary = buildParamSummary();
+  const colorVal = paramValues['color'];
+  const colorDot = colorVal ? `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${colorVal};vertical-align:middle;margin-right:3px;"></span>` : '';
+  // Per-item ready date — use value from param modal ready-date input
+  const rdRaw = document.getElementById('paramModalReadyDate').value;
+  const itemReadyDate = rdRaw ? new Date(rdRaw) : null;
+
+  cart.push({
+    service_id: selectedSvc.id,
+    name: selectedSvc.name_ru || selectedSvc.name || '',
+    price: selectedSvc.price || 0,
+    qty: qty,
+    unit: selectedSvc.unit || 'шт',
+    params: Object.assign({}, paramValues),
+    params_summary: summary,
+    color_dot_html: colorDot,
+    ready_date: itemReadyDate,
+  });
+  renderCart();
+  pushCustomerState();
+  clearParams();
+  renderServices(document.getElementById('svcSearch').value);
+});
+
+function renderCart() {
+  const total = cart.reduce((s,i) => s + i.price * i.qty, 0);
+  document.getElementById('cartBadge').textContent = cart.length;
+  document.getElementById('cartTotalH').textContent = total.toFixed(0) + ' MDL';
+
+  if (!cartOpen) {
+    document.getElementById('cartGrid').style.display = 'none';
+    return;
+  }
+
+  const grid = document.getElementById('cartGrid');
+  let html = cart.map((item, idx) =>
+    `<div class="cart-card">
+       <button class="cc-del" onclick="removeCartItem(${idx})">✕</button>
+       <div class="cc-name">${item.color_dot_html||''}${esc(item.name)}</div>
+       <div class="cc-par">${esc(item.params_summary)}</div>
+       <div class="cc-price">${(item.price*item.qty).toFixed(0)} MDL</div>
+       <div class="cc-qty">× ${item.qty} ${esc(item.unit)}</div>
+     </div>`
+  ).join('');
+
+  if (cart.length > 0) {
+    html += `<div class="checkout-card" onclick="openCheckout()">
+      <div class="co-total">Итого: ${total.toFixed(0)} MDL</div>
+      <div class="co-label">✓ ОФОРМИТЬ<br>ЗАКАЗ →</div>
+    </div>`;
+  }
+  grid.innerHTML = html;
+}
+
+function removeCartItem(idx) {
+  cart.splice(idx, 1);
+  renderCart();
+  pushCustomerState();
+}
+
+document.getElementById('cartHdr').addEventListener('click', () => {
+  cartOpen = !cartOpen;
+  document.getElementById('cartGrid').style.display = cartOpen ? '' : 'none';
+  document.getElementById('cartChevron').textContent = cartOpen ? '▲' : '▼';
+});
+
+// ── Customer screen ────────────────────────────────────────────────────
+document.getElementById('btnSecondScreen').addEventListener('click', () => {
+  if (!customerWin || customerWin.closed) {
+    customerWin = window.open('/UNA.md/orasldev/nufarul-customer-screen', 'nuf_customer',
+      'width=800,height=900,menubar=no,toolbar=no,location=no,status=no');
+  } else {
+    customerWin.focus();
+  }
+  pushCustomerState();
+});
+
+function pushCustomerState() {
+  const state = {
+    cart: cart.map(i => ({ name:i.name, price:i.price, qty:i.qty, params_summary:i.params_summary })),
+    adding: null,
+  };
+  try { localStorage.setItem('nuf_cart_state', JSON.stringify(state)); } catch(_) {}
+  renderCustomerPreview(state);
+}
+
+function updateCustomerAdding() {
+  if (!selectedSvc) return;
+  const itemCount = paramValues['qty'] || 1;
+  const size_m2 = (typeof paramValues['size_m2'] === 'number' && paramValues['size_m2'] > 0)
+    ? paramValues['size_m2'] : null;
+  const qty = size_m2 ? Math.round(size_m2 * itemCount * 100) / 100 : itemCount;
+  const unit = selectedSvc.unit || 'шт';
+  const state = {
+    cart: cart.map(i => ({ name:i.name, price:i.price, qty:i.qty, unit:i.unit, params_summary:i.params_summary })),
+    adding: { name: selectedSvc.name_ru||selectedSvc.name, price: selectedSvc.price||0, qty, unit, params_summary: buildParamSummary() },
+  };
+  try { localStorage.setItem('nuf_cart_state', JSON.stringify(state)); } catch(_) {}
+  renderCustomerPreview(state);
+}
+
+function renderCustomerPreview(state) {
+  const adding = state.adding;
+  const addEl = document.getElementById('custAdding');
+  if (adding && adding.name) {
+    document.getElementById('custAddingName').textContent = adding.name;
+    document.getElementById('custAddingPar').textContent = adding.params_summary || '';
+    document.getElementById('custAddingPrice').textContent =
+      (adding.price||0).toFixed(0) + ' MDL × ' + (adding.qty||1) + ' ' + (adding.unit||'шт');
+    addEl.classList.add('visible');
+  } else {
+    addEl.classList.remove('visible');
+  }
+
+  const items = state.cart || [];
+  const lbl = document.getElementById('custOrderLbl');
+  const divider = document.getElementById('custDivider');
+  const totalEl = document.getElementById('custTotal');
+  const container = document.getElementById('custItems');
+
+  if (!items.length) {
+    container.innerHTML = '';
+    lbl.style.display = 'none';
+    divider.style.display = 'none';
+    totalEl.style.display = 'none';
+    return;
+  }
+  lbl.style.display = '';
+  divider.style.display = '';
+  totalEl.style.display = '';
+  let total = 0;
+  container.innerHTML = items.map(i => {
+    const line = i.price * (i.qty||1);
+    total += line;
+    return `<div class="cust-item">
+      <div class="cn">${esc(i.name)}${i.qty>1?' ×'+i.qty:''}</div>
+      ${i.params_summary ? '<div class="cp">'+esc(i.params_summary)+'</div>' : ''}
+      <div class="cv">${line.toFixed(0)} MDL</div>
+    </div>`;
+  }).join('');
+  document.getElementById('custTotalVal').textContent = total.toFixed(0) + ' MDL';
+}
+
+// ── Mode toggle ────────────────────────────────────────────────────────
+document.getElementById('btnIntake').addEventListener('click', () => setMode('intake'));
+document.getElementById('btnIssue').addEventListener('click',  () => setMode('issue'));
+
+function setMode(m) {
+  mode = m;
+  document.getElementById('btnIntake').classList.toggle('intake', m === 'intake');
+  document.getElementById('btnIssue').classList.toggle('issue', true);
+  document.getElementById('btnIssue').classList.toggle('active', m === 'issue');
+  document.getElementById('svcSection').style.display  = m === 'intake' ? '' : 'none';
+  document.getElementById('issuePanel').classList.toggle('visible', m === 'issue');
+  document.getElementById('cartSection').style.display = m === 'intake' ? '' : 'none';
+  document.getElementById('addBtn').style.display = m === 'intake' ? '' : 'none';
+  if (m === 'issue') {
+    document.getElementById('issueInput').focus();
+    clearParams();
+  }
+}
+
+// ── Issue mode ─────────────────────────────────────────────────────────
+document.getElementById('issueInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') searchIssue();
+});
+document.getElementById('issueSearchBtn').addEventListener('click', searchIssue);
+
+async function searchIssue() {
+  const barcode = document.getElementById('issueInput').value.trim();
+  if (!barcode) return;
+  const res = document.getElementById('issueResult');
+  res.innerHTML = '<span style="color:#555;font-size:11px;">Поиск...</span>';
+  res.classList.add('visible');
+  try {
+    const r = await apiFetch(API_OP + '/order-by-barcode?barcode=' + encodeURIComponent(barcode));
+    if (!r.success || !r.data) {
+      res.innerHTML = '<span style="color:#ef4444;font-size:12px;">Заказ не найден</span>';
+      return;
+    }
+    const o = r.data;
+    let itemsHtml = (o.items||[]).map(i =>
+      `<div class="ir-item">${esc(i.service_name||'')} × ${i.qty} — ${(i.amount||0).toFixed(0)} MDL</div>`
+    ).join('');
+    res.innerHTML = `
+      <div class="ir-num">Заказ ${esc(o.order_number||'')} · ${esc(o.status_name||o.status_code||'')}</div>
+      <div class="ir-client">${esc(o.client_name||'')} ${esc(o.client_phone||'')}</div>
+      ${itemsHtml}
+      <div class="ir-total">Итого: ${(o.total_amount||0).toFixed(0)} MDL</div>
+      <button class="issue-confirm-btn" onclick="confirmIssue(${o.id})">✓ ВЫДАТЬ ЗАКАЗ</button>`;
+  } catch(e) {
+    res.innerHTML = '<span style="color:#ef4444;font-size:12px;">Ошибка: ' + esc(e.message) + '</span>';
+  }
+}
+
+async function confirmIssue(orderId) {
+  try {
+    // Get 'issued' status id
+    const r = await apiFetch('/api/nufarul-admin/statuses');
+    const statuses = r.data || [];
+    const issued = statuses.find(s => s.code === 'issued' || s.code === 'ready');
+    if (!issued) { alert('Статус "выдан" не найден'); return; }
+    await apiFetch('/api/nufarul-admin/orders/' + orderId + '/status', {
+      method: 'PUT', body: JSON.stringify({ status_id: issued.id })
+    });
+    document.getElementById('issueResult').innerHTML +=
+      '<div style="color:#53d769;font-weight:700;margin-top:8px;font-size:13px;">✓ Заказ выдан!</div>';
+    document.getElementById('issueInput').value = '';
+    document.getElementById('issueInput').focus();
+  } catch(e) {
+    alert('Ошибка при смене статуса: ' + e.message);
+  }
+}
+
+// ── Checkout modal ─────────────────────────────────────────────────────
+const PAY_LABELS = { cash:'💵 Numerar', card:'💳 Card POS', mia:'📱 MIA', mpay:'🏛 MPay' };
+let cashStr = '';  // digit string for numpad input
+
+function updateCashDisplay() {
+  const total = cart.reduce((s,i) => s + i.price*i.qty, 0);
+  const recv = parseInt(cashStr || '0', 10);
+  document.getElementById('coCashVal').textContent = recv || '0';
+  const changeEl = document.getElementById('coCashChange');
+  const changeValEl = document.getElementById('coChangeVal');
+  if (!cashStr) {
+    changeEl.className = 'co-cash-change';
+    changeValEl.textContent = '—';
+  } else if (recv >= Math.ceil(total)) {
+    changeEl.className = 'co-cash-change ok';
+    changeValEl.textContent = (recv - Math.ceil(total)).toFixed(0) + ' MDL';
+  } else {
+    changeEl.className = 'co-cash-change low';
+    changeValEl.textContent = (recv - Math.ceil(total)).toFixed(0) + ' MDL';
+  }
+}
+
+// Payment method buttons
+document.querySelectorAll('.co-pay-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    selectedPayment = btn.dataset.pay;
+    document.querySelectorAll('.co-pay-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    const cashPanel = document.getElementById('coCashPanel');
+    cashPanel.classList.toggle('open', selectedPayment === 'cash');
+  });
+});
+
+// Numpad digit buttons
+document.querySelectorAll('.co-numpad-btn.num').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if (cashStr.length >= 6) return;
+    cashStr += btn.dataset.d;
+    updateCashDisplay();
+  });
+});
+
+document.getElementById('coNumDel').addEventListener('click', () => {
+  cashStr = cashStr.slice(0, -1);
+  updateCashDisplay();
+});
+
+document.getElementById('coNumClr').addEventListener('click', () => {
+  cashStr = '';
+  updateCashDisplay();
+});
+
+// Banknote shortcuts
+document.querySelectorAll('.co-banknote').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const val = parseInt(btn.dataset.bn, 10);
+    const cur = parseInt(cashStr || '0', 10);
+    cashStr = String(cur + val);
+    if (cashStr.length > 6) cashStr = cashStr.slice(0, 6);
+    updateCashDisplay();
+  });
+});
+
+// Client toggle
+document.getElementById('coClientToggle').addEventListener('change', function() {
+  const fields = document.getElementById('coClientFields');
+  const badge = document.getElementById('coAnonBadge');
+  if (this.checked) {
+    fields.classList.add('open');
+    badge.style.display = 'none';
+    document.getElementById('coName').focus();
+  } else {
+    fields.classList.remove('open');
+    badge.style.display = '';
+    document.getElementById('coName').value = '';
+    document.getElementById('coPhone').value = '';
+  }
+});
+
+function openCheckout() {
+  lastOrder = null;
+  cashStr = '';
+  const modal = document.getElementById('checkoutModal');
+  document.getElementById('checkoutForm').style.display = '';
+  document.getElementById('checkoutSuccess').style.display = 'none';
+  // Reset client to anonymous
+  document.getElementById('coClientToggle').checked = false;
+  document.getElementById('coClientFields').classList.remove('open');
+  document.getElementById('coAnonBadge').style.display = '';
+  document.getElementById('coName').value = document.getElementById('inpName').value;
+  document.getElementById('coPhone').value = document.getElementById('inpPhone').value;
+  if (document.getElementById('coName').value) {
+    document.getElementById('coClientToggle').checked = true;
+    document.getElementById('coClientFields').classList.add('open');
+    document.getElementById('coAnonBadge').style.display = 'none';
+  }
+  // Reset payment to cash + show cash panel
+  selectedPayment = 'cash';
+  document.querySelectorAll('.co-pay-btn').forEach(b => b.classList.toggle('selected', b.dataset.pay === 'cash'));
+  document.getElementById('coCashPanel').classList.add('open');
+  updateCashDisplay();
+  // Summary
+  const total = cart.reduce((s,i) => s + i.price*i.qty, 0);
+  document.getElementById('coTotalBadge').textContent = total.toFixed(0) + ' MDL';
+  document.getElementById('coSummary').innerHTML = cart.map((i, idx) => {
+    const amt = (i.price * i.qty).toFixed(0);
+    const par = i.params_summary ? ` · ${i.params_summary}` : '';
+    const rdVal = i.ready_date ? i.ready_date.toISOString().slice(0,16) : '';
+    const rdDisp = i.ready_date ? _fmtDate(i.ready_date) : '—';
+    return `<div class="co-summary-block">
+      <div class="co-summary-item"><span class="co-summary-name">${esc(i.name)}${esc(par)}</span><span class="co-summary-amt">${amt} MDL</span></div>
+      ${i.ready_date ? `<div class="co-item-ready"><span class="co-item-ready-lbl">⏱ Termen:</span><span style="font-size:11px;color:#f59e0b">${rdDisp}</span></div>` : ''}
+    </div>`;
+  }).join('');
+  modal.classList.add('open');
+}
+
+function updateCartReadyBadge() { /* removed — deadline now set per-item in param modal */ }
+
+// ── Touch calendar ──────────────────────────────────────────────────────
+const CAL_MO = ['Ianuarie','Februarie','Martie','Aprilie','Mai','Iunie','Iulie','August','Septembrie','Octombrie','Noiembrie','Decembrie'];
+const CAL_DH = ['L','Ma','Mi','J','V','S','D'];
+let calY = 0, calM = 0, calD = 0, calH = 15, calMin = 0;
+
+function openCalModal() {
+  const raw = document.getElementById('paramModalReadyDate').value;
+  const base = raw ? new Date(raw) : addWorkingDays(new Date(), 0);
+  calY = base.getFullYear(); calM = base.getMonth(); calD = base.getDate();
+  calH = raw ? base.getHours() : 15; calMin = raw ? base.getMinutes() : 0;
+  _renderCal();
+  document.getElementById('calModal').classList.add('open');
+}
+function closeCalModal() { document.getElementById('calModal').classList.remove('open'); }
+function confirmCalModal() {
+  const d = new Date(calY, calM, calD, calH, calMin, 0, 0);
+  const iso = calY + '-' + String(calM+1).padStart(2,'0') + '-' + String(calD).padStart(2,'0') + 'T' + String(calH).padStart(2,'0') + ':' + String(calMin).padStart(2,'0');
+  document.getElementById('paramModalReadyDate').value = iso;
+  document.getElementById('pmReadyVal').textContent = _fmtDate(d);
+  closeCalModal();
+}
+function calNavMonth(d) {
+  calM += d;
+  if (calM < 0) { calM = 11; calY--; }
+  if (calM > 11) { calM = 0; calY++; }
+  _renderCal();
+}
+function calChgHour(d) {
+  calH = (calH + d + 24) % 24;
+  document.getElementById('calHourVal').textContent = String(calH).padStart(2,'0');
+}
+function calChgMin(d) {
+  calMin = ((calMin + d) % 60 + 60) % 60;
+  document.getElementById('calMinVal').textContent = String(calMin).padStart(2,'0');
+}
+function calSelDay(d) { calD = d; _renderCal(); }
+function _renderCal() {
+  document.getElementById('calMonthLbl').textContent = CAL_MO[calM] + ' ' + calY;
+  document.getElementById('calHourVal').textContent = String(calH).padStart(2,'0');
+  document.getElementById('calMinVal').textContent = String(calMin).padStart(2,'0');
+  const today = new Date();
+  const firstDow = new Date(calY, calM, 1).getDay(); // 0=Sun
+  const startOff = firstDow === 0 ? 6 : firstDow - 1; // Mon-first offset
+  const daysInMo = new Date(calY, calM + 1, 0).getDate();
+  const dh = CAL_DH.map(n => `<div class="cal-dh">${n}</div>`).join('');
+  const empty = Array(startOff).fill('<div class="cal-day empty"></div>').join('');
+  const days = Array.from({length: daysInMo}, (_, i) => {
+    const n = i + 1;
+    const isToday = today.getFullYear()===calY && today.getMonth()===calM && today.getDate()===n;
+    const isSel = calD === n;
+    return `<button class="cal-day${isToday?' today':''}${isSel?' selected':''}" onclick="calSelDay(${n})">${n}</button>`;
+  }).join('');
+  document.getElementById('calGrid').innerHTML = dh + empty + days;
+}
+
+document.getElementById('coCancelBtn').addEventListener('click', () => {
+  document.getElementById('checkoutModal').classList.remove('open');
+});
+
+document.getElementById('coConfirmBtn').addEventListener('click', async () => {
+  const useClient = document.getElementById('coClientToggle').checked;
+  const name = useClient ? (document.getElementById('coName').value.trim() || 'Аноним') : 'Аноним';
+  const phone = useClient ? document.getElementById('coPhone').value.trim() : '';
+  const btn = document.getElementById('coConfirmBtn');
+  btn.disabled = true;
+  btn.textContent = '...';
+  try {
+    // Order ready_date = max of all item ready_dates
+    const allDates = cart.map(i => i.ready_date).filter(d => d instanceof Date && !isNaN(d));
+    const orderReadyDate = allDates.length ? new Date(Math.max(...allDates.map(d => d.getTime()))) : null;
+    const readyDateISO = orderReadyDate ? orderReadyDate.toISOString().slice(0,16) : null;
+    const payload = {
+      client_name: name,
+      client_phone: phone,
+      payment_method: selectedPayment,
+      notes: '',
+      ready_date: readyDateISO,
+      items: cart.map(i => ({
+        service_id: i.service_id,
+        qty: i.qty,
+        price: i.price,
+        params: i.params,
+      }))
+    };
+    const r = await apiFetch(API_TS + '/order', { method:'POST', body: JSON.stringify(payload) });
+    if (!r.success) throw new Error(r.error || 'Ошибка создания заказа');
+    const total = r.total_amount || cart.reduce((s,i) => s+i.price*i.qty, 0);
+    const recv = parseInt(cashStr || '0', 10);
+    const change = (selectedPayment === 'cash' && recv > 0) ? recv - Math.ceil(total) : null;
+    const readyDateObj = orderReadyDate;
+    lastOrder = {
+      order_number: r.order_number || '',
+      barcode: r.barcode || r.order_number || '',
+      client_name: name,
+      client_phone: phone,
+      payment_method: selectedPayment,
+      cash_received: recv,
+      change: change,
+      items: cart.map(i => ({...i})),
+      total: total,
+      date: new Date(),
+      ready_date: readyDateObj,
+    };
+    document.getElementById('checkoutForm').style.display = 'none';
+    document.getElementById('checkoutSuccess').style.display = 'block';
+    document.getElementById('coSuccessNum').textContent = 'Заказ: ' + lastOrder.order_number;
+    document.getElementById('coSuccessPay').textContent = PAY_LABELS[selectedPayment] || selectedPayment;
+    const changeEl = document.getElementById('coSuccessChange');
+    if (selectedPayment === 'cash' && recv > 0 && change !== null) {
+      changeEl.textContent = change >= 0
+        ? `Rest: ${change.toFixed(0)} MDL`
+        : `Insuficient: ${Math.abs(change).toFixed(0)} MDL`;
+    } else {
+      changeEl.textContent = '';
+    }
+    document.getElementById('coBarcode').textContent = lastOrder.barcode;
+    const rdSuccessEl = document.getElementById('coReadySuccess');
+    if (rdSuccessEl) {
+      rdSuccessEl.textContent = readyDateObj ? '⏱ ' + _fmtDate(readyDateObj) : '';
+      rdSuccessEl.style.display = readyDateObj ? '' : 'none';
+    }
+    cart = [];
+    renderCart();
+    pushCustomerState();
+    document.getElementById('inpName').value = '';
+    document.getElementById('inpPhone').value = '';
+  } catch(e) {
+    alert('Ошибка: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '✓ ПОДТВЕРДИТЬ';
+  }
+});
+
+document.getElementById('coNewOrderBtn').addEventListener('click', resetNewOrder);
+document.getElementById('coPrintBon').addEventListener('click', openBon);
+document.getElementById('coPrintAct').addEventListener('click', openAct);
+
+function resetNewOrder() {
+  document.getElementById('checkoutModal').classList.remove('open');
+  document.getElementById('checkoutSuccess').style.display = 'none';
+  document.getElementById('checkoutForm').style.display = '';
+  clearParams();
+  activeGroup = null;
+  activeSubgroup = null;
+  renderGroups();
+  renderSubgroupsBar();
+  document.getElementById('svcSearch').value = '';
+  renderServices('');
+}
+
+// ── Document generation ─────────────────────────────────────────────────
+
+function _fmtDate(d) {
+  return d.toLocaleString('ro', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+}
+
+// Moldova public holidays (MM-DD) — weekends are handled separately
+const MD_HOLIDAYS = ['01-01','01-07','03-08','05-01','05-09','06-01','08-27','08-31','12-25','12-26'];
+
+function addWorkingDays(startDate, days) {
+  let d = new Date(startDate);
+  let added = 0;
+  while (added < days) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow === 0 || dow === 6) continue;
+    const mmdd = String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+    if (MD_HOLIDAYS.includes(mmdd)) continue;
+    added++;
+  }
+  d.setHours(15, 0, 0, 0);
+  return d;
+}
+
+function computeCartReadyDate() {
+  if (!cart.length) return { date: null, manual: false };
+  let maxDays = 0;
+  let hasUnknown = false;
+  for (const item of cart) {
+    const svc = services.find(s => s.id === item.service_id);
+    if (!svc) continue;
+    const grp = groups.find(g => g.group_key === svc.service_group);
+    if (!grp || grp.lead_days == null) { hasUnknown = true; continue; }
+    if (Number(grp.lead_days) > maxDays) maxDays = Number(grp.lead_days);
+  }
+  if (hasUnknown && maxDays === 0) return { date: null, manual: true };
+  return { date: addWorkingDays(new Date(), maxDays), manual: hasUnknown };
+}
+
+function buildBonHtml(o) {
+  const dateStr = _fmtDate(o.date);
+  const itemsHtml = o.items.map(i => {
+    const amt = (i.price * i.qty).toFixed(2);
+    return `<div class="bon-row"><span class="bon-name">${esc(i.name||'')}</span></div>`
+      + `<div class="bon-row"><span>${i.qty} x ${(i.price||0).toFixed(2)}</span><span>${amt}</span></div>`
+      + (i.params_summary ? `<div style="font-size:9px;color:#777;padding-left:4px">${esc(i.params_summary)}</div>` : '');
+  }).join('');
+  const changeRows = (o.payment_method === 'cash' && o.cash_received > 0 && o.change !== null)
+    ? `<div class="bon-row"><span>Primit / Принято:</span><span>${o.cash_received.toFixed(0)} MDL</span></div>`
+      + `<div class="bon-row"><span>Rest / Сдача:</span><span>${Math.max(0,o.change).toFixed(0)} MDL</span></div>`
+    : '';
+  return `
+    <div class="bon-center"><strong>Nufarul Curățătorie</strong></div>
+    <div class="bon-center" style="font-size:9px">Chișinău, str. Albișoara 78</div>
+    <div class="bon-center" style="font-size:9px">Tel: +373 69 XXX XXX</div>
+    <hr class="bon-hr">
+    <div class="bon-row"><span>BON FISCAL (EMULARE)</span></div>
+    <div class="bon-row"><span>Data:</span><span>${dateStr}</span></div>
+    ${o.ready_date ? `<div class="bon-row"><span>Termen:</span><span>${_fmtDate(o.ready_date)}</span></div>` : ''}
+    <div class="bon-row"><span>Comanda:</span><span>${esc(o.order_number)}</span></div>
+    <div class="bon-row"><span>Client:</span><span>${esc(o.client_name)}</span></div>
+    ${o.client_phone ? `<div class="bon-row"><span>Tel:</span><span>${esc(o.client_phone)}</span></div>` : ''}
+    <hr class="bon-hr">
+    ${itemsHtml}
+    <hr class="bon-hr">
+    <div class="bon-row bon-total"><span>TOTAL:</span><span>${(o.total||0).toFixed(2)} MDL</span></div>
+    <div class="bon-row"><span>Plată:</span><span>${esc(PAY_LABELS[o.payment_method] || o.payment_method || 'Numerar')}</span></div>
+    ${changeRows}
+    <hr class="bon-hr">
+    <div class="bon-footer">*** EMULARE — Nu este bon fiscal real ***</div>
+    <div class="bon-footer">${esc(o.order_number)}</div>
+  `;
+}
+
+function buildActHtml(o) {
+  const dateStr = _fmtDate(o.date);
+  const _toDate = v => v instanceof Date ? v : (v ? new Date(v) : null);
+  const allRd = o.items.map(i => _toDate(i.ready_date)).filter(d => d && !isNaN(d));
+  const maxRd = allRd.length ? new Date(Math.max(...allRd.map(d => d.getTime()))) : _toDate(o.ready_date);
+  const itemRows = o.items.map((i, idx) => {
+    const amt = (i.price * i.qty).toFixed(2);
+    const params = i.params_summary ? `<div class="act-params-cell">${esc(i.params_summary)}</div>` : '';
+    const rdDate = _toDate(i.ready_date);
+    const rdRow = rdDate ? `<div style="font-size:9px;color:#b45309;margin-top:3px;font-weight:700">⏱ ${_fmtDate(rdDate)}</div>` : '';
+    return `<tr>
+      <td>${idx+1}</td>
+      <td>${esc(i.name||'')}${params}${rdRow}</td>
+      <td style="text-align:center">${i.qty}</td>
+      <td style="text-align:right">${(i.price||0).toFixed(2)}</td>
+      <td style="text-align:right">${amt}</td>
+    </tr>`;
+  }).join('');
+  const total = (o.total||0).toFixed(2);
+  const payMethod = PAY_LABELS[o.payment_method] || o.payment_method || 'Numerar';
+  const changeStr = (o.payment_method === 'cash' && o.cash_received > 0 && o.change !== null)
+    ? `Primit: ${o.cash_received.toFixed(0)} MDL | Rest: ${Math.max(0,o.change).toFixed(0)} MDL`
+    : '';
+  const qrUrl = 'https://nufarul.com';
+  const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(qrUrl)}&format=png`;
+  const ruSection = `
+    <div class="act-ru">
+      <div class="act-ru-title">Дополнительно на русском языке / Suplimentar în limba rusă</div>
+      <strong>АКТ ПРИЁМКИ</strong><br>
+      Заказ №${esc(o.order_number)} от ${dateStr}<br>
+      Клиент: ${esc(o.client_name)}${o.client_phone ? ' · ' + esc(o.client_phone) : ''}<br>
+      Принят: ${dateStr}${maxRd ? ` · Срок исполнения (макс): <strong>${_fmtDate(maxRd)}</strong>` : ''}<br>
+      Итого: ${total} MDL · Оплата: ${esc(payMethod)}<br>
+      ${changeStr ? 'Принято: ' + o.cash_received.toFixed(0) + ' MDL · Сдача: ' + Math.max(0,o.change).toFixed(0) + ' MDL<br>' : ''}
+      <div style="margin-top:6px;font-size:10px;color:#555">Товары/услуги перечислены в таблице выше.</div>
+    </div>`;
+  return `
+    <div class="act-company">
+      <div class="act-company-name">Nufarul Curățătorie</div>
+      <div class="act-company-sub">Chișinău, str. Albișoara 78 · Tel: +373 69 XXX XXX</div>
+    </div>
+    <div class="act-title">Act de Primire nr. ${esc(o.order_number)}</div>
+    <div class="act-meta">
+      <span class="act-meta-lbl">Data primirii:</span><span class="act-meta-val">${dateStr}</span>
+      ${maxRd ? `<span class="act-meta-lbl" style="color:#b45309">Data executării (max):</span><span class="act-meta-val" style="font-weight:700;color:#b45309">${_fmtDate(maxRd)}</span>` : ''}
+      <span class="act-meta-lbl">Client:</span><span class="act-meta-val">${esc(o.client_name)}</span>
+      ${o.client_phone ? `<span class="act-meta-lbl">Telefon:</span><span class="act-meta-val">${esc(o.client_phone)}</span>` : ''}
+    </div>
+    <table class="act-table">
+      <thead><tr>
+        <th>#</th><th>Serviciu / Articol</th><th style="text-align:center">Cant.</th>
+        <th style="text-align:right">Preț</th><th style="text-align:right">Total</th>
+      </tr></thead>
+      <tbody>${itemRows}</tbody>
+      <tfoot><tr class="act-total-row">
+        <td colspan="4">TOTAL</td><td style="text-align:right">${total} MDL</td>
+      </tr></tfoot>
+    </table>
+    <div class="act-payment">
+      <span>Metoda de plată: <strong>${esc(payMethod)}</strong></span>
+      ${changeStr ? `<span class="act-change">${esc(changeStr)}</span>` : ''}
+    </div>
+    <div class="act-qr-block">
+      <img src="${qrSrc}" alt="QR">
+      <div>
+        <div class="act-qr-title">Reguli de curățătorie</div>
+        <div class="act-qr-text">Scanați codul QR pentru instrucțiunile de îngrijire a articolelor predate la curățătorie.</div>
+      </div>
+    </div>
+    <div class="act-sigs">
+      <div><div class="act-sig-line">Recepționer / Оператор</div></div>
+      <div><div class="act-sig-line">Client / Клиент</div></div>
+    </div>
+    ${ruSection}
+  `;
+}
+
+function openBon() {
+  if (!lastOrder) return;
+  document.getElementById('bonContent').innerHTML = buildBonHtml(lastOrder);
+  document.getElementById('bonModal').classList.add('open');
+}
+
+function printBon() {
+  if (!lastOrder) return;
+  document.getElementById('bonPrintArea').innerHTML = buildBonHtml(lastOrder);
+  document.body.classList.add('print-bon');
+  window.print();
+  document.body.classList.remove('print-bon');
+  document.getElementById('bonModal').classList.remove('open');
+}
+
+function openAct() {
+  if (!lastOrder) return;
+  document.getElementById('actContent').innerHTML = buildActHtml(lastOrder);
+  document.getElementById('actModal').classList.add('open');
+}
+
+function printAct() {
+  if (!lastOrder) return;
+  document.getElementById('actPrintArea').innerHTML = buildActHtml(lastOrder);
+  document.body.classList.add('print-act');
+  window.print();
+  document.body.classList.remove('print-act');
+  document.getElementById('actModal').classList.remove('open');
+}
+
+// ── AI bar ────────────────────────────────────────────────────────────
+document.getElementById('aiSend').addEventListener('click', runAI);
+document.getElementById('aiInput').addEventListener('keydown', e => { if (e.key === 'Enter') runAI(); });
+
+async function runAI() {
+  const text = document.getElementById('aiInput').value.trim();
+  if (!text) return;
+  const statusEl = document.getElementById('aiStatus');
+  const sendBtn = document.getElementById('aiSend');
+  const backend = document.getElementById('aiBackend').value;
+  statusEl.textContent = 'Анализ...';
+  sendBtn.disabled = true;
+  try {
+    const r = await apiFetch(API_OP + '/ai-parse-order', {
+      method: 'POST',
+      body: JSON.stringify({ text, backend })
+    });
+    if (r.success && r.matches && r.matches.length) {
+      renderAIResults(r.matches);
+      statusEl.textContent = (r.backend==='oracle'?'🔮 Oracle':'🐍 Local') + ' → ' + r.matches.length + ' позиций';
+    } else {
+      statusEl.textContent = r.error || 'Ничего не найдено';
+      document.getElementById('aiResults').classList.remove('visible');
+    }
+  } catch(e) {
+    statusEl.textContent = 'Ошибка: ' + (e.message||'');
+    document.getElementById('aiResults').classList.remove('visible');
+  } finally {
+    sendBtn.disabled = false;
+  }
+}
+
+function renderAIResults(matches) {
+  const container = document.getElementById('aiResults');
+  container.innerHTML = matches.map((m, i) => {
+    const svc = m.service_id ? services.find(s => s.id === m.service_id) : null;
+    const name = svc ? (svc.name_ru || svc.name) : (m.service_name || '?');
+    const price = svc ? svc.price : (m.price || 0);
+    const qty = m.qty || 1;
+    return `<div class="ai-result-row">
+      <span class="ai-result-name">${esc(name)}</span>
+      <span class="ai-result-qty">× ${qty}</span>
+      <span class="ai-result-price">${(price*qty).toFixed(0)} MDL</span>
+      <button class="ai-result-add" onclick="addAIResult(${m.service_id||0},${qty})">+ Добавить</button>
+    </div>`;
+  }).join('');
+  container.classList.add('visible');
+}
+
+function addAIResult(serviceId, qty) {
+  const svc = services.find(s => s.id === serviceId);
+  if (!svc) return;
+  cart.push({
+    service_id: svc.id,
+    name: svc.name_ru || svc.name || '',
+    price: svc.price || 0,
+    qty: qty,
+    unit: svc.unit || 'шт',
+    params: {},
+    params_summary: '',
+    color_dot_html: '',
+  });
+  renderCart();
+  pushCustomerState();
+}
+
+// ── Voice ─────────────────────────────────────────────────────────────
+function initVoice() {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const micBtn = document.getElementById('aiMic');
+  if (!SpeechRec) { micBtn.style.opacity = '.3'; micBtn.title = 'Недоступно'; return; }
+  recognition = new SpeechRec();
+  recognition.lang = 'ru-RU';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  let recording = false;
+  recognition.onresult = e => {
+    const text = Array.from(e.results).map(r => r[0].transcript).join(' ');
+    document.getElementById('aiInput').value = text;
+    runAI();
+  };
+  recognition.onend = () => {
+    recording = false;
+    micBtn.classList.remove('recording');
+    micBtn.textContent = '🎙';
+    document.getElementById('aiStatus').textContent = 'Готов';
+  };
+  recognition.onerror = e => {
+    recording = false;
+    micBtn.classList.remove('recording');
+    micBtn.textContent = '🎙';
+    if (e.error !== 'no-speech') document.getElementById('aiStatus').textContent = 'Ошибка: ' + e.error;
+  };
+  micBtn.addEventListener('click', () => {
+    if (recording) { recognition.stop(); return; }
+    recording = true;
+    micBtn.classList.add('recording');
+    micBtn.textContent = '⏹';
+    document.getElementById('aiStatus').textContent = '🔴 Запись...';
+    recognition.start();
+  });
+}
+
+// ── Camera ────────────────────────────────────────────────────────────
+document.getElementById('aiCam').addEventListener('click', openCamera);
+document.getElementById('camClose').addEventListener('click', closeCamera);
+document.getElementById('camSnap').addEventListener('click', snapCamera);
+
+async function openCamera() {
+  const modal = document.getElementById('cameraModal');
+  modal.classList.add('open');
+  try {
+    const devices = await navigator.mediaDevices.enumerateDevices();
+    const cameras = devices.filter(d => d.kind === 'videoinput');
+    const sel = document.getElementById('camDeviceSel');
+    sel.innerHTML = cameras.map(d =>
+      `<option value="${esc(d.deviceId)}">${esc(d.label || 'Камера')}</option>`
+    ).join('');
+    const deviceId = sel.value;
+    const constraints = deviceId
+      ? { video: { deviceId: { exact: deviceId } } }
+      : { video: { facingMode: 'environment' } };
+    camStream = await navigator.mediaDevices.getUserMedia(constraints);
+    document.getElementById('camVideo').srcObject = camStream;
+  } catch(e) {
+    alert('Камера недоступна: ' + e.message);
+    closeCamera();
+  }
+}
+
+function closeCamera() {
+  if (camStream) { camStream.getTracks().forEach(t => t.stop()); camStream = null; }
+  document.getElementById('cameraModal').classList.remove('open');
+  document.getElementById('camVideo').srcObject = null;
+}
+
+function snapCamera() {
+  const video = document.getElementById('camVideo');
+  const canvas = document.getElementById('camCanvas');
+  canvas.width = video.videoWidth;
+  canvas.height = video.videoHeight;
+  canvas.getContext('2d').drawImage(video, 0, 0);
+  // Photo captured — for now just close camera; photo attachment can be added later
+  closeCamera();
+  document.getElementById('aiStatus').textContent = '📷 Снимок сохранён';
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────
+async function apiFetch(url, opts={}) {
+  const r = await fetch(url, { headers:{'Content-Type':'application/json'}, ...opts });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+boot();
+</script>
+</body>
+</html>

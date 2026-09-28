@@ -1,0 +1,62 @@
+{
+  "dashboard_id": "08",
+  "dashboard_name": "Colass: Catalog + Estimator",
+  "dashboard_description": "Встроенные виджеты Colass: каталог ресурсов/работ и сметчик.",
+  "widgets": [
+    {
+      "widget_id": "colass_catalog_embed",
+      "window_id": "colass-catalog-window",
+      "title": "🏗️ Colass — Каталог",
+      "widget_type": "embed",
+      "embed_url": "/UNA.md/orasldev/colass-catalog",
+      "position": { "top": 20, "left": 20 },
+      "size": { "width": 900, "height": 540 },
+      "z_index": 100,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Каталог работ F5 и ресурсов F3 с иерархией и нормами расхода."
+    },
+    {
+      "widget_id": "colass_estimator_embed",
+      "window_id": "colass-estimator-window",
+      "title": "🧮 Colass — Сметчик",
+      "widget_type": "embed",
+      "embed_url": "/UNA.md/orasldev/colass-estimator",
+      "position": { "top": 40, "left": 950 },
+      "size": { "width": 980, "height": 700 },
+      "z_index": 99,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Интерфейс сметчика с добавлением работ из каталога и итогами по категориям."
+    },
+    {
+      "widget_id": "documentation_08",
+      "window_id": "documentation-08-window",
+      "title": "📚 Документация Dashboard",
+      "widget_type": "documentation",
+      "dashboard_id": "08",
+      "position": { "top": 580, "left": 20 },
+      "size": { "width": 520, "height": 280 },
+      "z_index": 50,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Документация и ссылки по модулю Colass."
+    }
+  ],
+  "metadata": {
+    "created_at": "2026-02-12",
+    "version": "1.0",
+    "update_interval": 60,
+    "websocket_enabled": true,
+    "default_layout": "free"
+  }
+}

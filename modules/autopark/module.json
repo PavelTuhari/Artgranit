@@ -1,0 +1,20 @@
+{
+  "title": {
+    "ru": "Автопарк — бензовозы и зарплата водителей",
+    "ro": "Parc auto — autocisterne și salarizarea șoferilor",
+    "en": "Fleet — fuel tankers & driver payroll"
+  },
+  "icon": "🚚",
+  "order": 46,
+  "url": "/UNA.md/orasldev/autopark",
+  "docs": "docs/Autopark",
+  "sql_prefix": "FLT_",
+  "descr": "Расчёт зарплаты водителей бензовозов по нормативному пробегу, контроль маршрутов и расхода дизельного топлива, планирование поставок на АЗС — по ТЗ клиента Bemol",
+  "pages": {
+    "/UNA.md/orasldev/autopark": {
+      "ru": "Автопарк",
+      "ro": "Parc auto",
+      "en": "Fleet"
+    }
+  }
+}

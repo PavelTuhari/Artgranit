@@ -1,0 +1,814 @@
+{# Мониторинг офиса: сеть и Telegram-каналы Zabbix.
+   Одностраничная панель модуля netmon. Базу адреса берём через url_for —
+   модуль не привязан к точке монтирования (CLAUDE.md, правило №1). #}
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мониторинг офиса — сеть и Telegram</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#30363d; --txt:#e6edf3; --dim:#8b949e;
+    --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --crit:#f85149; --mid:#db6d28;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+       background:var(--bg);color:var(--txt)}
+  header{position:sticky;top:0;z-index:20;background:#0d1117ee;backdrop-filter:blur(8px);
+         border-bottom:1px solid var(--line);padding:12px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:17px;margin:0;font-weight:650}
+  header .sub{color:var(--dim);font-size:12px}
+  .spacer{flex:1}
+  button{background:#21262d;color:var(--txt);border:1px solid var(--line);border-radius:7px;
+         padding:7px 13px;cursor:pointer;font-size:13px}
+  button:hover{border-color:var(--acc);color:var(--acc)}
+  button.primary{background:var(--acc);color:#0d1117;border-color:var(--acc);font-weight:600}
+  button:disabled{opacity:.5;cursor:wait}
+  nav{display:flex;gap:4px;padding:10px 18px 0;flex-wrap:wrap}
+  nav a{padding:7px 14px;border-radius:7px 7px 0 0;color:var(--dim);text-decoration:none;
+        border:1px solid transparent;font-size:13px}
+  nav a.on{background:var(--panel);color:var(--txt);border-color:var(--line);border-bottom-color:var(--panel)}
+  main{padding:0 18px 40px}
+  .panel{display:none;background:var(--panel);border:1px solid var(--line);border-radius:0 10px 10px 10px;padding:16px}
+  .panel.on{display:block}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .tile{background:#0d1117;border:1px solid var(--line);border-radius:10px;padding:13px}
+  .tile .v{font-size:25px;font-weight:700;line-height:1.1}
+  .tile .l{color:var(--dim);font-size:12px;margin-top:3px}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .crit{color:var(--crit)} .mid{color:var(--mid)} .dim{color:var(--dim)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px;
+     position:sticky;top:0;background:var(--panel)}
+  tr:hover td{background:#1c2128}
+  .tbl-wrap{overflow-x:auto;max-height:66vh;overflow-y:auto}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+  .b-ok{background:#23863622;color:var(--ok);border:1px solid #2386364d}
+  .b-no{background:#f8514922;color:var(--crit);border:1px solid #f851494d}
+  .b-dim{background:#8b949e22;color:var(--dim);border:1px solid #8b949e4d}
+  .b-warn{background:#d2992222;color:var(--warn);border:1px solid #d299224d}
+  .chan{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px;margin-bottom:18px}
+  .card{background:#0d1117;border:1px solid var(--line);border-radius:11px;padding:15px}
+  .card.live{border-color:#2386364d;box-shadow:0 0 0 1px #23863622}
+  .card h3{margin:0 0 3px;font-size:15px;display:flex;gap:8px;align-items:center}
+  .card .cid{font-family:ui-monospace,SFMono-Regular,monospace;font-size:11px;color:var(--dim)}
+  .card .row{display:flex;gap:16px;margin-top:11px;flex-wrap:wrap}
+  .card .row div{font-size:12px;color:var(--dim)}
+  .card .row b{display:block;font-size:17px;color:var(--txt);font-weight:650}
+  .bar{display:flex;gap:2px;align-items:flex-end;height:52px;margin-top:12px}
+  .bar span{flex:1;background:var(--acc);border-radius:2px 2px 0 0;min-height:2px;opacity:.75}
+  .bar span:hover{opacity:1}
+  .feed{max-height:62vh;overflow-y:auto}
+  .msg{display:flex;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line)}
+  .msg:hover{background:#1c2128}
+  .msg .em{font-size:15px;width:24px;flex:0 0 24px;text-align:center}
+  .msg .body{flex:1;min-width:0}
+  .msg .subj{font-size:13px;word-break:break-word}
+  .msg .meta{color:var(--dim);font-size:11px;margin-top:2px}
+  .filters{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+  select,input[type=search]{background:#0d1117;color:var(--txt);border:1px solid var(--line);
+    border-radius:7px;padding:6px 10px;font-size:13px}
+  .note{color:var(--dim);font-size:12px;margin-top:12px}
+  code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px;color:var(--acc)}
+  @media(max-width:640px){th{position:static}.tiles{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>📡 Мониторинг офиса</h1>
+  <span class="sub" id="hdr">загрузка…</span>
+  <span class="spacer"></span>
+  <button id="btn-sync-tg">↻ Telegram</button>
+  <button id="btn-sync-dev">↻ Скан сети</button>
+  <button id="btn-sync-pve">↻ Proxmox</button>
+  <button id="btn-sync-as">↻ Домены</button>
+  <button class="primary" id="btn-reload">Обновить</button>
+</header>
+
+<nav>
+  <a href="#" class="on" data-p="dash">Сводка</a>
+  <a href="#" data-p="devices">Устройства</a>
+  <a href="#" data-p="channels">Telegram-каналы</a>
+  <a href="#" data-p="feed">Лента сообщений</a>
+  <a href="#" data-p="zabbix">Обзор Zabbix</a>
+  <a href="#" data-p="pve">Proxmox: машины</a>
+  <a href="#" data-p="assets">Домены и стойка</a>
+  <a href="#" data-p="vault">Доступы</a>
+  <a href="#" data-p="fac">Оборудование офиса</a>
+</nav>
+
+<main>
+  <section class="panel on" id="p-dash">
+    <div class="tiles" id="dash-tiles"></div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Состав сети по классам устройств</h3>
+    <div class="tbl-wrap"><table id="kind-tbl"><thead>
+      <tr><th>Класс устройства</th><th style="width:90px">Штук</th><th>Доля</th></tr>
+    </thead><tbody></tbody></table></div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Кто чаще всего попадает в Telegram</h3>
+    <div class="tbl-wrap"><table id="top-tbl"><thead>
+      <tr><th>Хост</th><th style="width:110px">Сообщений</th></tr>
+    </thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-devices">
+    <div class="filters">
+      <select id="f-kind"><option value="">Все классы</option></select>
+      <label style="font-size:13px;color:var(--dim)">
+        <input type="checkbox" id="f-missing"> только вне мониторинга</label>
+      <input type="search" id="f-find" placeholder="поиск по IP, имени, порту…" style="flex:1;min-width:160px">
+      <span class="dim" id="dev-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="dev-tbl"><thead><tr>
+      <th style="width:120px">IP</th><th>Класс</th><th>Имя / заголовок</th>
+      <th style="width:150px">Порты</th><th style="width:100px">Важность</th>
+      <th style="width:150px">Zabbix</th><th style="width:90px">Статус</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-channels">
+    <div class="chan" id="chan-cards"></div>
+    <div class="note">Канал считается включённым, когда в Zabbix активны и тип media, и сам адресат
+      у пользователя. Выключенный канал оставлен в списке намеренно: по нему видно, что адресат
+      заведён, но сообщения туда не идут.</div>
+  </section>
+
+  <section class="panel" id="p-feed">
+    <div class="filters">
+      <select id="f-chan"><option value="">Все каналы</option></select>
+      <select id="f-sev">
+        <option value="">Любая важность</option>
+        <option value="disaster">🔴🔴 Disaster</option>
+        <option value="high">🔴 High</option>
+        <option value="average">🟠 Average</option>
+        <option value="warning">🟡 Warning</option>
+        <option value="resolved">🟢 Resolved</option>
+      </select>
+      <input type="search" id="f-msg" placeholder="поиск по тексту…" style="flex:1;min-width:160px">
+      <span class="dim" id="feed-count"></span>
+    </div>
+    <div class="feed" id="feed"></div>
+  </section>
+
+  <section class="panel" id="p-zabbix">
+    <div class="tiles" id="zbx-tiles"></div>
+    <div class="filters">
+      <input type="search" id="f-zbx" placeholder="поиск по хосту, IP, группе, шаблону…" style="flex:1;min-width:200px">
+      <label style="font-size:13px;color:var(--dim)"><input type="checkbox" id="f-zbx-bad"> только с проблемами</label>
+      <span class="dim" id="zbx-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="zbx-tbl"><thead><tr>
+      <th style="width:150px">Хост</th><th style="width:110px">IP</th><th>Группы</th>
+      <th style="width:90px">Элементов</th><th style="width:90px">Сломано</th>
+      <th style="width:90px">Проблем</th><th style="width:120px">Агент</th><th style="width:90px">Статус</th>
+    </tr></thead><tbody></tbody></table></div>
+    <div class="note">Данные читаются напрямую из Zabbix в момент открытия — это его текущее состояние, а не снимок из базы.</div>
+  </section>
+
+  <section class="panel" id="p-pve">
+    <div class="tiles" id="pve-tiles"></div>
+    <div class="filters">
+      <select id="f-pve-dec"><option value="">Любое решение</option></select>
+      <select id="f-pve-st">
+        <option value="">Все состояния</option>
+        <option value="running">запущенные</option>
+        <option value="stopped">выключенные</option>
+      </select>
+      <label style="font-size:13px;color:var(--dim)"><input type="checkbox" id="f-pve-risk"> только с рисками</label>
+      <input type="search" id="f-pve" placeholder="поиск по имени, VMID, роли, IP…" style="flex:1;min-width:180px">
+      <span class="dim" id="pve-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="pve-tbl"><thead><tr>
+      <th style="width:64px">VMID</th><th style="width:160px">Имя</th><th style="width:64px">Тип</th>
+      <th style="width:90px">Состояние</th><th style="width:110px">CPU / RAM</th>
+      <th style="width:80px">Диск</th><th style="width:100px">Бэкап</th>
+      <th>Роль</th><th style="width:150px">Решение</th>
+    </tr></thead><tbody></tbody></table></div>
+    <div class="note">Строка кликается — откроется полный паспорт машины. Учётные данные из описаний на гипервизоре
+      намеренно не показываются.</div>
+  </section>
+
+  <section class="panel" id="p-assets">
+    <div class="tiles" id="as-tiles"></div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Домены: сроки и кому платить</h3>
+    <div class="tbl-wrap"><table id="dom-tbl"><thead><tr>
+      <th style="width:150px">Домен</th><th style="width:110px">Истекает</th>
+      <th style="width:110px">Осталось</th><th style="width:170px">Регистратор</th>
+      <th>Назначение</th><th style="width:120px">Владелец</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Перерасход электроэнергии</h3>
+    <div id="energy-box"></div>
+    <div class="tbl-wrap" style="margin-top:10px"><table id="night-tbl"><thead><tr>
+      <th style="width:170px">Устройство</th><th style="width:120px">Тип</th>
+      <th style="width:140px">Доступен ночью</th><th>Вывод</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Серверы в стойке: статус и инструкции</h3>
+    <div id="rack-box"></div>
+  </section>
+
+  <section class="panel" id="p-vault">
+    <div class="tiles" id="v-tiles"></div>
+    <div id="vault-box"></div>
+    <div class="note" id="vault-note"></div>
+  </section>
+
+  <section class="panel" id="p-fac">
+    <div class="tiles" id="fac-tiles"></div>
+
+    <h3 style="margin:18px 0 8px;font-size:14px">Умные розетки — дистанционное управление</h3>
+    <div id="plug-box"></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Инженерное оборудование и регламент обслуживания</h3>
+    <div class="filters">
+      <select id="f-fac-kind"><option value="">Все типы</option></select>
+      <input type="search" id="f-fac" placeholder="поиск по коду, названию, комнате…" style="flex:1;min-width:180px">
+      <span class="dim" id="fac-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="fac-tbl"><thead><tr>
+      <th style="width:96px">Код</th><th style="width:180px">Тип</th>
+      <th>Название</th><th style="width:150px">Помещение</th>
+      <th style="width:170px">Обслуживание</th><th style="width:110px">Действие</th>
+    </tr></thead><tbody></tbody></table></div>
+    <div class="note">Строка кликается — откроется паспорт с журналом работ и фотографиями.
+      Кондиционеры: фильтры раз в 90 дней, фреон раз в 2 года. Лифт — осмотр ежемесячно.</div>
+  </section>
+</main>
+
+<script>
+// Базу адреса берём у сервера: модуль не привязан к точке монтирования
+const API = "{{ url_for('netmon.api_overview') }}".replace(/\/api\/overview$/, "/api");
+const PHOTO_BASE = "{{ url_for('netmon.photo_file', photo_id=0) }}".replace(/\/0$/, "");
+const EM = {disaster:"🔴🔴", high:"🔴", average:"🟠", warning:"🟡",
+            information:"🔵", resolved:"🟢", other:"⚪"};
+let DEV = [], FEED = [], CH = [];
+
+const esc = s => (s ?? "").toString().replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function get(path){
+  const r = await fetch(API + path, {headers:{"Accept":"application/json"}});
+  const j = await r.json();
+  if (!j.success) throw new Error(j.message || "ошибка запроса");
+  return j.data;
+}
+async function post(path){
+  const r = await fetch(API + path, {method:"POST"});
+  const j = await r.json();
+  if (!j.success) throw new Error(j.message || "ошибка синхронизации");
+  return j.data;
+}
+
+function tile(v, l, cls){
+  return `<div class="tile"><div class="v ${cls||''}">${v}</div><div class="l">${l}</div></div>`;
+}
+
+function renderDash(o){
+  const d = o.devices, a = o.alerts, cov = o.coverage_pct;
+  document.getElementById("dash-tiles").innerHTML =
+    tile(d.total, "устройств в сети") +
+    tile(d.in_zabbix, "на мониторинге Zabbix", cov >= 99 ? "ok" : "warn") +
+    tile(cov + "%", "покрытие мониторингом", cov >= 99 ? "ok" : "warn") +
+    tile(d.critical, "критичных узлов", d.critical ? "mid" : "dim") +
+    tile(o.channels.length, "Telegram-каналов") +
+    tile(a.total, "сообщений за 30 дней") +
+    tile(a.last_24h, "за последние сутки") +
+    tile(a.failed, "ошибок доставки", a.failed ? "crit" : "ok");
+  document.getElementById("hdr").textContent =
+    `${d.total} устройств · покрытие ${cov}% · последний скан ${d.last_scan || "—"}`;
+
+  document.querySelector("#kind-tbl tbody").innerHTML = d.by_kind.map(k =>
+    `<tr><td>${esc(k.kind)}</td><td>${k.count}</td>
+     <td><div style="background:var(--acc);height:8px;border-radius:4px;opacity:.7;
+       width:${Math.round(k.count*100/Math.max(d.total,1))}%"></div></td></tr>`).join("");
+
+  document.querySelector("#top-tbl tbody").innerHTML =
+    a.top_hosts.map(h => `<tr><td>${esc(h.host)}</td><td>${h.count}</td></tr>`).join("")
+    || `<tr><td colspan="2" class="dim">нет данных</td></tr>`;
+
+  document.getElementById("f-kind").innerHTML = `<option value="">Все классы</option>` +
+    d.by_kind.map(k => `<option value="${esc(k.kind)}">${esc(k.kind)} (${k.count})</option>`).join("");
+}
+
+function renderChannels(list, byDay){
+  CH = list;
+  const max = Math.max(1, ...(byDay || []).map(x => x.count));
+  document.getElementById("chan-cards").innerHTML = list.map(c => {
+    const live = c.is_enabled === "Y";
+    const bars = live ? `<div class="bar">${(byDay||[]).map(x =>
+        `<span style="height:${Math.round(x.count*100/max)}%" title="${x.day}: ${x.count}"></span>`).join("")}</div>
+        <div class="dim" style="font-size:11px;margin-top:4px">сообщений по дням, 14 дней</div>` : "";
+    return `<div class="card ${live ? "live" : ""}">
+      <h3>${live ? "🟢" : "⚪"} ${esc(c.title)}</h3>
+      <div class="cid">${esc(c.chat_id)} · ${esc(c.chat_type)} · бот @${esc(c.bot_username || "—")}</div>
+      <div class="row">
+        <div>Статус<b class="${live ? "ok" : "dim"}">${live ? "активен" : "выключен"}</b></div>
+        <div>Участников<b>${c.members_cnt ?? "—"}</b></div>
+        <div>Сообщений<b>${c.alerts_total}</b></div>
+        <div>За сутки<b>${c.alerts_24h}</b></div>
+        <div>Ошибок<b class="${c.alerts_failed ? "crit" : "ok"}">${c.alerts_failed}</b></div>
+      </div>
+      <div class="row"><div>Media в Zabbix<b style="font-size:13px">${esc(c.mediatype || "—")}</b></div>
+        <div>Последнее<b style="font-size:13px">${esc(c.last_alert_at || "—")}</b></div></div>
+      ${bars}</div>`;
+  }).join("");
+  document.getElementById("f-chan").innerHTML = `<option value="">Все каналы</option>` +
+    list.map(c => `<option value="${c.id}">${esc(c.title)}</option>`).join("");
+}
+
+function renderDevices(){
+  const kind = document.getElementById("f-kind").value;
+  const miss = document.getElementById("f-missing").checked;
+  const q = document.getElementById("f-find").value.toLowerCase().trim();
+  const rows = DEV.filter(d =>
+    (!kind || d.kind === kind) && (!miss || d.in_zabbix === "N") &&
+    (!q || [d.ip, d.kind, d.title, d.dns_name, d.ports, d.zabbix_host]
+      .some(v => (v || "").toString().toLowerCase().includes(q))));
+  document.getElementById("dev-count").textContent = `${rows.length} из ${DEV.length}`;
+  const crit = {high:["b-no","высокая"], medium:["b-warn","средняя"], low:["b-dim","обычная"]};
+  document.querySelector("#dev-tbl tbody").innerHTML = rows.map(d => {
+    const c = crit[d.criticality] || crit.low;
+    return `<tr>
+      <td><code>${esc(d.ip)}</code></td>
+      <td>${esc(d.kind)}</td>
+      <td>${esc(d.title || d.dns_name || d.ssh_banner || d.server_banner || "—")}</td>
+      <td class="dim">${esc(d.ports || "—")}</td>
+      <td><span class="badge ${c[0]}">${c[1]}</span></td>
+      <td>${d.in_zabbix === "Y"
+            ? `<span class="badge b-ok">${esc(d.zabbix_host || "да")}</span>`
+            : `<span class="badge b-no">не заведён</span>`}</td>
+      <td>${d.status === "up"
+            ? `<span class="badge b-ok">онлайн</span>`
+            : `<span class="badge b-dim">пропал</span>`}</td></tr>`;
+  }).join("") || `<tr><td colspan="7" class="dim">ничего не найдено</td></tr>`;
+}
+
+function renderFeed(){
+  const ch = document.getElementById("f-chan").value;
+  const sev = document.getElementById("f-sev").value;
+  const q = document.getElementById("f-msg").value.toLowerCase().trim();
+  const rows = FEED.filter(a =>
+    (!ch || String(a.channel_id) === ch) && (!sev || a.severity === sev) &&
+    (!q || (a.subject || "").toLowerCase().includes(q)));
+  document.getElementById("feed-count").textContent = `${rows.length} из ${FEED.length}`;
+  document.getElementById("feed").innerHTML = rows.map(a => `
+    <div class="msg"><div class="em">${EM[a.severity] || "⚪"}</div>
+      <div class="body"><div class="subj">${esc(a.subject)}</div>
+        <div class="meta">${esc(a.sent_at)} · ${esc(a.channel_title)} ·
+          ${a.send_status === "sent" ? "доставлено" : esc(a.send_status)}
+          ${a.error_text ? " · " + esc(a.error_text) : ""}</div></div></div>`).join("")
+    || `<div class="note">сообщений не найдено</div>`;
+}
+
+
+// ---------------------------------------------------------------- Обзор Zabbix
+let ZBX = null;
+function renderZabbix(){
+  if (!ZBX) return;
+  const tt = ZBX.totals;
+  document.getElementById("zbx-tiles").innerHTML =
+    tile(tt.hosts, "хостов в Zabbix") +
+    tile(tt.enabled, "активных", "ok") +
+    tile(tt.disabled, "выключенных", tt.disabled ? "dim" : "ok") +
+    tile(tt.unavailable, "агент недоступен", tt.unavailable ? "crit" : "ok") +
+    tile(tt.items, "элементов данных") +
+    tile(tt.items_broken, "не поддерживается", tt.items_broken ? "warn" : "ok") +
+    tile(tt.problems, "активных проблем", tt.problems ? "mid" : "ok");
+  const q = document.getElementById("f-zbx").value.toLowerCase().trim();
+  const bad = document.getElementById("f-zbx-bad").checked;
+  const rows = ZBX.hosts.filter(h =>
+    (!bad || h.problems > 0 || h.items_broken > 0 || h.available === "недоступен") &&
+    (!q || [h.host, h.name, h.ip, (h.groups||[]).join(" "), (h.templates||[]).join(" ")]
+      .some(v => (v||"").toLowerCase().includes(q))));
+  document.getElementById("zbx-count").textContent = `${rows.length} из ${ZBX.hosts.length}`;
+  document.querySelector("#zbx-tbl tbody").innerHTML = rows.map(h => `<tr>
+    <td><b>${esc(h.host)}</b>${h.name !== h.host ? `<div class="dim" style="font-size:11px">${esc(h.name)}</div>` : ""}</td>
+    <td><code>${esc(h.ip)}</code></td>
+    <td class="dim" style="font-size:12px">${esc((h.groups||[]).join(", "))}</td>
+    <td>${h.items}</td>
+    <td class="${h.items_broken ? "warn" : "dim"}">${h.items_broken || "—"}</td>
+    <td class="${h.problems ? "crit" : "dim"}">${h.problems || "—"}</td>
+    <td><span class="badge ${h.available === "доступен" ? "b-ok" : h.available === "недоступен" ? "b-no" : "b-dim"}">${esc(h.available)}</span>
+        ${h.error ? `<div class="dim" style="font-size:11px" title="${esc(h.error)}">${esc(h.error.slice(0,40))}…</div>` : ""}</td>
+    <td>${h.enabled ? `<span class="badge b-ok">включён</span>` : `<span class="badge b-dim">выключен</span>`}</td>
+  </tr>`).join("") || `<tr><td colspan="8" class="dim">ничего не найдено</td></tr>`;
+}
+
+// ---------------------------------------------------------------- Proxmox
+let PVE = {guests: [], stats: null};
+const DEC_CLS = {"списать":"b-dim", "переносить":"b-ok",
+                 "пересоздать на новой ОС":"b-no", "нужно решение":"b-warn",
+                 "оставить как есть":"b-dim"};
+
+function renderPve(){
+  const s = PVE.stats;
+  if (s) document.getElementById("pve-tiles").innerHTML =
+    tile(s.total, "машин на гипервизоре") +
+    tile(s.running, "запущено", "ok") +
+    tile(s.stopped, "выключено", s.stopped ? "dim" : "ok") +
+    tile(s.legacy_os, "на снятых с поддержки ОС", s.legacy_os ? "crit" : "ok") +
+    tile(s.no_backup, "без резервной копии", s.no_backup ? "crit" : "ok") +
+    tile(s.disk_gb + " ГБ", "суммарно дисков") +
+    tile(Math.round(s.memory_mb/1024) + " ГБ", "выделено памяти");
+  const dec = document.getElementById("f-pve-dec").value;
+  const st = document.getElementById("f-pve-st").value;
+  const onlyRisk = document.getElementById("f-pve-risk").checked;
+  const q = document.getElementById("f-pve").value.toLowerCase().trim();
+  const rows = PVE.guests.filter(g =>
+    (!dec || g.decision === dec) &&
+    (!st || (st === "running" ? g.status === "running" : g.status !== "running")) &&
+    (!onlyRisk || g.risk_level !== "low") &&
+    (!q || [g.name, g.vmid, g.role_hint, g.ip_hint, g.os_hint, g.ostype]
+      .some(v => (v ?? "").toString().toLowerCase().includes(q))));
+  document.getElementById("pve-count").textContent = `${rows.length} из ${PVE.guests.length}`;
+  document.querySelector("#pve-tbl tbody").innerHTML = rows.map(g => `
+    <tr style="cursor:pointer" onclick="showPassport(${g.vmid})">
+      <td><code>${g.vmid}</code></td>
+      <td><b>${esc(g.name)}</b>${g.legacy_os === "Y" ? ' <span class="badge b-no">старая ОС</span>' : ""}</td>
+      <td class="dim">${g.kind === "qemu" ? "ВМ" : "CT"}</td>
+      <td>${g.status === "running"
+            ? `<span class="badge b-ok">работает</span>`
+            : `<span class="badge b-dim">выключена</span>`}</td>
+      <td class="dim">${g.cores || "—"} / ${g.memory_mb ? Math.round(g.memory_mb/1024*10)/10 + " ГБ" : "—"}</td>
+      <td class="dim">${g.disk_gb || "—"}</td>
+      <td class="${g.last_backup ? (g.last_backup < "2025" ? "warn" : "ok") : "crit"}">${esc(g.last_backup || "нет")}</td>
+      <td class="dim" style="font-size:12px">${esc((g.role_hint || "").slice(0, 52))}</td>
+      <td><span class="badge ${DEC_CLS[g.decision] || "b-dim"}">${esc(g.decision || "—")}</span></td>
+    </tr>`).join("") || `<tr><td colspan="9" class="dim">ничего не найдено</td></tr>`;
+  const sel = document.getElementById("f-pve-dec");
+  if (s && sel.options.length <= 1)
+    sel.innerHTML = `<option value="">Любое решение</option>` +
+      s.by_decision.map(d => `<option value="${esc(d.decision)}">${esc(d.decision)} (${d.count})</option>`).join("");
+}
+
+// Паспорт машины — в один клик по строке
+async function showPassport(vmid){
+  const m = document.getElementById("modal"), b = document.getElementById("modal-body");
+  b.innerHTML = "<div class='dim'>загрузка паспорта…</div>";
+  m.style.display = "block";
+  let g;
+  try { g = await get("/pve/" + vmid); }
+  catch (e) { b.innerHTML = `<div class="crit">Ошибка: ${esc(e.message)}</div>`; return; }
+  const nets = (() => { try { return JSON.parse(g.nets || "[]"); } catch { return []; } })();
+  const disks = (() => { try { return JSON.parse(g.disks || "[]"); } catch { return []; } })();
+  const row = (k, v) => v ? `<tr><td class="dim" style="width:190px">${k}</td><td>${v}</td></tr>` : "";
+  b.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="flex:1">
+        <h2 style="margin:0 0 4px;font-size:20px">${esc(g.name)}
+          <span class="dim" style="font-size:14px">VMID ${g.vmid} · ${g.kind === "qemu" ? "виртуальная машина" : "контейнер"}</span></h2>
+        <div><span class="badge ${g.status === "running" ? "b-ok" : "b-dim"}">${g.status === "running" ? "работает" : "выключена"}</span>
+          <span class="badge ${DEC_CLS[g.decision] || "b-dim"}">${esc(g.decision || "")}</span>
+          ${g.legacy_os === "Y" ? '<span class="badge b-no">ОС снята с поддержки</span>' : ""}</div>
+      </div>
+      <button onclick="document.getElementById('modal').style.display='none'">Закрыть</button>
+    </div>
+    ${g.risks ? `<div style="margin:14px 0;padding:11px 14px;border-left:4px solid var(--crit);
+        background:#f8514911;border-radius:0 8px 8px 0">
+        <b class="crit">Риски для миграции</b><div style="margin-top:5px">${esc(g.risks)}</div></div>` : ""}
+    ${g.notes ? `<div style="margin:12px 0;padding:10px 14px;border-left:4px solid var(--warn);
+        background:#d2992211;border-radius:0 8px 8px 0"><b class="warn">Замечания</b>
+        <div style="margin-top:5px">${esc(g.notes)}</div></div>` : ""}
+    <h3 style="margin:16px 0 6px;font-size:15px">Паспорт</h3>
+    <table>
+      ${row("Узел гипервизора", esc(g.node_name))}
+      ${row("Тип гостя", g.kind === "qemu" ? "KVM (своё ядро)" : "LXC (ядро хоста)")}
+      ${row("Процессор", g.cores ? g.cores + " ядер" : "")}
+      ${row("Память", g.memory_mb ? g.memory_mb + " МБ" : "")}
+      ${row("Диски", disks.map(d => `${d.slot}: ${d.size || "?"} на «${d.storage}»`).join("<br>") ||
+             (g.disk_gb ? g.disk_gb + " ГБ" : ""))}
+      ${row("Сеть", nets.map(n => `${n.slot}: ${n.bridge || "?"}${n.ip ? " · " + n.ip : ""}${n.mac ? " · " + n.mac : ""} (${n.model})`).join("<br>"))}
+      ${row("Тип ОС в Proxmox", esc(g.ostype))}
+      ${row("ОС по описанию", esc(g.os_hint))}
+      ${row("IP по описанию", esc(g.ip_hint))}
+      ${row("Роль", esc(g.role_hint))}
+      ${row("Автозапуск", g.onboot === "Y" ? "включён" : "<span class='warn'>выключен</span>")}
+      ${row("Снимков", g.snapshots || "0")}
+      ${row("Последняя резервная копия", g.last_backup
+            ? `<span class="${g.last_backup < "2025" ? "warn" : "ok"}">${esc(g.last_backup)}</span>`
+            : "<span class='crit'>нет ни одной</span>")}
+      ${row("Время работы", g.uptime_s ? Math.floor(g.uptime_s/86400) + " дней" : "")}
+      ${row("Данные обновлены", esc(g.synced_at))}
+    </table>
+    ${g.descr ? `<h3 style="margin:16px 0 6px;font-size:15px">Описание с гипервизора</h3>
+      <pre style="white-space:pre-wrap;background:#0d1117;border:1px solid var(--line);
+        border-radius:8px;padding:12px;font-size:12px;margin:0">${esc(g.descr)}</pre>` : ""}
+    <div class="note">Учётные данные, если они были записаны в описании, скрыты намеренно:
+      панель видят все, у кого есть вход в портал.</div>`;
+}
+
+
+// ---------------------------------------------------------------- Домены, стойка, энергия
+let AS = null;
+const DOM_CLS = {critical:"crit", warning:"warn", notice:"mid", ok:"ok", unknown:"dim"};
+const DOM_WORD = {critical:"срочно платить", warning:"скоро продление",
+                  notice:"в этом полугодии", ok:"в порядке", unknown:"проверить вручную"};
+
+function renderAssets(){
+  if (!AS) return;
+  const crit = AS.domains.filter(d => d.level === "critical").length;
+  const e = AS.energy;
+  document.getElementById("as-tiles").innerHTML =
+    tile(AS.domains.length, "доменов под контролем") +
+    tile(crit, "требуют оплаты сейчас", crit ? "crit" : "ok") +
+    tile(AS.always_on_workstations.length, "ПК работают круглосуточно",
+         AS.always_on_workstations.length ? "warn" : "ok") +
+    tile(e.mdl_month + " лей", "перерасход в месяц", e.mdl_month ? "warn" : "ok") +
+    tile(e.mdl_year + " лей", "перерасход в год", e.mdl_year ? "crit" : "ok") +
+    tile(AS.rack.length, "сервера в стойке");
+
+  document.querySelector("#dom-tbl tbody").innerHTML = AS.domains
+    .slice().sort((a,b) => (a.days_left ?? 99999) - (b.days_left ?? 99999))
+    .map(d => `<tr>
+      <td><b>${esc(d.domain)}</b></td>
+      <td>${esc(d.expires || "—")}</td>
+      <td class="${DOM_CLS[d.level]}"><b>${d.days_left ?? "?"}</b> дн
+        <div style="font-size:11px">${DOM_WORD[d.level]}</div></td>
+      <td class="dim">${esc(d.registrar || "—")}</td>
+      <td style="font-size:12px">${esc(d.role)}</td>
+      <td class="dim" style="font-size:12px">${esc(d.owner || "—")}</td></tr>`).join("");
+
+  document.getElementById("energy-box").innerHTML = `
+    <div class="card"><div class="row">
+      <div>Машин впустую<b class="warn">${e.machines}</b></div>
+      <div>Лишних часов в неделю<b>${e.idle_hours_week}</b></div>
+      <div>кВт·ч в месяц<b>${e.kwh_month}</b></div>
+      <div>Лей в месяц<b class="warn">${e.mdl_month}</b></div>
+      <div>Лей в год<b class="crit">${e.mdl_year}</b></div>
+    </div>
+    <div class="note" style="margin-top:8px">Расчёт: ${e.watt_per_machine} Вт на машину в простое,
+      тариф ${e.tariff_mdl} лей/кВт·ч, рабочее время 10 ч × 5 дней. Учитываются только часы вне
+      рабочего времени. Выключение на ночь возвращает всю сумму.</div></div>`;
+
+  document.querySelector("#night-tbl tbody").innerHTML = (AS.night || [])
+    .filter(n => n.always_on)
+    .map(n => `<tr>
+      <td><code>${esc(n.host)}</code></td>
+      <td>${n.is_workstation ? '<span class="badge b-warn">рабочая станция</span>'
+                             : '<span class="badge b-dim">оборудование</span>'}</td>
+      <td>${n.night_uptime_pct}% <span class="dim">(${n.samples} замеров)</span></td>
+      <td class="dim" style="font-size:12px">${n.is_workstation
+          ? "не выключается — прямой перерасход" : "работает постоянно, так и задумано"}</td>
+    </tr>`).join("") || `<tr><td colspan="4" class="dim">нет данных</td></tr>`;
+
+  document.getElementById("rack-box").innerHTML = AS.rack.map(s => `
+    <div class="card" style="margin-bottom:10px">
+      <h3>🖥 ${esc(s.name)} <span class="dim" style="font-size:12px">${esc(s.ip)}</span></h3>
+      <div class="dim" style="font-size:12px;margin-bottom:4px">${esc(s.role)} · ${esc(s.cpu)}</div>
+      <div class="badge b-no" style="margin-bottom:8px">${esc(s.criticality)}</div>
+      <ul style="margin:6px 0 0;padding-left:20px;font-size:13px">
+        ${s.runbook.map(r => `<li>${esc(r)}</li>`).join("")}</ul></div>`).join("");
+}
+
+// ---------------------------------------------------------------- Доступы
+let VAULT = null;
+function renderVault(){
+  if (!VAULT) return;
+  const all = VAULT.groups.flatMap(g => g.items);
+  document.getElementById("v-tiles").innerHTML =
+    tile(VAULT.total, "учётных записей") +
+    (VAULT.keychain_here
+      ? tile(all.filter(i => i.present).length, "есть в Keychain", "ok") +
+        tile(all.filter(i => !i.present).length, "отсутствуют",
+             all.some(i => !i.present) ? "crit" : "ok")
+      : tile("—", "Keychain доступен только на рабочей машине", "dim")) +
+    tile(VAULT.groups.length, "групп объектов");
+  document.getElementById("vault-box").innerHTML = VAULT.groups.map(g => `
+    <h3 style="margin:18px 0 8px;font-size:14px">${esc(g.group)}
+      <span class="dim" style="font-weight:400">— ${g.items.length}</span></h3>
+    <div class="tbl-wrap"><table><thead><tr>
+      <th style="width:34%">Система</th><th style="width:150px">Где</th>
+      <th style="width:110px">Логин</th><th style="width:90px">Статус</th>
+      <th>Как достать пароль</th></tr></thead><tbody>
+      ${g.items.map(i => `<tr>
+        <td>${esc(i.what)}</td>
+        <td class="dim"><code>${esc(i.where)}</code></td>
+        <td><code>${esc(i.login)}</code></td>
+        <td>${!VAULT.keychain_here ? '<span class="badge b-dim">—</span>'
+              : (i.present ? '<span class="badge b-ok">есть</span>'
+                           : '<span class="badge b-no">нет</span>')}</td>
+        <td><code style="font-size:11px">${esc(i.howto)}</code></td></tr>`).join("")}
+    </tbody></table></div>`).join("");
+  document.getElementById("vault-note").textContent = VAULT.note;
+}
+
+
+// ---------------------------------------------------------------- Оборудование офиса
+let FAC = null, PLUGS = null;
+const SRV_CLS = {overdue:"crit", soon:"warn", unknown:"mid", ok:"ok"};
+
+function renderFac(){
+  if (!FAC) return;
+  const s = FAC.stats;
+  document.getElementById("fac-tiles").innerHTML =
+    tile(s.total, "объектов на учёте") +
+    tile(FAC.overdue, "просрочено обслуживание", FAC.overdue ? "crit" : "ok") +
+    tile(s.by_kind.aircon || 0, "кондиционеров") +
+    tile(s.by_kind.smartplug || 0, "умных розеток") +
+    tile(s.works, "записей в журнале") +
+    tile(s.photos, "фотографий");
+
+  const sel = document.getElementById("f-fac-kind");
+  if (sel.options.length <= 1)
+    sel.innerHTML = '<option value="">Все типы</option>' +
+      Object.entries(FAC.kinds).map(([k, v]) =>
+        `<option value="${k}">${esc(v)} (${s.by_kind[k] || 0})</option>`).join("");
+
+  const kind = sel.value, q = document.getElementById("f-fac").value.toLowerCase().trim();
+  const rows = FAC.facilities.filter(f =>
+    (!kind || f.kind === kind) &&
+    (!q || [f.code, f.name, f.room, f.ip].some(v => (v || "").toLowerCase().includes(q))));
+  document.getElementById("fac-count").textContent = `${rows.length} из ${FAC.facilities.length}`;
+  document.querySelector("#fac-tbl tbody").innerHTML = rows.map(f => `
+    <tr style="cursor:pointer" onclick="showFacility('${esc(f.code)}')">
+      <td><code>${esc(f.code)}</code></td>
+      <td>${esc(f.kind_title)}</td>
+      <td><b>${esc(f.name)}</b>${f.ip ? ` <span class="dim">${esc(f.ip)}</span>` : ""}</td>
+      <td class="dim">${esc(f.room || "—")}</td>
+      <td class="${SRV_CLS[f.service.level]}">${esc(f.service.text)}
+        ${f.service.work ? `<div style="font-size:11px" class="dim">${esc(f.service.work)}</div>` : ""}</td>
+      <td><button onclick="event.stopPropagation();showFacility('${esc(f.code)}')">паспорт</button></td>
+    </tr>`).join("") || `<tr><td colspan="6" class="dim">ничего не найдено</td></tr>`;
+}
+
+function renderPlugs(){
+  if (!PLUGS) return;
+  document.getElementById("plug-box").innerHTML = `
+    <div class="chan">${PLUGS.plugs.map(p => `
+      <div class="card ${p.online ? "live" : ""}">
+        <h3>🔌 ${esc(p.ip)}
+          <span class="badge ${p.online ? "b-ok" : "b-no"}">${p.online ? "в сети" : "недоступна"}</span></h3>
+        <div class="row">
+          <div>Отклик<b>${p.latency_ms ?? "—"} мс</b></div>
+          <div>Состояние<b class="${p.switch_on ? "ok" : "dim"}">${
+            p.controllable ? (p.switch_on ? "включена" : "выключена") : "неизвестно"}</b></div>
+          ${p.power_w != null ? `<div>Мощность<b>${p.power_w} Вт</b></div>` : ""}
+        </div>
+        ${p.controllable ? `
+          <div style="margin-top:10px;display:flex;gap:6px">
+            <button onclick="switchPlug('${esc(p.ip)}','on')">Включить</button>
+            <button onclick="switchPlug('${esc(p.ip)}','off')">Выключить</button>
+          </div>` : `
+          <div class="note" style="margin-top:8px">${esc(p.reason || "управление недоступно")}</div>`}
+      </div>`).join("")}</div>
+    ${PLUGS.controllable === 0 ? `<div class="note">${esc(PLUGS.hint)}</div>` : ""}`;
+}
+
+async function switchPlug(ip, state){
+  try {
+    await post(`/plugs/${ip}/${state}`);
+    PLUGS = await get("/plugs"); renderPlugs();
+  } catch (e) { alert("Не удалось переключить розетку: " + e.message); }
+}
+
+async function showFacility(code){
+  const m = document.getElementById("modal"), b = document.getElementById("modal-body");
+  b.innerHTML = "<div class='dim'>загрузка паспорта…</div>";
+  m.style.display = "block";
+  let f;
+  try { f = await get("/facilities/" + encodeURIComponent(code)); }
+  catch (e) { b.innerHTML = `<div class="crit">Ошибка: ${esc(e.message)}</div>`; return; }
+  const row = (k, v) => v ? `<tr><td class="dim" style="width:180px">${k}</td><td>${v}</td></tr>` : "";
+  b.innerHTML = `
+    <div style="display:flex;gap:12px;align-items:flex-start">
+      <div style="flex:1">
+        <h2 style="margin:0 0 4px;font-size:20px">${esc(f.name)}
+          <span class="dim" style="font-size:14px">${esc(f.code)}</span></h2>
+        <div><span class="badge b-dim">${esc(f.kind_title)}</span>
+          <span class="badge ${SRV_CLS[f.service.level] === "ok" ? "b-ok" : "b-warn"}">
+            ${esc(f.service.text)}${f.service.work ? " · " + esc(f.service.work) : ""}</span></div>
+      </div>
+      <button onclick="document.getElementById('modal').style.display='none'">Закрыть</button>
+    </div>
+    <table style="margin-top:12px">
+      ${row("Помещение", esc(f.room || ""))}
+      ${row("Производитель", esc(f.vendor || ""))}
+      ${row("Модель", esc(f.model || ""))}
+      ${row("Серийный номер", esc(f.serial_no || ""))}
+      ${row("Адрес в сети", f.ip ? `<code>${esc(f.ip)}</code> ${esc(f.protocol || "")}` : "")}
+      ${row("Ответственный", esc(f.responsible || ""))}
+      ${row("Регламент", f.service_days + " дней между работами")}
+      ${row("Примечание", esc(f.note || ""))}
+    </table>
+
+    <h3 style="margin:18px 0 8px;font-size:15px">Журнал работ — ${f.log.length}</h3>
+    <div class="tbl-wrap" style="max-height:none"><table><thead><tr>
+      <th style="width:100px">Дата</th><th style="width:170px">Вид работ</th>
+      <th>Что сделано</th><th style="width:140px">Исполнитель</th>
+      <th style="width:110px">Повтор</th></tr></thead><tbody>
+      ${f.log.map(w => `<tr>
+        <td>${esc(w.done_at)}</td><td>${esc(w.work_title)}</td>
+        <td>${esc(w.description || "")}${w.cost_mdl ? ` <span class="dim">(${w.cost_mdl} лей)</span>` : ""}</td>
+        <td class="dim">${esc(w.performer || "")}</td>
+        <td class="dim">${esc(w.next_due || "—")}</td></tr>`).join("") ||
+        `<tr><td colspan="5" class="dim">работ пока не заносили</td></tr>`}
+    </tbody></table></div>
+
+    <h3 style="margin:18px 0 8px;font-size:15px">Фотографии состояния — ${f.photos.length}</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">
+      ${f.photos.map(p => `
+        <div class="card" style="padding:8px">
+          <a href="${PHOTO_BASE}/${p.id}" target="_blank">
+            <img src="${PHOTO_BASE}/${p.id}" style="width:100%;border-radius:6px;display:block"
+                 alt="${esc(p.caption || "")}"></a>
+          <div style="font-size:11px;margin-top:5px">${esc(p.caption || "без подписи")}</div>
+          <div class="dim" style="font-size:11px">${esc(p.taken_by || "")} · ${esc(p.taken_at)}</div>
+        </div>`).join("") || `<div class="dim">снимков пока нет</div>`}
+    </div>
+
+    <h3 style="margin:20px 0 8px;font-size:15px">Добавить запись</h3>
+    <div class="filters">
+      <select id="w-kind">${Object.entries(FAC.work_kinds).map(([k, v]) =>
+        `<option value="${k}">${esc(v)}</option>`).join("")}</select>
+      <input type="text" id="w-descr" placeholder="что сделано" style="flex:1;min-width:200px">
+      <input type="text" id="w-perf" placeholder="исполнитель" style="width:150px">
+      <button class="primary" onclick="addWork('${esc(f.code)}')">Записать</button>
+    </div>
+    <div class="filters">
+      <input type="file" id="w-photo" accept="image/*" capture="environment">
+      <input type="text" id="w-cap" placeholder="подпись к снимку" style="flex:1;min-width:180px">
+      <button onclick="addPhoto('${esc(f.code)}')">Загрузить фото</button>
+    </div>
+    <div class="note">Снимок можно сделать телефоном прямо на месте: поле открывает камеру.</div>`;
+}
+
+async function addWork(code){
+  const body = {work_kind: document.getElementById("w-kind").value,
+                description: document.getElementById("w-descr").value,
+                performer: document.getElementById("w-perf").value};
+  if (!body.description.trim()) { alert("Опишите, что сделано"); return; }
+  try { await post(`/facilities/${encodeURIComponent(code)}/work`, body);
+        FAC = await get("/facilities"); renderFac(); await showFacility(code); }
+  catch (e) { alert("Не записалось: " + e.message); }
+}
+
+async function addPhoto(code){
+  const input = document.getElementById("w-photo");
+  if (!input.files.length) { alert("Выберите снимок"); return; }
+  const fd = new FormData();
+  fd.append("photo", input.files[0]);
+  fd.append("caption", document.getElementById("w-cap").value);
+  try {
+    const r = await fetch(`${API}/facilities/${encodeURIComponent(code)}/photo`,
+                          {method: "POST", body: fd});
+    const j = await r.json();
+    if (!j.success) throw new Error(j.message || "ошибка");
+    FAC = await get("/facilities"); renderFac(); await showFacility(code);
+  } catch (e) { alert("Снимок не загрузился: " + e.message); }
+}
+
+async function loadAll(){
+  const o = await get("/overview");
+  renderDash(o);
+  renderChannels(o.channels, o.alerts.by_day);
+  DEV = await get("/devices");            renderDevices();
+  FEED = await get("/alerts?limit=400");  renderFeed();
+  try { PVE = await get("/pve"); renderPve(); } catch (e) { console.warn("proxmox:", e.message); }
+  try { ZBX = await get("/zabbix"); renderZabbix(); } catch (e) { console.warn("zabbix:", e.message); }
+  try { AS = await get("/assets"); renderAssets(); } catch (e) { console.warn("assets:", e.message); }
+  try { VAULT = await get("/vault"); renderVault(); } catch (e) { console.warn("vault:", e.message); }
+  try { FAC = await get("/facilities"); renderFac(); } catch (e) { console.warn("facilities:", e.message); }
+  try { PLUGS = await get("/plugs"); renderPlugs(); } catch (e) { console.warn("plugs:", e.message); }
+}
+
+document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
+  e.preventDefault();
+  document.querySelectorAll("nav a").forEach(x => x.classList.remove("on"));
+  document.querySelectorAll(".panel").forEach(x => x.classList.remove("on"));
+  a.classList.add("on");
+  document.getElementById("p-" + a.dataset.p).classList.add("on");
+});
+["f-kind","f-missing","f-find"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderDevices));
+["f-chan","f-sev","f-msg"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderFeed));
+["f-zbx","f-zbx-bad"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderZabbix));
+["f-pve","f-pve-dec","f-pve-st","f-pve-risk"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderPve));
+["f-fac","f-fac-kind"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderFac));
+
+async function withBusy(btn, fn){
+  const old = btn.textContent; btn.disabled = true; btn.textContent = "…";
+  try { await fn(); await loadAll(); }
+  catch (e) { alert("Ошибка: " + e.message); }
+  finally { btn.disabled = false; btn.textContent = old; }
+}
+document.getElementById("btn-reload").onclick = e => withBusy(e.target, async () => {});
+document.getElementById("btn-sync-tg").onclick = e => withBusy(e.target, async () => {
+  await post("/sync/channels"); await post("/sync/alerts"); });
+document.getElementById("btn-sync-dev").onclick = e => withBusy(e.target, () => post("/sync/devices"));
+document.getElementById("btn-sync-pve").onclick = e => withBusy(e.target, () => post("/sync/pve"));
+document.getElementById("btn-sync-as").onclick = e => withBusy(e.target, () => post("/sync/assets"));
+
+loadAll().catch(e => document.getElementById("hdr").textContent = "Ошибка: " + e.message);
+</script>
+<div id="modal" style="display:none;position:fixed;inset:0;background:#000a;z-index:50;
+     padding:20px;overflow:auto" onclick="if(event.target===this)this.style.display='none'">
+  <div style="max-width:820px;margin:20px auto;background:var(--panel);border:1px solid var(--line);
+       border-radius:12px;padding:20px" id="modal-body"></div>
+</div>
+</body>
+</html>

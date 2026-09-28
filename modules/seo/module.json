@@ -1,0 +1,10 @@
+{
+  "title": {"ru": "Карта сайта и robots", "ro": "Harta site-ului", "en": "Sitemap and robots"},
+  "icon": "🗺",
+  "order": 118,
+  "hidden": true,
+  "descr": "robots.txt и sitemap.xml публичного магазина",
+  "root_paths": ["/robots.txt", "/sitemap.xml", "/sitemap-pages.xml",
+                 "/sitemap-categories.xml", "/sitemap-products-<int:part>.xml"],
+  "docs": "SEOForge"
+}

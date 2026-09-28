@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Act de acceptare • CRM pe date reale, magazin si documente</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Space+Grotesk:wght@500;600&display=swap');
+  body{font-family:'Inter',system-ui,sans-serif}
+  .font-display{font-family:'Space Grotesk','Inter',system-ui,sans-serif;font-weight:600}
+  .shot{border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 1px 2px rgb(0 0 0/.06);width:100%}
+  table.g{width:100%;font-size:14px;border-collapse:collapse}
+  table.g th{background:#f8fafc;text-align:left;font-weight:600;color:#334155;padding:9px 11px;border-bottom:1px solid #e2e8f0}
+  table.g td{padding:9px 11px;border-bottom:1px solid #f1f5f9;vertical-align:top}
+  .pass{color:#047857;font-weight:600}.fail{color:#b91c1c;font-weight:600}
+  .badge{background:linear-gradient(90deg,#0f172a,#1e2937);color:#fff;font-size:.72rem;padding:.15rem .7rem;border-radius:999px;font-weight:600;letter-spacing:.03em}
+  .k{background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;padding:1px 6px;font-size:12.5px}
+  .card{background:#fff;border:1px solid #e2e8f0;border-radius:22px;padding:22px;margin-top:18px}
+  @media print{body{background:#fff}}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased">
+<div class="max-w-screen-xl mx-auto px-6 py-10">
+
+  <div class="badge inline-block mb-3">ACT DE ACCEPTARE • 12.09.2026</div>
+  <h1 class="font-display text-3xl md:text-4xl text-slate-900 tracking-tight">
+    CRM pe datele reale, magazinul si documentele — proba completa</h1>
+  <p class="mt-3 text-lg text-slate-600 max-w-3xl">Toate punctele s-au verificat pe
+    <strong>paginile vii</strong>, in browser real, pe conturul de lucru
+    <a class="text-emerald-600 hover:underline" href="https://officeplus.md/UNA.md/orasldev/crm/">officeplus.md</a>.
+    Proba doar citeste: nu s-a creat niciun document si nu s-a schimbat nicio inregistrare.</p>
+  <div class="mt-5 flex flex-wrap gap-3 text-sm">
+    <span class="px-3 py-1 rounded-full bg-white border border-slate-200">puncte verificate: <b>13</b></span>
+    <span class="px-3 py-1 rounded-full bg-white border border-slate-200">trecute: <b class="pass">13</b></span>
+    <span class="px-3 py-1 rounded-full bg-white border border-slate-200">cazute: <b class="pass">0</b></span>
+  </div>
+
+  <div class="card"><h2 class="font-display text-xl text-slate-900 mb-3">Rezumat</h2><table class="g">
+<tr><th style='width:44px'>#</th><th>Ce s-a verificat</th><th style='width:110px'>Rezultat</th></tr>
+<tr><td>1</td><td><a class='text-emerald-600 hover:underline' href='#p1'>CRM lucreaza pe datele reale ale ERP-ului</a></td><td class='pass'>trecut</td></tr>
+<tr><td>2</td><td><a class='text-emerald-600 hover:underline' href='#p2'>Nomenclator — marfa reala din dictionarul ERP</a></td><td class='pass'>trecut</td></tr>
+<tr><td>3</td><td><a class='text-emerald-600 hover:underline' href='#p3'>Fisa produsului = cea din back-office</a></td><td class='pass'>trecut</td></tr>
+<tr><td>4</td><td><a class='text-emerald-600 hover:underline' href='#p4'>Comenzi — conturile de plata reale ale magazinului</a></td><td class='pass'>trecut</td></tr>
+<tr><td>5</td><td><a class='text-emerald-600 hover:underline' href='#p5'>Contacte, lead-uri si oportunitati reale</a></td><td class='pass'>trecut</td></tr>
+<tr><td>6</td><td><a class='text-emerald-600 hover:underline' href='#p6'>Angajati — conturile ERP administrate din web</a></td><td class='pass'>trecut</td></tr>
+<tr><td>7</td><td><a class='text-emerald-600 hover:underline' href='#p7'>Rapoarte, inclusiv «pe angajati» cu total</a></td><td class='pass'>trecut</td></tr>
+<tr><td>8</td><td><a class='text-emerald-600 hover:underline' href='#p8'>Alerte — tranzactii nefinisate si datorii</a></td><td class='pass'>trecut</td></tr>
+<tr><td>9</td><td><a class='text-emerald-600 hover:underline' href='#p9'>Regimul demo este separat de datele reale</a></td><td class='pass'>trecut</td></tr>
+<tr><td>10</td><td><a class='text-emerald-600 hover:underline' href='#p10'>Hub-ul Biro26 — toate plachetele duc undeva viu</a></td><td class='pass'>trecut</td></tr>
+<tr><td>11</td><td><a class='text-emerald-600 hover:underline' href='#p11'>Documentele se deschid din portal, cu capturile lor</a></td><td class='pass'>trecut</td></tr>
+<tr><td>12</td><td><a class='text-emerald-600 hover:underline' href='#p12'>Magazin: cosul se goleste doar dupa plata confirmata</a></td><td class='pass'>trecut</td></tr>
+<tr><td>13</td><td><a class='text-emerald-600 hover:underline' href='#p13'>Contururile sint sanatoase dupa toate schimbarile</a></td><td class='pass'>trecut</td></tr>
+</table></div>
+  <div class="card" id="p1">
+<h2 class="font-display text-xl text-slate-900">1. CRM lucreaza pe datele reale ale ERP-ului <span class="pass">· trecut</span></h2>
+<table class="g mt-3"><tr><th style="width:28%">Ce se astepta</th><td>fiecare sectiune arata date din Oracle, nu un set inventat</td></tr>
+<tr><th>Ce s-a masurat</th><td>clients: <b>45</b><br>contacts: <b>27</b><br>leads: <b>18</b><br>deals: <b>33</b><br>items: <b>201</b><br>orders: <b>164</b><br>projects: <b>0</b><br>tasks: <b>0</b><br>employees: <b>35</b></td></tr>
+<tr><th>Chirias</th><td>id: <b>0</b><br>kind: <b>office</b><br>label: <b>OfficePlus</b></td></tr>
+<tr><th>Sursa ERP</th><td>clients: <b>45</b><br>erp_goods: <b>188857</b><br>erp_orgs: <b>33</b><br>items: <b>1</b><br>items_erp: <b>1</b><br>real: <b>True</b><br>shop_clients: <b>26</b><br>tenant: <b>office</b></td></tr>
+</table>
+<img class="shot mt-4" src="/static/biro26/docs/acceptance/01_tablou.png" alt="CRM lucreaza pe datele reale ale ERP-ului">
+</div>
+  <div class="card" id="p2">
+<h2 class="font-display text-xl text-slate-900">2. Nomenclator — marfa reala din dictionarul ERP <span class="pass">· trecut</span></h2>
+<table class="g mt-3"><tr><th style="width:28%">Ce se astepta</th><td>pozitii reale cu pret si stoc, plus panoul de cautare in ERP</td></tr>
+<tr><th>Ce s-a masurat</th><td>rinduri in lista: <b>201</b><br>pozitii active in dictionar: <b>188857</b></td></tr>
+</table>
+<img class="shot mt-4" src="/static/biro26/docs/acceptance/02_nomenclator.png" alt="Nomenclator — marfa reala din dictionarul ERP">
+</div>
+  <div class="card" id="p3">
+<h2 class="font-display text-xl text-slate-900">3. Fisa produsului = cea din back-office <span class="pass">· trecut</span></h2>
+<table class="g mt-3"><tr><th style="width:28%">Ce se astepta</th><td>poza, cod de bare, grupa si istoricul de preturi, ca in fila Nomenclator</td></tr>
+<tr><th>Ce s-a masurat</th><td>articol: <b>TL-SF1024D</b><br>cod de bare: <b>9359843444894</b><br>grupa: <b>TVR</b><br>perioade de pret: <b>1</b><br>poza: <b>True</b></td></tr>
+</table>
+<img class="shot mt-4" src="/static/biro26/docs/acceptance/03_fisa_marfa.png" alt="Fisa produsului = cea din back-office">
+</div>
+  <div class="card" id="p4">
+<h2 class="font-display text-xl text-slate-900">4. Comenzi — conturile de plata reale ale magazinului <span class="pass">· trecut</span></h2>
+<table class="g mt-3"><tr><th style="width:28%">Ce se astepta</th><td>documentele din ERP cu client, suma si liniile lor</td></tr>
+<tr><th>Ce s-a masurat</th><td>comenzi in lista: <b>164</b><br>prima: <b>A-93</b><br>client: <b>SRL ARTINICA-CV</b><br>total: <b>310</b><br>linii: <b>4</b></td></tr>
+</table>
+<img class="shot mt-4" src="/static/biro26/docs/acceptance/04_comanda.png" alt="Comenzi — conturile de plata reale ale magazinului">
+</div>
+  <div class="card" id="p5">
+<h2 class="font-display text-xl text-slate-900">5. Contacte, lead-uri si oportunitati reale <span class="pass">· trecut</span></h2>
+<table class="g mt-3"><tr><th style="width:28%">Ce se astepta</th><td>oameni si cereri adevarate, nu inventate</td></tr>
+<tr><th>Ce s-a masurat</th><td>contacte: <b>27</b><br>lead-uri: <b>18</b><br>oportunitati: <b>33</b></td></tr>
+</table>
+<img class="shot mt-4" src="/static/biro26/docs/acceptance/05_contacte.png" alt="Contacte, lead-uri si oportunitati reale">
+<img class="shot mt-4" src="/static/biro26/docs/acceptance/06_oportunitati.png" alt="Contacte, lead-uri si oportunitati reale">
+</div>
+  <div class="card" id="p6">
+<h2 class="font-display text-xl text-slate-900">6. Angajati — conturile ERP administrate din web <span class="pass">· trecut</span></h2>
+<table class="g mt-3"><tr><th style="width:28%">Ce se astepta</th><td>lista cu data inregistrarii si starea contului</td></tr>
+<tr><th>Ce s-a masurat</th><td>angajati: <b>35</b></td></tr>
+</table>
+<img class="shot mt-4" src="/static/biro26/docs/acceptance/07_angajati.png" alt="Angajati — conturile ERP administrate din web">
+</div>
+  <div class="card" id="p7">
+<h2 class="font-display text-xl text-slate-900">7. Rapoarte, inclusiv «pe angajati» cu total <span class="pass">· trecut</span></h2>
+<table class="g mt-3"><tr><th style="width:28%">Ce se astepta</th><td>raportul se construieste si are rind de total</td></tr>
+<tr><th>Ce s-a masurat</th><td>rinduri in raport: <b>0</b><br>are total: <b>True</b></td></tr>
+</table>
+<img class="shot mt-4" src="/static/biro26/docs/acceptance/08_rapoarte.png" alt="Rapoarte, inclusiv «pe angajati» cu total">
+</div>
+  <div class="card" id="p8">
+<h2 class="font-display text-xl text-slate-900">8. Alerte — tranzactii nefinisate si datorii <span class="pass">· trecut</span></h2>
+<table class="g mt-3"><tr><th style="width:28%">Ce se astepta</th><td>pagina se deschide si arata alertele pe datele curente</td></tr>
+<tr><th>Ce s-a masurat</th><td>pagina: <b>se deschide</b></td></tr>
+</table>
+<img class="shot mt-4" src="/static/biro26/docs/acceptance/09_alerte.png" alt="Alerte — tranzactii nefinisate si datorii">
+</div>
+  <div class="card" id="p9">
+<h2 class="font-display text-xl text-slate-900">9. Regimul demo este separat de datele reale <span class="pass">· trecut</span></h2>
+<table class="g mt-3"><tr><th style="width:28%">Ce se astepta</th><td>comutatorul schimba chiriasul; datele reale raman neatinse</td></tr>
+<tr><th>Ce s-a masurat</th><td>demo: <b>{&#x27;clients&#x27;: 17, &#x27;orders&#x27;: 23, &#x27;tasks&#x27;: 124}</b><br>comenzi reale dupa intoarcere: <b>164</b></td></tr>
+</table>
+<img class="shot mt-4" src="/static/biro26/docs/acceptance/10_demo.png" alt="Regimul demo este separat de datele reale">
+</div>
+  <div class="card" id="p10">
+<h2 class="font-display text-xl text-slate-900">10. Hub-ul Biro26 — toate plachetele duc undeva viu <span class="pass">· trecut</span></h2>
+<table class="g mt-3"><tr><th style="width:28%">Ce se astepta</th><td>nicio legatura moarta; placheta WordPress duce la instalarea acestui contur</td></tr>
+<tr><th>Ce s-a masurat</th><td>carduri: <b>46</b><br>legaturi: <b>47</b><br>stricate: <b>[]</b><br>wp: <b>[&#x27;https://officeplus.md/op-intrare-6b89dc08&#x27;, &#x27;/UNA.md/orasldev/b26docs/Biro26/WP_LOGIN_SECRET.md&#x27;, &#x27;/UNA.md/orasldev/b26docs/Biro26/WP_SHOP_NUFARUL.md&#x27;]</b></td></tr>
+</table>
+<img class="shot mt-4" src="/static/biro26/docs/acceptance/11_hub.png" alt="Hub-ul Biro26 — toate plachetele duc undeva viu">
+</div>
+  <div class="card" id="p11">
+<h2 class="font-display text-xl text-slate-900">11. Documentele se deschid din portal, cu capturile lor <span class="pass">· trecut</span></h2>
+<table class="g mt-3"><tr><th style="width:28%">Ce se astepta</th><td>ghidul, documentatia tehnica si actul — fara imagini stricate</td></tr>
+<tr><th>Ce s-a masurat</th><td>ghidul utilizatorului: <b>{&#x27;imagini&#x27;: 15, &#x27;stricate&#x27;: 0, &#x27;titlu&#x27;: &#x27;CRM OfficePlus • Ghidul utilizatorului&#x27;}</b><br>documentatia tehnica: <b>{&#x27;imagini&#x27;: 0, &#x27;stricate&#x27;: 0, &#x27;titlu&#x27;: &#x27;OfficePlus • Oracle E-commerce Platform • Documentație tehnică&#x27;}</b><br>actul cosului: <b>{&#x27;imagini&#x27;: 10, &#x27;stricate&#x27;: 0, &#x27;titlu&#x27;: &#x27;Act de testare • Coșul se golește doar după plata confirmată&#x27;}</b></td></tr>
+</table>
+<img class="shot mt-4" src="/static/biro26/docs/acceptance/12_documente.png" alt="Documentele se deschid din portal, cu capturile lor">
+</div>
+  <div class="card" id="p12">
+<h2 class="font-display text-xl text-slate-900">12. Magazin: cosul se goleste doar dupa plata confirmata <span class="pass">· trecut</span></h2>
+<table class="g mt-3"><tr><th style="width:28%">Ce se astepta</th><td>contul de plata nu goleste cosul; plata confirmata il goleste</td></tr>
+<tr><th>Ce s-a masurat</th><td>cos pus: <b>2</b><br>dupa factura: <b>2</b><br>dupa pay=fail: <b>2</b><br>dupa pay=ok: <b>0</b></td></tr>
+<tr><th>Act separat</th><td><a class="text-emerald-600 hover:underline" href="https://officeplus.md/UNA.md/orasldev/b26docs/Biro26/ACT_TESTARE_COS_2026-09-12.html">/UNA.md/orasldev/b26docs/Biro26/ACT_TESTARE_COS_2026-09-12.html</a></td></tr>
+</table>
+</div>
+  <div class="card" id="p13">
+<h2 class="font-display text-xl text-slate-900">13. Contururile sint sanatoase dupa toate schimbarile <span class="pass">· trecut</span></h2>
+<table class="g mt-3"><tr><th style="width:28%">Ce se astepta</th><td>magazinul si CRM-ul raspund 200</td></tr>
+<tr><th>Ce s-a masurat</th><td>https://officeplus.md/cos: <b>200</b><br>https://officeplus.md/: <b>200</b><br>https://officeplus.md/UNA.md/orasldev/crm/: <b>200</b></td></tr>
+</table>
+</div>
+  <div class="card">
+    <h2 class="font-display text-xl text-slate-900 mb-3">Cum se repeta proba</h2>
+    <p class="text-[15px] text-slate-700">Proba si actul sint doua scripturi, deci se pot rula oricind, iar
+      capturile si cifrele se refac singure:</p>
+    <pre class="k" style="display:block;padding:12px;margin-top:8px">python3 scripts/biro26_acceptance_test.py
+python3 scripts/biro26_acceptance_act.py</pre>
+    <p class="text-[15px] text-slate-700 mt-3">Adrese vii: 
+      <a class="text-emerald-600 hover:underline" href="https://officeplus.md/UNA.md/orasldev/crm/">CRM</a> ·
+      <a class="text-emerald-600 hover:underline" href="https://officeplus.md/UNA.md/orasldev/biro26">hub-ul Biro26</a> ·
+      <a class="text-emerald-600 hover:underline" href="https://officeplus.md/UNA.md/orasldev/b26docs/CRM/GHID_CRM.html">ghidul utilizatorului</a> ·
+      <a class="text-emerald-600 hover:underline" href="https://officeplus.md/UNA.md/orasldev/b26docs/Biro26/OFFICEPLUS_TECH_DOC.html">documentatia tehnica</a> ·
+      <a class="text-emerald-600 hover:underline" href="https://nufarul.eminescu.md/UNA.md/orasldev/crm/">conturul de proba</a>
+    </p>
+  </div>
+</div></body></html>

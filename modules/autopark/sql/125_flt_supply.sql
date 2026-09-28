@@ -1,0 +1,292 @@
+-- Autopark: fuel distribution contour -- customer ToR of 18.09.2026
+-- "Avtomatizatsiya formirovaniya potrebnosti, zakaza i dostavki topliva na AZS".
+--
+-- What the earlier schema (120_flt_tables.sql) could not express and this
+-- file adds:
+--   p.4.1 -- maximum ALLOWED volume of a tank is not its nominal capacity,
+--   p.4.2 -- per-station cap on stock expressed in DAYS, manually editable,
+--   p.4.2 -- a compartment must always be discharged in full, so the plan
+--           needs the real volume of every single compartment, not an
+--           average capacity/sections value,
+--   p.6   -- one tanker carries one fuel family (petrol OR diesel),
+--   p.2   -- stations grouped geographically into one round trip,
+--   p.9   -- execution chain planned -> load requested -> loaded ->
+--           in transit -> delivered -> accepted, with planned / loaded /
+--           document / accepted volumes compared side by side.
+--
+-- Every ALTER is guarded by USER_TAB_COLUMNS so the file is re-runnable.
+-- Sequences and triggers follow the conventions of 120_flt_tables.sql:
+-- CACHE 20, one PL/SQL block per trigger, fenced by / before and after.
+
+-- ===== Real compartments of a tanker (p.4.2, p.6) =====
+-- SEQ_NO is the physical position: 1 is the compartment closest to the
+-- cab, the highest number is the tail one. Discharge starts from the TAIL
+-- (ToR p.4.2 note), so the unloading order is SEQ_NO descending -- the
+-- planner relies on that and never on the insertion order.
+CREATE TABLE FLT_TRUCK_SECTIONS (
+  ID        NUMBER(12)    NOT NULL,
+  TRUCK_ID  NUMBER(12)    NOT NULL,
+  SEQ_NO    NUMBER(3)     NOT NULL,
+  VOLUME_L  NUMBER(10,2)  NOT NULL,
+  ACTIVE    NUMBER(1)     DEFAULT 1 NOT NULL,
+  CONSTRAINT PK_FLT_TRUCK_SECTIONS PRIMARY KEY (ID),
+  CONSTRAINT FK_FLT_TRUCK_SECTIONS_TR FOREIGN KEY (TRUCK_ID) REFERENCES FLT_TRUCKS (ID),
+  CONSTRAINT CK_FLT_TRUCK_SECTIONS_V CHECK (VOLUME_L > 0),
+  CONSTRAINT CK_FLT_TRUCK_SECTIONS_S CHECK (SEQ_NO > 0),
+  CONSTRAINT CK_FLT_TRUCK_SECTIONS_A CHECK (ACTIVE IN (0,1))
+);
+CREATE SEQUENCE SEQ_FLT_TRUCK_SECTIONS START WITH 1 INCREMENT BY 1 CACHE 20;
+CREATE INDEX IX_FLT_TRUCK_SECTIONS_TR ON FLT_TRUCK_SECTIONS (TRUCK_ID);
+CREATE UNIQUE INDEX UX_FLT_TRUCK_SECTIONS_SEQ ON FLT_TRUCK_SECTIONS (TRUCK_ID, SEQ_NO);
+/
+CREATE OR REPLACE TRIGGER TRG_FLT_TRUCK_SECTIONS_BI BEFORE INSERT ON FLT_TRUCK_SECTIONS FOR EACH ROW
+BEGIN IF :NEW.ID IS NULL THEN SELECT SEQ_FLT_TRUCK_SECTIONS.NEXTVAL INTO :NEW.ID FROM DUAL; END IF; END;
+/
+
+-- ===== Geographic groups of stations served by one trip (p.2, p.6) =====
+CREATE TABLE FLT_STATION_GROUPS (
+  ID      NUMBER(12)    NOT NULL,
+  CODE    VARCHAR2(20)  NOT NULL,
+  NAME    VARCHAR2(200) NOT NULL,
+  ACTIVE  NUMBER(1)     DEFAULT 1 NOT NULL,
+  CONSTRAINT PK_FLT_STATION_GROUPS PRIMARY KEY (ID),
+  CONSTRAINT CK_FLT_STATION_GROUPS_A CHECK (ACTIVE IN (0,1))
+);
+CREATE SEQUENCE SEQ_FLT_STATION_GROUPS START WITH 1 INCREMENT BY 1 CACHE 20;
+CREATE UNIQUE INDEX UX_FLT_STATION_GROUPS_CODE ON FLT_STATION_GROUPS (CODE);
+/
+CREATE OR REPLACE TRIGGER TRG_FLT_STATION_GROUPS_BI BEFORE INSERT ON FLT_STATION_GROUPS FOR EACH ROW
+BEGIN IF :NEW.ID IS NULL THEN SELECT SEQ_FLT_STATION_GROUPS.NEXTVAL INTO :NEW.ID FROM DUAL; END IF; END;
+/
+
+-- A station may belong to several groups (petrol round vs diesel round),
+-- so the junction carries its own order number inside the group.
+CREATE TABLE FLT_STATION_GROUP_ITEMS (
+  GROUP_ID    NUMBER(12)  NOT NULL,
+  STATION_ID  NUMBER(12)  NOT NULL,
+  SEQ_NO      NUMBER(4)   DEFAULT 1 NOT NULL,
+  CONSTRAINT PK_FLT_STATION_GROUP_ITEMS PRIMARY KEY (GROUP_ID, STATION_ID),
+  CONSTRAINT FK_FLT_SGI_GROUP FOREIGN KEY (GROUP_ID) REFERENCES FLT_STATION_GROUPS (ID),
+  CONSTRAINT FK_FLT_SGI_STATION FOREIGN KEY (STATION_ID) REFERENCES FLT_STATIONS (ID)
+);
+CREATE INDEX IX_FLT_SGI_GROUP ON FLT_STATION_GROUP_ITEMS (GROUP_ID);
+CREATE INDEX IX_FLT_SGI_STATION ON FLT_STATION_GROUP_ITEMS (STATION_ID);
+
+-- ===== Live tank stock coming from Petrol Expert (p.2) =====
+-- A snapshot table, not a running balance: the external system is the
+-- source of truth for "what is in the tank right now", and the planner
+-- always reads the latest row per tank. Keeping history lets us show the
+-- operator how old the figure he is planning on actually is.
+CREATE TABLE FLT_TANK_STOCK (
+  ID         NUMBER(12)    NOT NULL,
+  TANK_ID    NUMBER(12)    NOT NULL,
+  STOCK_TS   DATE          DEFAULT SYSDATE NOT NULL,
+  CURRENT_L  NUMBER(10,2)  NOT NULL,
+  SOURCE     VARCHAR2(20)  DEFAULT 'MANUAL' NOT NULL,
+  CONSTRAINT PK_FLT_TANK_STOCK PRIMARY KEY (ID),
+  CONSTRAINT FK_FLT_TANK_STOCK_TANK FOREIGN KEY (TANK_ID) REFERENCES FLT_STATION_TANKS (ID),
+  CONSTRAINT CK_FLT_TANK_STOCK_L CHECK (CURRENT_L >= 0),
+  CONSTRAINT CK_FLT_TANK_STOCK_SRC CHECK (SOURCE IN ('PETROL_EXPERT','MANUAL','UNA'))
+);
+CREATE SEQUENCE SEQ_FLT_TANK_STOCK START WITH 1 INCREMENT BY 1 CACHE 20;
+CREATE INDEX IX_FLT_TANK_STOCK_TANK ON FLT_TANK_STOCK (TANK_ID, STOCK_TS);
+/
+CREATE OR REPLACE TRIGGER TRG_FLT_TANK_STOCK_BI BEFORE INSERT ON FLT_TANK_STOCK FOR EACH ROW
+BEGIN IF :NEW.ID IS NULL THEN SELECT SEQ_FLT_TANK_STOCK.NEXTVAL INTO :NEW.ID FROM DUAL; END IF; END;
+/
+
+-- ===== Supply plan: the calculation itself (p.7) =====
+CREATE TABLE FLT_SUPPLY_PLANS (
+  ID            NUMBER(12)    NOT NULL,
+  PLAN_DATE     DATE          DEFAULT SYSDATE NOT NULL,
+  STATUS_CODE   VARCHAR2(10)  DEFAULT 'DRAFT' NOT NULL,
+  HORIZON_DAYS  NUMBER(3)     DEFAULT 2 NOT NULL,
+  COVER_DAYS    NUMBER(3)     DEFAULT 7 NOT NULL,
+  NEEDS_CNT     NUMBER(6)     DEFAULT 0 NOT NULL,
+  TRIPS_CNT     NUMBER(6)     DEFAULT 0 NOT NULL,
+  VOLUME_L      NUMBER(12,2)  DEFAULT 0 NOT NULL,
+  CREATED_BY    VARCHAR2(120),
+  CREATED_AT    DATE          DEFAULT SYSDATE NOT NULL,
+  CONSTRAINT PK_FLT_SUPPLY_PLANS PRIMARY KEY (ID),
+  CONSTRAINT CK_FLT_SUPPLY_PLANS_ST CHECK (STATUS_CODE IN ('DRAFT','CONFIRMED','CANCELLED'))
+);
+CREATE SEQUENCE SEQ_FLT_SUPPLY_PLANS START WITH 1 INCREMENT BY 1 CACHE 20;
+CREATE INDEX IX_FLT_SUPPLY_PLANS_DATE ON FLT_SUPPLY_PLANS (PLAN_DATE);
+/
+CREATE OR REPLACE TRIGGER TRG_FLT_SUPPLY_PLANS_BI BEFORE INSERT ON FLT_SUPPLY_PLANS FOR EACH ROW
+BEGIN IF :NEW.ID IS NULL THEN SELECT SEQ_FLT_SUPPLY_PLANS.NEXTVAL INTO :NEW.ID FROM DUAL; END IF; END;
+/
+
+-- One row per station+product: exactly the table the ToR p.7 asks the
+-- operator to see. Every figure the decision was made on is stored, not
+-- recomputed later: the stock and the sales rate change by the hour, and
+-- a plan that cannot be explained afterwards is not auditable.
+CREATE TABLE FLT_SUPPLY_NEEDS (
+  ID             NUMBER(12)    NOT NULL,
+  PLAN_ID        NUMBER(12)    NOT NULL,
+  STATION_ID     NUMBER(12)    NOT NULL,
+  PRODUCT_CODE   VARCHAR2(20)  NOT NULL,
+  TANK_ID        NUMBER(12),
+  CURRENT_L      NUMBER(10,2)  DEFAULT 0 NOT NULL,
+  AVG_DAILY_L    NUMBER(10,2)  DEFAULT 0 NOT NULL,
+  MIN_STOCK_L    NUMBER(10,2)  DEFAULT 0 NOT NULL,
+  MAX_FILL_L     NUMBER(10,2)  DEFAULT 0 NOT NULL,
+  IN_TRANSIT_L   NUMBER(10,2)  DEFAULT 0 NOT NULL,
+  DAYS_TO_MIN    NUMBER(6,2),
+  ALLOWED_L      NUMBER(10,2)  DEFAULT 0 NOT NULL,
+  TARGET_L       NUMBER(10,2)  DEFAULT 0 NOT NULL,
+  PLANNED_L      NUMBER(10,2)  DEFAULT 0 NOT NULL,
+  COVER_DAYS     NUMBER(5,1),
+  WARNING        VARCHAR2(300),
+  CONSTRAINT PK_FLT_SUPPLY_NEEDS PRIMARY KEY (ID),
+  CONSTRAINT FK_FLT_SN_PLAN FOREIGN KEY (PLAN_ID) REFERENCES FLT_SUPPLY_PLANS (ID),
+  CONSTRAINT FK_FLT_SN_STATION FOREIGN KEY (STATION_ID) REFERENCES FLT_STATIONS (ID),
+  CONSTRAINT FK_FLT_SN_PRODUCT FOREIGN KEY (PRODUCT_CODE) REFERENCES FLT_PRODUCTS (CODE),
+  CONSTRAINT FK_FLT_SN_TANK FOREIGN KEY (TANK_ID) REFERENCES FLT_STATION_TANKS (ID)
+);
+CREATE SEQUENCE SEQ_FLT_SUPPLY_NEEDS START WITH 1 INCREMENT BY 1 CACHE 20;
+CREATE INDEX IX_FLT_SN_PLAN ON FLT_SUPPLY_NEEDS (PLAN_ID);
+CREATE INDEX IX_FLT_SN_STATION ON FLT_SUPPLY_NEEDS (STATION_ID);
+CREATE INDEX IX_FLT_SN_PRODUCT ON FLT_SUPPLY_NEEDS (PRODUCT_CODE);
+CREATE INDEX IX_FLT_SN_TANK ON FLT_SUPPLY_NEEDS (TANK_ID);
+/
+CREATE OR REPLACE TRIGGER TRG_FLT_SUPPLY_NEEDS_BI BEFORE INSERT ON FLT_SUPPLY_NEEDS FOR EACH ROW
+BEGIN IF :NEW.ID IS NULL THEN SELECT SEQ_FLT_SUPPLY_NEEDS.NEXTVAL INTO :NEW.ID FROM DUAL; END IF; END;
+/
+
+-- Proposed trips of a plan: one tanker, one fuel family, one group of
+-- stations. Becomes an FLT_TRIPS row only when the operator confirms it.
+CREATE TABLE FLT_SUPPLY_TRIPS (
+  ID             NUMBER(12)    NOT NULL,
+  PLAN_ID        NUMBER(12)    NOT NULL,
+  SEQ_NO         NUMBER(4)     DEFAULT 1 NOT NULL,
+  TRUCK_ID       NUMBER(12)    NOT NULL,
+  FUEL_GROUP     VARCHAR2(10)  NOT NULL,
+  LOAD_POINT_ID  NUMBER(12)    NOT NULL,
+  GROUP_ID       NUMBER(12),
+  VOLUME_L       NUMBER(10,2)  DEFAULT 0 NOT NULL,
+  EST_KM         NUMBER(8,1),
+  TRIP_ID        NUMBER(12),
+  CONSTRAINT PK_FLT_SUPPLY_TRIPS PRIMARY KEY (ID),
+  CONSTRAINT FK_FLT_ST_PLAN FOREIGN KEY (PLAN_ID) REFERENCES FLT_SUPPLY_PLANS (ID),
+  CONSTRAINT FK_FLT_ST_TRUCK FOREIGN KEY (TRUCK_ID) REFERENCES FLT_TRUCKS (ID),
+  CONSTRAINT FK_FLT_ST_LOAD FOREIGN KEY (LOAD_POINT_ID) REFERENCES FLT_LOAD_POINTS (ID),
+  CONSTRAINT FK_FLT_ST_GROUP FOREIGN KEY (GROUP_ID) REFERENCES FLT_STATION_GROUPS (ID),
+  CONSTRAINT FK_FLT_ST_TRIP FOREIGN KEY (TRIP_ID) REFERENCES FLT_TRIPS (ID),
+  CONSTRAINT CK_FLT_ST_FUEL CHECK (FUEL_GROUP IN ('PETROL','DIESEL'))
+);
+CREATE SEQUENCE SEQ_FLT_SUPPLY_TRIPS START WITH 1 INCREMENT BY 1 CACHE 20;
+CREATE INDEX IX_FLT_ST_PLAN ON FLT_SUPPLY_TRIPS (PLAN_ID);
+CREATE INDEX IX_FLT_ST_TRUCK ON FLT_SUPPLY_TRIPS (TRUCK_ID);
+CREATE INDEX IX_FLT_ST_LOAD ON FLT_SUPPLY_TRIPS (LOAD_POINT_ID);
+CREATE INDEX IX_FLT_ST_GROUP ON FLT_SUPPLY_TRIPS (GROUP_ID);
+CREATE INDEX IX_FLT_ST_TRIP ON FLT_SUPPLY_TRIPS (TRIP_ID);
+/
+CREATE OR REPLACE TRIGGER TRG_FLT_SUPPLY_TRIPS_BI BEFORE INSERT ON FLT_SUPPLY_TRIPS FOR EACH ROW
+BEGIN IF :NEW.ID IS NULL THEN SELECT SEQ_FLT_SUPPLY_TRIPS.NEXTVAL INTO :NEW.ID FROM DUAL; END IF; END;
+/
+
+-- Compartment assignment: which compartment goes to which station, in
+-- which discharge order. UNLOAD_SEQ 1 is discharged first and is filled
+-- from the tail compartment of the tanker.
+CREATE TABLE FLT_SUPPLY_LOADS (
+  ID              NUMBER(12)    NOT NULL,
+  SUPPLY_TRIP_ID  NUMBER(12)    NOT NULL,
+  NEED_ID         NUMBER(12),
+  SECTION_ID      NUMBER(12)    NOT NULL,
+  STATION_ID      NUMBER(12)    NOT NULL,
+  PRODUCT_CODE    VARCHAR2(20)  NOT NULL,
+  VOLUME_L        NUMBER(10,2)  NOT NULL,
+  UNLOAD_SEQ      NUMBER(4)     NOT NULL,
+  CONSTRAINT PK_FLT_SUPPLY_LOADS PRIMARY KEY (ID),
+  CONSTRAINT FK_FLT_SL_TRIP FOREIGN KEY (SUPPLY_TRIP_ID) REFERENCES FLT_SUPPLY_TRIPS (ID),
+  CONSTRAINT FK_FLT_SL_NEED FOREIGN KEY (NEED_ID) REFERENCES FLT_SUPPLY_NEEDS (ID),
+  CONSTRAINT FK_FLT_SL_SECTION FOREIGN KEY (SECTION_ID) REFERENCES FLT_TRUCK_SECTIONS (ID),
+  CONSTRAINT FK_FLT_SL_STATION FOREIGN KEY (STATION_ID) REFERENCES FLT_STATIONS (ID),
+  CONSTRAINT FK_FLT_SL_PRODUCT FOREIGN KEY (PRODUCT_CODE) REFERENCES FLT_PRODUCTS (CODE),
+  CONSTRAINT CK_FLT_SL_VOL CHECK (VOLUME_L > 0)
+);
+CREATE SEQUENCE SEQ_FLT_SUPPLY_LOADS START WITH 1 INCREMENT BY 1 CACHE 20;
+CREATE INDEX IX_FLT_SL_TRIP ON FLT_SUPPLY_LOADS (SUPPLY_TRIP_ID);
+CREATE INDEX IX_FLT_SL_NEED ON FLT_SUPPLY_LOADS (NEED_ID);
+CREATE INDEX IX_FLT_SL_SECTION ON FLT_SUPPLY_LOADS (SECTION_ID);
+CREATE INDEX IX_FLT_SL_STATION ON FLT_SUPPLY_LOADS (STATION_ID);
+CREATE INDEX IX_FLT_SL_PRODUCT ON FLT_SUPPLY_LOADS (PRODUCT_CODE);
+/
+CREATE OR REPLACE TRIGGER TRG_FLT_SUPPLY_LOADS_BI BEFORE INSERT ON FLT_SUPPLY_LOADS FOR EACH ROW
+BEGIN IF :NEW.ID IS NULL THEN SELECT SEQ_FLT_SUPPLY_LOADS.NEXTVAL INTO :NEW.ID FROM DUAL; END IF; END;
+/
+
+-- ===== Columns added to the tables of 120_flt_tables.sql =====
+-- Guarded by USER_TAB_COLUMNS: the file must survive a re-run on a
+-- schema where it has already been applied.
+DECLARE
+  PROCEDURE add_col(p_table VARCHAR2, p_col VARCHAR2, p_def VARCHAR2) IS
+    v_cnt NUMBER;
+  BEGIN
+    SELECT COUNT(*) INTO v_cnt FROM USER_TAB_COLUMNS
+     WHERE TABLE_NAME = p_table AND COLUMN_NAME = p_col;
+    IF v_cnt = 0 THEN
+      EXECUTE IMMEDIATE 'ALTER TABLE ' || p_table || ' ADD (' || p_col || ' ' || p_def || ')';
+    END IF;
+  END;
+BEGIN
+  -- p.4.1: the volume a tank may legally hold is lower than the nominal
+  -- capacity. Defaulted to the capacity so existing rows stay valid, and
+  -- corrected station by station from Petrol Expert.
+  add_col('FLT_STATION_TANKS', 'MAX_FILL_L',     'NUMBER(10,2)');
+  -- p.2: minimum stock is entered by hand, it is a commercial decision.
+  add_col('FLT_STATION_TANKS', 'MIN_STOCK_L',    'NUMBER(10,2)');
+  -- p.4.2 note: usually 7 days, but some tanks cannot hold that much and
+  -- on some stations even the smallest compartment lasts longer -- hence
+  -- a per-tank override of the global setting.
+  add_col('FLT_STATION_TANKS', 'MAX_COVER_DAYS', 'NUMBER(4,1)');
+  add_col('FLT_STATION_TANKS', 'EXT_CODE',       'VARCHAR2(40)');
+
+  -- p.6: petrol and diesel never share a tanker. The family lives on the
+  -- product, not on the truck, because A92/A95/A98 may share one trip.
+  add_col('FLT_PRODUCTS', 'FUEL_GROUP', 'VARCHAR2(10) DEFAULT ''PETROL''');
+
+  -- ToR of the fleet-expense document: the norm route starts at the
+  -- parking lot, not at the loading terminal. Without this leg the norm
+  -- mileage -- and therefore the salary -- is understated.
+  add_col('FLT_TRIPS', 'START_POINT_ID', 'NUMBER(12)');
+  add_col('FLT_TRIPS', 'PLAN_ID',        'NUMBER(12)');
+  add_col('FLT_TRIPS', 'FUEL_GROUP',     'VARCHAR2(10)');
+
+  -- p.9: plan vs loaded vs document vs accepted, per delivered item.
+  add_col('FLT_TRIP_STOP_ITEMS', 'LOADED_L',   'NUMBER(10,2)');
+  add_col('FLT_TRIP_STOP_ITEMS', 'DOC_L',      'NUMBER(10,2)');
+  add_col('FLT_TRIP_STOP_ITEMS', 'ACCEPTED_L', 'NUMBER(10,2)');
+  add_col('FLT_TRIP_STOP_ITEMS', 'SECTION_ID', 'NUMBER(12)');
+  add_col('FLT_TRIP_STOP_ITEMS', 'UNLOAD_SEQ', 'NUMBER(4)');
+
+  -- Execution statuses need an order and a "does this one pay" flag:
+  -- a trip that is merely planned must not generate salary.
+  add_col('FLT_REF_TRIP_STATUS', 'SORT_NO',    'NUMBER(3) DEFAULT 0');
+  add_col('FLT_REF_TRIP_STATUS', 'IS_PAYABLE', 'NUMBER(1) DEFAULT 0');
+  add_col('FLT_REF_TRIP_STATUS', 'IS_FINAL',   'NUMBER(1) DEFAULT 0');
+
+  -- New settings of the 18.09.2026 ToR.
+  add_col('FLT_SETTINGS', 'MAX_COVER_DAYS',    'NUMBER(4,1) DEFAULT 7');
+  add_col('FLT_SETTINGS', 'PLAN_HORIZON_DAYS', 'NUMBER(3) DEFAULT 2');
+  add_col('FLT_SETTINGS', 'GROUP_MIN_STATIONS','NUMBER(3) DEFAULT 2');
+  add_col('FLT_SETTINGS', 'GROUP_MAX_STATIONS','NUMBER(3) DEFAULT 4');
+  add_col('FLT_SETTINGS', 'VOLUME_DIFF_PCT',   'NUMBER(5,2) DEFAULT 1');
+END;
+/
+
+-- Backfill: the allowed fill defaults to the nominal capacity, the
+-- fuel family is derived from the product code. Both are UPDATE ... WHERE
+-- NULL so a second run cannot overwrite values corrected by the customer.
+UPDATE FLT_STATION_TANKS SET MAX_FILL_L = CAPACITY_L WHERE MAX_FILL_L IS NULL;
+
+UPDATE FLT_PRODUCTS SET FUEL_GROUP = 'DIESEL'
+ WHERE CODE = 'DIESEL' AND FUEL_GROUP <> 'DIESEL';
+
+-- Indexes for the freshly added foreign-key columns.
+CREATE INDEX IX_FLT_TRIPS_START_POINT ON FLT_TRIPS (START_POINT_ID);
+CREATE INDEX IX_FLT_TRIPS_PLAN ON FLT_TRIPS (PLAN_ID);
+CREATE INDEX IX_FLT_TSI_SECTION ON FLT_TRIP_STOP_ITEMS (SECTION_ID);
+
+COMMIT;

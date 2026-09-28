@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OfficePlus · APEX Always Free · Microservicii · Documentație completă</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --surface:#ffffff; --surface-2:#fbfcfe;
+    --ink:#141c28; --muted:#5a6675; --faint:#8794a4;
+    --border:#e3e7ee; --border-strong:#d2d8e2;
+    --accent:#2743c4; --accent-2:#4a63d8; --accent-soft:#eef1fd;
+    --ok:#1f8a54; --ok-soft:#e7f4ec;
+    --warn:#a96a12; --warn-soft:#fbf0da;
+    --stop:#bd352b; --stop-soft:#fbe8e6;
+    --mono:ui-monospace,"SF Mono","Cascadia Code","Roboto Mono",Menlo,Consolas,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+    --maxw:920px;
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0d1219; --surface:#151c26; --surface-2:#111823;
+      --ink:#e7ecf3; --muted:#95a2b3; --faint:#6d7b8c;
+      --border:#222c39; --border-strong:#2c3846;
+      --accent:#8098f2; --accent-2:#6c86ee; --accent-soft:#182238;
+      --ok:#4fc78c; --ok-soft:#122619;
+      --warn:#d9a648; --warn-soft:#2a2110;
+      --stop:#ec7a6f; --stop-soft:#2b1512;
+    }
+  }
+  :root[data-theme="light"]{
+    --bg:#f5f7fa; --surface:#ffffff; --surface-2:#fbfcfe;
+    --ink:#141c28; --muted:#5a6675; --faint:#8794a4;
+    --border:#e3e7ee; --border-strong:#d2d8e2;
+    --accent:#2743c4; --accent-2:#4a63d8; --accent-soft:#eef1fd;
+    --ok:#1f8a54; --ok-soft:#e7f4ec; --warn:#a96a12; --warn-soft:#fbf0da;
+    --stop:#bd352b; --stop-soft:#fbe8e6;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1219; --surface:#151c26; --surface-2:#111823;
+    --ink:#e7ecf3; --muted:#95a2b3; --faint:#6d7b8c;
+    --border:#222c39; --border-strong:#2c3846;
+    --accent:#8098f2; --accent-2:#6c86ee; --accent-soft:#182238;
+    --ok:#4fc78c; --ok-soft:#122619; --warn:#d9a648; --warn-soft:#2a2110;
+    --stop:#ec7a6f; --stop-soft:#2b1512;
+  }
+  *{box-sizing:border-box}
+  body{margin:0}
+  .page{
+    background:var(--bg); color:var(--ink); font-family:var(--sans);
+    line-height:1.6; -webkit-font-smoothing:antialiased;
+    padding:clamp(20px,5vw,64px) 20px 80px;
+  }
+  .wrap{max-width:var(--maxw); margin:0 auto}
+  .eyebrow{
+    font-family:var(--mono); font-size:12px; letter-spacing:.14em; text-transform:uppercase;
+    color:var(--accent); display:flex; align-items:center; gap:10px; margin:0 0 18px;
+  }
+  .eyebrow::before{content:""; width:26px; height:2px; background:var(--accent); display:inline-block}
+  h1{
+    font-size:clamp(26px,5vw,40px); line-height:1.12; letter-spacing:-.02em; font-weight:760;
+    margin:0 0 14px; text-wrap:balance;
+  }
+  .dek{font-size:clamp(15px,2.2vw,18px); color:var(--muted); max-width:70ch; margin:0}
+  .meta{
+    font-family:var(--mono); font-size:12.5px; color:var(--faint);
+    margin-top:22px; padding-top:16px; border-top:1px solid var(--border);
+    display:flex; flex-wrap:wrap; gap:6px 20px;
+  }
+  .meta b{color:var(--muted); font-weight:600}
+  section{margin-top:48px}
+  .sec-head{display:flex; align-items:baseline; gap:14px; margin:0 0 18px; flex-wrap:wrap}
+  .sec-tag{
+    font-family:var(--mono); font-size:12px; color:var(--accent); font-weight:600;
+    border:1px solid var(--border-strong); border-radius:6px; padding:3px 8px; white-space:nowrap;
+    background:var(--surface-2);
+  }
+  h2{font-size:clamp(19px,3vw,24px); letter-spacing:-.01em; font-weight:700; margin:0; text-wrap:balance}
+  h3{font-size:16px; margin:18px 0 8px}
+  p{margin:0 0 12px; max-width:72ch}
+  a{color:var(--accent); text-underline-offset:3px}
+  ul,ol{margin:0 0 14px; padding-left:1.25rem; max-width:72ch}
+  li{margin:4px 0}
+  code,kbd{
+    font-family:var(--mono); font-size:12.5px;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:5px; padding:1px 6px;
+  }
+  pre{
+    font-family:var(--mono); font-size:12.5px; line-height:1.5;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; overflow-x:auto; margin:0 0 14px;
+  }
+  .chip{
+    display:inline-flex; align-items:center; gap:6px; font-family:var(--mono);
+    font-size:11.5px; font-weight:600; letter-spacing:.02em; padding:3px 9px; border-radius:999px;
+    border:1px solid transparent; white-space:nowrap;
+  }
+  .chip::before{content:""; width:6px; height:6px; border-radius:50%}
+  .chip.req{color:var(--stop); background:var(--stop-soft)} .chip.req::before{background:var(--stop)}
+  .chip.rec{color:var(--accent); background:var(--accent-soft)} .chip.rec::before{background:var(--accent)}
+  .chip.ok{color:var(--ok); background:var(--ok-soft)} .chip.ok::before{background:var(--ok)}
+  .chip.warn{color:var(--warn); background:var(--warn-soft)} .chip.warn::before{background:var(--warn)}
+  .tablecard{border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--surface); margin:12px 0 18px}
+  .scroll{overflow-x:auto}
+  table{border-collapse:collapse; width:100%; min-width:520px; font-size:14px}
+  th,td{text-align:left; padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:top}
+  thead th{
+    font-family:var(--mono); font-size:11px; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--faint); font-weight:600; background:var(--surface-2);
+  }
+  tbody tr:last-child td{border-bottom:none}
+  .field{font-family:var(--mono); font-weight:600}
+  .grid{display:grid; grid-template-columns:repeat(2,1fr); gap:14px; margin:12px 0 18px}
+  @media (max-width:640px){.grid{grid-template-columns:1fr}}
+  .op{
+    border:1px solid var(--border); border-radius:12px; background:var(--surface); padding:18px;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  .op h3{margin:0; font-size:15.5px}
+  .op p{margin:0; font-size:13.5px; color:var(--muted); max-width:none}
+  .callout{
+    border:1px solid var(--border); border-left:4px solid var(--warn); background:var(--warn-soft);
+    border-radius:10px; padding:16px 18px; margin:12px 0 18px;
+  }
+  .callout.stop{border-left-color:var(--stop); background:var(--stop-soft)}
+  .callout.ok{border-left-color:var(--ok); background:var(--ok-soft)}
+  .callout h3{margin:0 0 8px; font-size:15px}
+  .callout p{margin:0 0 6px; font-size:14px; max-width:none}
+  .callout p:last-child{margin:0}
+  .toc{
+    border:1px solid var(--border); border-radius:12px; background:var(--surface);
+    padding:16px 18px; margin:22px 0 8px;
+  }
+  .toc h3{margin:0 0 10px; font-size:14px; font-family:var(--mono); text-transform:uppercase; letter-spacing:.06em; color:var(--faint)}
+  .toc ol{margin:0; padding-left:1.2rem}
+  .toc a{text-decoration:none}
+  .toc a:hover{text-decoration:underline}
+  .rule{height:1px; background:var(--border); border:0; margin:48px 0 0}
+  footer{margin-top:28px; font-family:var(--mono); font-size:12.5px; color:var(--faint); line-height:1.8}
+  .toggle{
+    position:fixed; top:16px; right:16px; z-index:9; font-family:var(--mono); font-size:12px;
+    background:var(--surface); color:var(--muted); border:1px solid var(--border-strong);
+    border-radius:8px; padding:7px 11px; cursor:pointer;
+  }
+  .toggle:hover{color:var(--ink); border-color:var(--accent)}
+  :focus-visible{outline:2px solid var(--accent); outline-offset:2px; border-radius:4px}
+  .arch{
+    font-family:var(--mono); font-size:12px; line-height:1.55;
+    background:var(--surface-2); border:1px solid var(--border); border-radius:10px;
+    padding:14px 16px; overflow-x:auto; white-space:pre; margin:0 0 14px;
+  }
+</style>
+</head>
+<body>
+<button class="toggle" id="tg" aria-label="Сменить тему">◐ temă</button>
+<div class="page"><div class="wrap">
+
+<p class="eyebrow">OfficePlus · OCI Always Free · APEX · Microservicii</p>
+<h1>Полная инструкция: зеркало справочников, APEX dbOfficePlus и microservices на Ubuntu</h1>
+<p class="dek">
+  Документ описывает задачу «не сломать WordPress и продающий сайт, добавить microservices,
+  копию справочников/WP в Always Free APEX, backup API, пользователя OPVIEW и UI просмотра».
+  Секреты (пароли) в публичный текст <strong>не включаются</strong> — только имена в keychain и пути.
+</p>
+<div class="meta">
+  <span><b>Домен:</b> officeplus.md</span>
+  <span><b>VM:</b> Always Free Ubuntu · 89.168.115.20</span>
+  <span><b>ADB:</b> apOfficePlus / dbOfficePlus · eu-frankfurt-1</span>
+  <span><b>Обновлено:</b> 2026-07-22</span>
+</div>
+
+<nav class="toc" aria-label="Оглавление">
+  <h3>Содержание</h3>
+  <ol>
+    <li><a href="#goal">Цель и инварианты</a></li>
+    <li><a href="#arch">Архитектура</a></li>
+    <li><a href="#inventory">Инвентарь (VM, WP, shop, ADB)</a></li>
+    <li><a href="#adb">Autonomous Database APEX</a></li>
+    <li><a href="#schema">Схема OP_* (зеркало)</a></li>
+    <li><a href="#opview">Схема и workspace OPVIEW</a></li>
+    <li><a href="#ui">UI просмотра и JSON API</a></li>
+    <li><a href="#opmicro">Microservices op-micro</a></li>
+    <li><a href="#keychain">Keychain и секреты</a></li>
+    <li><a href="#ops">Эксплуатация (sync, restart, checks)</a></li>
+    <li><a href="#backup">Полный backup справочников</a></li>
+    <li><a href="#safety">Что нельзя ломать</a></li>
+    <li><a href="#troubleshoot">Диагностика</a></li>
+    <li><a href="#urls">Сводка URL</a></li>
+  </ol>
+</nav>
+
+<!-- 1 -->
+<section id="goal">
+  <div class="sec-head"><span class="sec-tag">01</span><h2>Цель и инварианты</h2></div>
+  <p>Задача (как сформулирована оператором):</p>
+  <ul>
+    <li>добавить <strong>microservices</strong> на Always Free Ubuntu;</li>
+    <li><strong>не сломать</strong> WordPress (<code>officeplus.md</code>) и продающий магазин Biro26;</li>
+    <li>товары, группы, клиенты и прочие справочники — копия для внешних систем;</li>
+    <li>копия данных WordPress → Always Free APEX БД <code>dbOfficePlus</code>;</li>
+    <li>внешние программы должны уметь делать <strong>полный backup справочников</strong>;</li>
+    <li>пароль ADB — в keychain; пользователь APEX <code>OPVIEW</code> — смена пароля при первом входе.</li>
+  </ul>
+  <div class="callout stop">
+    <h3>Инварианты production</h3>
+    <p><strong>Не трогать:</strong> Hestia vhost WordPress, <code>public_html</code>, MariaDB write-операции, порт Flask/gunicorn <code>127.0.0.1:8000</code>, nginx proxy shop/backoffice, SSL certbot пути.</p>
+    <p><strong>Проверка после любых правок:</strong>
+      <code>curl -I https://officeplus.md/</code> → 200;
+      shop API <code>/api/biro26/shop/products?limit=1</code> → success.
+    </p>
+  </div>
+</section>
+
+<!-- 2 -->
+<section id="arch">
+  <div class="sec-head"><span class="sec-tag">02</span><h2>Архитектура</h2></div>
+  <div class="arch">WordPress (MariaDB wordpress) ──READ──┐
+Biro26 shop API :8000 (ERP 11g) ──READ──┼──► op-micro (cron + API :8010)
+                                        │         WRITE via ORDS SQL
+                                        ▼
+                         ADB APEX Always Free  dbOfficePlus
+                         ADMIN.OP_*  +  OPVIEW views
+                         ORDS UI /opview-ui/  +  JSON /ords/opview/v_*
+                         APEX workspace OFFICEPLUS (user OPVIEW)</div>
+  <p>
+    Источник истины для товаров/групп — <strong>ERP OfficePlus / Biro26</strong> (не WooCommerce).
+    WordPress — витрина (iframe магазина) + страницы/контент сайта.
+    APEX — <strong>зеркало</strong> для отчётов, backup и внешних программ.
+  </p>
+</section>
+
+<!-- 3 -->
+<section id="inventory">
+  <div class="sec-head"><span class="sec-tag">03</span><h2>Инвентарь</h2></div>
+
+  <h3>Always Free Ubuntu (production site)</h3>
+  <div class="tablecard"><div class="scroll"><table>
+    <thead><tr><th>Параметр</th><th>Значение</th></tr></thead>
+    <tbody>
+      <tr><td class="field">Hostname</td><td><code>mail.officeplus.md</code></td></tr>
+      <tr><td class="field">Public IP</td><td><code>89.168.115.20</code></td></tr>
+      <tr><td class="field">Private IP</td><td><code>10.0.0.86</code></td></tr>
+      <tr><td class="field">OS</td><td>Ubuntu 24.04 LTS · ~1 GB RAM (E2.1.Micro class)</td></tr>
+      <tr><td class="field">SSH</td><td><code>ubuntu@89.168.115.20</code> · ключ <code>config/biro26_rsa</code></td></tr>
+      <tr><td class="field">Panel</td><td>HestiaCP · domains: officeplus.md, mail, hpanel</td></tr>
+      <tr><td class="field">WordPress path</td><td><code>/home/admin/web/officeplus.md/public_html</code></td></tr>
+      <tr><td class="field">WP DB</td><td>MariaDB schema <code>wordpress</code> · user <code>wpuser</code> (localhost)</td></tr>
+      <tr><td class="field">Artgranit / Biro26</td><td><code>/home/ubuntu/artgranit</code> · gunicorn <code>127.0.0.1:8000</code></td></tr>
+      <tr><td class="field">jsReport</td><td><code>127.0.0.1:5488</code> (печатные формы)</td></tr>
+      <tr><td class="field">op-micro</td><td><code>/home/ubuntu/op-micro</code> · <code>127.0.0.1:8010</code></td></tr>
+    </tbody>
+  </table></div></div>
+
+  <h3>Смежные VM (tenancy eu-frankfurt-1)</h3>
+  <div class="tablecard"><div class="scroll"><table>
+    <thead><tr><th>Роль</th><th>IP / note</th></tr></thead>
+    <tbody>
+      <tr><td class="field">PRIMARY (CSV AI / RAG helper)</td><td><code>130.61.111.57</code> · Streamlit :8501</td></tr>
+      <tr><td class="field">nufarul.eminescu.md (Artgranit prod multi-module)</td><td>отдельный хост; <strong>не путать</strong> с officeplus.md</td></tr>
+      <tr><td class="field">Workspace builder</td><td><code>/home/ptuhari/grok</code> (Cloud Shell / builder)</td></tr>
+    </tbody>
+  </table></div></div>
+
+  <h3>Сайт officeplus.md — что уже работало до microservices</h3>
+  <ul>
+    <li>WordPress pages (Despre noi, Livrare, Contacte, …) + multi-lang RO/RU/EN</li>
+    <li>Магазин: iframe / routes → Biro26 shop (<code>/biro26-shop</code>, <code>/UNA.md/orasldev/biro26-shop</code>)</li>
+    <li>Backoffice: <code>/biro26-backoffice</code></li>
+    <li>Документация import: <a href="/static/biro26/import_reguli.html">/static/biro26/import_reguli.html</a> (страница WP «Reguli import»)</li>
+    <li>Статика Biro26: nginx <code>location /static/biro26/</code> → Flask :8000</li>
+  </ul>
+</section>
+
+<!-- 4 -->
+<section id="adb">
+  <div class="sec-head"><span class="sec-tag">04</span><h2>Autonomous Database APEX (Always Free)</h2></div>
+  <div class="tablecard"><div class="scroll"><table>
+    <thead><tr><th>Параметр</th><th>Значение</th></tr></thead>
+    <tbody>
+      <tr><td class="field">Display name</td><td><code>apOfficePlus</code></td></tr>
+      <tr><td class="field">DB name</td><td><code>dbOfficePlus</code></td></tr>
+      <tr><td class="field">Workload</td><td><span class="chip warn">APEX</span> Application Development (Always Free)</td></tr>
+      <tr><td class="field">Region</td><td><code>eu-frankfurt-1</code></td></tr>
+      <tr><td class="field">Version</td><td>Oracle 19c · APEX 24.2.x · ORDS 26.x</td></tr>
+      <tr><td class="field">OCID</td><td><code>ocid1.autonomousdatabase.oc1.eu-frankfurt-1.antheljssi7ug4qaai37svjp3ryycdcn5fmedpc2yfx3tya5l6nggid2tkqq</code></td></tr>
+      <tr><td class="field">ADMIN user</td><td><code>ADMIN</code> (в UI иногда помечали как SYS — для app connect используем <strong>ADMIN</strong>)</td></tr>
+      <tr><td class="field">mTLS wallet download</td><td><span class="chip req">недоступен</span> для pure APEX workload — «upgrade to ATP» required for wallet</td></tr>
+      <tr><td class="field">Programmatic SQL</td><td>ORDS: <code>POST …/ords/admin/_/sql</code> Basic ADMIN</td></tr>
+      <tr><td class="field">APEX URL</td><td><a href="https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/apex" target="_blank" rel="noopener">…/ords/apex</a></td></tr>
+      <tr><td class="field">SQL Dev Web</td><td><a href="https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/sql-developer" target="_blank" rel="noopener">…/ords/sql-developer</a></td></tr>
+      <tr><td class="field">ORDS base</td><td><code>https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/</code></td></tr>
+    </tbody>
+  </table></div></div>
+  <div class="callout">
+    <h3>Почему ORDS, а не wallet</h3>
+    <p>OCI отклоняет <code>generate-wallet</code> для APEX Application Development: нужен upgrade workload → ATP. Конвертация free APEX→OLTP API тоже запрещена. Поэтому слой <code>op-micro/db_apex.py</code> ходит в БД через <strong>ORDS SQL REST</strong>.</p>
+  </div>
+  <p>TNS (если когда-нибудь будет wallet после upgrade):</p>
+  <pre>g17bc742d484b06_dbofficeplus_high|medium|low|tp|tpurgent
+host adb.eu-frankfurt-1.oraclecloud.com:1522</pre>
+</section>
+
+<!-- 5 -->
+<section id="schema">
+  <div class="sec-head"><span class="sec-tag">05</span><h2>Схема зеркала ADMIN.OP_*</h2></div>
+  <p>Префикс <code>OP_</code> — только копии. ERP 11g и WordPress MariaDB не изменяются sync-ом.</p>
+  <div class="tablecard"><div class="scroll"><table>
+    <thead><tr><th>Объект</th><th>Назначение</th></tr></thead>
+    <tbody>
+      <tr><td class="field">OP_PRODUCTS</td><td>Товары (cod, barcode, name, brand, category, price, payload_json…)</td></tr>
+      <tr><td class="field">OP_GROUPS</td><td>Группы / дерево категорий</td></tr>
+      <tr><td class="field">OP_CLIENTS</td><td>Клиенты (если настроен источник clients API)</td></tr>
+      <tr><td class="field">OP_WP_POSTS</td><td>Зеркало wp_posts (без revision)</td></tr>
+      <tr><td class="field">OP_WP_TERMS</td><td>Термы WP</td></tr>
+      <tr><td class="field">OP_WP_USERS</td><td>Пользователи WP <strong>без</strong> password hash</td></tr>
+      <tr><td class="field">OP_WP_OPTIONS</td><td>Опции WP (без salts/keys)</td></tr>
+      <tr><td class="field">OP_SYNC_RUN</td><td>Журнал прогонов sync</td></tr>
+      <tr><td class="field">OP_V_BACKUP_META</td><td>Счётчики + last_ok_sync</td></tr>
+    </tbody>
+  </table></div></div>
+  <p>DDL: <code>op-micro/sql/01_op_schema.sql</code> · накат: <code>python apply_schema.py</code> (ORDS).</p>
+  <div class="callout">
+    <h3>Объём каталога shop</h3>
+    <p>Публичный API <code>/api/biro26/shop/products</code> отдаёт <code>total ≈ 156 836</code> позиций (offset работает).
+      Построчный ORDS MERGE для полного каталога долгий — для full load нужен batch (в roadmap).
+      WordPress mirror (posts/users/terms/options) уже успешно синхронизировался (~45 постов без revision).</p>
+  </div>
+</section>
+
+<!-- 6 -->
+<section id="opview">
+  <div class="sec-head"><span class="sec-tag">06</span><h2>Схема OPVIEW + APEX workspace</h2></div>
+  <div class="tablecard"><div class="scroll"><table>
+    <thead><tr><th>Параметр</th><th>Значение</th></tr></thead>
+    <tbody>
+      <tr><td class="field">DB schema</td><td><code>OPVIEW</code> (tablespace DATA, quota unlimited)</td></tr>
+      <tr><td class="field">Views</td><td><code>V_DASHBOARD</code>, <code>V_PRODUCTS</code>, <code>V_GROUPS</code>, <code>V_CLIENTS</code>, <code>V_WP_POSTS</code>, <code>V_SYNC_RUN</code></td></tr>
+      <tr><td class="field">Synonyms</td><td>на <code>ADMIN.OP_*</code></td></tr>
+      <tr><td class="field">APEX Workspace</td><td><code>OFFICEPLUS</code> · workspace_id <code>100100</code></td></tr>
+      <tr><td class="field">APEX user</td><td><code>OPVIEW</code> (developer privs ADMIN:CREATE:…)</td></tr>
+      <tr><td class="field">First login</td><td><span class="chip rec">change password on first use = Y</span></td></tr>
+      <tr><td class="field">Setup script</td><td><code>op-micro/setup_apex_viewer.py</code></td></tr>
+    </tbody>
+  </table></div></div>
+  <div class="callout stop">
+    <h3>ORA-12705 и native APEX App</h3>
+    <p>Вызов <code>wwv_flow_imp.create_app_from_query</code> из ORDS/Scheduler на этом Always Free APEX падает с <code>ORA-12705</code> (NLS). Workspace при этом полноценный.</p>
+    <p><strong>В браузере:</strong> APEX Builder → Create App from Tables → выбрать <code>V_*</code> (2–3 минуты). UI просмотра уже есть через ORDS HTML (ниже).</p>
+  </div>
+  <p><strong>Вход в APEX Builder:</strong></p>
+  <ol>
+    <li>URL: <a href="https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/apex" target="_blank" rel="noopener">ords/apex</a></li>
+    <li>Workspace: <code>OFFICEPLUS</code></li>
+    <li>User: <code>OPVIEW</code></li>
+    <li>Password: временный из keychain → система потребует <strong>свой</strong> новый пароль</li>
+  </ol>
+</section>
+
+<!-- 7 -->
+<section id="ui">
+  <div class="sec-head"><span class="sec-tag">07</span><h2>UI просмотра и JSON API</h2></div>
+  <p>Информационное приложение (HTML, read-only) — пакет <code>OPVIEW.UI_APP</code>, модуль ORDS <code>opview_ui</code>:</p>
+  <div class="grid">
+    <div class="op"><h3>Dashboard</h3><p><a href="https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/admin/opview-ui/home" target="_blank" rel="noopener">…/opview-ui/home</a></p></div>
+    <div class="op"><h3>Products</h3><p><a href="https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/admin/opview-ui/products" target="_blank" rel="noopener">…/opview-ui/products</a></p></div>
+    <div class="op"><h3>Groups</h3><p><a href="https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/admin/opview-ui/groups" target="_blank" rel="noopener">…/opview-ui/groups</a></p></div>
+    <div class="op"><h3>Clients</h3><p><a href="https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/admin/opview-ui/clients" target="_blank" rel="noopener">…/opview-ui/clients</a></p></div>
+    <div class="op"><h3>WordPress</h3><p><a href="https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/admin/opview-ui/wp_posts" target="_blank" rel="noopener">…/opview-ui/wp_posts</a></p></div>
+    <div class="op"><h3>Sync log</h3><p><a href="https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/admin/opview-ui/sync_log" target="_blank" rel="noopener">…/opview-ui/sync_log</a></p></div>
+  </div>
+  <h3>AutoREST JSON (schema OPVIEW)</h3>
+  <pre>https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/opview/v_dashboard/
+…/ords/opview/v_products/
+…/ords/opview/v_groups/
+…/ords/opview/v_clients/
+…/ords/opview/v_wp_posts/
+…/ords/opview/v_sync_run/</pre>
+  <p class="chip warn">Публичный ORDS без OAuth — при необходимости закрыть auth на module/schema.</p>
+</section>
+
+<!-- 8 -->
+<section id="opmicro">
+  <div class="sec-head"><span class="sec-tag">08</span><h2>Microservices op-micro</h2></div>
+  <p>Отдельный стек рядом с Artgranit — <strong>не</strong> внутри tree deploy, который мог бы затереть wallet/env artgranit.</p>
+  <div class="tablecard"><div class="scroll"><table>
+    <thead><tr><th>Путь / unit</th><th>Роль</th></tr></thead>
+    <tbody>
+      <tr><td class="field">/home/ubuntu/op-micro</td><td>код, venv, .env (mode 600)</td></tr>
+      <tr><td class="field">op-catalog.service</td><td>gunicorn <code>127.0.0.1:8010</code> · MemoryMax 120M</td></tr>
+      <tr><td class="field">op-sync.timer</td><td>hourly oneshot: sync_wp + sync_catalogs</td></tr>
+      <tr><td class="field">db_apex.py</td><td>ORDS SQL client</td></tr>
+      <tr><td class="field">sync_wp.py</td><td>MariaDB wordpress → OP_WP_* (ssl_disabled local)</td></tr>
+      <tr><td class="field">sync_catalogs.py</td><td>shop API products/tree → OP_PRODUCTS/GROUPS</td></tr>
+      <tr><td class="field">app.py</td><td>backup API + health + trigger sync</td></tr>
+      <tr><td class="field">Builder workspace</td><td><code>/home/ptuhari/grok/op-micro</code></td></tr>
+      <tr><td class="field">Deploy</td><td><code>scripts/deploy_op_micro.sh</code></td></tr>
+    </tbody>
+  </table></div></div>
+  <h3>Локальный backup API (на VM, loopback)</h3>
+  <pre>GET  http://127.0.0.1:8010/health
+GET  http://127.0.0.1:8010/api/v1/backup/full      # groups+products+clients+wp
+GET  http://127.0.0.1:8010/api/v1/backup/products
+GET  http://127.0.0.1:8010/api/v1/backup/groups
+GET  http://127.0.0.1:8010/api/v1/backup/clients
+GET  http://127.0.0.1:8010/api/v1/backup/wp
+POST http://127.0.0.1:8010/api/v1/sync/wp
+POST http://127.0.0.1:8010/api/v1/sync/catalogs</pre>
+  <p>Auth: header <code>X-API-Key</code> = значение из env <code>OP_BACKUP_API_KEY</code> (keychain <code>op_backup_api_key</code>). Без ключа — только с localhost.</p>
+</section>
+
+<!-- 9 -->
+<section id="keychain">
+  <div class="sec-head"><span class="sec-tag">09</span><h2>Keychain и секреты</h2></div>
+  <p>Каталог builder: <code>/home/ptuhari/grok/config/keychain/</code> (mode 700). Файлы <code>*.secret</code> mode 600, в <code>.gitignore</code>.</p>
+  <div class="tablecard"><div class="scroll"><table>
+    <thead><tr><th>Имя секрета</th><th>Содержимое</th></tr></thead>
+    <tbody>
+      <tr><td class="field">adb_dbofficeplus_admin</td><td>ADMIN password ADB dbOfficePlus</td></tr>
+      <tr><td class="field">adb_dbofficeplus_wallet</td><td>пароль wallet (если появится после upgrade ATP)</td></tr>
+      <tr><td class="field">apex_opview_password</td><td>временный пароль OPVIEW (после first-login — сменить)</td></tr>
+      <tr><td class="field">wp_officeplus_db</td><td>пароль MariaDB wpuser (только для sync read)</td></tr>
+      <tr><td class="field">op_backup_api_key</td><td>API key op-micro backup</td></tr>
+    </tbody>
+  </table></div></div>
+  <pre># сохранить
+printf '%s' '…' | ./scripts/keychain_store.sh adb_dbofficeplus_admin
+# прочитать (только скрипты)
+./scripts/keychain_get.sh apex_opview_password
+
+# meta (без паролей)
+config/keychain/meta.json
+config/keychain/apex_opview_meta.json</pre>
+  <div class="callout stop">
+    <h3>Никогда</h3>
+    <p>Не коммитить <code>*.secret</code>, <code>.env</code>, wallet zip, пароли в HTML/WP pages, chat logs в public docs.</p>
+  </div>
+</section>
+
+<!-- 10 -->
+<section id="ops">
+  <div class="sec-head"><span class="sec-tag">10</span><h2>Эксплуатация</h2></div>
+  <h3>Проверка production (обязательно)</h3>
+  <pre>curl -sI https://officeplus.md/ | head -1
+curl -s 'http://127.0.0.1:8000/api/biro26/shop/products?limit=1' | head -c 120
+systemctl is-active artgranit nginx op-catalog op-sync.timer</pre>
+
+  <h3>op-micro</h3>
+  <pre>sudo systemctl status op-catalog op-sync.timer
+sudo journalctl -u op-catalog -n 50 --no-pager
+cd /home/ubuntu/op-micro && set -a && source .env && set +a
+./venv/bin/python sync_wp.py
+./venv/bin/python sync_catalogs.py
+curl -s http://127.0.0.1:8010/health</pre>
+
+  <h3>Деплой кода op-micro с builder</h3>
+  <pre>cd /home/ptuhari/grok
+./scripts/deploy_op_micro.sh
+# .env и secrets на remote не перезаписываются rsync exclude</pre>
+
+  <h3>Накат DDL / OPVIEW</h3>
+  <pre>export APEX_DB_PASSWORD=$(./scripts/keychain_get.sh adb_dbofficeplus_admin)
+cd op-micro && python3 apply_schema.py
+python3 setup_apex_viewer.py   # осторожно: пересоздаёт schema OPVIEW</pre>
+
+  <h3>Документация на сайте (этот файл)</h3>
+  <pre># путь на VM
+/home/ubuntu/artgranit/static/biro26/OFFICEPLUS_APEX_MICROSERVICES.html
+# публичный URL
+https://officeplus.md/static/biro26/OFFICEPLUS_APEX_MICROSERVICES.html</pre>
+</section>
+
+<!-- 11 -->
+<section id="backup">
+  <div class="sec-head"><span class="sec-tag">11</span><h2>Полный backup справочников (внешние программы)</h2></div>
+  <ol>
+    <li><strong>Рекомендуется:</strong> ORDS AutoREST JSON по views <code>v_products</code>, <code>v_groups</code>, <code>v_clients</code> + pagination <code>?limit=&amp;offset=</code>.</li>
+    <li><strong>Агрегат:</strong> <code>GET http://127.0.0.1:8010/api/v1/backup/full</code> с <code>X-API-Key</code> (tunnel/SSH).</li>
+    <li><strong>UI ручной:</strong> страницы opview-ui (не для автоматизации dump).</li>
+    <li>Мета: <code>OP_V_BACKUP_META</code> / <code>v_dashboard</code>.</li>
+  </ol>
+  <pre># пример SSH tunnel + full dump
+ssh -L 8010:127.0.0.1:8010 ubuntu@89.168.115.20
+curl -H "X-API-Key: $OP_BACKUP_API_KEY" \
+  http://127.0.0.1:8010/api/v1/backup/full -o officeplus_catalogs_full.json</pre>
+</section>
+
+<!-- 12 -->
+<section id="safety">
+  <div class="sec-head"><span class="sec-tag">12</span><h2>Что нельзя ломать</h2></div>
+  <div class="tablecard"><div class="scroll"><table>
+    <thead><tr><th>Компонент</th><th>Правило</th></tr></thead>
+    <tbody>
+      <tr><td class="field">WordPress</td><td>Только read для sync; content publish — wp-cli точечно, не full DB overwrite</td></tr>
+      <tr><td class="field">artgranit.service :8000</td><td>Не менять port/workers без синхронного nginx; restart только systemd</td></tr>
+      <tr><td class="field">nginx conf_biro26</td><td>Не удалять proxy shop/backoffice/static/UNA.md</td></tr>
+      <tr><td class="field">ERP officeplus@11g</td><td>Mirror только читает shop API; не DDL на live ERP из op-micro</td></tr>
+      <tr><td class="field">Reboot VM</td><td>Только по явной команде владельца (Always Free fragile RAM)</td></tr>
+      <tr><td class="field">nufarul.eminescu.md</td><td>Другой production — не смешивать deploy с officeplus</td></tr>
+    </tbody>
+  </table></div></div>
+</section>
+
+<!-- 13 -->
+<section id="troubleshoot">
+  <div class="sec-head"><span class="sec-tag">13</span><h2>Диагностика</h2></div>
+  <div class="tablecard"><div class="scroll"><table>
+    <thead><tr><th>Симптом</th><th>Действие</th></tr></thead>
+    <tbody>
+      <tr><td>officeplus.md 5xx</td><td>Сначала WP/apache/hestia; artgranit — <code>systemctl status artgranit</code></td></tr>
+      <tr><td>shop products empty/error</td><td><code>nc -zv orange.una.md 4024</code>; BIRO26_* в artgranit .env; Instant Client</td></tr>
+      <tr><td>op-catalog inactive</td><td><code>journalctl -u op-catalog</code>; .env APEX_DB_PASSWORD; ORDS URL</td></tr>
+      <tr><td>WP sync MySQL SSL</td><td><code>ssl_disabled=True</code> в sync_wp (local MariaDB)</td></tr>
+      <tr><td>ORA-12705 create APEX app</td><td>Ожидаемо из SQL; создать app в Builder UI</td></tr>
+      <tr><td>Wallet generate 400</td><td>APEX workload — wallet недоступен; ORDS only</td></tr>
+      <tr><td>Catalogs count 0</td><td>Запустить/дождаться batch catalog sync (большой total)</td></tr>
+    </tbody>
+  </table></div></div>
+</section>
+
+<!-- 14 -->
+<section id="urls">
+  <div class="sec-head"><span class="sec-tag">14</span><h2>Сводка URL</h2></div>
+  <div class="tablecard"><div class="scroll"><table>
+    <thead><tr><th>Назначение</th><th>URL</th></tr></thead>
+    <tbody>
+      <tr><td>Сайт</td><td><a href="https://officeplus.md/">https://officeplus.md/</a></td></tr>
+      <tr><td>Магазин</td><td><a href="https://officeplus.md/biro26-shop">/biro26-shop</a></td></tr>
+      <tr><td>Backoffice</td><td><a href="https://officeplus.md/biro26-backoffice">/biro26-backoffice</a></td></tr>
+      <tr><td>Reguli import (доки)</td><td><a href="https://officeplus.md/static/biro26/import_reguli.html">/static/biro26/import_reguli.html</a></td></tr>
+      <tr><td><strong>Эта инструкция</strong></td><td><a href="https://officeplus.md/static/biro26/OFFICEPLUS_APEX_MICROSERVICES.html">/static/biro26/OFFICEPLUS_APEX_MICROSERVICES.html</a></td></tr>
+      <tr><td>APEX Builder</td><td><a href="https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/apex" target="_blank" rel="noopener">ords/apex</a></td></tr>
+      <tr><td>OPVIEW UI home</td><td><a href="https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/admin/opview-ui/home" target="_blank" rel="noopener">opview-ui/home</a></td></tr>
+      <tr><td>JSON dashboard</td><td><a href="https://G17BC742D484B06-DBOFFICEPLUS.adb.eu-frankfurt-1.oraclecloudapps.com/ords/opview/v_dashboard/" target="_blank" rel="noopener">ords/opview/v_dashboard/</a></td></tr>
+    </tbody>
+  </table></div></div>
+</section>
+
+<hr class="rule">
+<footer>
+  OfficePlus · OCI Always Free · apOfficePlus/dbOfficePlus · op-micro · OPVIEW<br>
+  Документ: <code>static/biro26/OFFICEPLUS_APEX_MICROSERVICES.html</code> ·
+  builder: <code>/home/ptuhari/grok/docs/</code> ·
+  Без паролей в публичном тексте · 2026-07-22
+</footer>
+
+</div></div>
+<script>
+(function(){
+  var root=document.documentElement, btn=document.getElementById('tg');
+  var saved=localStorage.getItem('op-docs-theme');
+  if(saved) root.setAttribute('data-theme', saved);
+  btn.addEventListener('click', function(){
+    var cur=root.getAttribute('data-theme');
+    var next = cur==='dark' ? 'light' : cur==='light' ? '' : 'dark';
+    if(next) root.setAttribute('data-theme', next); else root.removeAttribute('data-theme');
+    if(next) localStorage.setItem('op-docs-theme', next); else localStorage.removeItem('op-docs-theme');
+  });
+})();
+</script>
+</body>
+</html>

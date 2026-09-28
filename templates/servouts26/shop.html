@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} — Outsourcing contabil</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --brand: #0f766e; --brand2: #115e59; --ink: #0f172a; --dim: #64748b;
+    --bg: #f6f8fa; --card: #fff; --line: #e2e8f0; --acc: #f59e0b;
+    --ok: #16a34a; --err: #dc2626;
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+         sans-serif; background: var(--bg); color: var(--ink); font-size: 14px; }
+
+  .topbar { position: sticky; top: 0; z-index: 100; background: #0d1f1d;
+    color: #e7f5f2; display: flex; align-items: center; gap: 14px;
+    padding: 10px 18px; flex-wrap: wrap; }
+  .logo { font-weight: 800; font-size: 17px; color: #5eead4; white-space: nowrap; }
+  .logo small { color: #94a3b8; font-weight: 400; font-size: 11px; }
+  .top-sp { flex: 1; }
+  .tbtn { border: 1px solid #2dd4bf55; background: transparent; color: #ccfbf1;
+    border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+  .tbtn:hover { background: #134e4a; }
+  .tbtn.solid { background: var(--brand); border-color: var(--brand); color: #fff; }
+  .lang-btn { border: none; background: transparent; color: #94a3b8;
+    cursor: pointer; font-size: 12px; padding: 4px 6px; }
+  .lang-btn.active { color: #5eead4; font-weight: 700; }
+  #cart-count { background: var(--acc); color: #1c1917; border-radius: 10px;
+    padding: 0 7px; font-size: 11px; font-weight: 800; }
+
+  .hero { background: linear-gradient(120deg, #0f766e, #134e4a);
+    color: #ecfeff; padding: 42px 20px 46px; text-align: center; }
+  .hero h1 { font-size: 28px; margin-bottom: 10px; }
+  .hero p { color: #99f6e4; max-width: 720px; margin: 0 auto; font-size: 15px; }
+
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 22px 16px 80px; }
+  .grp-title { font-size: 16px; font-weight: 800; margin: 26px 0 12px;
+    color: var(--brand2); }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 14px; }
+  .svc { background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 16px; display: flex; flex-direction: column;
+    gap: 8px; transition: box-shadow .15s; }
+  .svc:hover { box-shadow: 0 6px 22px rgba(15,118,110,.12); }
+  .svc .nm { font-weight: 700; font-size: 14px; min-height: 38px; }
+  .svc .art { color: var(--dim); font-size: 11px; }
+  .svc .pr { font-size: 20px; font-weight: 800; color: var(--brand); }
+  .svc .pr small { font-size: 11px; color: var(--dim); font-weight: 400; }
+  .svc button { border: none; background: var(--brand); color: #fff;
+    border-radius: 9px; padding: 9px 0; font-size: 13px; font-weight: 700;
+    cursor: pointer; }
+  .svc button:hover { background: var(--brand2); }
+
+  .drawer { position: fixed; top: 0; right: -420px; width: min(400px, 96vw);
+    height: 100%; background: #fff; box-shadow: -8px 0 30px rgba(2,6,23,.18);
+    z-index: 300; transition: right .25s; display: flex; flex-direction: column; }
+  .drawer.open { right: 0; }
+  .drawer header { padding: 14px 16px; border-bottom: 1px solid var(--line);
+    display: flex; align-items: center; font-weight: 800; }
+  .drawer .body { flex: 1; overflow: auto; padding: 12px 16px; }
+  .drawer .foot { border-top: 1px solid var(--line); padding: 14px 16px; }
+  .ci { display: flex; gap: 8px; align-items: center; padding: 8px 0;
+    border-bottom: 1px dashed var(--line); font-size: 13px; }
+  .ci .n { flex: 1; }
+  .ci input { width: 52px; border: 1px solid var(--line); border-radius: 6px;
+    padding: 4px; text-align: center; }
+  .ci .x { color: var(--err); cursor: pointer; font-weight: 700; padding: 0 4px; }
+  .total-line { display: flex; justify-content: space-between; font-weight: 800;
+    font-size: 16px; margin-bottom: 10px; }
+  .btn-main { width: 100%; border: none; background: var(--brand); color: #fff;
+    border-radius: 10px; padding: 12px 0; font-size: 14px; font-weight: 800;
+    cursor: pointer; }
+  .btn-main:disabled { opacity: .5; }
+
+  .modal-back { display: none; position: fixed; inset: 0;
+    background: rgba(2,6,23,.5); z-index: 400; align-items: center;
+    justify-content: center; }
+  .modal-back.show { display: flex; }
+  .modal { background: #fff; border-radius: 16px; width: min(520px, 94vw);
+    max-height: 90vh; overflow: auto; padding: 22px; }
+  .modal.wide { width: min(760px, 96vw); }
+  .modal h3 { margin-bottom: 14px; font-size: 17px; }
+  .fld { margin-bottom: 10px; }
+  .fld label { display: block; font-size: 12px; color: var(--dim);
+    margin-bottom: 3px; }
+  .fld input, .fld textarea { width: 100%; border: 1px solid #cbd5e1;
+    border-radius: 8px; padding: 9px 10px; font-size: 13px; }
+  .mtabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .mtab { flex: 1; text-align: center; padding: 9px 0; border-radius: 9px;
+    background: #f1f5f9; cursor: pointer; font-weight: 700; font-size: 13px; }
+  .mtab.active { background: var(--brand); color: #fff; }
+  .mfoot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+  .btn { border: 1px solid #cbd5e1; background: #fff; border-radius: 8px;
+    padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  .btn.primary { background: var(--brand); border-color: var(--brand);
+    color: #fff; font-weight: 700; }
+
+  table.ord { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.ord th { text-align: left; color: var(--dim); font-size: 11px;
+    padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  table.ord td { padding: 8px; border-bottom: 1px solid #f1f5f9; }
+  .num { text-align: right; font-variant-numeric: tabular-nums; }
+  .stb { display: inline-block; border-radius: 10px; padding: 2px 9px;
+    font-size: 11px; font-weight: 700; }
+  .st-NEW { background: #fef3c7; color: #92400e; }
+  .st-CONFIRMED { background: #dbeafe; color: #1d4ed8; }
+  .st-IN_WORK { background: #ede9fe; color: #6d28d9; }
+  .st-DONE { background: #dcfce7; color: #15803d; }
+  .st-CANCELED { background: #fee2e2; color: #b91c1c; }
+  .lnk { color: var(--brand); cursor: pointer; font-weight: 700; }
+
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+    background: #134e4a; color: #ccfbf1; border-radius: 10px; padding: 10px 18px;
+    z-index: 600; display: none; font-size: 13px; }
+  .toast.err { background: #7f1d1d; color: #fecaca; }
+  .empty { color: var(--dim); text-align: center; padding: 30px 0; }
+  @media print {
+    body * { visibility: hidden; }
+    #print-area, #print-area * { visibility: visible; }
+    #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <span class="logo">🧾 {{ app_name }} <small data-t="tagline"></small></span>
+  <span class="top-sp"></span>
+  <span>
+    <button class="lang-btn" data-lang="ro">RO</button>·<button
+      class="lang-btn" data-lang="ru">RU</button>·<button
+      class="lang-btn" data-lang="en">EN</button>
+  </span>
+  <button class="tbtn" id="btn-cab" onclick="openCabinet()" style="display:none">
+    👤 <span id="me-name"></span></button>
+  <button class="tbtn" id="btn-auth" onclick="openAuth()" data-t="login"></button>
+  <button class="tbtn" id="btn-logout" onclick="doLogout()"
+    style="display:none" data-t="logout"></button>
+  <button class="tbtn solid" onclick="toggleCart(true)">🛒
+    <span data-t="cart"></span> <span id="cart-count">0</span></button>
+</div>
+
+<div class="hero">
+  <h1 data-t="hero_h1"></h1>
+  <p data-t="hero_p"></p>
+</div>
+
+<div class="wrap">
+  <div id="catalog"><div class="empty" data-t="loading"></div></div>
+</div>
+
+<!-- CART DRAWER -->
+<div class="drawer" id="drawer">
+  <header><span data-t="cart_title"></span><span class="top-sp"></span>
+    <button class="btn" onclick="toggleCart(false)">✕</button></header>
+  <div class="body" id="cart-body"></div>
+  <div class="foot">
+    <div class="total-line"><span data-t="total"></span>
+      <span id="cart-total">0.00 LEI</span></div>
+    <div class="fld"><label data-t="note"></label>
+      <textarea id="ord-note" rows="2"></textarea></div>
+    <button class="btn-main" id="btn-order" onclick="placeOrder()" data-t="place_order"></button>
+  </div>
+</div>
+
+<!-- AUTH MODAL -->
+<div class="modal-back" id="m-auth">
+  <div class="modal">
+    <div class="mtabs">
+      <div class="mtab active" id="t-login" onclick="authTab('login')" data-t="login"></div>
+      <div class="mtab" id="t-reg" onclick="authTab('reg')" data-t="register"></div>
+    </div>
+    <div id="f-login">
+      <div class="fld"><label>E-mail</label><input id="l-email" type="email"></div>
+      <div class="fld"><label data-t="password"></label>
+        <input id="l-pwd" type="password"></div>
+    </div>
+    <div id="f-reg" style="display:none">
+      <div class="fld"><label><span data-t="reg_name"></span> *</label>
+        <input id="r-name"></div>
+      <div class="fld"><label>E-mail *</label><input id="r-email" type="email"></div>
+      <div class="fld"><label><span data-t="phone"></span> *</label>
+        <input id="r-phone"></div>
+      <div class="fld"><label data-t="address"></label><input id="r-address"></div>
+      <div class="fld"><label>
+        <input type="checkbox" id="r-isco" style="width:auto">
+        <span data-t="is_company"></span></label></div>
+      <div class="fld" id="r-idno-w" style="display:none">
+        <label>IDNO (13) *</label><input id="r-idno" maxlength="13"></div>
+      <div class="fld"><label><span data-t="password"></span> * (min 6)</label>
+        <input id="r-pwd" type="password"></div>
+    </div>
+    <div class="mfoot">
+      <button class="btn" onclick="closeM('m-auth')" data-t="close"></button>
+      <button class="btn primary" id="btn-auth-go" onclick="authGo()"></button>
+    </div>
+  </div>
+</div>
+
+<!-- CABINET MODAL -->
+<div class="modal-back" id="m-cab">
+  <div class="modal wide">
+    <h3>👤 <span data-t="cab_title"></span> — <span id="cab-name"></span></h3>
+    <table class="ord"><thead><tr>
+      <th data-t="col_order"></th><th data-t="col_date"></th>
+      <th data-t="col_status"></th><th class="num" data-t="col_total"></th><th></th>
+    </tr></thead><tbody id="cab-orders"></tbody></table>
+    <div class="empty" id="cab-empty" style="display:none" data-t="no_orders"></div>
+    <div class="mfoot">
+      <button class="btn" onclick="closeM('m-cab')" data-t="close"></button>
+    </div>
+  </div>
+</div>
+
+<!-- ORDER DETAIL / PRINTABLE INVOICE -->
+<div class="modal-back" id="m-ord">
+  <div class="modal wide">
+    <div id="print-area"></div>
+    <div class="mfoot">
+      <button class="btn" onclick="window.print()">🖨 <span data-t="print"></span></button>
+      <button class="btn" onclick="closeM('m-ord')" data-t="close"></button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ------------------------------ i18n ------------------------------ */
+const T = {
+  tagline: {ro:'outsourcing contabil', ru:'бухгалтерский аутсорсинг', en:'accounting outsourcing'},
+  hero_h1: {ro:'Contabilitate externalizată pentru afacerea ta',
+            ru:'Бухгалтерия на аутсорсинге для вашего бизнеса',
+            en:'Outsourced accounting for your business'},
+  hero_p: {ro:'Pachete și servicii de evidență contabilă, salarizare, rapoarte și consultanță fiscală. Alegeți serviciile, plasați comanda — contabilul nostru vă contactează.',
+           ru:'Пакеты и услуги бухгалтерского учёта, зарплата, отчётность и налоговые консультации. Выберите услуги и оформите заказ — наш бухгалтер свяжется с вами.',
+           en:'Bookkeeping packages, payroll, reporting and tax advisory. Pick your services and place an order — our accountant will contact you.'},
+  loading: {ro:'Se încarcă…', ru:'Загрузка…', en:'Loading…'},
+  login: {ro:'Autentificare', ru:'Вход', en:'Sign in'},
+  logout: {ro:'Ieșire', ru:'Выйти', en:'Sign out'},
+  register: {ro:'Înregistrare', ru:'Регистрация', en:'Register'},
+  password: {ro:'Parola', ru:'Пароль', en:'Password'},
+  reg_name: {ro:'Nume Prenume / Denumire firmă', ru:'ФИО / Название фирмы', en:'Full name / Company'},
+  phone: {ro:'Telefon', ru:'Телефон', en:'Phone'},
+  address: {ro:'Adresă', ru:'Адрес', en:'Address'},
+  is_company: {ro:'Persoană juridică', ru:'Юридическое лицо', en:'Legal entity'},
+  cart: {ro:'Coș', ru:'Корзина', en:'Cart'},
+  cart_title: {ro:'Coșul de servicii', ru:'Корзина услуг', en:'Services cart'},
+  add: {ro:'Adaugă în coș', ru:'В корзину', en:'Add to cart'},
+  total: {ro:'Total', ru:'Итого', en:'Total'},
+  note: {ro:'Comentariu la comandă', ru:'Комментарий к заказу', en:'Order note'},
+  place_order: {ro:'Plasează comanda', ru:'Оформить заказ', en:'Place order'},
+  close: {ro:'Închide', ru:'Закрыть', en:'Close'},
+  print: {ro:'Tipărește', ru:'Печать', en:'Print'},
+  cab_title: {ro:'Contul meu', ru:'Личный кабинет', en:'My account'},
+  col_order: {ro:'Comanda', ru:'Заказ', en:'Order'},
+  col_date: {ro:'Data', ru:'Дата', en:'Date'},
+  col_status: {ro:'Stare', ru:'Статус', en:'Status'},
+  col_total: {ro:'Total', ru:'Сумма', en:'Total'},
+  no_orders: {ro:'Nu aveți comenzi încă', ru:'Заказов пока нет', en:'No orders yet'},
+  view: {ro:'Detalii', ru:'Подробнее', en:'Details'},
+  per_month: {ro:'/ lună·unitate', ru:'/ мес·ед.', en:'/ mo·unit'},
+  empty_cart: {ro:'Coșul este gol', ru:'Корзина пуста', en:'Cart is empty'},
+  order_ok: {ro:'Comanda a fost plasată:', ru:'Заказ оформлен:', en:'Order placed:'},
+  need_login: {ro:'Autentificați-vă pentru a comanda', ru:'Войдите, чтобы оформить заказ', en:'Sign in to place an order'},
+  invoice: {ro:'CONT DE PLATĂ (comandă servicii)', ru:'СЧЁТ НА ОПЛАТУ (заказ услуг)', en:'PROFORMA INVOICE (service order)'},
+  client: {ro:'Client', ru:'Клиент', en:'Client'},
+  status: {NEW:{ro:'Nouă',ru:'Новый',en:'New'}, CONFIRMED:{ro:'Confirmată',ru:'Подтверждён',en:'Confirmed'},
+           IN_WORK:{ro:'În lucru',ru:'В работе',en:'In progress'}, DONE:{ro:'Finalizată',ru:'Выполнен',en:'Done'},
+           CANCELED:{ro:'Anulată',ru:'Отменён',en:'Canceled'}},
+};
+let LANG = localStorage.getItem('srvo_shop_lang') || 'ro';
+const t = k => (T[k] || {})[LANG] || (T[k] || {}).ro || k;
+const tst = s => (T.status[s] || {})[LANG] || s;
+function applyLang() {
+  document.querySelectorAll('[data-t]').forEach(el => el.textContent = t(el.dataset.t));
+  document.querySelectorAll('.lang-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.lang === LANG));
+  document.getElementById('btn-auth-go').textContent =
+    authMode === 'login' ? t('login') : t('register');
+  renderCatalog(); renderCart();
+}
+document.querySelectorAll('.lang-btn').forEach(b => b.onclick = () => {
+  LANG = b.dataset.lang; localStorage.setItem('srvo_shop_lang', LANG); applyLang();
+});
+
+/* ------------------------------ helpers ------------------------------ */
+const API = '/api/servouts26/shop';
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function toast(m, err) {
+  const d = document.getElementById('toast');
+  d.className = 'toast' + (err ? ' err' : ''); d.textContent = m;
+  d.style.display = 'block';
+  setTimeout(() => d.style.display = 'none', 3200);
+}
+async function j(url, opts) {
+  const r = await fetch(url, Object.assign(
+    {headers: {'Content-Type': 'application/json'}}, opts));
+  return r.json();
+}
+const closeM = id => document.getElementById(id).classList.remove('show');
+const showM = id => document.getElementById(id).classList.add('show');
+
+/* ------------------------------ catalog ------------------------------ */
+let CATALOG = [];
+async function loadCatalog() {
+  const r = await j(API + '/catalog');
+  CATALOG = r.data || [];
+  renderCatalog();
+}
+function svcName(p) {
+  if (LANG === 'ru' && p.namerus) return p.namerus;
+  return p.denumirea || p.namerus || ('#' + p.sc);
+}
+function renderCatalog() {
+  const host = document.getElementById('catalog');
+  if (!CATALOG.length) {
+    host.innerHTML = '<div class="empty">' + t('loading') + '</div>'; return;
+  }
+  const groups = {};
+  CATALOG.forEach(p => (groups[p.grpname || '—'] ??= []).push(p));
+  host.innerHTML = Object.keys(groups).sort().map(g => `
+    <div class="grp-title">${esc(g)}</div>
+    <div class="grid">${groups[g].map(p => `
+      <div class="svc">
+        <div class="nm">${esc(svcName(p))}</div>
+        <div class="art">${esc(p.codvechi || '')}</div>
+        <div class="pr">${(p.pretv ?? 0).toFixed(2)} LEI
+          <small>${t('per_month')}</small></div>
+        <button onclick='addCart(${p.sc}, ${JSON.stringify(String(svcName(p)))}, ${p.pretv ?? 0})'>
+          ${t('add')}</button>
+      </div>`).join('')}</div>`).join('');
+}
+
+/* ------------------------------ cart ------------------------------ */
+let CART = JSON.parse(localStorage.getItem('srvo_cart') || '[]');
+function saveCart() {
+  localStorage.setItem('srvo_cart', JSON.stringify(CART)); renderCart();
+}
+function addCart(cod, name, price) {
+  const ex = CART.find(i => i.cod === cod);
+  if (ex) ex.qty += 1; else CART.push({cod, name, price, qty: 1});
+  saveCart(); toast('✓ ' + name); toggleCart(true);
+}
+function delCart(i) { CART.splice(i, 1); saveCart(); }
+function qtyCart(i, v) {
+  const q = parseFloat(v) || 1; CART[i].qty = q > 0 ? q : 1; saveCart();
+}
+function renderCart() {
+  document.getElementById('cart-count').textContent = CART.length;
+  const body = document.getElementById('cart-body');
+  if (!CART.length) {
+    body.innerHTML = '<div class="empty">' + t('empty_cart') + '</div>';
+  } else {
+    body.innerHTML = CART.map((i, n) => `
+      <div class="ci"><span class="n">${esc(i.name)}</span>
+        <input value="${i.qty}" onchange="qtyCart(${n}, this.value)">
+        <span class="num" style="min-width:76px">${(i.qty * i.price).toFixed(2)}</span>
+        <span class="x" onclick="delCart(${n})">✕</span></div>`).join('');
+  }
+  document.getElementById('cart-total').textContent =
+    CART.reduce((s, i) => s + i.qty * i.price, 0).toFixed(2) + ' LEI';
+  document.getElementById('btn-order').disabled = !CART.length;
+}
+const toggleCart = open =>
+  document.getElementById('drawer').classList.toggle('open', open);
+
+async function placeOrder() {
+  if (!CART.length) return;
+  if (!ME) { toast(t('need_login'), true); openAuth(); return; }
+  const r = await j(API + '/order', {method: 'POST', body: JSON.stringify({
+    items: CART.map(i => ({cod: i.cod, qty: i.qty, name: i.name})),
+    note: document.getElementById('ord-note').value.trim()})});
+  if (!r.success) { toast(r.error || 'error', true); return; }
+  CART = []; saveCart();
+  document.getElementById('ord-note').value = '';
+  toggleCart(false);
+  toast(t('order_ok') + ' ' + r.data.order_no);
+  openOrder(r.data.order_id);
+}
+
+/* ------------------------------ auth ------------------------------ */
+let ME = null, authMode = 'login';
+function authTab(m) {
+  authMode = m;
+  document.getElementById('t-login').classList.toggle('active', m === 'login');
+  document.getElementById('t-reg').classList.toggle('active', m === 'reg');
+  document.getElementById('f-login').style.display = m === 'login' ? '' : 'none';
+  document.getElementById('f-reg').style.display = m === 'reg' ? '' : 'none';
+  document.getElementById('btn-auth-go').textContent =
+    m === 'login' ? t('login') : t('register');
+}
+const openAuth = () => { authTab('login'); showM('m-auth'); };
+document.getElementById('r-isco').addEventListener('change', e =>
+  document.getElementById('r-idno-w').style.display =
+    e.target.checked ? '' : 'none');
+
+async function authGo() {
+  let r;
+  if (authMode === 'login') {
+    r = await j(API + '/login', {method: 'POST', body: JSON.stringify({
+      email: document.getElementById('l-email').value.trim(),
+      password: document.getElementById('l-pwd').value})});
+  } else {
+    r = await j(API + '/register', {method: 'POST', body: JSON.stringify({
+      full_name: document.getElementById('r-name').value.trim(),
+      email: document.getElementById('r-email').value.trim(),
+      phone: document.getElementById('r-phone').value.trim(),
+      address: document.getElementById('r-address').value.trim(),
+      is_company: document.getElementById('r-isco').checked,
+      idno: document.getElementById('r-idno').value.trim(),
+      password: document.getElementById('r-pwd').value})});
+  }
+  if (!r.success) { toast(r.error || 'error', true); return; }
+  closeM('m-auth'); await whoami();
+  toast('✓ ' + (ME ? ME.name : ''));
+}
+async function whoami() {
+  const r = await j(API + '/me');
+  ME = r.data;
+  document.getElementById('btn-auth').style.display = ME ? 'none' : '';
+  document.getElementById('btn-logout').style.display = ME ? '' : 'none';
+  document.getElementById('btn-cab').style.display = ME ? '' : 'none';
+  if (ME) document.getElementById('me-name').textContent = ME.name;
+}
+async function doLogout() {
+  await j(API + '/logout', {method: 'POST'}); ME = null; whoami();
+}
+
+/* ------------------------------ cabinet ------------------------------ */
+async function openCabinet() {
+  if (!ME) { openAuth(); return; }
+  document.getElementById('cab-name').textContent = ME.name;
+  const r = await j(API + '/my-orders');
+  const rows = r.data || [];
+  document.getElementById('cab-empty').style.display = rows.length ? 'none' : '';
+  document.getElementById('cab-orders').innerHTML = rows.map(o => `
+    <tr><td><b>${esc(o.order_no)}</b></td><td>${esc(o.created_at)}</td>
+    <td><span class="stb st-${o.status}">${tst(o.status)}</span></td>
+    <td class="num">${(o.total ?? 0).toFixed(2)} ${esc(o.currency)}</td>
+    <td><span class="lnk" onclick="openOrder(${o.order_id})">${t('view')}</span></td>
+    </tr>`).join('');
+  showM('m-cab');
+}
+async function openOrder(id) {
+  const r = await j(API + '/order/' + id);
+  if (!r.success) { toast(r.error || 'error', true); return; }
+  const o = r.order, items = r.items || [];
+  document.getElementById('print-area').innerHTML = `
+    <h3 style="margin-bottom:4px">${t('invoice')} <b>${esc(o.order_no)}</b></h3>
+    <div style="color:#64748b;font-size:12px;margin-bottom:12px">
+      ${esc(o.created_at)} · <span class="stb st-${o.status}">${tst(o.status)}</span></div>
+    <div style="font-size:13px;margin-bottom:12px">
+      <b>${t('client')}:</b> ${esc(o.full_name)}
+      ${o.is_company === '1' && o.idno ? ' · IDNO ' + esc(o.idno) : ''}<br>
+      ${esc(o.email)} · ${esc(o.phone || '')}<br>${esc(o.address || '')}</div>
+    <table class="ord"><thead><tr><th>#</th><th>${t('col_order')}</th>
+      <th class="num">Cant.</th><th class="num">Preț</th><th class="num">Suma</th>
+      </tr></thead><tbody>
+      ${items.map(i => `<tr><td>${i.line_no}</td><td>${esc(i.name)}</td>
+        <td class="num">${i.qty}</td><td class="num">${(i.price ?? 0).toFixed(2)}</td>
+        <td class="num">${(i.suma ?? 0).toFixed(2)}</td></tr>`).join('')}
+      </tbody></table>
+    <div style="text-align:right;font-weight:800;font-size:16px;margin-top:10px">
+      ${t('total')}: ${(o.total ?? 0).toFixed(2)} ${esc(o.currency)}</div>
+    ${o.note ? `<div style="color:#64748b;font-size:12px;margin-top:8px">
+      ${t('note')}: ${esc(o.note)}</div>` : ''}`;
+  closeM('m-cab');
+  showM('m-ord');
+}
+
+/* ------------------------------ boot ------------------------------ */
+applyLang();
+loadCatalog();
+whoami();
+renderCart();
+</script>
+</body>
+</html>

@@ -1,0 +1,299 @@
+#!/usr/bin/env python3
+"""
+Скрипт развёртывания объектов Oracle: таблицы, представления, триггеры, пакеты,
+демо-данные для табло отправлений (bus), админки кредитов и интерфейса оператора (cred).
+
+Использование:
+  python deploy_oracle_objects.py              # развернуть объекты (без drop)
+  python deploy_oracle_objects.py --drop       # удалить объекты, затем развернуть заново
+  python deploy_oracle_objects.py --dry-run    # только показать, что будет выполнено
+
+Переменные окружения (.env): DB_USER, DB_PASSWORD, WALLET_*, CONNECT_STRING — как в приложении.
+"""
+from __future__ import annotations
+
+import os
+import re
+import sys
+import argparse
+from pathlib import Path
+
+# корень проекта
+ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+os.chdir(ROOT)
+
+from dotenv import load_dotenv
+load_dotenv(ROOT / ".env")
+
+
+def _sql_blocks(content: str) -> list[str]:
+    """Разбивает скрипт на блоки по разделителю / на отдельной строке (SQL*Plus style)."""
+    normalized = content.replace("\r\n", "\n").strip()
+    parts = re.split(r"\n\s*/\s*\n", normalized)
+    return [p.strip() for p in parts if p.strip()]
+
+
+def _is_comment_only(stmt: str) -> bool:
+    """Проверяет, что строка содержит только комментарии и пробелы."""
+    for line in stmt.split("\n"):
+        stripped = line.strip()
+        if stripped and not stripped.startswith("--"):
+            return False
+    return True
+
+
+def _is_plsql_block(block: str) -> bool:
+    """Проверяет, что блок — PL/SQL (package, trigger, anonymous block)."""
+    u = block.upper()
+    if "CREATE OR REPLACE PACKAGE" in u:
+        return True
+    if "CREATE OR REPLACE TRIGGER" in u:
+        return True
+    if "CREATE OR REPLACE PROCEDURE" in u or "CREATE OR REPLACE FUNCTION" in u:
+        return True
+    if re.search(r"\bBEGIN\b", u) and re.search(r"\bEND\s*;", u):
+        return True
+    return False
+
+
+def _split_ddl_dml(block: str) -> list[str]:
+    """Разбивает DDL/DML блок на отдельные команды по ';'. Без обработки вложенных строк."""
+    out = []
+    cur = []
+    i = 0
+    in_sq = False
+    qchar = None
+    while i < len(block):
+        c = block[i]
+        if not in_sq and c in ("'", '"'):
+            in_sq = True
+            qchar = c
+            cur.append(c)
+            i += 1
+            continue
+        if in_sq:
+            cur.append(c)
+            if c == qchar and i + 1 < len(block) and block[i + 1] == qchar:
+                cur.append(block[i + 1])
+                i += 2
+                continue
+            if c == qchar:
+                in_sq = False
+            i += 1
+            continue
+        if c == ";":
+            stmt = "".join(cur).strip()
+            if stmt:
+                out.append(stmt)
+            cur = []
+            i += 1
+            continue
+        cur.append(c)
+        i += 1
+    stmt = "".join(cur).strip()
+    if stmt:
+        out.append(stmt)
+    return out
+
+
+def main() -> None:
+    ap = argparse.ArgumentParser(description="Развёртывание Oracle-объектов (bus, cred, nuf, decor, digi, colass, agro)")
+    ap.add_argument("--drop", action="store_true", help="Сначала выполнить 00_drop.sql")
+    ap.add_argument("--dry-run", action="store_true", help="Не выполнять, только вывести команды")
+    ap.add_argument("--sql-dir", type=Path, default=ROOT / "sql", help="Каталог с SQL-файлами")
+    ap.add_argument("--only", nargs="+", metavar="SUBSTR",
+                    help="Выполнить только файлы, содержащие одну из подстрок "
+                         "(например: --only plg_ — развернуть только модуль планограмм)")
+    args = ap.parse_args()
+
+    sql_dir = args.sql_dir
+    if not sql_dir.is_dir():
+        print(f"Ошибка: каталог {sql_dir} не найден.")
+        sys.exit(1)
+
+    # порядок файлов
+    order = [
+        "00_drop.sql",
+        "01_bus_tables.sql",
+        "02_bus_views.sql",
+        "03_bus_triggers.sql",
+        "04_bus_package.sql",
+        "05_cred_tables.sql",
+        "06_cred_views.sql",
+        "07_cred_triggers.sql",
+        "08_cred_admin_package.sql",
+        "09_cred_operator_package.sql",
+        "11_cred_program_products.sql",
+        "10_demo_data.sql",
+        "12_cred_reports.sql",
+        "13_shell_projects.sql",
+        "14_nufarul_tables.sql",
+        "15_nufarul_views.sql",
+        "19_decor_shell_project.sql",
+        "20_digi_tables.sql",
+        "21_digi_views.sql",
+        "22_digi_package.sql",
+        "23_digi_demo_data.sql",
+        "24_decor_runtime_tables.sql",
+        "25_colass_tables.sql",
+        "26_colass_demo_data.sql",
+        "27_colass_crm_tables.sql",
+        "28_colass_crm_demo_data.sql",
+        "29_colass_contracts_tables.sql",
+        "30_colass_contracts_demo_data.sql",
+        "31_colass_contracts_workflow_tables.sql",
+        "32_colass_contracts_workflow_demo_data.sql",
+        "35_agro_tables.sql",
+        "36_agro_views.sql",
+        "37_agro_triggers.sql",
+        "38_agro_demo_data.sql",
+        "39_agro_acceptance.sql",
+        "40_agro_acceptance_demo.sql",
+        "41_agro_weight_tickets.sql",
+        "42_nufarul_group_params.sql",
+        "43_nufarul_subgroups.sql",
+        "44_nufarul_subgroup_data.sql",
+        "45_nufarul_payment_method.sql",
+        "46_nufarul_ready_date.sql",
+        "47_nufarul_system_settings.sql",
+        "50_credite_tables.sql",
+        "70_tbc_tables.sql",
+        "71_tbc_views.sql",
+        "72_tbc_demo_data.sql",
+        "73_tbc_processing.sql",
+        "74_tbc_processing_demo.sql",
+        "75_tbc_ops.sql",
+        "76_tbc_ops_demo.sql",
+        "77_tbc_settings.sql",
+        "78_invite_links.sql",
+        "80_plg_tables.sql",
+        "81_plg_views.sql",
+        "82_plg_demo_data.sql",
+        "83_plg_i18n.sql",
+        "84_plg_testdata.sql",
+        "85_plg_forecast.sql",
+        "86_plg_i18n_gen.sql",
+        "87_plg_logistics.sql",
+        "88_plg_partners.sql",
+        "89_plg_partner_views.sql",
+        "90_plg_i18n_partners.sql",
+        "91_plg_processes.sql",
+        "92_plg_i18n_processes.sql",
+        "93_plg_fresh.sql",
+        "94_plg_mobile.sql",
+        "95_plg_i18n_fresh.sql",
+        "96_plg_ai_monitor.sql",
+        "97_plg_import.sql",
+        "98_plg_i18n_ai_import.sql",
+        "99_plg_vector.sql",
+        "100_peco_tables.sql",
+        "101_peco_ops_tables.sql",
+        "102_peco_inventory_tables.sql",
+        "103_peco_views.sql",
+        "104_peco_ref_data.sql",
+        "106_peco_supply.sql",
+        "107_peco_supply_views.sql",
+        "109_plg_i18n_fuel.sql",
+        "110_peco_algorithms.sql",
+        "111_peco_paths_demo.sql",
+        "112_plg_i18n_algos.sql",
+        # 105_peco_demo_station.sql НАМЕРЕННО не в этом списке: это демо-
+        # станция, а не справочник, запускается только вручную и никогда
+        # на production (см. docs/PECO/README.md).
+    ]
+    if not args.drop:
+        order = [f for f in order if f != "00_drop.sql"]
+
+    if args.only:
+        order = [f for f in order if any(sub in f for sub in args.only)]
+        if not order:
+            print(f"Ошибка: под фильтр --only {' '.join(args.only)} не попал ни один файл.")
+            sys.exit(1)
+
+    files = []
+    for name in order:
+        p = sql_dir / name
+        if not p.is_file():
+            print(f"Пропуск (не найден): {name}")
+            continue
+        files.append((name, p))
+
+    if args.dry_run:
+        for name, p in files:
+            print(f"[dry-run] {name}")
+            blocks = _sql_blocks(p.read_text(encoding="utf-8", errors="replace"))
+            for i, b in enumerate(blocks):
+                pl = "PL/SQL" if _is_plsql_block(b) else "DDL/DML"
+                n = 1 if _is_plsql_block(b) else len(_split_ddl_dml(b))
+                print(f"  block {i+1} ({pl}): {n} statement(s)")
+        return
+
+    try:
+        from models.database import DatabaseConnection
+    except Exception as e:
+        print(f"Ошибка импорта: {e}")
+        sys.exit(1)
+
+    conn = None
+    try:
+        conn = DatabaseConnection.get_connection()
+    except Exception as e:
+        print(f"Ошибка подключения к Oracle: {e}")
+        sys.exit(1)
+
+    ok = 0
+    err = 0
+    cursor = conn.cursor()
+
+    def run_one(stmt: str) -> bool:
+        nonlocal ok, err
+        try:
+            cursor.execute(stmt)
+            conn.commit()
+            ok += 1
+            return True
+        except Exception as e:
+            print(f"  Ошибка: {e}")
+            err += 1
+            return False
+
+    for name, path in files:
+        print(f"Выполняю {name} ...")
+        text = path.read_text(encoding="utf-8", errors="replace")
+        blocks = _sql_blocks(text)
+
+        for bi, block in enumerate(blocks):
+            block = re.sub(r"\s*/\s*$", "", block.strip())
+            if not block:
+                continue
+            if _is_comment_only(block):
+                continue
+            if _is_plsql_block(block):
+                run_one(block)
+            else:
+                for stmt in _split_ddl_dml(block):
+                    stmt = stmt.strip()
+                    if not stmt or _is_comment_only(stmt):
+                        continue
+                    run_one(stmt)
+
+    if cursor:
+        try:
+            cursor.close()
+        except Exception:
+            pass
+    if conn:
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+    print(f"Готово. Успешно: {ok}, ошибок: {err}.")
+    sys.exit(1 if err else 0)
+
+
+if __name__ == "__main__":
+    main()

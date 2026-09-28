@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="ro">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>SDA — răspuns punctual</title>
+<style>
+:root{
+  --ground:#F1F4F0; --surface:#FBFCFA; --sunken:#E6EBE5;
+  --ink:#161D19; --ink-2:#48544D; --ink-3:#78857D;
+  --rule:#D3DBD2; --rule-2:#BFCABE;
+  --accent:#1C6A56; --accent-soft:#DCEBE4; --accent-ink:#124436;
+  --gold:#8F6A12; --gold-soft:#F1E8CF;
+  --slate:#3D5566;
+  --crit:#9B2C2C; --crit-soft:#F6E3E3;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#10150F; --surface:#171E19; --sunken:#1E2721;
+    --ink:#EAF0E9; --ink-2:#A9B6AC; --ink-3:#7C8A80;
+    --rule:#2A342D; --rule-2:#3A473D;
+    --accent:#6BC4A6; --accent-soft:#17342B; --accent-ink:#A8DFCA;
+    --gold:#D8B865; --gold-soft:#332A12;
+    --slate:#93B0C4;
+    --crit:#E88B8B; --crit-soft:#331C1C;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#10150F; --surface:#171E19; --sunken:#1E2721;
+  --ink:#EAF0E9; --ink-2:#A9B6AC; --ink-3:#7C8A80;
+  --rule:#2A342D; --rule-2:#3A473D;
+  --accent:#6BC4A6; --accent-soft:#17342B; --accent-ink:#A8DFCA;
+  --gold:#D8B865; --gold-soft:#332A12;
+  --slate:#93B0C4;
+  --crit:#E88B8B; --crit-soft:#331C1C;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--ground);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-size:15.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1040px;margin:0 auto;padding:0 24px 80px}
+h1,h2,h3{line-height:1.2;letter-spacing:-.015em}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:var(--sunken);padding:1px 5px;border-radius:3px;font-size:.87em}
+.ref{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--ink-3);background:var(--sunken);padding:1px 6px;border-radius:3px;white-space:nowrap}
+
+header.mast{border-bottom:1px solid var(--rule);padding:44px 0 22px}
+.eyebrow{font-family:ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-size:clamp(26px,3.8vw,36px);font-weight:700;margin:14px 0 10px}
+.byline{display:flex;flex-wrap:wrap;gap:5px 18px;margin-top:16px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--ink-3)}
+
+h2{font-size:20px;font-weight:650;margin:40px 0 12px;padding-top:26px;border-top:1px solid var(--rule)}
+h2 span.n{color:var(--accent);font-family:ui-monospace,Menlo,monospace;font-size:15px;margin-right:8px}
+h3{font-size:13px;font-weight:650;margin:22px 0 7px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+p{margin:0 0 12px}
+ul,ol{margin:0 0 12px;padding-left:20px}
+li{margin-bottom:5px}
+
+.ans{background:var(--accent-soft);border:1px solid var(--rule-2);border-radius:5px;padding:13px 16px;margin:0 0 16px;font-size:16px}
+.ans b{color:var(--accent-ink)}
+.no{color:var(--crit);font-weight:650}
+
+.tw{overflow-x:auto;margin:12px 0 18px;border:1px solid var(--rule);border-radius:5px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+th{text-align:left;font-family:ui-monospace,Menlo,monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);font-weight:500;padding:9px 13px;border-bottom:1px solid var(--rule-2);white-space:nowrap}
+td{padding:9px 13px;border-bottom:1px solid var(--rule);vertical-align:top;color:var(--ink-2)}
+tr:last-child td{border-bottom:0}
+td:first-child{color:var(--ink);font-weight:500;white-space:nowrap}
+td code{white-space:nowrap}
+
+pre{background:var(--surface);border:1px solid var(--rule);border-left:3px solid var(--slate);border-radius:0 5px 5px 0;padding:12px 14px;overflow-x:auto;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.55;color:var(--ink-2);margin:12px 0 18px}
+pre b{color:var(--accent-ink);font-weight:600}
+
+.flag{border-left:3px solid var(--gold);background:var(--gold-soft);padding:11px 15px;border-radius:0 4px 4px 0;margin:14px 0;font-size:14.5px;color:var(--ink-2)}
+.flag b{color:var(--ink)}
+.stop{border-left:3px solid var(--crit);background:var(--crit-soft);padding:11px 15px;border-radius:0 4px 4px 0;margin:14px 0;font-size:14.5px;color:var(--ink-2)}
+.stop b{color:var(--ink)}
+
+ol.steps{counter-reset:s;list-style:none;padding:0;margin:12px 0 18px}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:24px 1fr;gap:12px;padding:7px 0;border-bottom:1px solid var(--rule);font-size:14.5px}
+ol.steps li:last-child{border-bottom:0}
+ol.steps li::before{content:counter(s);font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--accent);border:1px solid var(--rule-2);border-radius:50%;width:21px;height:21px;display:grid;place-items:center;margin-top:1px}
+
+footer{border-top:1px solid var(--rule);margin-top:48px;padding-top:18px;font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--ink-3);line-height:1.75}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="mast">
+  <div class="eyebrow">Răspuns punctual · Sistemul de Depozit pentru Ambalaje</div>
+  <h1>Cinci întrebări — decizii, obiecte, pași</h1>
+  <div class="byline">
+    <span>Pentru: Mariana Solomon</span>
+    <span>3 septembrie 2026, revizuit</span>
+    <span>Mediu: Oracle una.md</span>
+  </div>
+</header>
+
+<h2><span class="n">1.</span>Identificarea articolelor SDA</h2>
+
+<div class="ans"><b>Tabel separat.</b> Registru propriu cheiat pe <b>EAN</b>. <span class="no">Niciun câmp nou în <code>TMS_MPT</code>.</span></div>
+
+<h3>Ce se adaugă</h3>
+<div class="tw"><table>
+  <thead><tr><th>Obiect</th><th>Cheie</th><th>Conținut</th></tr></thead>
+  <tbody>
+    <tr><td><code>SDA_PACK</code></td><td><code>EAN</code> unic</td><td>material, culoare, barieră O₂, reutilizabil, volum, greutate, <code>CAT_ADMIN</code> (a–g), <code>CAT_GEST</code> (a–e), sursă, <code>ACTIV_DIN</code>, <code>ACTIV_PANA</code></td></tr>
+    <tr><td><code>SDA_PACK_SKU</code></td><td><code>PACK_ID</code> + <code>COD_MPT</code></td><td>puntea către nomenclator, cu <code>ACTIV_DIN</code></td></tr>
+    <tr><td><code>VSDA_MPT</code></td><td>vedere</td><td><code>COD_MPT</code>, <code>EAN</code>, valoarea depozitului la dată — un singur SELECT pentru casă</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Ce NU se modifică</h3>
+<ul>
+  <li><code>TMS_MPT</code> — nicio coloană nouă.</li>
+  <li><code>TMS_MPT_BARCODE</code> — nicio modificare; legătura se face prin valoarea EAN, nu prin structură.</li>
+  <li>Nomenclatorul, grupele, prețurile, circuitul documentelor — neatinse.</li>
+</ul>
+
+<h3>De ce nu un câmp</h3>
+<div class="tw"><table>
+  <thead><tr><th>Cerință</th><th>Un câmp DA/NU poate?</th></tr></thead>
+  <tbody>
+    <tr><td>Evidență în bucăți <b>și kg</b>, pe material și volum <span class="ref">pct. 100</span></td><td class="no">Nu — nu poartă greutatea și volumul</td></tr>
+    <tr><td>Tarif de administrare pe 7 categorii <span class="ref">pct. 14.13</span></td><td class="no">Nu — categoria depinde de culoare și barieră O₂</td></tr>
+    <tr><td>Tarif de gestionare pe 5 categorii <span class="ref">pct. 14.14</span></td><td class="no">Nu</td></tr>
+    <tr><td>Același articol își schimbă ambalajul (sticlă → PET)</td><td class="no">Nu — atributele ar rămâne greșite tăcut</td></tr>
+    <tr><td>Preluarea registrului publicat de Administrator <span class="ref">pct. 11–12</span></td><td class="no">Nu — acel registru e cheiat pe EAN</td></tr>
+  </tbody>
+</table></div>
+
+<p>Dacă totuși doriți un indicator rapid pe articol pentru vitrină sau rapoarte, îl dă vederea <code>VSDA_MPT</code>. Nu îl stocăm pe articol ca sursă de adevăr — ar fi o a doua copie care se desincronizează.</p>
+
+<h2><span class="n">2.</span>Identificarea la vânzare, cu stoc nemarcat în tranziție</h2>
+
+<div class="ans"><b>Decide EAN-ul scanat.</b> Casa nu ține date SDA: trimite EAN + data, primește valoare sau NULL.</div>
+
+<h3>Contractul cu front-ul</h3>
+<pre><b>FUNCTION</b> PK_SDA.DEPOZIT(p_ean <b>IN VARCHAR2</b>,
+                        p_data <b>IN DATE DEFAULT</b> SYSDATE)
+  <b>RETURN NUMBER</b>;   -- valoarea în lei, sau NULL dacă ambalajul nu e SD</pre>
+
+<h3>Pașii la casă</h3>
+<ol class="steps">
+  <li>Se scanează EAN-ul, ca acum.</li>
+  <li>Casa apelează <code>PK_SDA.DEPOZIT(ean)</code>.</li>
+  <li>NULL → nimic. Valoare → se inserează linia „Depozit SDA”, cantitate = cantitatea produsului.</li>
+  <li>Linia intră în total ca sumă separată, în afara bazei TVA a mărfii.</li>
+</ol>
+
+<h3>Cele trei cazuri de tranziție</h3>
+<div class="tw"><table>
+  <thead><tr><th>Caz</th><th>Cum se rezolvă</th><th>Efort</th></tr></thead>
+  <tbody>
+    <tr><td>EAN nou la marcare</td><td>Automat. EAN-ul nou e în registru, cel vechi nu.</td><td>Zero</td></tr>
+    <tr><td>Același EAN, marcat și nemarcat</td><td><code>SDA_PACK_SKU.ACTIV_DIN</code> — data de la care tot ce se vinde sub acel cod se consideră marcat.</td><td>O dată per articol</td></tr>
+    <tr><td>Stoc rezidual mare</td><td>Cod distinct în nomenclator pe durata tranziției, fără legătură în <code>SDA_PACK_SKU</code>.</td><td>Decizie comercială</td></tr>
+  </tbody>
+</table></div>
+
+<div class="stop"><b>EAN necunoscut ≠ zero.</b> Dacă un produs care e băutură în ambalaj SD nu se găsește în registru, sistemul ridică alertă de conformitate. Nu îl tratează ca „fără depozit”, pentru că asta înseamnă sub-încasare descoperită la reconcilierea cu Administratorul.</div>
+
+<div class="flag"><b>Parametru, nu constantă:</b> valoarea depozitului (2 lei) stă în <code>SDA_TARIFF</code> cu perioadă de valabilitate. Un ordin care o schimbă = un rând nou, zero modificări de cod, deconturile vechi rămân corecte.</div>
+
+<h2><span class="n">3.</span>Preluarea manuală: operațiune, analitică, formule contabile</h2>
+
+<div class="ans"><b>Document propriu, nu vânzare și nu retur de marfă.</b> Pe bon — mijloc de plată (agreat). Analitica include obligatoriu <b>metoda de preluare</b>.</div>
+
+<h3>Documentul</h3>
+<p>Tip nou: „Preluare ambalaje SD”, serie proprie. Liniile sunt <b>pe categorie de ambalaj</b>, nu pe cod de marfă. Ambalajele nu intră în stoc: sunt proprietatea Administratorului din momentul preluării <span class="ref">pct. 88</span>.</p>
+
+<h3>Analitica pe fiecare linie</h3>
+<div class="tw"><table>
+  <thead><tr><th>Câmp</th><th>Valori</th><th>De ce</th></tr></thead>
+  <tbody>
+    <tr><td><code>METODA</code></td><td>MANUAL / AUTOMAT</td><td>tarif de gestionare diferit <span class="ref">pct. 14.14</span></td></tr>
+    <tr><td><code>REUTILIZABIL</code></td><td>D / N</td><td>tarif diferit</td></tr>
+    <tr><td><code>CAT_GEST</code></td><td>a–e</td><td>plastic mic/mare, metal, sticlă mare/mică</td></tr>
+    <tr><td><code>RVM_PROPRIETAR</code></td><td>COMERCIANT / ADMINISTRATOR</td><td>intră în formula tarifului</td></tr>
+    <tr><td><code>BUCATI</code>, <code>KG</code></td><td>număr</td><td>evidența cerută de <span class="ref">pct. 100</span></td></tr>
+    <tr><td><code>GESTIUNE_UNITAR</code>, <code>TARIFF_ID</code></td><td>sumă + referință</td><td>instantaneul tarifului aplicat, ca decontul să rămână reproductibil</td></tr>
+    <tr><td><code>REZULTAT</code>, <code>MOTIV_REFUZ</code></td><td>ACCEPTAT / REFUZAT</td><td>refuzul e permis <span class="ref">art. 54¹ (9)–(10)</span> și trebuie motivat</td></tr>
+  </tbody>
+</table></div>
+
+<p>Metoda se scrie pe linie și nu se deduce din punct: un punct poate fi mixt, se poate transforma în timp, iar deducerea retroactivă ar rescrie sume deja revendicate.</p>
+
+<h3>Formule contabile</h3>
+<div class="tw"><table>
+  <thead><tr><th>Operațiune</th><th>Natura</th><th>Cont</th></tr></thead>
+  <tbody>
+    <tr><td>Depozit încasat la vânzare</td><td>datorie</td><td>cont de decontare — <b>nu</b> venit, <b>nu</b> clasa 6</td></tr>
+    <tr><td>Depozit restituit la preluare</td><td>stingere de datorie</td><td>același cont de decontare</td></tr>
+    <tr><td>Depozit virat Administratorului</td><td>stingere de datorie</td><td>același cont</td></tr>
+    <tr><td>Tarif de gestionare încasat</td><td><b>venit</b></td><td>venit din prestări — aici da, clasa 6</td></tr>
+    <tr><td>Tarif de administrare (dacă sunteți și producător)</td><td>cheltuială</td><td>clasa 6</td></tr>
+  </tbody>
+</table></div>
+
+<div class="stop"><b>De confirmat de contabilitate / SFS:</b> TVA pe depozit. Construcția îl ține <b>în afara bazei impozabile</b> — garanție returnabilă, nu contravaloarea unui bun. Este singurul punct care poate schimba formulele de mai sus. Până la confirmare, tratamentul stă într-un parametru, nu în cod.</div>
+
+<h3>Decontul cu Administratorul</h3>
+<p>Un rând pe <b>metodă × reutilizabil × categorie</b>, cu bucăți, kg și sumă cuvenită. Se compară cu ce s-a încasat efectiv; termenul legal e <b>cel mult 14 zile</b> <span class="ref">pct. 14.14</span>.</p>
+
+<h2><span class="n">4.</span>Tichetul de la aparat: identificare, valoare, aplicare, coexistență</h2>
+
+<div class="ans"><b>Cod unic în registru. Valoarea NU se codifică în tichet.</b> Consum o singură dată, impus în bază.</div>
+
+<h3>Registrul <code>SDA_VOUCHER</code></h3>
+<div class="tw"><table>
+  <thead><tr><th>Câmp</th><th>Conținut</th></tr></thead>
+  <tbody>
+    <tr><td><code>COD</code></td><td>unic, generat criptografic — nu secvențial, ca să nu se poată ghici următorul</td></tr>
+    <tr><td><code>VALOARE_LEI</code></td><td>suma reală, singura sursă de adevăr</td></tr>
+    <tr><td><code>PARTIC_ID</code>, <code>POINT_ID</code></td><td>emitentul — tichetul RVM se preschimbă doar la același comerciant <span class="ref">pct. 90.2</span></td></tr>
+    <tr><td><code>DATA_EMITERE</code>, <code>DATA_EXPIRARE</code></td><td>expirare = emitere + 12 luni <span class="ref">pct. 14.15</span></td></tr>
+    <tr><td><code>STARE</code></td><td>EMIS → PRESCHIMBAT_NUMERAR / FOLOSIT_CUMPARATURI / EXPIRAT / ANULAT</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Pașii la casă</h3>
+<pre><b>FUNCTION</b> PK_SDA.VOUCHER_CHECK (p_cod <b>IN VARCHAR2</b>) <b>RETURN</b> ...;  -- doar citește
+<b>FUNCTION</b> PK_SDA.VOUCHER_REDEEM(p_cod <b>IN VARCHAR2</b>,
+                             p_doc <b>IN NUMBER</b>) <b>RETURN NUMBER</b>;  -- validează ȘI consumă</pre>
+<ol class="steps">
+  <li>Se scanează tichetul. <code>VOUCHER_CHECK</code> afișează suma casierului.</li>
+  <li>La închiderea bonului, <code>VOUCHER_REDEEM</code> — în aceeași tranzacție cu bonul.</li>
+  <li>Suma intră ca <b>linie de plată</b>, nu ca reducere.</li>
+  <li>Bon anulat → consumul se compensează, starea revine la EMIS cu urmă în jurnal.</li>
+</ol>
+<div class="stop"><b>Al doilea apel pe același cod eșuează</b>, oricâte case ar încerca simultan. Unicitatea se impune sub blocare de rând în bază, nu în aplicație și nu în casă.</div>
+
+<h3>Coexistența cu voucherele Rogob</h3>
+<div class="tw"><table>
+  <thead><tr><th></th><th>Tichet SDA</th><th>Voucher comercial Rogob</th></tr></thead>
+  <tbody>
+    <tr><td>Prefix / serie</td><td>propriu, distinct</td><td>cel actual, neschimbat</td></tr>
+    <tr><td>Registru</td><td><code>SDA_VOUCHER</code></td><td>cel existent, neatins</td></tr>
+    <tr><td>Efect pe bon</td><td>mijloc de plată</td><td>conform regulilor actuale</td></tr>
+    <tr><td>Contabil</td><td>stinge o datorie</td><td>cheltuială comercială / reducere</td></tr>
+    <tr><td>Valabilitate</td><td>12 luni, impus de lege</td><td>politica rețelei</td></tr>
+    <tr><td>Unde e valabil</td><td>doar la comerciantul emitent</td><td>politica rețelei</td></tr>
+  </tbody>
+</table></div>
+<p>Casa recunoaște tipul din prefix, fără să întrebe casierul. Ambele pot intra pe același bon. <b>Zero modificări în circuitul actual al voucherelor.</b></p>
+
+<h2><span class="n">5.</span>Integrarea cu softul aparatelor</h2>
+
+<div class="ans"><b>Da, în ambele sensuri, în timp real</b> — cu rezervă pentru cădere de legătură, ca să nu blocăm clientul la casă.</div>
+
+<h3>Ce trebuie să trimită aparatul, la emitere</h3>
+<div class="tw"><table>
+  <thead><tr><th>#</th><th>Date</th><th>Pentru ce</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>cod tichet, valoare, aparat, punct, moment</td><td>ca tichetul să existe când clientul ajunge la casă</td></tr>
+    <tr><td>2</td><td>EAN acceptat / refuzat + motiv, pe categorie</td><td>evidența <span class="ref">pct. 100</span></td></tr>
+    <tr><td>3</td><td>identificarea aparatului</td><td>metoda automată și proprietarul schimbă tariful de gestionare</td></tr>
+    <tr><td>4</td><td>stare de sănătate</td><td>un aparat oprit să apară pe tabloul de bord, nu să fie descoperit de client</td></tr>
+  </tbody>
+</table></div>
+
+<h3>Ce îi punem noi la dispoziție</h3>
+<ul>
+  <li>Lista EAN-urilor eligibile — aceeași sursă ca a casei.</li>
+  <li>Valoarea depozitului în vigoare. Altfel aparatul și casa diverg exact în ziua schimbării tarifului.</li>
+</ul>
+
+<div class="flag"><b>Rezerva offline.</b> Dacă aparatul nu ajunge la server, tichetul se emite oricum — legea nu permite refuzul clientului din motive de infrastructură. Codul poartă o semnătură <b>HMAC</b> peste valoare, aparat și moment; casa o verifică local, fără registru, și reconciliază la revenirea legăturii. Cerință <b>#5</b> către furnizor: să semneze codul cu cheia convenită.</div>
+
+<h2><span class="n">6.</span>Stadiul: ce există deja</h2>
+
+<p>Nu este o propunere pe hârtie. Conturul este instalat și verificat în baza Oracle:</p>
+
+<div class="tw"><table>
+  <thead><tr><th>Zonă</th><th>Obiecte</th><th>Stare</th></tr></thead>
+  <tbody>
+    <tr><td>Registru ambalaje</td><td><code>SDA_PACK</code>, <code>SDA_PACK_SKU</code></td><td>instalat</td></tr>
+    <tr><td>Participanți și rețea</td><td><code>SDA_PARTIC</code>, <code>SDA_PARTIC_ROL</code>, <code>SDA_UNIT</code>, <code>SDA_RETURN_POINT</code>, <code>SDA_RVM</code></td><td>instalat</td></tr>
+    <tr><td>Tarife pe perioade</td><td><code>SDA_TARIFF</code>, <code>SDA_TARIFF_LINE</code></td><td>instalat</td></tr>
+    <tr><td>Preluări</td><td><code>SDA_RETURN</code>, <code>SDA_RETURN_LINE</code></td><td>instalat</td></tr>
+    <tr><td>Tichete</td><td><code>SDA_VOUCHER</code></td><td>instalat</td></tr>
+    <tr><td>Deconturi</td><td><code>SDA_SETTLEMENT</code>, <code>SDA_SETTLEMENT_LINE</code></td><td>instalat</td></tr>
+    <tr><td>Jurnal</td><td><code>SDA_EVENT_LOG</code></td><td>instalat</td></tr>
+  </tbody>
+</table></div>
+
+<p>Total: <b>15 tabele</b>, 15 secvențe, 15 declanșatoare, 39 indexuri, niciun obiect invalid. Restul — pachetul <code>PK_SDA</code>, vederea <code>VSDA_MPT</code> și integrarea cu casa — urmează după confirmările de mai jos.</p>
+
+<h2><span class="n">7.</span>Ce așteptăm de la dumneavoastră</h2>
+
+<div class="tw"><table>
+  <thead><tr><th>#</th><th>Ce</th><th>Blochează</th></tr></thead>
+  <tbody>
+    <tr><td>1</td><td>Poziția pe TVA-ul depozitului</td><td>formulele contabile (întrebarea 3)</td></tr>
+    <tr><td>2</td><td>Sortimentul de băuturi cu EAN-urile actuale</td><td>estimarea efortului de tranziție (întrebarea 2)</td></tr>
+    <tr><td>3</td><td>Furnizorul aparatelor, dacă e ales</td><td>cerințele de integrare (întrebarea 5)</td></tr>
+    <tr><td>4</td><td>Suprafețele comerciale ale unităților</td><td>câte magazine sunt obligate să opereze punct propriu</td></tr>
+  </tbody>
+</table></div>
+
+<footer>
+  Artgranit / una.md · Bază: Legea nr. 209/2016 art. 54¹–54⁴ (modificată prin Legea nr. 97/2024) și Regulamentul de implementare a SDA.<br>
+  Propunere de arhitectură software. Nu constituie consultanță juridică sau fiscală.
+</footer>
+
+</div>
+</body>
+</html>

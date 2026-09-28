@@ -1,0 +1,242 @@
+# Sursele de import — catalog complet
+
+> Generat din tabela `TMS_ORG_IMPSRC` (extinderea cartelei furnizorului `TMS_ORG`).
+> Varianta tabelara: `IMPORT_SURSE.csv`. Regenerare: `python3 scripts/gen_import_surse.py`.
+
+## De ce exista acest document
+
+Fiecare sursa de date are propriile capcane: unde e antetul, ce coloane exista, cum
+arata articolul, ce lipseste. Pana acum aceste detalii traiau doar in capul celui care
+facea importul; acum stau in baza si pot fi alese din back-office.
+
+## Prefixul de articol — regula cea mai importanta
+
+Codurile scurte sau pur numerice (`248`, `670`, `2917`) inseamna **produse diferite la
+fiecare furnizor**. Folosite ca atare, potrivesc marfuri complet nelegate — asa au aparut
+629 de potriviri false la importul officeshop.
+
+De aceea articolul slab primeste un prefix, ales in ordinea:
+
+1. **BRAND-ul randului** (din fisier) — `Trefl` + `2080` -> `TREFL-2080`
+2. **Prefixul sursei** (`ART_PREFIX`) — daca randul n-are brand -> `OS-2080`
+3. Daca nu exista niciunul, randul **nu se importa** (paza 5).
+
+Un articol e considerat slab daca are sub `ART_MIN_LEN` caractere (implicit 6) **sau**
+e format numai din cifre.
+
+## Sursele
+
+| Cod | Denumire | Tip | Prefix | Algoritm | Doar articol | Produse NOI |
+|---|---|---|---|---|---|---|
+| `OFFICESHOP_B2B` | officeshop.md - export B2B cu preturi ANGRO | B2B | `OS` | UNIVERSAL | da | doar cele noi |
+| `OFFICESHOP_MERGED` | officeshop.md - consolidat retail+angro (recomandat) | B2B | `OS` | UNIVERSAL | da | doar cele noi |
+| `BIROLUX` | Birolux MT SRL | EMAIL | `BLX` | UNIVERSAL | da | doar cele noi |
+| `BNN` | BNN | EMAIL | `BNN` | UNIVERSAL | da | doar cele noi |
+| `CRAFTI` | CRAFTI BUSSINES SRL | EMAIL | `CRF` | UNIVERSAL | da | doar cele noi |
+| `RADOP` | RADOP | EMAIL | `RDP` | PRICES_ONLY | da | doar cele noi |
+| `RICHI` | RICHI-TICHI | EMAIL | `RCH` | UNIVERSAL | da | doar cele noi |
+| `TEHELAN` | Tehelan (articole de menaj) | EMAIL | `THL` | UNIVERSAL | da | doar cele noi |
+| `OFFICEPLUS` | Administrator OfficePlus (intern) | MANUAL | `—` | UNIVERSAL | da | doar cele noi |
+| `BIROVITS` | birovits.md (scraping catalog) | SCRAPING | `BRV` | UNIVERSAL | da | doar cele noi |
+| `IMPRESO` | impreso.md (scraping catalog) | SCRAPING | `IMP` | UNIVERSAL | da | doar cele noi |
+| `OFFICESHOP` | officeshop.md (scraping catalog) | SCRAPING | `OS` | UNIVERSAL | da | doar cele noi |
+| `ULTRA` | ULTRA.md | SCRAPING | `ULT` | UNIVERSAL | da | doar cele noi |
+
+## Detalii per sursa
+
+### OFFICESHOP_B2B — officeshop.md - export B2B cu preturi ANGRO
+
+- **Tip:** Portal B2B pentru parteneri
+- **Locatie:** https://officeshop.md (zona pentru parteneri)
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `OS` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; foaia goods (20 col) + foaia Images_2 (galerie)
+- **Preturi doar dupa articol:** da
+
+**Particularitati / capcane:**
+
+> CAPCANA: coloana price_retail NU este pretul de raft - la multe randuri e identica cu price_angro_mdl, iar in 1348 din 1369 cazuri pretul nostru era mai mare. Este mapata pe IGNORE: din acest fisier se ia DOAR price_angro_mdl -> ANGRO. Coloanele price_opt_base, sale_price, sale_percent, stock_qty, id_1c sint zgomot (IGNORE). Rand 1 = nota, antetul e pe randul 2. Coloana barcode exista dar e GOALA. Produsele noi de aici raman FARA pret de raft - trebuie pretuite separat.
+
+### OFFICESHOP_MERGED — officeshop.md - consolidat retail+angro (recomandat)
+
+- **Tip:** Portal B2B pentru parteneri
+- **Locatie:** https://officeshop.md (retail SSR + API angro, consolidate)
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `OS` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; goods_merged (27 col) + Images_2 + summary + README
+- **Preturi doar dupa articol:** da
+
+**Particularitati / capcane:**
+
+> Fisierul CONSOLIDAT (retail + angro), varianta recomandata - are pasaport propriu: officeshop_prices_retail+angro.README-for-AI.md. Foaia goods_merged (27 col) + Images_2 (galerie). price_retail_site = pretul de raft REAL (din scraping-ul de retail); price_angro = pretul angro efectiv (sale_price daca >0, altfel price_opt). NU folositi articul_retail ca cheie - e euristic (~95%); cheia exacta e articul (din API-ul angro). Site-ul NU publica coduri de bare nicaieri. Grupele au 3 niveluri (group1..group3) - calea completa merge in TMS_MPT_IMPSRC.SRC_GROUP_PATH si in BIRO26_GOODS.PRODUCT_TYPE. Imaginile: preferati URL-urile angro (images_1c), cele retail au filigran (images_1c_watermark). discount_pct poate fi NEGATIV - nu e eroare.
+
+### BIROLUX — Birolux MT SRL
+
+- **Tip:** Fisier primit pe e-mail
+- **Locatie:** fisier pe e-mail
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `BLX` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; 26 foi
+- **Preturi doar dupa articol:** da
+
+### BNN — BNN
+
+- **Tip:** Fisier primit pe e-mail
+- **Locatie:** fisier pe e-mail
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `BNN` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx
+- **Preturi doar dupa articol:** da
+- **Cartela furnizorului:** `TMS_ORG.COD = 161242`
+
+### CRAFTI — CRAFTI BUSSINES SRL
+
+- **Tip:** Fisier primit pe e-mail
+- **Locatie:** fisier lunar pe e-mail
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `CRF` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; mai multe foi = categorii
+- **Preturi doar dupa articol:** da
+- **Cartela furnizorului:** `TMS_ORG.COD = 161245`
+
+**Particularitati / capcane:**
+
+> Preturi cu VIRGULA zecimala -> se normalizeaza la punct. Articole reformatate (spatii in plus). ANGRO = pretul de achizitie CU TVA. Fara coloana de coduri de bare.
+
+### RADOP — RADOP
+
+- **Tip:** Fisier primit pe e-mail
+- **Locatie:** fisier pe e-mail
+- **Algoritm de incarcare:** `PRICES_ONLY`
+- **Prefix de articol:** `RDP` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; 2 foi
+- **Preturi doar dupa articol:** da
+
+**Particularitati / capcane:**
+
+> Lista de preturi noi.
+
+### RICHI — RICHI-TICHI
+
+- **Tip:** Fisier primit pe e-mail
+- **Locatie:** fisier pe e-mail
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `RCH` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; 15 foi
+- **Preturi doar dupa articol:** da
+
+### TEHELAN — Tehelan (articole de menaj)
+
+- **Tip:** Fisier primit pe e-mail
+- **Locatie:** fisier pe e-mail
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `THL` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; 3 foi
+- **Preturi doar dupa articol:** da
+
+### OFFICEPLUS — Administrator OfficePlus (intern)
+
+- **Tip:** Incarcare manuala / export intern
+- **Locatie:** export intern
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `—` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; 12 foi
+- **Preturi doar dupa articol:** da
+
+**Particularitati / capcane:**
+
+> Export intern, articolele sint deja cele din catalog.
+
+### BIROVITS — birovits.md (scraping catalog)
+
+- **Tip:** Scraping de pe site
+- **Locatie:** https://birovits.md
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `BRV` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; o foaie, 25 coloane
+- **Preturi doar dupa articol:** da
+
+**Particularitati / capcane:**
+
+> Rand 1 = titlu "all_products", antetul e pe randul 2. Fara coduri de bare. images_all = galerie in aceeasi celula, separator " | ". Coloana is_new = marcaj de site, NU produs nou la noi. category_path e slug, nu denumire.
+
+### IMPRESO — impreso.md (scraping catalog)
+
+- **Tip:** Scraping de pe site
+- **Locatie:** http://www.impreso.md
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `IMP` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; o foaie (20 col) + categories.csv separat
+- **Preturi doar dupa articol:** da
+
+**Particularitati / capcane:**
+
+> Scraping impreso.md. Antetul e pe randul 2 (randul 1 = titlu 'all_products'). Grupe pe 3 niveluri (group1..group3) + crumb_path + categories.csv cu arborele complet. Coloana barcode exista dar e goala. price_mdl = pretul de raft. product_id = SRC_PID (cheia pentru reincarcari idempotente). part_number si name_short sunt informative. IMAGINI: site-ul NU are HTTPS (https esueaza complet, nu e eroare de certificat) - URL-urile http sint trecute automat prin /api/biro26/img, altfel browserul le blocheaza ca mixed content. ATENTIE: img/product/noimage_b.jpg este stub-ul 'fara imagine' al site-ului, un JPEG real de 57 KB - se sterge la import, nu se pastreaza ca poza.
+
+### OFFICESHOP — officeshop.md (scraping catalog)
+
+- **Tip:** Scraping de pe site
+- **Locatie:** https://officeshop.md
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `OS` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; Products (18 col) + Images_2 (galerie)
+- **Preturi doar dupa articol:** da
+
+**Particularitati / capcane:**
+
+> Rand 1 = nota, antetul e pe randul 2. Articole scurte/numerice frecvente -> prefix obligatoriu. Coloana barcode exista dar e GOALA. 25% din randuri nu au articol deloc (se sar). Galeria se importa separat cu import_images(). ATENTIE: fisierul se numeste la fel ca la birovits.
+
+### ULTRA — ULTRA.md
+
+- **Tip:** Scraping de pe site
+- **Locatie:** https://ultra.md
+- **Algoritm de incarcare:** `UNIVERSAL`
+- **Prefix de articol:** `ULT` · articol slab sub 6 caractere sau pur numeric
+- **Format:** xlsx; foarte multe foi (136)
+- **Preturi doar dupa articol:** da
+
+**Particularitati / capcane:**
+
+> Acelasi articol apare pe foi diferite cu produse diferite -> randul se alege verificind NUMELE. RETAIL vs ANGRO se confunda usor, verificati antetul.
+
+## Istoricul incarcarilor
+
+| Fisier | Foi | Randuri | Load | Prima incarcare |
+|---|---|---|---|---|
+| `Price nou.xlsx` | 2 | 1342 | 4–9 | 10.07.2026 |
+| `radop_categories_grouped_4_ro.xlsx` | 2 | 20860 | 5–6 | 11.07.2026 |
+| `PRISE NOU 11.07.2026.xlsx` | 1 | 10430 | 7–7 | 12.07.2026 |
+| `radop.xlsx` | 2 | 8848 | 8–10 | 12.07.2026 |
+| `angro CRAFTI.xlsx` | 7 | 63497 | 11–277 | 16.07.2026 |
+| `ULTRA.md.xlsx` | 136 | 192488 | 12–189 | 20.07.2026 |
+| `ULTRA.md (1).xlsx` | 68 | 96244 | 121–226 | 20.07.2026 |
+| `Administrator OfficePlus.xlsx` | 12 | 78228 | 160–171 | 21.07.2026 |
+| `3. Carti educationale.xlsx` | 3 | 94777 | 172–229 | 21.07.2026 |
+| `RADOP PRISE NOU 11.07.2026.xlsx` | 2 | 20860 | 190–209 | 26.07.2026 |
+| `angro CRAFTI (1).xlsx` | 2 | 18142 | 208–227 | 26.07.2026 |
+| `Articole de menaj_tehelan.xlsx` | 3 | 3825 | 230–232 | 27.07.2026 |
+| `RICHI-TICHI.xlsx` | 15 | 122408 | 233–248 | 27.07.2026 |
+| `Книга1.xlsx` | 1 | 1 | 245–245 | 28.07.2026 |
+| `Rechizite de birou.xlsx` | 2 | 18224 | 249–250 | 29.07.2026 |
+| `Birolux MT SRL.xlsx` | 26 | 42338 | 251–276 | 06.08.2026 |
+| `CRAFTI.xlsx` | 6 | 8020 | 278–283 | 10.08.2026 |
+| `all_products 2.xlsx` | 3 | 22453 | 284–286 | 12.08.2026 |
+| `all_products angro 1-217.xlsx` | 2 | 12950 | 287–288 | 14.08.2026 |
+| `officeshop_prices_retail+angro.SVERKA.xlsx` | 4 | 15486 | 289–292 | 14.08.2026 |
+| `all_products 2.SVERKA.xlsx` | 1 | 2662 | 293–293 | 14.08.2026 |
+
+> ⚠️ Fisierele **birovits** si **officeshop** se numesc amindoua `all_products 2.xlsx`.
+> Numele fisierului NU identifica sursa — de aceea sursa se alege explicit la incarcare.
+
+## Tabelele
+
+```
+TMS_UNIVERS (TIP='O')
+   └── TMS_ORG                (cartela organizatiei)
+            └── TMS_ORG_IMPSRC    (sursele de import)          1:N
+                     └── TMS_ORG_IMPFILE (fisierele pastrate)  1:N
+```
+
+`TMS_ORG_IMPFILE` pastreaza fisierul original ca BLOB, impreuna cu amprenta SHA-256
+(o reincarcare identica se recunoaste), legatura cu stagin-ul (`LOAD_ID`) si raportul
+importului. DDL: `TMS_ORG_IMPORT.tab.sql`.

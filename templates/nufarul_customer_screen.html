@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nufarul — Экран покупателя</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family:'Segoe UI',system-ui,sans-serif;
+  background:#0a1020; color:#e0e0f0;
+  min-height:100vh; display:flex; flex-direction:column;
+}
+.header {
+  background:#0d1728; border-bottom:2px solid #3b82f6;
+  padding:16px 24px; display:flex; align-items:center; gap:14px;
+}
+.logo { font-size:32px; }
+.brand { font-size:20px; font-weight:800; color:#7dd3fc; }
+.brand-sub { font-size:12px; color:#3b82f6; margin-top:2px; }
+.body { flex:1; padding:24px; display:flex; flex-direction:column; gap:14px; max-width:600px; margin:0 auto; width:100%; }
+.welcome { text-align:center; padding:32px 0; }
+.welcome p { font-size:13px; color:#3a4a6a; margin-top:6px; }
+
+/* Currently adding */
+.adding-card {
+  background:#0d2a0d; border:2px solid #22c55e; border-radius:12px;
+  padding:14px 16px; display:none;
+}
+.adding-card.visible { display:block; }
+.adding-label { font-size:10px; font-weight:800; color:#22c55e; text-transform:uppercase; letter-spacing:.8px; margin-bottom:6px; }
+.adding-name { font-size:16px; font-weight:700; color:#e0e0f0; }
+.adding-params { font-size:12px; color:#4a7a4a; margin-top:3px; }
+.adding-price { font-size:18px; font-weight:800; color:#53d769; margin-top:6px; }
+
+/* Order items */
+.section-label { font-size:11px; font-weight:700; color:#2a3a5a; text-transform:uppercase; letter-spacing:.5px; }
+.order-item { background:#0d1a30; border:1px solid #1e2a4a; border-radius:10px; padding:10px 14px; }
+.order-item .name { font-size:13px; font-weight:600; color:#7dd3fc; }
+.order-item .params { font-size:10px; color:#2a4a6a; margin-top:2px; }
+.order-item .price { font-size:14px; font-weight:700; color:#53d769; margin-top:5px; }
+hr { border:none; border-top:1px solid #1e2a4a; }
+.total-row { display:flex; justify-content:space-between; align-items:center; padding:8px 0; }
+.total-label { font-size:13px; color:#555; }
+.total-val { font-size:24px; font-weight:800; color:#53d769; }
+.empty-cart { text-align:center; color:#1e2a4a; font-size:14px; padding:24px 0; }
+.footer { padding:14px 24px; border-top:1px solid #1e2a4a; text-align:center; font-size:10px; color:#1e2a4a; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <span class="logo">✂️</span>
+  <div>
+    <div class="brand">Nufarul Химчистка</div>
+    <div class="brand-sub">Добро пожаловать!</div>
+  </div>
+</div>
+
+<div class="body">
+  <div class="adding-card" id="adding-card">
+    <div class="adding-label">▶ Добавляется сейчас</div>
+    <div class="adding-name" id="adding-name">—</div>
+    <div class="adding-params" id="adding-params"></div>
+    <div class="adding-price" id="adding-price"></div>
+  </div>
+
+  <div class="section-label" id="order-label" style="display:none;">Ваш заказ</div>
+  <div id="order-items"></div>
+  <div class="empty-cart" id="empty-msg">Корзина пуста</div>
+
+  <hr id="total-divider" style="display:none;">
+  <div class="total-row" id="total-row" style="display:none;">
+    <span class="total-label">Итого</span>
+    <span class="total-val" id="total-val">0 MDL</span>
+  </div>
+</div>
+
+<div class="footer">Nufarul · Экран покупателя</div>
+
+<script>
+function render(state) {
+  var cart = (state && state.cart) || [];
+  var adding = state && state.adding;
+
+  // Currently adding
+  var addCard = document.getElementById('adding-card');
+  if (adding && adding.name) {
+    document.getElementById('adding-name').textContent = adding.name;
+    document.getElementById('adding-params').textContent = adding.params_summary || '';
+    document.getElementById('adding-price').textContent =
+      adding.price + ' MDL × ' + (adding.qty || 1) + ' шт';
+    addCard.classList.add('visible');
+  } else {
+    addCard.classList.remove('visible');
+  }
+
+  // Cart items
+  var container = document.getElementById('order-items');
+  var emptyMsg = document.getElementById('empty-msg');
+  var orderLabel = document.getElementById('order-label');
+  var totalRow = document.getElementById('total-row');
+  var totalDivider = document.getElementById('total-divider');
+
+  if (!cart.length) {
+    container.innerHTML = '';
+    emptyMsg.style.display = '';
+    orderLabel.style.display = 'none';
+    totalRow.style.display = 'none';
+    totalDivider.style.display = 'none';
+    return;
+  }
+
+  emptyMsg.style.display = 'none';
+  orderLabel.style.display = '';
+  totalRow.style.display = '';
+  totalDivider.style.display = '';
+
+  var html = '';
+  var total = 0;
+  cart.forEach(function(item) {
+    var line = item.price * (item.qty || 1);
+    total += line;
+    html += '<div class="order-item">' +
+      '<div class="name">' + esc(item.name) + (item.qty > 1 ? ' ×' + item.qty : '') + '</div>' +
+      (item.params_summary ? '<div class="params">' + esc(item.params_summary) + '</div>' : '') +
+      '<div class="price">' + line.toFixed(0) + ' MDL</div>' +
+      '</div>';
+  });
+  container.innerHTML = html;
+  document.getElementById('total-val').textContent = total.toFixed(0) + ' MDL';
+}
+
+function esc(s) {
+  return String(s || '')
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// Listen for operator window updates via localStorage
+window.addEventListener('storage', function(e) {
+  if (e.key === 'nuf_cart_state') {
+    try { render(JSON.parse(e.newValue)); } catch(_) {}
+  }
+});
+
+// Initial render from stored state (in case page was refreshed)
+try {
+  var stored = localStorage.getItem('nuf_cart_state');
+  if (stored) render(JSON.parse(stored));
+} catch(_) {}
+</script>
+</body>
+</html>

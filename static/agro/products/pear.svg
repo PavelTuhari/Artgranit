@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <radialGradient id="prg" cx="40%" cy="40%" r="60%">
+      <stop offset="0%" stop-color="#ffe066"/>
+      <stop offset="50%" stop-color="#d9a21b"/>
+      <stop offset="100%" stop-color="#b8860b"/>
+    </radialGradient>
+    <radialGradient id="prh" cx="38%" cy="30%" r="25%">
+      <stop offset="0%" stop-color="rgba(255,255,255,.35)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <!-- Stem -->
+  <path d="M60 14 Q58 22 59 28" stroke="#5c3d2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- Leaf -->
+  <ellipse cx="67" cy="18" rx="9" ry="4" fill="#51cf66" transform="rotate(-20 67 18)"/>
+  <!-- Pear body -->
+  <path d="M50 30 Q42 30 42 45 Q38 65 35 75 Q30 90 45 98 Q55 102 60 102 Q65 102 75 98 Q90 90 85 75 Q82 65 78 45 Q78 30 70 30 Q65 26 60 28 Q55 26 50 30Z" fill="url(#prg)"/>
+  <!-- Highlight -->
+  <ellipse cx="48" cy="55" rx="10" ry="18" fill="url(#prh)"/>
+  <!-- Bottom dimple -->
+  <path d="M56 99 Q60 96 64 99" stroke="#8a6d0b" stroke-width="1.2" fill="none"/>
+</svg>

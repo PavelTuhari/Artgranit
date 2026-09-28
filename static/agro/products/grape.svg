@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <radialGradient id="gg" cx="40%" cy="35%" r="50%">
+      <stop offset="0%" stop-color="#b197fc"/>
+      <stop offset="100%" stop-color="#7048c6"/>
+    </radialGradient>
+    <radialGradient id="gb" cx="35%" cy="30%" r="40%">
+      <stop offset="0%" stop-color="rgba(255,255,255,.25)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <!-- Stem -->
+  <path d="M60 10 Q58 18 60 24" stroke="#5c3d2e" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  <!-- Leaf -->
+  <path d="M54 18 Q40 8 32 14 Q28 20 36 24 Q42 22 54 18Z" fill="#69db7c"/>
+  <!-- Grape berries -->
+  <circle cx="50" cy="38" r="10" fill="url(#gg)"/><circle cx="50" cy="38" r="10" fill="url(#gb)"/>
+  <circle cx="70" cy="38" r="10" fill="url(#gg)"/><circle cx="70" cy="38" r="10" fill="url(#gb)"/>
+  <circle cx="60" cy="36" r="10" fill="url(#gg)"/><circle cx="60" cy="36" r="10" fill="url(#gb)"/>
+  <circle cx="44" cy="54" r="10" fill="url(#gg)"/><circle cx="44" cy="54" r="10" fill="url(#gb)"/>
+  <circle cx="60" cy="52" r="10" fill="url(#gg)"/><circle cx="60" cy="52" r="10" fill="url(#gb)"/>
+  <circle cx="76" cy="54" r="10" fill="url(#gg)"/><circle cx="76" cy="54" r="10" fill="url(#gb)"/>
+  <circle cx="48" cy="70" r="10" fill="url(#gg)"/><circle cx="48" cy="70" r="10" fill="url(#gb)"/>
+  <circle cx="66" cy="68" r="10" fill="url(#gg)"/><circle cx="66" cy="68" r="10" fill="url(#gb)"/>
+  <circle cx="56" cy="84" r="10" fill="url(#gg)"/><circle cx="56" cy="84" r="10" fill="url(#gb)"/>
+</svg>

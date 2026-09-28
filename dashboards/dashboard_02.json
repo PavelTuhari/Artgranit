@@ -1,0 +1,279 @@
+{
+  "dashboard_id": "02",
+  "dashboard_name": "Custom Dashboard 02",
+  "dashboard_description": "Расширенный кастомный дашборд для тестирования виджетов и кастомных метрик",
+  "widgets": [
+    {
+      "widget_id": "instance",
+      "window_id": "instance-window",
+      "title": "Instance Info",
+      "metric_name": "instance",
+      "class_name": "DatabaseModel",
+      "method_name": "get_instance_info",
+      "method_parameters": {},
+      "position": {
+        "top": 20,
+        "left": 20
+      },
+      "size": {
+        "width": 350,
+        "height": 250
+      },
+      "z_index": 100,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Информация об экземпляре базы данных: имя, хост, версия, статус"
+    },
+    {
+      "widget_id": "memory",
+      "window_id": "memory-window",
+      "title": "Memory Usage",
+      "metric_name": "memory",
+      "class_name": "DatabaseModel",
+      "method_name": "get_memory_metrics",
+      "method_parameters": {},
+      "position": {
+        "top": 20,
+        "left": 390
+      },
+      "size": {
+        "width": 350,
+        "height": 250
+      },
+      "z_index": 99,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Использование памяти базы данных (SGA): общий объем, использовано, свободно, процент использования"
+    },
+    {
+      "widget_id": "cpu",
+      "window_id": "cpu-window",
+      "title": "CPU Usage",
+      "metric_name": "cpu",
+      "class_name": "DatabaseModel",
+      "method_name": "get_cpu_metrics",
+      "method_parameters": {},
+      "position": {
+        "top": 20,
+        "left": 760
+      },
+      "size": {
+        "width": 350,
+        "height": 250
+      },
+      "z_index": 98,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Использование CPU базы данных: процент загрузки процессора"
+    },
+    {
+      "widget_id": "sessions",
+      "window_id": "sessions-window",
+      "title": "Sessions",
+      "metric_name": "sessions",
+      "class_name": "DatabaseModel",
+      "method_name": "get_sessions_metrics",
+      "method_parameters": {},
+      "position": {
+        "top": 290,
+        "left": 20
+      },
+      "size": {
+        "width": 350,
+        "height": 250
+      },
+      "z_index": 97,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Метрики сессий базы данных: общее количество, активные, неактивные"
+    },
+    {
+      "widget_id": "tablespaces",
+      "window_id": "tablespaces-window",
+      "title": "Tablespaces",
+      "metric_name": "tablespaces",
+      "class_name": "DatabaseModel",
+      "method_name": "get_tablespaces",
+      "method_parameters": {},
+      "position": {
+        "top": 290,
+        "left": 390
+      },
+      "size": {
+        "width": 600,
+        "height": 400
+      },
+      "z_index": 96,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Табличные пространства базы данных: имя, общий объем, использовано, свободно, процент использования"
+    },
+    {
+      "widget_id": "top_sql",
+      "window_id": "top-sql-window",
+      "title": "Top SQL Queries",
+      "metric_name": "top_sql",
+      "class_name": "DatabaseModel",
+      "method_name": "get_top_sql",
+      "method_parameters": {
+        "limit": 5
+      },
+      "position": {
+        "top": 290,
+        "left": 1010
+      },
+      "size": {
+        "width": 600,
+        "height": 400
+      },
+      "z_index": 95,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Топ SQL запросов по использованию ресурсов: SQL ID, текст запроса, количество выполнений, время выполнения, CPU время"
+    },
+    {
+      "widget_id": "custom_sql_oracle",
+      "window_id": "custom-sql-oracle-window",
+      "title": "Custom SQL Query (Oracle)",
+      "widget_type": "custom_sql",
+      "database_type": "oracle",
+      "sql_query": "SELECT USER, SYSDATE FROM DUAL",
+      "connection_params": {
+        "type": "oracle"
+      },
+      "metric_name": "custom_sql_oracle",
+      "position": {
+        "top": 720,
+        "left": 20
+      },
+      "size": {
+        "width": 800,
+        "height": 400
+      },
+      "z_index": 93,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Произвольный SQL запрос к Oracle базе данных с отображением результатов в гриде"
+    },
+    {
+      "widget_id": "custom_sql_oracle_runtime",
+      "window_id": "custom-sql-oracle-runtime-window",
+      "title": "Custom SQL Query (Oracle Runtime)",
+      "widget_type": "custom_sql",
+      "database_type": "oracle",
+      "sql_query": "SELECT table_name, status FROM user_tables WHERE table_name LIKE 'DECOR_%' OR table_name = 'CRED_EVENT_LOG' ORDER BY table_name",
+      "connection_params": {
+        "type": "oracle"
+      },
+      "metric_name": "custom_sql_oracle_runtime",
+      "position": {
+        "top": 720,
+        "left": 840
+      },
+      "size": {
+        "width": 900,
+        "height": 400
+      },
+      "z_index": 92,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Произвольный SQL запрос к Oracle runtime-таблицам приложения"
+    },
+    {
+      "widget_id": "system",
+      "window_id": "system-window",
+      "title": "Server System Metrics",
+      "metric_name": "system",
+      "class_name": "DashboardController",
+      "method_name": "get_system_metrics",
+      "method_parameters": {},
+      "position": {
+        "top": 20,
+        "left": 1130
+      },
+      "size": {
+        "width": 400,
+        "height": 350
+      },
+      "z_index": 94,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Системные метрики сервера: память сервера (общий объем, использовано, свободно), место на диске (общий объем, использовано, свободно)"
+    },
+    {
+      "widget_id": "weather",
+      "window_id": "weather-window",
+      "title": "Погода и время",
+      "metric_name": "weather",
+      "class_name": "DashboardController",
+      "method_name": "get_weather_info",
+      "method_parameters": {},
+      "position": {
+        "top": 390,
+        "left": 1130
+      },
+      "size": {
+        "width": 400,
+        "height": 280
+      },
+      "z_index": 95,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Текущее время, температура на улице и состояние погоды (солнечно/дождь)"
+    },
+    {
+      "widget_id": "documentation_02",
+      "window_id": "documentation-02-window",
+      "title": "📚 Документация Dashboard",
+      "widget_type": "documentation",
+      "dashboard_id": "02",
+      "position": { "top": 20, "left": 1160 },
+      "size": { "width": 400, "height": 400 },
+      "z_index": 50,
+      "enabled": true,
+      "draggable": true,
+      "resizable": true,
+      "closable": true,
+      "maximizable": true,
+      "description": "Документация по всем виджетам дашборда и генерация DDL/DML скриптов"
+    }
+  ],
+  "metadata": {
+    "created_at": "2025-01-01",
+    "version": "1.0",
+    "update_interval": 60,
+    "websocket_enabled": true,
+    "default_layout": "grid"
+  }
+}
+

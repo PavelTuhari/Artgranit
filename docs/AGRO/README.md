@@ -1,0 +1,254 @@
+# AGRO Module — Agricultural Operations
+
+## Overview
+
+The AGRO module manages the full cycle of agricultural product operations:
+field harvest → cold storage → quality control → processing → sales/export.
+
+**Oracle prefix:** `AGRO_`
+**Tables:** 42 normalized tables + 7 views + 42 auto-ID triggers + 4 audit triggers
+
+## Architecture
+
+```
+┌──────────────┐   ┌──────────────────┐   ┌──────────────────┐
+│  5 UI Pages  │──▸│  5 Controllers   │──▸│   AgroStore      │──▸ Oracle DB
+│              │   │  (validation)    │   │  (3000+ lines)   │   (AGRO_* tables)
+└──────────────┘   └──────────────────┘   └──────────────────┘
+```
+
+### Controllers
+- `AgroAdminController` — 11 reference tables CRUD + item varieties + acceptance profiles
+- `AgroFieldController` — barcode, crate, purchase, field requests, batch inspections
+- `AgroWarehouseController` — stock, movements, temperature, tasks
+- `AgroQaController` — checklists, checks, batch blocks, HACCP
+- `AgroSalesController` — sales docs, FIFO allocation, export declarations
+
+### UI Pages
+| URL | Purpose |
+|-----|---------|
+| `/UNA.md/orasldev/agro-admin` | Reference data, settings, reports |
+| `/UNA.md/orasldev/agro-field` | Tablet-first field operator (barcode scanner) |
+| `/UNA.md/orasldev/agro-warehouse` | Warehouse operator (stock, receiving, temp) |
+| `/UNA.md/orasldev/agro-qa` | QA inspector (checklists, HACCP, blocks) |
+| `/UNA.md/orasldev/agro-sales` | Sales operator (shipments, export) |
+
+### Print Documents
+| Template | Route |
+|----------|-------|
+| Purchase act | `/UNA.md/orasldev/agro-document/<id>?type=purchase_act` |
+| Weight ticket | `?type=weight_ticket` |
+| Shipping note | `?type=shipping_note` |
+| Invoice | `?type=invoice` |
+| Export declaration | `?type=export_decl` |
+| QA protocol | `?type=qa_protocol` |
+| GMP checklist | `?type=gmp_checklist` |
+| HACCP report | `?type=haccp_report` |
+| Mass balance | `?type=mass_balance` |
+
+## Oracle Objects
+
+### Tables (AGRO_ prefix)
+
+**Master Data:**
+AGRO_SUPPLIERS, AGRO_CUSTOMERS, AGRO_WAREHOUSES, AGRO_STORAGE_CELLS,
+AGRO_ITEMS, AGRO_PACKAGING_TYPES, AGRO_VEHICLES, AGRO_CURRENCIES,
+AGRO_EXCHANGE_RATES, AGRO_FORMULA_PARAMS, AGRO_MODULE_CONFIG
+
+**Operations:**
+AGRO_BARCODES, AGRO_PURCHASES, AGRO_PURCHASE_LINES, AGRO_CRATES,
+AGRO_BATCHES, AGRO_STOCK_MOVEMENTS, AGRO_STORAGE_READINGS,
+AGRO_STORAGE_ALERTS, AGRO_PROCESSING_TASKS
+
+**Sales:**
+AGRO_SALES_DOCS, AGRO_SALES_LINES, AGRO_BATCH_ALLOCATIONS,
+AGRO_EXPORT_DECLARATIONS
+
+**QA & HACCP:**
+AGRO_QA_CHECKLISTS, AGRO_QA_CHECKLIST_ITEMS, AGRO_QA_CHECKS,
+AGRO_QA_CHECK_VALUES, AGRO_BATCH_BLOCKS, AGRO_HACCP_PLANS,
+AGRO_HACCP_CCPS, AGRO_HACCP_RECORDS
+
+**Audit:**
+AGRO_EVENT_LOG
+
+**Acceptance & Procurement (new):**
+AGRO_ITEM_VARIETIES, AGRO_ACCEPTANCE_PROFILES, AGRO_FIELD_REQUESTS,
+AGRO_FIELD_REQUEST_LINES, AGRO_BATCH_INSPECTIONS, AGRO_BATCH_INSPECTION_VALUES
+
+### Views
+- `AGRO_V_STOCK_BALANCE` — current stock by batch/warehouse/cell
+- `AGRO_V_PURCHASES` — purchase documents with supplier/item details
+- `AGRO_V_SALES` — sales documents with customer details
+- `AGRO_V_MASS_BALANCE` — mass balance by item
+- `AGRO_V_CELL_READINGS` — storage readings with cell/warehouse info
+- `AGRO_V_FIELD_REQUESTS` — field requests with supplier/warehouse/profile/line counts
+- `AGRO_V_BATCH_INSPECTIONS` — batch inspection results with item/profile info
+
+## API Endpoints
+
+### Admin API (`/api/agro-admin/`)
+- `GET/POST` — suppliers, customers, warehouses, storage_cells, items, packaging_types, vehicles, currencies, exchange_rates, formula_params, module_config
+- `PUT/DELETE` — `/<entity>/<id>`
+- `GET/POST /item-varieties`, `DELETE /item-varieties/<id>` — product varieties (calibre, brix, shelf life)
+- `GET/POST /acceptance-profiles`, `DELETE /acceptance-profiles/<id>` — retailer acceptance threshold profiles
+- `GET /api/agro-admin/reports/<type>` — purchases, sales, mass_balance, stock, expiry
+- `GET /api/agro-admin/reports/export/<type>?format=xlsx|csv`
+
+### Field API (`/api/agro-field/`)
+- `POST /barcodes/generate` — generate barcode batch
+- `GET /barcodes/print-batch` — get barcodes for printing
+- `POST /crates/scan`, `POST /crates/register` — crate operations
+- `GET/POST /purchases`, `GET /purchases/<id>`, `PUT /purchases/<id>/confirm`
+- `GET /sync/references`, `POST /sync/offline-queue`
+- `GET/POST /requests`, `GET/PUT /requests/<id>` — field procurement requests (заявки)
+- `PUT /requests/<id>/approve`, `PUT /requests/<id>/cancel` — request status transitions
+- `GET/POST /inspections`, `GET /inspections/<id>` — batch acceptance inspections with weighted scoring
+
+### Warehouse API (`/api/agro-warehouse/`)
+- `GET /stock`, `GET /batches/<id>`, `GET /batches/<id>/history`
+- `POST /movements`, `POST /receive`
+- `GET/POST /readings`, `GET /alerts`, `PUT /alerts/<id>/ack`
+- `GET/POST /tasks`, `PUT /tasks/<id>/status`
+
+### Sales API (`/api/agro-sales/`)
+- `GET/POST /documents`, `GET /documents/<id>`, `PUT /documents/<id>/confirm`
+- `POST /allocate`, `GET /available-stock`
+- `POST /export-decl`, `GET/PUT /export-decl/<id>`
+
+### QA API (`/api/agro-qa/`)
+- `GET/POST /checklists`, `GET/DELETE /checklists/<id>`
+- `GET/POST /checks`, `GET /checks/<id>`
+- `POST /batches/<id>/block`, `POST /batches/<id>/unblock`, `GET /blocks`
+- `GET/POST /haccp/plans`, `GET /haccp/plans/<id>/ccps`, `POST /haccp/ccps`
+- `POST /haccp/records`, `GET /haccp/deviations`
+
+## Local Setup
+
+1. Ensure Oracle wallet is configured in `.env`:
+   ```
+   WALLET_DIR=/path/to/wallet
+   ```
+
+2. Deploy DDL:
+   ```bash
+   python deploy_oracle_objects.py
+   ```
+   This executes `sql/35_agro_tables.sql`, `sql/36_agro_views.sql`,
+   `sql/37_agro_triggers.sql`, `sql/38_agro_demo_data.sql`,
+   `sql/39_agro_acceptance.sql`, `sql/40_agro_acceptance_demo.sql`.
+
+3. Run the application:
+   ```bash
+   python app.py
+   ```
+
+4. Navigate to `http://localhost:5000/UNA.md/orasldev/agro-admin`
+
+## Remote Deploy
+
+1. `deploy_to_remote.sh` transfers code to `/home/ubuntu/artgranit`
+2. Oracle wallet stays at `/home/ubuntu/oracle_wallets/wallet_HXPAVUNKCLU9HE7Q`
+3. For schema changes, run: `DEPLOY_ORACLE_ON_REMOTE=1 python deploy_oracle_objects.py`
+
+## Post-deploy Verification
+
+- [ ] Oracle objects visible in `USER_OBJECTS` with prefix `AGRO_`
+- [ ] All 5 UI pages load at `/UNA.md/orasldev/agro-*`
+- [ ] Admin CRUD works for all 11 reference tables
+- [ ] Barcode generation and scanning functional
+- [ ] Purchase document creation and confirmation
+- [ ] Stock balance updates after movements
+- [ ] Temperature readings generate alerts on threshold breach
+- [ ] QA check auto-blocks batch on critical failure
+- [ ] Sales doc confirmation performs FIFO allocation
+- [ ] Reports render data and export to XLSX/CSV
+- [ ] Print documents render with proper A4 layout
+- [ ] Dashboard `dashboard_10.json` loads in shell
+- [ ] Item varieties visible in Admin → Сорта / Soiuri
+- [ ] Acceptance profiles CRUD in Admin → Профили приёмки
+- [ ] Field request creation, approval, and cancellation
+- [ ] Batch inspection scoring engine: 17 weighted checks + freshness(0-5), critical fail = instant REJECT
+- [ ] Inspection decision: ACCEPT (score≥95), ACCEPT_WITH_SORTING (score≥85), REJECT (score<85 or critical fail)
+- [ ] **ScaleKiosk** — touchscreen weighing modal opens in both Field (purchase) and Sales (sale) modes
+- [ ] Product grid displays SVG images with emoji fallback
+- [ ] Product passport (calibre, brix, temp, freshness, defects, packaging, labeling) visible in both modes
+- [ ] Auto-emulation 20s cycle: weight simulated → AI camera scans → product highlighted
+- [ ] Pause/Resume, Numpad manual entry, Zero/Tare work in both modes
+- [ ] Emulator panel (Set/Random/Remove) visible in Sales mode
+- [ ] Capture transfers weight + passport data back to document line
+
+## Shared UI Components
+
+### ScaleKiosk — Universal Touchscreen Weighing Modal
+
+> **Full specification:** [`docs/AGRO/scale_kiosk_specification.md`](scale_kiosk_specification.md) — 25 sections, 900+ lines: constructor, DOM tree, CSS architecture, events, passport fields, capture flow, lifecycle diagram, data-attributes reference, checklist.
+
+**Files:**
+- `/static/agro/scale-kiosk.css` (~326 lines) — shared CSS for full-screen 3-column kiosk
+- `/static/agro/scale-kiosk.js` (~900 lines) — `ScaleKiosk` class (IIFE, `window.ScaleKiosk`)
+- `/static/agro/products/*.svg` — product pictograms (10: apple, apricot, cherry, grape, peach, pear, pepper, plum, tomato, walnut)
+
+**Architecture:**
+```
+ScaleKiosk(config) → .open(lineId) → full-screen modal → .close()
+    ├── mode: 'purchase' | 'sale'
+    ├── showPassport: true/false (product quality attributes)
+    ├── showEmulator: true/false (weight simulation panel)
+    ├── products: [{key, name, svgPath}]
+    ├── weightRange: {min, max}
+    ├── onCapture: callback({lineId, gross, tare, net, productKey, passport})
+    └── toastFn: notification function
+```
+
+**3-Column Layout:**
+| Column | Content |
+|--------|---------|
+| Left | Product grid (SVG buttons) + Product Passport (varieties, calibre, brix, color, temp, freshness, defects, packaging, labeling) |
+| Center | Weight display (gross/tare/net), Zero/Tare buttons, Numpad, Capture button |
+| Right | AI Camera viewport (scanning animation, product recognition), AI result panel, Emulator controls (sale mode) |
+
+**Instantiation in templates:**
+- `agro_field.html`: `new ScaleKiosk({mode:'purchase', showPassport:true, showEmulator:false, ...})`
+- `agro_sales.html`: `new ScaleKiosk({mode:'sale', showPassport:true, showEmulator:true, ...})`
+
+**Scale API endpoints:**
+- `GET /api/agro-scale/read?scale_id=default` — current weight reading
+- `POST /api/agro-scale/capture` — capture stable weight
+- `POST /api/agro-scale/zero` — zero the scale
+- `POST /api/agro-scale/tare` — set tare weight
+- `POST /api/agro-scale/simulate` — emulator: set/random weight
+
+## Acceptance Scoring Engine
+
+The batch acceptance scoring engine (`AgroStore.perform_batch_inspection`) evaluates incoming produce
+against retailer-specific acceptance profiles. Based on Kaufland, Metro, and Linella procurement standards.
+
+**17 weighted boolean checks:**
+| Check | Weight | Critical |
+|-------|--------|----------|
+| CLASS_OK | 10 | Yes |
+| SERIOUS_OK | 15 | Yes |
+| TEMP_OK | 10 | Yes |
+| LAB_OK | 8 | Yes |
+| PHYTO_OK | 4 | Yes |
+| TRACE_OK | 6 | Yes |
+| CALIBRE_OK | 8 | |
+| MINOR_OK | 8 | |
+| BELOW_MIN_OK | 5 | |
+| BRIX_OK | 5 | |
+| MIXED_OK | 4 | |
+| PACK_OK | 3 | |
+| LABEL_OK | 2 | |
+| ACTIVES_OK | 2 | |
+| SINGLE_RESIDUE_OK | 2 | |
+| TOTAL_RESIDUE_OK | 2 | |
+| GLYPHOSATE_OK | 1 | |
+
+**+ Freshness score** (0–5 manual rating)
+
+**Decision logic:**
+1. Any critical check fails → REJECT
+2. All checks pass and score ≥ 95 → ACCEPT
+3. Score ≥ 85 (accept_min_score from profile) → ACCEPT_WITH_SORTING
+4. Otherwise → REJECT

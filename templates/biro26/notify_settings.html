@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} — Notificări</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;background:#f8fafc;color:#1e293b}
+.top{background:#0d0d1a;color:#e2e8f0;display:flex;align-items:center;gap:12px;padding:10px 16px}
+.top .logo{font-weight:700;color:#4f8ef7}
+.top a{color:#94a3b8;text-decoration:none;font-size:13px}
+.top .sp{flex:1}
+.wrap{max-width:760px;margin:20px auto;padding:0 14px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:14px}
+.card h3{font-size:15px;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.card .hint{font-size:12px;color:#64748b;margin-bottom:10px;line-height:1.5}
+label{display:block;font-size:12px;color:#475569;margin:8px 0 3px}
+input[type=text]{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px;font-size:13px}
+.sw{display:flex;align-items:center;gap:8px;font-size:13.5px;font-weight:600}
+.btn{background:#1d4ed8;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
+.btn.gray{background:#e2e8f0;color:#1e293b}
+.acts{display:flex;gap:10px;margin-top:6px}
+.toast{position:fixed;bottom:20px;right:16px;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;z-index:200;font-size:13px;max-width:420px}
+.toast.err{background:#dc2626}
+.badge{font-size:11px;border-radius:10px;padding:2px 8px;background:#fee2e2;color:#991b1b}
+.badge.ok{background:#dcfce7;color:#166534}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="logo">{{ app_name }} · Notificări · Уведомления</span>
+  <span class="sp"></span>
+  <a href="/UNA.md/orasldev/biro26">← {{ app_name }}</a>
+</div>
+
+<div class="wrap">
+  <p class="hint" style="font-size:12.5px;color:#64748b;margin-bottom:14px">
+    Notificări la crearea conturilor de plată / comenzilor noi (magazin public și back-office).
+    Уведомления о новых счетах/заказах. Настройки хранятся в БД (YBIRO_SETTINGS).
+  </p>
+
+  <div class="card">
+    <h3>📧 Email <span id="smtp-badge" class="badge">SMTP: ?</span></h3>
+    <div class="hint">Toate câmpurile se salvează de aici: setările SMTP se scriu în
+      <code>.env</code> pe server (parola nu ajunge în DB și nu se afișează înapoi)
+      și se aplică imediat, fără restart.
+      / Все поля сохраняются отсюда: SMTP пишется в .env на сервере (пароль не
+      попадает в БД и не показывается обратно), применяется сразу без рестарта.</div>
+    <label class="sw"><input type="checkbox" id="f-email-en"> Activat · Включено</label>
+    <label>Destinatari (virgulă) · Получатели (через запятую)</label>
+    <input type="text" id="f-email-to" placeholder="office@firma.md, manager@firma.md">
+    <div style="display:grid;grid-template-columns:2fr 1fr;gap:10px">
+      <div><label>SMTP host</label><input type="text" id="f-smtp-host" placeholder="smtp.gmail.com"></div>
+      <div><label>Port</label><input type="text" id="f-smtp-port" placeholder="587"></div>
+    </div>
+    <label>SMTP user (login)</label>
+    <input type="text" id="f-smtp-user" placeholder="user@firma.md">
+    <label>SMTP parola · пароль <span id="pwd-hint" class="badge" style="display:none">setată ✓ (gol = nu se schimbă)</span></label>
+    <input type="password" id="f-smtp-password" placeholder="••••••••" autocomplete="new-password">
+    <label>From (expeditor; gol = user)</label>
+    <input type="text" id="f-smtp-from" placeholder="noreply@firma.md">
+    <label class="sw" style="margin-top:8px"><input type="checkbox" id="f-smtp-ssl"> SSL direct (port 465) · fără = STARTTLS (587)</label>
+    <div class="acts"><button class="btn gray" onclick="test('email')">Trimite test · Тест</button></div>
+  </div>
+
+  <div class="card">
+    <h3>✈️ Telegram</h3>
+    <div class="hint">Creați un bot la <b>@BotFather</b> → token; aflați chat_id scriind
+      botului și deschizând <code>api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code>.
+      / Создайте бота у @BotFather, chat_id — через getUpdates.</div>
+    <label class="sw"><input type="checkbox" id="f-tg-en"> Activat · Включено</label>
+    <label>Bot token</label>
+    <input type="text" id="f-tg-token" placeholder="123456789:AA...">
+    <label>Chat ID (utilizator sau grup) · ID чата</label>
+    <input type="text" id="f-tg-chat" placeholder="-1001234567890">
+    <div class="acts"><button class="btn gray" onclick="test('telegram')">Trimite test · Тест</button></div>
+  </div>
+
+  <div class="card">
+    <h3>💬 WhatsApp</h3>
+    <label class="sw"><input type="checkbox" id="f-wa-en"> Activat · Включено</label>
+    <label>Mod de trimitere · Способ отправки</label>
+    <select id="f-wa-mode" onchange="waMode()">
+      <option value="callmebot">CallMeBot — gratuit, text + link PDF</option>
+      <option value="cloud">WhatsApp Cloud API — trimite și fișierul PDF 📎</option>
+    </select>
+    <div id="wa-callmebot">
+      <div class="hint">Adăugați în contacte <b>+34 621 331 709</b> și trimiteți-i pe WhatsApp mesajul
+        «I allow callmebot to send me messages» — primiți un <b>apikey</b> personal.
+        Mesajul va conține un <b>link</b> spre PDF (fișierul se deschide la o atingere).
+        / Добавьте номер CallMeBot в контакты и отправьте ему это сообщение — получите apikey.
+        Сообщение будет содержать ссылку на PDF.</div>
+      <label>Telefon (cu prefix) · Телефон (с кодом страны)</label>
+      <input type="text" id="f-wa-phone" placeholder="+37369000000">
+      <label>API key (CallMeBot)</label>
+      <input type="text" id="f-wa-apikey" placeholder="123456">
+    </div>
+    <div id="wa-cloud" style="display:none">
+      <div class="hint">Meta WhatsApp Business Cloud API (<b>developers.facebook.com</b> → app WhatsApp →
+        API Setup): copiați <b>Access token</b> permanent și <b>Phone number ID</b>. PDF-ul contului de plată
+        vine ca <b>document atașat</b> în chat. / Meta Cloud API: постоянный Access token + Phone number ID;
+        PDF счёта приходит как вложение.</div>
+      <label>Access token (permanent)</label>
+      <input type="text" id="f-wa-ctoken" placeholder="EAAG...">
+      <label>Phone number ID (expeditor)</label>
+      <input type="text" id="f-wa-cphoneid" placeholder="123456789012345">
+      <label>Destinatar (cu prefix, fără +) · Получатель</label>
+      <input type="text" id="f-wa-cto" placeholder="37369000000">
+    </div>
+    <label>URL public al site-ului (pentru linkurile PDF) · Публичный URL сайта</label>
+    <input type="text" id="f-public-base" placeholder="https://officeplus.md">
+    <div class="acts"><button class="btn gray" onclick="test('whatsapp')">Trimite test · Тест</button></div>
+  </div>
+
+  <div class="acts" style="margin-bottom:30px">
+    <button class="btn" onclick="save()">💾 Salvează tot · Сохранить всё</button>
+  </div>
+
+  <div class="card">
+    <h3>💳 Plăți online (MAIB / MIA) · Онлайн-оплата</h3>
+    <div class="hint">Plata contului direct din magazin. <b>MIA</b> — plăți instant prin QR
+      (QMoney, api.qiwi.md); <b>MAIB</b> — plata cu cardul (api.maibmerchants.md, Project ID/Secret
+      din maibmerchants). Secretele se salvează în .env, nu în bază.
+      / Оплата счёта из магазина: MIA — QR, MAIB — карта. Секреты хранятся в .env.</div>
+    <label class="sw"><input type="checkbox" id="f-pay-en"> Activat · Включено</label>
+    <label>Metoda implicită · Способ по умолчанию</label>
+    <select id="f-pay-method">
+      <option value="mia">MIA — plăți instant prin QR (implicit)</option>
+      <option value="maib">MAIB — plata cu cardul</option>
+      <option value="both">Ambele · Обе</option>
+    </select>
+    <label>Denumirea comerciantului · Название продавца</label>
+    <input type="text" id="f-pay-merchant" placeholder="OfficePlus / GRECU OFFICE PLUS SRL">
+    <div style="border-top:1px dashed #e2e8f0;margin:10px 0 6px;padding-top:8px"><b>MAIB Checkout</b>
+      <span style="font-size:11px;color:#64748b">(docs.maibmerchants.md/checkout)</span></div>
+    <label class="sw"><input type="checkbox" id="f-pay-maib-sandbox"> Sandbox (chei de TEST) · Тестовая среда</label>
+    <label>Client ID</label>
+    <input type="text" id="f-pay-maib-id" placeholder="merchants-payments-...">
+    <label>Client Secret <span id="maib-sec-hint" class="badge" style="display:none">setat ✓ (gol = nu se schimbă)</span></label>
+    <input type="password" id="f-pay-maib-secret" placeholder="••••••••" autocomplete="new-password">
+    <label>Signature Key</label>
+    <input type="password" id="f-pay-maib-sigkey" placeholder="•••••••• (gol = nu se schimbă)" autocomplete="new-password">
+    <div style="border-top:1px dashed #e2e8f0;margin:10px 0 6px;padding-top:8px"><b>MIA instant payments (QMoney)</b></div>
+    <label>API Key</label>
+    <input type="text" id="f-pay-mia-key" placeholder="18">
+    <label>API Secret <span id="mia-sec-hint" class="badge" style="display:none">setat ✓ (gol = nu se schimbă)</span></label>
+    <input type="password" id="f-pay-mia-secret" placeholder="••••••••" autocomplete="new-password">
+    <label>IBAN (contul comerciantului)</label>
+    <input type="text" id="f-pay-mia-iban" placeholder="MD88...">
+    <div style="border-top:1px dashed #e2e8f0;margin:10px 0 6px;padding-top:8px"><b>MIA transfer la telefon (pers. fizică)</b></div>
+    <div class="hint">Metodă manuală, funcționează în paralel: cumpărătorul face transfer MIA
+      din aplicația băncii pe numărul de telefon; operatorul confirmă manual.
+      / Ручной способ (параллельно): перевод MIA по номеру телефона, подтверждается оператором.</div>
+    <label class="sw"><input type="checkbox" id="f-pay-p2p-en"> Activat · Включено</label>
+    <label>Număr de telefon (destinatar MIA)</label>
+    <input type="text" id="f-pay-p2p-phone" placeholder="062007211">
+    <div class="acts"><button class="btn" onclick="savePay()">💾 Salvează · Сохранить</button></div>
+  </div>
+
+  <div class="card">
+    <h3>💬 Chat JivoChat · Чат JivoChat</h3>
+    <div class="hint">
+      Chatul apare pe magazin <b>si</b> pe paginile de continut. ID-ul se ia din
+      contul JivoChat: <b>Gestionare → Instalare JivoChat</b>, din codul
+      <code>//code.jivosite.com/widget/<b>XXXXXXXXXX</b></code> — doar partea
+      îngroșată. Gol = chatul este oprit complet.<br>
+      Чат показывается и в магазине, и на контентных страницах. ID берётся в
+      кабинете JivoChat: <b>Управление → Установить JivoChat</b>, из кода
+      <code>//code.jivosite.com/widget/<b>XXXXXXXXXX</b></code> — только
+      выделенная часть. Пусто — чат выключен.
+    </div>
+    <label>ID widget · ID виджета</label>
+    <input type="text" id="f-jivo-id" placeholder="de ex. 3QxYz12AbC" style="max-width:280px">
+    <div style="margin-top:10px;padding:8px 10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:12px;line-height:1.6">
+      <b>Al doilea loc, obligatoriu · Второе место, обязательно.</b>
+      Paginile de continut (<code>/despre-companie</code> s.a.) sînt servite de
+      WordPress, nu de magazin. Același ID trebuie pus și acolo:
+      <b>WordPress → Setări → Generale → „JivoChat: ID виджета"</b>.
+      Fără asta chatul dispare cînd vizitatorul trece pe acele pagini și
+      discuția începută se pierde.<br>
+      Контентные страницы отдаёт WordPress, а не магазин. Тот же ID нужно
+      указать и там: <b><a href="https://officeplus.md/wp-admin/options-general.php"
+      target="_blank">WordPress → Настройки → Общие</a></b>.<br>
+      Инструкция · Instrucțiune:
+      <a href="https://officeplus.md/UNA.md/orasldev/b26docs/Biro26/JIVOCHAT.md" target="_blank">https://officeplus.md/UNA.md/orasldev/b26docs/Biro26/JIVOCHAT.md</a>
+    </div>
+  </div>
+  <div class="card">
+    <h3>🛒 Magazin · Магазин</h3>
+    <div class="hint">Cîte produse se afișează pe o pagină în magazinul public
+      (paginare numerotată). / Сколько товаров на странице в магазине.</div>
+    <label>Produse pe pagină · Товаров на странице (1–200)</label>
+    <input type="number" id="f-shop-pagesize" min="1" max="200" placeholder="24" style="width:120px">
+    <label style="display:block;margin-top:10px">
+      <input type="checkbox" id="f-brand-filter" style="width:auto;vertical-align:middle">
+      Filtru după brand în catalogul noului site (/catalog) · Фильтр по брендам
+      в каталоге нового сайта — <b>implicit OPRIT</b> (setarea
+      <code>SHOP_BRAND_FILTER</code> în <code>YBIRO_SETTINGS</code>)
+    </label>
+    <div style="margin-top:10px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
+      <b>Prețuri după tipul clientului · Цены по типу клиента</b>
+      <div style="font-size:12px;color:#64748b;margin:2px 0 6px">Coloana de preț folosită în catalog
+        și în conturile de plată; tipul (fizică/juridică) clientul și-l setează în cabinet.
+        Dacă valoarea aleasă lipsește la un produs, se folosește retail.</div>
+      <label style="margin-right:16px">Pers. FIZICE:
+        <select id="f-price-fiz" style="padding:4px;border:1px solid #e2e8f0;border-radius:6px">
+          <option value="retail1">Retail cu TVA (PRETV)</option>
+          <option value="ionline">Preț online (PRETV2)</option>
+          <option value="angro">Angro (PRETV1)</option>
+        </select></label>
+      <label>Pers. JURIDICE:
+        <select id="f-price-jur" style="padding:4px;border:1px solid #e2e8f0;border-radius:6px">
+          <option value="retail1">Retail cu TVA (PRETV)</option>
+          <option value="ionline">Preț online (PRETV2)</option>
+          <option value="angro">Angro (PRETV1)</option>
+        </select></label>
+    </div>
+    <div style="margin-top:10px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
+      <b>Formate cont de plată disponibile clienților · Доступные клиентам форматы счёта</b>
+      <div style="font-size:12px;color:#64748b;margin:2px 0 6px">PDF e mereu activ (implicit la toți).
+        Dacă rămâne o singură opțiune, selectorul de formate DISPARE din front-office.
+        Alegerea clientului se salvează în cabinetul lui și se refolosește.</div>
+      <label style="margin-right:16px"><input type="checkbox" id="f-fmt-html" style="width:auto;vertical-align:middle">
+        HTML (<code>SHOP_FMT_HTML</code>)</label>
+      <label><input type="checkbox" id="f-fmt-xlsx" style="width:auto;vertical-align:middle">
+        Excel/XLSX (<code>SHOP_FMT_XLSX</code>)</label>
+    </div>
+    <div style="margin-top:10px;padding:8px 10px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px">
+      <b>Prețul afișat după tipul clientului · Цена по типу клиента</b>
+      <div style="font-size:12px;color:#64748b;margin:2px 0 6px">
+        Tipul se ia din cabinetul clientului (persoană fizică / juridică).
+        Prețul ales se aplică peste tot: catalog, fișa produsului, coș și contul de plată. ·
+        Тип берётся из кабинета клиента; выбранная цена применяется в каталоге,
+        карточке товара, корзине и в счёте.</div>
+      <label style="margin-right:16px">Persoane fizice · Физлица (<code>SHOP_PRICE_FIZ</code>)<br>
+        <select id="f-price-fiz" style="width:220px">
+          <option value="retail1">Cu amănuntul · Розничная (PRETV)</option>
+          <option value="ionline">Online (PRETV2)</option>
+          <option value="angro">Angro · Оптовая (PRETV1)</option>
+        </select></label>
+      <label>Persoane juridice · Юрлица (<code>SHOP_PRICE_JUR</code>)<br>
+        <select id="f-price-jur" style="width:220px">
+          <option value="retail1">Cu amănuntul · Розничная (PRETV)</option>
+          <option value="ionline">Online (PRETV2)</option>
+          <option value="angro">Angro · Оптовая (PRETV1)</option>
+        </select></label>
+    </div>
+    <div class="acts"><button class="btn" onclick="saveShop()">💾 Salvează · Сохранить</button></div>
+  </div>
+
+  <div class="card">
+    <h3>🧾 Numerotare cont de plată · Нумерация счетов</h3>
+    <div class="hint">
+      Numărul afișat al contului se scrie în <code>TMDB_DOCS.NRMANUAL</code>
+      (nu în <code>NRSET</code>). Contorul <code>INVOICE_NR_START</code> =
+      <b>următorul număr de emis</b> (după fiecare cont se incrementează).
+      / Номер счёта в <code>NRMANUAL</code>. Счётчик = <b>следующий №</b>
+      (после создания счёта +1).
+    </div>
+    <label>Următorul nr. cont · Следующий № счёта (≥1)</label>
+    <input type="number" id="f-invoice-nr-start" min="1" max="999999999"
+           placeholder="10" style="width:140px">
+    <div class="hint" id="invoice-nr-info" style="margin-top:8px">
+      Max existent / Макс: — · Următorul / Следующий: —
+    </div>
+    <div class="acts"><button class="btn" onclick="saveInvoiceNr()">💾 Salvează start · Сохранить старт</button></div>
+  </div>
+</div>
+
+<script>
+const API = '/api/biro26/notify-settings';
+function toast(m, err) {
+  const d = document.createElement('div');
+  d.className = 'toast' + (err ? ' err' : ''); d.textContent = m;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 5000);
+}
+async function j(url, opts) {
+  opts = opts || {}; opts.headers = {'Content-Type': 'application/json'}; opts.credentials = 'include';
+  const r = await fetch(url, opts); const b = await r.json().catch(() => ({}));
+  if (!b.success && b.error) toast(b.error, true);
+  return b;
+}
+const F = {
+  notify_email_enabled: ['f-email-en', 1], notify_email_to: ['f-email-to', 0],
+  smtp_host: ['f-smtp-host', 0], smtp_port: ['f-smtp-port', 0],
+  smtp_user: ['f-smtp-user', 0], smtp_from: ['f-smtp-from', 0], smtp_ssl: ['f-smtp-ssl', 1],
+  notify_tg_enabled: ['f-tg-en', 1], notify_tg_token: ['f-tg-token', 0], notify_tg_chat: ['f-tg-chat', 0],
+  notify_wa_enabled: ['f-wa-en', 1], notify_wa_phone: ['f-wa-phone', 0], notify_wa_apikey: ['f-wa-apikey', 0],
+  notify_wa_mode: ['f-wa-mode', 0], notify_wa_cloud_token: ['f-wa-ctoken', 0],
+  notify_wa_cloud_phone_id: ['f-wa-cphoneid', 0], notify_wa_cloud_to: ['f-wa-cto', 0],
+  notify_public_base: ['f-public-base', 0],
+};
+/* RO: comuta blocurile CallMeBot / Cloud API dupa mod
+   EN: toggle the CallMeBot / Cloud API blocks by mode */
+function waMode() {
+  const cloud = document.getElementById('f-wa-mode').value === 'cloud';
+  document.getElementById('wa-callmebot').style.display = cloud ? 'none' : '';
+  document.getElementById('wa-cloud').style.display = cloud ? '' : 'none';
+}
+async function load() {
+  const r = await j(API);
+  if (!r.success) return;
+  for (const [k, [id, isChk]] of Object.entries(F)) {
+    const el = document.getElementById(id);
+    if (isChk) el.checked = r.data[k] === '1'; else el.value = r.data[k] || '';
+  }
+  if (!document.getElementById('f-wa-mode').value) document.getElementById('f-wa-mode').value = 'callmebot';
+  waMode();
+  const b = document.getElementById('smtp-badge');
+  b.textContent = 'SMTP: ' + (r.data.smtp_configured ? 'configurat ✓' : 'neconfigurat');
+  b.className = 'badge' + (r.data.smtp_configured ? ' ok' : '');
+  const ph = document.getElementById('pwd-hint');
+  ph.style.display = r.data.smtp_has_password ? '' : 'none';
+  ph.className = 'badge ok';
+}
+async function save() {
+  const body = {};
+  for (const [k, [id, isChk]] of Object.entries(F)) {
+    const el = document.getElementById(id);
+    body[k] = isChk ? (el.checked ? '1' : '0') : el.value.trim();
+  }
+  // RO/EN: parola se trimite doar daca s-a introdus una noua
+  const pw = document.getElementById('f-smtp-password').value;
+  if (pw) body.smtp_password = pw;
+  const r = await j(API, {method: 'PUT', body: JSON.stringify(body)});
+  if (r.success) {
+    toast('Salvat · Сохранено ✓ (SMTP → .env)');
+    document.getElementById('f-smtp-password').value = '';
+    load();
+  }
+}
+/* RO: plati online (MAIB/MIA) — nesecrete in YBIRO_SETTINGS, secrete in .env
+   EN: online payments (MAIB/MIA) — non-secrets in settings, secrets in .env */
+const PF = {
+  pay_enabled: ['f-pay-en', 1], pay_method: ['f-pay-method', 0],
+  pay_merchant_name: ['f-pay-merchant', 0],
+  pay_maib_project_id: ['f-pay-maib-id', 0], pay_maib_sandbox: ['f-pay-maib-sandbox', 1],
+  pay_mia_api_key: ['f-pay-mia-key', 0],
+  pay_mia_iban: ['f-pay-mia-iban', 0],
+  pay_mia_p2p_enabled: ['f-pay-p2p-en', 1], pay_mia_p2p_phone: ['f-pay-p2p-phone', 0],
+};
+async function loadPay() {
+  const r = await j('/api/biro26/pay-settings');
+  if (!r.success) return;
+  for (const [k, [id, isChk]] of Object.entries(PF)) {
+    const el = document.getElementById(id);
+    if (isChk) el.checked = r.data[k] === '1'; else el.value = r.data[k] || '';
+  }
+  if (!document.getElementById('f-pay-method').value) document.getElementById('f-pay-method').value = 'mia';
+  document.getElementById('maib-sec-hint').style.display = r.data.maib_secret_set ? '' : 'none';
+  document.getElementById('mia-sec-hint').style.display = r.data.mia_secret_set ? '' : 'none';
+}
+async function savePay() {
+  const body = {};
+  for (const [k, [id, isChk]] of Object.entries(PF)) {
+    const el = document.getElementById(id);
+    body[k] = isChk ? (el.checked ? '1' : '0') : el.value.trim();
+  }
+  // RO/EN: secretele se trimit doar daca s-a introdus ceva nou
+  const ms = document.getElementById('f-pay-maib-secret').value;
+  const sk = document.getElementById('f-pay-maib-sigkey').value;
+  const qs = document.getElementById('f-pay-mia-secret').value;
+  if (ms) body.maib_project_secret = ms;
+  if (sk) body.maib_signature_key = sk;
+  if (qs) body.mia_api_secret = qs;
+  const r = await j('/api/biro26/pay-settings', {method: 'PUT', body: JSON.stringify(body)});
+  if (r.success) {
+    toast('Salvat · Сохранено ✓ (secretele → .env)');
+    document.getElementById('f-pay-maib-secret').value = '';
+    document.getElementById('f-pay-mia-secret').value = '';
+    loadPay();
+  }
+}
+
+/* RO: setari magazin (produse pe pagina) — YBIRO_SETTINGS SHOP_PAGE_SIZE
+   EN: shop settings (products per page) */
+function fillInvoiceNrInfo(d) {
+  const el = document.getElementById('invoice-nr-info');
+  if (!el || !d) return;
+  const mx = (d.invoice_nr_max == null) ? '—' : d.invoice_nr_max;
+  const nx = (d.invoice_nr_next == null) ? '—' : d.invoice_nr_next;
+  el.innerHTML = 'Max existent / Макс: <b>' + mx +
+    '</b> · Următorul / Следующий: <b>' + nx + '</b>';
+}
+async function loadShop() {
+  const r = await j('/api/biro26/shop-settings');
+  if (!r.success) return;
+  document.getElementById('f-shop-pagesize').value = r.data.shop_page_size || '24';
+  document.getElementById('f-jivo-id').value = r.data.jivo_id || '';
+  document.getElementById('f-brand-filter').checked = r.data.brand_filter === '1';
+  document.getElementById('f-fmt-html').checked = r.data.fmt_html === '1';
+  document.getElementById('f-fmt-xlsx').checked = r.data.fmt_xlsx === '1';
+  document.getElementById('f-price-fiz').value = r.data.price_fiz || 'retail1';
+  document.getElementById('f-price-jur').value = r.data.price_jur || 'ionline';
+  document.getElementById('f-invoice-nr-start').value =
+    r.data.invoice_nr_start || '1';
+  fillInvoiceNrInfo(r.data);
+}
+async function saveShop() {
+  const v = document.getElementById('f-shop-pagesize').value.trim();
+  const r = await j('/api/biro26/shop-settings', {method: 'PUT',
+    body: JSON.stringify({shop_page_size: v,
+      jivo_id: document.getElementById('f-jivo-id').value.trim(),
+      brand_filter: document.getElementById('f-brand-filter').checked ? '1' : '0',
+      fmt_html: document.getElementById('f-fmt-html').checked ? '1' : '0',
+      fmt_xlsx: document.getElementById('f-fmt-xlsx').checked ? '1' : '0',
+      price_fiz: document.getElementById('f-price-fiz').value,
+      price_jur: document.getElementById('f-price-jur').value})});
+  if (r.success) toast('Salvat ✓ · Сохранено — magazinul folosește noua valoare la reîncărcare');
+}
+/* RO: numar start cont de plata (YBIRO_SETTINGS INVOICE_NR_START)
+   EN: invoice start number (YBIRO_SETTINGS INVOICE_NR_START) */
+async function saveInvoiceNr() {
+  const v = document.getElementById('f-invoice-nr-start').value.trim();
+  const r = await j('/api/biro26/shop-settings', {method: 'PUT',
+    body: JSON.stringify({invoice_nr_start: v})});
+  if (r.success) {
+    fillInvoiceNrInfo(r.data);
+    toast('Start cont salvat ✓ · Стартовый номер сохранён ✓ (următorul: ' +
+          (r.data.invoice_nr_next != null ? r.data.invoice_nr_next : '?') + ')');
+  }
+}
+async function test(channel) {
+  await save();
+  toast('Se trimite testul… · Отправляю тест…');
+  const r = await j('/api/biro26/notify-test', {method: 'POST', body: JSON.stringify({channel})});
+  if (r.success) toast(channel + ': mesaj de test trimis ✓ · тест отправлен ✓');
+}
+load();
+loadShop();
+loadPay();
+</script>
+</body>
+</html>

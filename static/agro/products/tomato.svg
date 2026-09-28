@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <radialGradient id="tg" cx="45%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#ff8787"/>
+      <stop offset="60%" stop-color="#e03131"/>
+      <stop offset="100%" stop-color="#c92a2a"/>
+    </radialGradient>
+    <radialGradient id="th" cx="38%" cy="32%" r="22%">
+      <stop offset="0%" stop-color="rgba(255,255,255,.3)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <!-- Sepals (green star on top) -->
+  <g fill="#2b8a3e">
+    <ellipse cx="60" cy="30" rx="4" ry="12" transform="rotate(0 60 30)"/>
+    <ellipse cx="60" cy="30" rx="4" ry="12" transform="rotate(45 60 30)"/>
+    <ellipse cx="60" cy="30" rx="4" ry="12" transform="rotate(90 60 30)"/>
+    <ellipse cx="60" cy="30" rx="4" ry="12" transform="rotate(135 60 30)"/>
+  </g>
+  <!-- Stem -->
+  <rect x="58" y="16" width="4" height="10" rx="2" fill="#5c3d2e"/>
+  <!-- Tomato body -->
+  <ellipse cx="60" cy="62" rx="35" ry="30" fill="url(#tg)"/>
+  <!-- Segments -->
+  <path d="M60 32 Q60 62 60 92" stroke="rgba(0,0,0,.08)" stroke-width="1.5" fill="none"/>
+  <path d="M28 55 Q60 62 92 55" stroke="rgba(0,0,0,.06)" stroke-width="1.5" fill="none"/>
+  <!-- Highlight -->
+  <ellipse cx="46" cy="52" rx="12" ry="10" fill="url(#th)"/>
+</svg>

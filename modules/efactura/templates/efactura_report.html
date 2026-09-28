@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>e-Factura — facturi transmise</title>
+<style>
+  body{margin:0;font:14px/1.5 Inter,system-ui,sans-serif;background:#f2f4f8;color:#1a1a1a}
+  .bar{background:#194681;color:#fff;padding:12px 20px;font-weight:700}
+  .bar a{color:#ffd23a;text-decoration:none;margin-left:14px;font-size:13px;font-weight:600}
+  .wrap{max-width:1280px;margin:20px auto;padding:0 14px}
+  .card{background:#fff;border-radius:14px;padding:18px;margin-bottom:18px;box-shadow:0 2px 10px rgba(0,0,0,.06)}
+  h2{margin:.2em 0 .6em;font-size:17px;color:#194681}
+  table{border-collapse:collapse;width:100%;font-size:13px}
+  th,td{border-bottom:1px solid #e5e7eb;padding:6px 8px;text-align:left;vertical-align:top}
+  th{background:#f8fafc;position:sticky;top:0}
+  td.num,th.num{text-align:right;white-space:nowrap}
+  input,select{padding:7px 9px;border:1px solid #cbd5e1;border-radius:8px;font:inherit}
+  .btn{background:#194681;color:#fff;border:0;border-radius:8px;padding:8px 16px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}
+  .btn.green{background:#15803d}.btn.red{background:#b91c1c}.btn.gray{background:#64748b}
+  .muted{color:#64748b;font-size:12.5px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:8px 0}
+  .row label{display:block;font-size:12px;color:#475569;margin-bottom:3px}
+  .pill{display:inline-block;border-radius:999px;padding:1px 9px;font-size:11.5px;font-weight:700}
+  .p-new{background:#e2e8f0;color:#475569}.p-sent{background:#dbeafe;color:#1d4ed8}
+  .p-accepted,.p-signed{background:#dcfce7;color:#15803d}.p-rejected,.p-error{background:#fee2e2;color:#b91c1c}
+  .hdr{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+  .hdr div{background:#f8fafc;border-radius:10px;padding:8px 12px}
+  .hdr b{display:block;font-size:18px;color:#194681}
+  tr.m{cursor:pointer}tr.m:hover td{background:#f1f5f9}
+  tr.d td{background:#fbfcfe;padding:4px 8px}
+  .err{color:#dc2626}
+</style>
+</head>
+<body>
+<div class="bar">📊 e-Factura — facturi transmise
+  <a href="{{ url_for('efactura.admin_page') }}">← Setări și jurnal</a>
+  <a href="/UNA.md/orasldev/biro26">Hub Biro26</a>
+  <a href="/UNA.md/orasldev/modules">Portal</a></div>
+<div class="wrap">
+
+<div class="card">
+  <h2>Filtru</h2>
+  <p class="muted">Sursa: pachetul Oracle <code>EFA_REPORT</code> — trei seturi:
+    <b>header</b> (filtrul cerut și totalurile), <b>master</b> (o linie per e-factură),
+    <b>detail</b> (mărfurile fiecărei e-facturi, legate prin EFA_ID). Perioada se aplică
+    pe data trimiterii.</p>
+  <div class="row">
+    <div><label>De la</label><input type="date" id="f-from"></div>
+    <div><label>Pînă la</label><input type="date" id="f-to"></div>
+    <div><label>Statut</label><select id="f-status">
+      {% for s in statuses %}<option value="{{ s }}">{{ s or 'toate' }}</option>{% endfor %}
+    </select></div>
+    <div><label>Client (cod ERP)</label><input id="f-client" style="width:110px" placeholder="toți"></div>
+    <button class="btn" onclick="run()">🔍 Arată</button>
+    <a class="btn green" id="dl-xlsx" href="#">⬇ Excel</a>
+    <a class="btn red" id="dl-pdf" href="#" target="_blank">⬇ PDF</a>
+    <span id="info" class="muted"></span>
+  </div>
+</div>
+
+<div class="card" id="hdr-card" hidden>
+  <h2>Header — filtrul solicitat și totalurile</h2>
+  <div class="hdr" id="hdr"></div>
+</div>
+
+<div class="card">
+  <h2>Master — e-facturi <span class="muted" id="m-cnt"></span></h2>
+  <p class="muted">Click pe o linie → mărfurile ei (detail).</p>
+  <table id="mtab"><thead><tr>
+    <th>Nr. doc</th><th>Data</th><th>Client</th><th>IDNO</th><th>Statut</th>
+    <th>Seria / Nr. SFS</th><th>Trimisă la</th><th class="num">Total, lei</th>
+    <th class="num">Poziții</th><th class="num">Cant.</th><th>RequestId / eroare</th>
+  </tr></thead><tbody></tbody></table>
+</div>
+</div>
+<script>
+const BASE = '{{ url_for("efactura.admin_page") }}'.replace(/\/$/, '');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const num = v => v == null ? '' : Number(v).toLocaleString('ro-MD', {maximumFractionDigits: 3});
+const KEY = 'efa_report_filters_v1';
+let DETAIL = {};
+
+function qs() {
+  const p = new URLSearchParams();
+  for (const [k, id] of [['from','f-from'],['to','f-to'],['status','f-status'],['client','f-client']]) {
+    const v = document.getElementById(id).value.trim(); if (v) p.set(k, v);
+  }
+  return p.toString();
+}
+function syncLinks() {
+  document.getElementById('dl-xlsx').href = BASE + '/admin/report.xlsx?' + qs();
+  document.getElementById('dl-pdf').href = BASE + '/admin/report.pdf?' + qs();
+  try { localStorage.setItem(KEY, qs()); } catch (e) {}
+}
+async function run() {
+  syncLinks();
+  const info = document.getElementById('info');
+  info.textContent = 'Se încarcă…';
+  let r;
+  try {
+    const resp = await fetch(BASE + '/admin/report?' + qs(), {credentials: 'include'});
+    r = await resp.json();
+  } catch (e) { r = {success: false, error: String(e)}; }
+  if (!r.success) { info.innerHTML = '<span class="err">' + esc(r.error || 'eroare') + '</span>'; return; }
+  info.textContent = '';
+  const h = r.header || {};
+  const H = [['E-facturi', h.docs_cnt], ['Trimise', h.sent_cnt], ['Acceptate', h.accepted_cnt],
+             ['Cu eroare', h.error_cnt], ['Total, lei', num(h.total_sum)],
+             ['Perioada', (h.filter_from || '') + ' – ' + (h.filter_to || '')],
+             ['Statut', h.filter_status || 'toate'], ['Client', h.filter_client || 'toți'],
+             ['Generat', h.generated_at], ['Adresa SFS', (h.endpoint || '').replace('https://', '')]];
+  document.getElementById('hdr').innerHTML = H.map(([l, v]) =>
+    `<div><span class="muted">${esc(l)}</span><b>${esc(v ?? '')}</b></div>`).join('');
+  document.getElementById('hdr-card').hidden = false;
+  DETAIL = {};
+  (r.detail || []).forEach(d => (DETAIL[d.efa_id] = DETAIL[d.efa_id] || []).push(d));
+  document.getElementById('m-cnt').textContent = '(' + (r.master || []).length + ')';
+  document.querySelector('#mtab tbody').innerHTML = (r.master || []).map(m => `
+    <tr class="m" onclick="toggle(${m.efa_id})">
+      <td><b>${esc(m.nrmanual)}</b><br><span class="muted">cod ${m.doc_cod}</span></td>
+      <td>${esc(m.doc_date)}</td><td>${esc(m.client_name)}</td><td>${esc(m.client_idno)}</td>
+      <td><span class="pill p-${esc((m.status || 'new').toLowerCase())}">${esc(m.status)}</span></td>
+      <td>${esc(m.sfs_seria || '')} ${esc(m.sfs_number || '')}</td><td>${esc(m.sent_at)}</td>
+      <td class="num">${num(m.total)}</td><td class="num">${m.rows_cnt ?? ''}</td>
+      <td class="num">${num(m.qty_sum)}</td>
+      <td class="muted">${esc(m.request_id || '')}${m.err_msg ? '<br><span class="err">' + esc(m.err_msg) + '</span>' : ''}</td>
+    </tr>
+    <tr class="d" id="d-${m.efa_id}" hidden><td colspan="11">
+      <table><thead><tr><th>#</th><th>Cod</th><th>Denumirea</th><th>UM</th>
+        <th class="num">Cant.</th><th class="num">Preț</th><th class="num">Suma</th></tr></thead>
+      <tbody>${(DETAIL[m.efa_id] || []).map(d => `<tr><td>${d.row_no}</td><td>${esc(d.code)}</td>
+        <td>${esc(d.name)}</td><td>${esc(d.um)}</td><td class="num">${num(d.qty)}</td>
+        <td class="num">${num(d.price)}</td><td class="num">${num(d.suma)}</td></tr>`).join('')
+        || '<tr><td colspan="7" class="muted">fără poziții</td></tr>'}</tbody></table>
+    </td></tr>`).join('') || '<tr><td colspan="11" class="muted">nicio e-factură în filtrul ales</td></tr>';
+}
+function toggle(id) { const e = document.getElementById('d-' + id); e.hidden = !e.hidden; }
+(function init() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  document.getElementById('f-from').value = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-01';
+  document.getElementById('f-to').value = d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  try {
+    const s = new URLSearchParams(localStorage.getItem(KEY) || '');
+    for (const [k, id] of [['from','f-from'],['to','f-to'],['status','f-status'],['client','f-client']])
+      if (s.get(k)) document.getElementById(id).value = s.get(k);
+  } catch (e) {}
+  run();
+})();
+</script>
+</body>
+</html>

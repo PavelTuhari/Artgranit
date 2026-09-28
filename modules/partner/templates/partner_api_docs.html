@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>OfficePlus B2B API — Documentation</title>
+<style>
+  :root{--blue:#194681;--orange:#ea6f21;--bg:#f7f8fa;--code:#0f172a}
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.6 Inter,system-ui,sans-serif;color:#1a1a1a;background:var(--bg)}
+  .top{background:var(--blue);color:#fff;padding:14px 22px;display:flex;gap:14px;align-items:center}
+  .top b{font-size:17px}
+  .top .v{background:rgba(255,255,255,.18);border-radius:999px;padding:2px 10px;font-size:12px}
+  .wrap{display:flex;max-width:1240px;margin:0 auto}
+  nav{width:250px;flex:none;padding:22px 6px 40px 18px;position:sticky;top:0;
+      align-self:flex-start;max-height:100vh;overflow:auto}
+  nav a{display:block;padding:5px 10px;border-radius:8px;color:#334155;
+        text-decoration:none;font-size:13.5px}
+  nav a:hover{background:#e8eef7;color:var(--blue)}
+  nav .g{margin:14px 0 4px;font-size:11px;letter-spacing:.06em;color:#94a3b8;
+         text-transform:uppercase;font-weight:700}
+  main{flex:1;min-width:0;padding:26px 26px 80px;background:#fff}
+  h1{margin:.2em 0;font-size:26px}
+  h2{margin:2em 0 .5em;font-size:20px;color:var(--blue);
+     border-bottom:2px solid #eef2f7;padding-bottom:6px}
+  h3{margin:1.6em 0 .4em;font-size:16px}
+  code{background:#eef2f7;border-radius:6px;padding:1px 6px;font-size:13px}
+  pre{background:var(--code);color:#d7e3f4;border-radius:12px;padding:14px 16px;
+      overflow:auto;font-size:13px;line-height:1.5}
+  pre code{background:none;color:inherit;padding:0}
+  table{border-collapse:collapse;width:100%;font-size:13.5px;margin:10px 0}
+  th,td{border:1px solid #e2e8f0;padding:7px 10px;text-align:left;vertical-align:top}
+  th{background:#f1f5f9}
+  .m{display:inline-block;min-width:52px;text-align:center;border-radius:6px;
+     color:#fff;font-weight:800;font-size:11.5px;padding:2px 8px;margin-right:8px}
+  .get{background:#2563eb}.post{background:#16a34a}
+  .note{background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;
+        padding:10px 14px;font-size:13.5px}
+  @media(max-width:900px){nav{display:none}main{padding:18px 14px 60px}}
+</style>
+</head>
+<body>
+<div class="top"><b>OfficePlus B2B API</b><span class="v">V1</span>
+  <span style="margin-left:auto;font-size:13px;opacity:.85">officeplus.md · partner integration</span></div>
+<div class="wrap">
+<nav>
+  <div class="g">Getting started</div>
+  <a href="#basics">Basics</a>
+  <a href="#auth">Authentication</a>
+  <a href="#errors">Errors &amp; limits</a>
+  <div class="g">Catalog</div>
+  <a href="#product">Products</a>
+  <a href="#category">Categories</a>
+  <a href="#brand">Brands</a>
+  <a href="#quantity">Quantity</a>
+  <a href="#changes">Changes</a>
+  <div class="g">Orders</div>
+  <a href="#order">Create &amp; read orders</a>
+  <a href="#health">Health</a>
+  <div class="g">Compatibility</div>
+  <a href="#ultra">Ultra B2B clients</a>
+</nav>
+<main>
+<h1>OfficePlus B2B API — Documentation</h1>
+<p>REST API for OfficePlus partners: catalog, prices, stock, incremental
+changes and order placement straight into the <b>una.md ERP</b> that powers
+officeplus.md. The contract mirrors the <b>Ultra B2B API V1</b>, so an
+integration written for Ultra ports with minimal changes
+(<a href="#ultra">see compatibility</a>).</p>
+
+<h2 id="basics">Basics</h2>
+<p>Base URL: <code>https://officeplus.md/api/v1</code></p>
+<p>All requests and responses are JSON (<code>Content-Type:
+application/json</code>). All endpoints except the token ones require a valid
+access token.</p>
+
+<h2 id="auth">Authentication</h2>
+<table><tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/auth/token</code></td><td>obtain the token pair</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/auth/refresh</code></td><td>rotate tokens with a refresh token</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/auth/revoke</code></td><td>revoke all your tokens</td></tr></table>
+<pre><code>curl -X POST https://officeplus.md/api/v1/auth/token \
+  -H 'Content-Type: application/json' \
+  -d '{"username": "dealer@example.com", "password": "secret"}'</code></pre>
+<pre><code>{
+  "access_token": "…", "refresh_token": "…",
+  "expires_in": 3600, "token_type": "Bearer",
+  "user_email": "dealer@example.com", "user_id": 10
+}</code></pre>
+<p>Send the access token as <code>Authorization: Bearer &lt;token&gt;</code>
+or <code>X-API-Token: &lt;token&gt;</code>. Access tokens live 1 hour; refresh
+tokens live 30 days and are rotated on every use.</p>
+
+<h2 id="errors">Errors &amp; limits</h2>
+<table><tr><th>Code</th><th>Meaning</th></tr>
+<tr><td>400</td><td>validation error — body carries <code>errors</code> per field</td></tr>
+<tr><td>401</td><td>missing / expired / revoked token</td></tr>
+<tr><td>403</td><td>account disabled</td></tr>
+<tr><td>404</td><td>resource not found</td></tr>
+<tr><td>429</td><td>rate limit exceeded (120 requests / minute)</td></tr>
+<tr><td>500</td><td>server error</td></tr></table>
+<pre><code>{"message": "Validation failed.", "errors": {"delivery": ["must be one of: pickup, delivery"]}}</code></pre>
+
+<h2 id="product">Products</h2>
+<table><tr><th>Method</th><th>Path</th><th>Purpose</th></tr>
+<tr><td><span class="m get">GET</span></td><td><code>/product</code></td><td>product list with filters</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/product/batch</code></td><td>products by codes (up to 1000)</td></tr>
+<tr><td><span class="m get">GET</span></td><td><code>/product/{id}</code></td><td>one product by <code>uuid</code> or <code>code</code></td></tr></table>
+<h3>Query parameters</h3>
+<p><code>search</code>, <code>category</code>, <code>brand</code>,
+<code>min_price</code>, <code>max_price</code>,
+<code>sort</code> (<code>price_asc</code>, <code>price_desc</code>,
+<code>name_asc</code>, <code>name_desc</code>),
+<code>limit</code> (1–1000, default 100), <code>offset</code> (default 0).</p>
+<h3>Product object</h3>
+<pre><code>{
+  "code": "GA82543",            // article (Ultra: ultra_code)
+  "uuid": "225712",             // internal id (Ultra: ultra_uuid)
+  "product_name": {"ro": "…", "ru": "…"},
+  "description": "…",
+  "description_by_language": {"ro": "…", "ru": "…"},
+  "quantity": 12,
+  "image_urls": ["https://officeplus.md/…"],
+  "barcode": "4840010000029",
+  "brand": {"name": "HP"},
+  "category": {"name": {"ro": "Toner"}, "hierarchy": ["Cartus Toner", "Toner"]},
+  "user_price": 80.0,           // YOUR price (per-partner price column)
+  "fixed_price": 95.0,          // retail price
+  "price_d": null, "promo_b2b": null
+}</code></pre>
+<h3>Batch</h3>
+<pre><code>curl -X POST https://officeplus.md/api/v1/product/batch \
+  -H 'Authorization: Bearer …' -H 'Content-Type: application/json' \
+  -d '{"codes": ["225712", "GA82543"]}'</code></pre>
+<p class="note"><code>ultra_codes</code> is accepted as an alias of
+<code>codes</code> for drop-in compatibility.</p>
+
+<h2 id="category">Categories</h2>
+<p><span class="m get">GET</span> <code>/category</code> — the full
+group&nbsp;→&nbsp;category tree with product counts:</p>
+<pre><code>{"data": [{"name": {"ro": "Toner"}, "hierarchy": ["Cartus Toner", "Toner"],
+           "level": 2, "products": 11}]}</code></pre>
+
+<h2 id="brand">Brands</h2>
+<p><span class="m get">GET</span> <code>/brand</code> —
+<code>{"data": [{"name": "HP", "products": 3425}]}</code></p>
+
+<h2 id="quantity">Quantity</h2>
+<p><span class="m get">GET</span> <code>/quantity</code> (same filters as
+<code>/product</code>) and <span class="m post">POST</span>
+<code>/quantity/batch</code> (<code>{"codes": […]}</code>, up to 1000):</p>
+<pre><code>{"data": [{"code": "GA82543", "uuid": "225712",
+           "product_name": {"ro": "…"}, "quantity": 12}]}</code></pre>
+
+<h2 id="changes">Changes</h2>
+<p><span class="m get">GET</span>
+<code>/changes?since=2026-08-28T00:00:00&amp;entity=product&amp;limit=1000</code></p>
+<p><code>entity</code>: <code>product</code>, <code>price</code>,
+<code>quantity</code> (omit for all). Response:</p>
+<pre><code>{
+  "changes": [{"entity": "price", "action": "updated",
+               "entity_id": "225712", "changed_at": "2026-08-28T09:00:00"}],
+  "next_since": "2026-08-28T09:00:00",
+  "has_more": false
+}</code></pre>
+<p>Poll with <code>next_since</code> until <code>has_more</code> is
+<code>false</code>, then fetch the touched products via
+<code>/product/batch</code>.</p>
+
+<h2 id="order">Orders</h2>
+<p><span class="m post">POST</span> <code>/order</code> — the order becomes a
+real web invoice in the una.md ERP. Prices are taken from <b>your</b> price
+column, never from the request.</p>
+<pre><code>{
+  "delivery": "pickup",            // pickup | delivery
+  "payment": "transfer",           // cash | transfer | card
+  "products": [{"uuid": "225712", "quantity": 2},
+               {"code": "GA82543", "quantity": 1}],
+  "shipping_data": {"address": "…", "phone": "…"}   // optional
+}</code></pre>
+<pre><code>{"message": "Order created.", "order_id": 812345, "order_number": "  1234"}</code></pre>
+<p class="note">Add <code>"validate_only": true</code> to check an order
+without creating it — the reply carries the computed
+<code>total</code>.</p>
+<p><span class="m get">GET</span> <code>/order?limit=50</code> — your
+invoices: number, date, total, internal id.</p>
+
+<h2 id="health">Health</h2>
+<p><span class="m get">GET</span> <code>/health</code> →
+<code>{"status": "ok", "time": "…", "user_email": "…"}</code></p>
+
+<h2 id="ultra">Compatibility with Ultra B2B clients</h2>
+<table><tr><th>Ultra B2B API V1</th><th>OfficePlus B2B API</th></tr>
+<tr><td>base <code>https://eshop.ultra.md/api</code></td><td>base <code>https://officeplus.md/api/v1</code></td></tr>
+<tr><td><code>ultra_code</code> / <code>ultra_uuid</code></td><td><code>code</code> / <code>uuid</code> (aliases accepted in batch bodies)</td></tr>
+<tr><td>auth, tokens, headers, error format</td><td>identical</td></tr>
+<tr><td>product / category / brand / quantity / changes / order</td><td>same routes, same shapes</td></tr></table>
+<p>Contact: <a href="https://officeplus.md/contacte">officeplus.md/contacte</a></p>
+</main></div>
+</body>
+</html>

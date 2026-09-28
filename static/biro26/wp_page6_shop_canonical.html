@@ -1,0 +1,114 @@
+<script>
+/* RO: SINCRONIZAREA limbii subsolului cu comutatorul RO·RU·EN din magazin
+   (iframe, aceeasi origine): magazinul scrie biro26_lang in localStorage,
+   pagina-parinte traduce etichetele si linkurile subsolului catre paginile
+   WordPress standard cu sufix -ru/-en. Meniurile raman editabile normal in
+   WP (Aspect -> Editor -> Footer). */
+(function () {
+  var TR = {
+    'Despre noi': {ru: 'О нас', en: 'About us'},
+    'Contacte': {ru: 'Контакты', en: 'Contacts'},
+    'Livrare': {ru: 'Доставка', en: 'Delivery'},
+    'Retur produse': {ru: 'Возврат товаров', en: 'Product returns'},
+    'Termeni și condiții': {ru: 'Условия использования', en: 'Terms and Conditions'},
+    'Politica de confidențialitate': {ru: 'Политика конфиденциальности', en: 'Privacy Policy'},
+    'Metode de plată': {ru: 'Способы оплаты', en: 'Payment methods'},
+    'COMPANIE': {ru: 'КОМПАНИЯ', en: 'COMPANY'},
+    'INFORMAȚII': {ru: 'ИНФОРМАЦИЯ', en: 'INFORMATION'},
+    'CONTACTE': {ru: 'КОНТАКТЫ', en: 'CONTACTS'}
+  };
+  function apply() {
+    var l = 'ro';
+    try { l = localStorage.getItem('biro26_lang') || 'ro'; } catch (e) {}
+    document.querySelectorAll('footer a, footer h2, footer h3').forEach(function (el) {
+      if (!el.dataset.roLabel) el.dataset.roLabel = el.textContent.trim();
+      var base = el.dataset.roLabel, tr = TR[base];
+      if (tr) el.textContent = (l !== 'ro' && tr[l]) ? tr[l] : base;
+      if (el.tagName === 'A' && tr) {
+        if (!el.dataset.roHref) el.dataset.roHref = el.getAttribute('href') || '';
+        try {
+          var u = new URL(el.dataset.roHref, location.origin);
+          var m = u.pathname.match(/^\/([a-z0-9-]+)\/?$/);
+          if (m) el.setAttribute('href', l === 'ro' ? el.dataset.roHref
+                                                    : '/' + m[1] + '-' + l + '/');
+        } catch (e) {}
+      }
+    });
+  }
+  /* RO: scriptul e in continut, INAINTEA subsolului in DOM — aplicam
+     dupa ce documentul e gata */
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', apply);
+  } else { apply(); }
+  window.addEventListener('storage', function (e) {
+    if (!e || e.key === 'biro26_lang') apply();
+  });
+})();
+</script>
+
+
+
+<style data-wp-block-html="css">
+/* Face pagina mai mică și mai bine adaptată */
+.container, 
+.main-content, 
+.site-content, 
+.wrap,
+#primary {
+    max-width: 95% !important;     /* sau 92% dacă vrei și mai strâns */
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 15px;
+    padding-right: 15px;
+}
+
+/* Reduce puțin dimensiunea generală a conținutului */
+body {
+    font-size: 15.5px;           /* puțin mai mic decât normal */
+}
+
+/* Grid-ul de produse - mai compact */
+.products, 
+.woocommerce ul.products {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)) !important;
+    gap: 18px;
+}
+
+/* Titluri și prețuri puțin mai mici */
+h1, h2, h3, .product-title, .woocommerce-loop-product__title {
+    font-size: 1.05rem !important;
+}
+
+.price {
+    font-size: 1.1rem !important;
+}
+</style>
+
+<style>
+/* Biro26 shop iframe: ocupa TOT spatiul liber (full-bleed, iese din
+   containerul constrained al temei twentytwentyfour) */
+.wp-block-post-title, .entry-title { display: none !important; }
+.wp-site-blocks { padding-top: 0 !important; }
+.wp-block-post-content, .entry-content { margin-block-start: 0 !important; margin-top: 0 !important; padding-top: 0 !important; }
+main { margin-top: 0 !important; }
+main > .wp-block-group:first-child { display: none !important; }
+.shop-embed {
+  width: 100vw !important;
+  max-width: 100vw !important;
+  margin-left: calc(50% - 50vw) !important;
+  margin-right: calc(50% - 50vw) !important;
+  margin-top: 0 !important;
+}
+.shop-full-iframe {
+  width: 100% !important;
+  height: calc(100vh - 150px);
+  min-height: 700px;
+  border: none !important;
+  display: block !important;
+}
+.shop-links { text-align: center; margin: 8px 0; font-size: 14px; }
+</style>
+<div class="shop-embed">
+  <iframe src="/biro26-shop" class="shop-full-iframe" title="OfficePlus Magazin" loading="lazy"></iframe>
+</div>
+<p class="shop-links"></p>

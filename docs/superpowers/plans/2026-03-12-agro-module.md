@@ -1,0 +1,2547 @@
+# AGRO Module Implementation Plan
+
+> **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Build a complete agricultural operations module (purchases, warehouse, QA/HACCP, sales/export) with offline field support, barcode scanning, and batch traceability within Artgranit.
+
+**Architecture:** 5 domain controllers + 1 Oracle store + 5 UI templates. Domain sub-controllers pattern (field, warehouse, qa, sales, admin) each with dedicated API namespace. Offline-first field UI via Service Worker + IndexedDB. All state in normalized `AGRO_*` Oracle tables (36 tables).
+
+**Tech Stack:** Python/Flask, Oracle Autonomous DB (oracledb), Vanilla JS, Service Worker + IndexedDB, QuaggaJS/ZXing (barcode), JsBarcode (label printing), Flask-Babel (RU+RO), Socket.io (alerts)
+
+**Spec:** `docs/superpowers/specs/2026-03-12-agro-module-design.md`
+
+---
+
+## Chunk 1: Sprint 0 — Foundation (DDL + Store Skeleton + Routes)
+
+### Task 1: Create Oracle DDL — Master Data Tables
+
+**Files:**
+- Create: `sql/35_agro_tables.sql`
+
+- [ ] **Step 1: Create master data tables DDL**
+
+```sql
+-- ============================================================
+-- AGRO Module — Master Data Tables
+-- ============================================================
+
+-- Sequences
+CREATE SEQUENCE AGRO_SUPPLIERS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_CUSTOMERS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_WAREHOUSES_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_STORAGE_CELLS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_ITEMS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_PACKAGING_TYPES_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_VEHICLES_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_CURRENCIES_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_EXCHANGE_RATES_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_FORMULA_PARAMS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_MODULE_CONFIG_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+
+-- AGRO_SUPPLIERS
+CREATE TABLE AGRO_SUPPLIERS (
+    ID              NUMBER NOT NULL,
+    CODE            VARCHAR2(50) NOT NULL,
+    NAME            VARCHAR2(300) NOT NULL,
+    COUNTRY         VARCHAR2(100),
+    TAX_ID          VARCHAR2(50),
+    CONTACT_PHONE   VARCHAR2(50),
+    CONTACT_EMAIL   VARCHAR2(200),
+    ADDRESS         VARCHAR2(500),
+    ACTIVE          CHAR(1) DEFAULT 'Y',
+    CREATED_AT      TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONSTRAINT PK_AGRO_SUPPLIERS PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_SUPPLIERS_CODE UNIQUE (CODE)
+);
+
+-- AGRO_CUSTOMERS
+CREATE TABLE AGRO_CUSTOMERS (
+    ID              NUMBER NOT NULL,
+    CODE            VARCHAR2(50) NOT NULL,
+    NAME            VARCHAR2(300) NOT NULL,
+    COUNTRY         VARCHAR2(100),
+    TAX_ID          VARCHAR2(50),
+    CONTACT_PHONE   VARCHAR2(50),
+    CONTACT_EMAIL   VARCHAR2(200),
+    ADDRESS         VARCHAR2(500),
+    CUSTOMER_TYPE   VARCHAR2(20) DEFAULT 'domestic',
+    ACTIVE          CHAR(1) DEFAULT 'Y',
+    CREATED_AT      TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONSTRAINT PK_AGRO_CUSTOMERS PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_CUSTOMERS_CODE UNIQUE (CODE),
+    CONSTRAINT CK_AGRO_CUST_TYPE CHECK (CUSTOMER_TYPE IN ('domestic','export'))
+);
+
+-- AGRO_WAREHOUSES
+CREATE TABLE AGRO_WAREHOUSES (
+    ID              NUMBER NOT NULL,
+    CODE            VARCHAR2(50) NOT NULL,
+    NAME            VARCHAR2(300) NOT NULL,
+    WAREHOUSE_TYPE  VARCHAR2(20) DEFAULT 'cold_storage',
+    ADDRESS         VARCHAR2(500),
+    CAPACITY_KG     NUMBER(14,2),
+    ACTIVE          CHAR(1) DEFAULT 'Y',
+    CONSTRAINT PK_AGRO_WAREHOUSES PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_WAREHOUSES_CODE UNIQUE (CODE),
+    CONSTRAINT CK_AGRO_WH_TYPE CHECK (WAREHOUSE_TYPE IN ('cold_storage','dry','processing'))
+);
+
+-- AGRO_STORAGE_CELLS
+CREATE TABLE AGRO_STORAGE_CELLS (
+    ID              NUMBER NOT NULL,
+    WAREHOUSE_ID    NUMBER NOT NULL,
+    CODE            VARCHAR2(50) NOT NULL,
+    NAME            VARCHAR2(300),
+    CELL_TYPE       VARCHAR2(20) DEFAULT 'chamber',
+    TEMP_MIN        NUMBER(5,2),
+    TEMP_MAX        NUMBER(5,2),
+    HUMIDITY_MIN    NUMBER(5,2),
+    HUMIDITY_MAX    NUMBER(5,2),
+    CAPACITY_KG     NUMBER(14,2),
+    ACTIVE          CHAR(1) DEFAULT 'Y',
+    CONSTRAINT PK_AGRO_STORAGE_CELLS PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_CELLS_WH FOREIGN KEY (WAREHOUSE_ID) REFERENCES AGRO_WAREHOUSES(ID),
+    CONSTRAINT CK_AGRO_CELL_TYPE CHECK (CELL_TYPE IN ('chamber','section','zone'))
+);
+
+-- AGRO_ITEMS (products/crops)
+CREATE TABLE AGRO_ITEMS (
+    ID              NUMBER NOT NULL,
+    CODE            VARCHAR2(50) NOT NULL,
+    NAME_RU         VARCHAR2(300) NOT NULL,
+    NAME_RO         VARCHAR2(300),
+    ITEM_GROUP      VARCHAR2(20) DEFAULT 'fruit',
+    UNIT            VARCHAR2(10) DEFAULT 'kg',
+    DEFAULT_TARE_KG NUMBER(8,3) DEFAULT 0,
+    SHELF_LIFE_DAYS NUMBER,
+    OPTIMAL_TEMP_MIN NUMBER(5,2),
+    OPTIMAL_TEMP_MAX NUMBER(5,2),
+    ACTIVE          CHAR(1) DEFAULT 'Y',
+    CONSTRAINT PK_AGRO_ITEMS PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_ITEMS_CODE UNIQUE (CODE),
+    CONSTRAINT CK_AGRO_ITEM_GRP CHECK (ITEM_GROUP IN ('fruit','vegetable','berry'))
+);
+
+-- AGRO_PACKAGING_TYPES
+CREATE TABLE AGRO_PACKAGING_TYPES (
+    ID              NUMBER NOT NULL,
+    CODE            VARCHAR2(50) NOT NULL,
+    NAME_RU         VARCHAR2(300) NOT NULL,
+    NAME_RO         VARCHAR2(300),
+    TARE_WEIGHT_KG  NUMBER(8,3) DEFAULT 0,
+    CAPACITY_KG     NUMBER(8,2),
+    ACTIVE          CHAR(1) DEFAULT 'Y',
+    CONSTRAINT PK_AGRO_PKG_TYPES PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_PKG_CODE UNIQUE (CODE)
+);
+
+-- AGRO_VEHICLES
+CREATE TABLE AGRO_VEHICLES (
+    ID              NUMBER NOT NULL,
+    PLATE_NUMBER    VARCHAR2(20) NOT NULL,
+    VEHICLE_TYPE    VARCHAR2(20) DEFAULT 'truck',
+    DRIVER_NAME     VARCHAR2(200),
+    ACTIVE          CHAR(1) DEFAULT 'Y',
+    CONSTRAINT PK_AGRO_VEHICLES PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_VEH_PLATE UNIQUE (PLATE_NUMBER),
+    CONSTRAINT CK_AGRO_VEH_TYPE CHECK (VEHICLE_TYPE IN ('truck','van','refrigerator'))
+);
+
+-- AGRO_CURRENCIES
+CREATE TABLE AGRO_CURRENCIES (
+    ID              NUMBER NOT NULL,
+    CODE            VARCHAR2(3) NOT NULL,
+    NAME            VARCHAR2(100),
+    SYMBOL          VARCHAR2(10),
+    ACTIVE          CHAR(1) DEFAULT 'Y',
+    CONSTRAINT PK_AGRO_CURRENCIES PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_CURR_CODE UNIQUE (CODE)
+);
+
+-- AGRO_EXCHANGE_RATES
+CREATE TABLE AGRO_EXCHANGE_RATES (
+    ID              NUMBER NOT NULL,
+    FROM_CURRENCY   VARCHAR2(3) NOT NULL,
+    TO_CURRENCY     VARCHAR2(3) NOT NULL,
+    RATE            NUMBER(14,6) NOT NULL,
+    RATE_DATE       DATE NOT NULL,
+    SOURCE          VARCHAR2(100),
+    CONSTRAINT PK_AGRO_EXCH_RATES PRIMARY KEY (ID)
+);
+
+CREATE INDEX IX_AGRO_EXCH_DATE ON AGRO_EXCHANGE_RATES (RATE_DATE DESC);
+
+-- AGRO_FORMULA_PARAMS
+CREATE TABLE AGRO_FORMULA_PARAMS (
+    ID              NUMBER NOT NULL,
+    ITEM_ID         NUMBER,
+    PARAM_NAME      VARCHAR2(100) NOT NULL,
+    PARAM_VALUE     VARCHAR2(500),
+    ACTIVE          CHAR(1) DEFAULT 'Y',
+    CONSTRAINT PK_AGRO_FORMULA_PARAMS PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_FP_ITEM FOREIGN KEY (ITEM_ID) REFERENCES AGRO_ITEMS(ID)
+);
+
+-- AGRO_MODULE_CONFIG
+CREATE TABLE AGRO_MODULE_CONFIG (
+    ID              NUMBER NOT NULL,
+    CONFIG_KEY      VARCHAR2(100) NOT NULL,
+    CONFIG_VALUE    VARCHAR2(1000),
+    CONFIG_GROUP    VARCHAR2(50),
+    DESCRIPTION     VARCHAR2(500),
+    CONSTRAINT PK_AGRO_MODULE_CONFIG PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_CFG_KEY UNIQUE (CONFIG_KEY)
+);
+```
+
+- [ ] **Step 2: Add barcode & crate tables (AGRO_BARCODES, AGRO_CRATES only)**
+
+```sql
+-- ============================================================
+-- Barcodes & Crates (part 1 — AGRO_BATCH_CRATES deferred to after AGRO_BATCHES)
+-- ============================================================
+
+CREATE SEQUENCE AGRO_BARCODES_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_CRATES_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+
+CREATE TABLE AGRO_BARCODES (
+    ID              NUMBER NOT NULL,
+    BARCODE         VARCHAR2(100) NOT NULL,
+    BARCODE_TYPE    VARCHAR2(20) DEFAULT 'internal',
+    GENERATED_AT    TIMESTAMP DEFAULT SYSTIMESTAMP,
+    PRINTED         CHAR(1) DEFAULT 'N',
+    ASSIGNED        CHAR(1) DEFAULT 'N',
+    BATCH_ID        NUMBER,
+    CONSTRAINT PK_AGRO_BARCODES PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_BARCODE UNIQUE (BARCODE),
+    CONSTRAINT CK_AGRO_BC_TYPE CHECK (BARCODE_TYPE IN ('internal','external','ean13','qr'))
+);
+
+CREATE TABLE AGRO_CRATES (
+    ID                  NUMBER NOT NULL,
+    BARCODE_ID          NUMBER,
+    EXTERNAL_BARCODE    VARCHAR2(100),
+    PACKAGING_TYPE_ID   NUMBER,
+    GROSS_WEIGHT_KG     NUMBER(10,3),
+    TARE_WEIGHT_KG      NUMBER(10,3),
+    NET_WEIGHT_KG       NUMBER(10,3),
+    STATUS              VARCHAR2(20) DEFAULT 'empty',
+    CREATED_AT          TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONSTRAINT PK_AGRO_CRATES PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_CRATES_BC FOREIGN KEY (BARCODE_ID) REFERENCES AGRO_BARCODES(ID),
+    CONSTRAINT FK_AGRO_CRATES_PKG FOREIGN KEY (PACKAGING_TYPE_ID) REFERENCES AGRO_PACKAGING_TYPES(ID),
+    CONSTRAINT CK_AGRO_CRATE_ST CHECK (STATUS IN ('empty','filled','weighed','accepted','stored','shipped'))
+);
+```
+
+- [ ] **Step 3: Add purchase tables**
+
+```sql
+-- ============================================================
+-- Purchases & Batches
+-- ============================================================
+
+CREATE SEQUENCE AGRO_PURCHASE_DOCS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_PURCHASE_LINES_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_BATCHES_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+
+CREATE TABLE AGRO_PURCHASE_DOCS (
+    ID              NUMBER NOT NULL,
+    DOC_NUMBER      VARCHAR2(50) NOT NULL,
+    DOC_DATE        DATE NOT NULL,
+    SUPPLIER_ID     NUMBER NOT NULL,
+    WAREHOUSE_ID    NUMBER NOT NULL,
+    VEHICLE_ID      NUMBER,
+    CURRENCY_ID     NUMBER,
+    STATUS          VARCHAR2(20) DEFAULT 'draft',
+    TOTAL_GROSS_KG  NUMBER(14,3),
+    TOTAL_NET_KG    NUMBER(14,3),
+    TOTAL_AMOUNT    NUMBER(14,2),
+    ADVANCE_AMOUNT  NUMBER(14,2) DEFAULT 0,
+    TRANSFER_AMOUNT NUMBER(14,2) DEFAULT 0,
+    E_FACTURA_REF   VARCHAR2(100),
+    ADDITIONAL_COSTS NUMBER(14,2) DEFAULT 0,
+    NOTES           VARCHAR2(2000),
+    CREATED_BY      VARCHAR2(100),
+    CREATED_AT      TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONFIRMED_AT    TIMESTAMP,
+    CONSTRAINT PK_AGRO_PURCH_DOCS PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_PURCH_NUM UNIQUE (DOC_NUMBER),
+    CONSTRAINT FK_AGRO_PD_SUPP FOREIGN KEY (SUPPLIER_ID) REFERENCES AGRO_SUPPLIERS(ID),
+    CONSTRAINT FK_AGRO_PD_WH FOREIGN KEY (WAREHOUSE_ID) REFERENCES AGRO_WAREHOUSES(ID),
+    CONSTRAINT FK_AGRO_PD_VEH FOREIGN KEY (VEHICLE_ID) REFERENCES AGRO_VEHICLES(ID),
+    CONSTRAINT FK_AGRO_PD_CURR FOREIGN KEY (CURRENCY_ID) REFERENCES AGRO_CURRENCIES(ID),
+    CONSTRAINT CK_AGRO_PD_ST CHECK (STATUS IN ('draft','confirmed','closed','cancelled'))
+);
+
+CREATE INDEX IX_AGRO_PD_DATE ON AGRO_PURCHASE_DOCS (DOC_DATE DESC);
+CREATE INDEX IX_AGRO_PD_SUPP ON AGRO_PURCHASE_DOCS (SUPPLIER_ID);
+
+CREATE TABLE AGRO_PURCHASE_LINES (
+    ID              NUMBER NOT NULL,
+    PURCHASE_DOC_ID NUMBER NOT NULL,
+    ITEM_ID         NUMBER NOT NULL,
+    PALLETS         NUMBER DEFAULT 0,
+    CRATES_COUNT    NUMBER DEFAULT 0,
+    GROSS_WEIGHT_KG NUMBER(14,3),
+    TARE_WEIGHT_KG  NUMBER(14,3),
+    NET_WEIGHT_KG   NUMBER(14,3),
+    PRICE_PER_KG    NUMBER(14,4),
+    AMOUNT          NUMBER(14,2),
+    NOTES           VARCHAR2(1000),
+    CONSTRAINT PK_AGRO_PURCH_LINES PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_PL_DOC FOREIGN KEY (PURCHASE_DOC_ID) REFERENCES AGRO_PURCHASE_DOCS(ID) ON DELETE CASCADE,
+    CONSTRAINT FK_AGRO_PL_ITEM FOREIGN KEY (ITEM_ID) REFERENCES AGRO_ITEMS(ID)
+);
+
+CREATE TABLE AGRO_BATCHES (
+    ID              NUMBER NOT NULL,
+    BATCH_NUMBER    VARCHAR2(50) NOT NULL,
+    PURCHASE_LINE_ID NUMBER,
+    ITEM_ID         NUMBER NOT NULL,
+    WAREHOUSE_ID    NUMBER,
+    CELL_ID         NUMBER,
+    INITIAL_QTY_KG  NUMBER(14,3),
+    CURRENT_QTY_KG  NUMBER(14,3),
+    STATUS          VARCHAR2(20) DEFAULT 'active',
+    RECEIVED_AT     TIMESTAMP DEFAULT SYSTIMESTAMP,
+    EXPIRY_DATE     DATE,
+    BLOCKED_BY      VARCHAR2(100),
+    BLOCK_REASON    VARCHAR2(500),
+    NOTES           VARCHAR2(1000),
+    CONSTRAINT PK_AGRO_BATCHES PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_BATCH_NUM UNIQUE (BATCH_NUMBER),
+    CONSTRAINT FK_AGRO_BAT_PL FOREIGN KEY (PURCHASE_LINE_ID) REFERENCES AGRO_PURCHASE_LINES(ID),
+    CONSTRAINT FK_AGRO_BAT_ITEM FOREIGN KEY (ITEM_ID) REFERENCES AGRO_ITEMS(ID),
+    CONSTRAINT FK_AGRO_BAT_WH FOREIGN KEY (WAREHOUSE_ID) REFERENCES AGRO_WAREHOUSES(ID),
+    CONSTRAINT FK_AGRO_BAT_CELL FOREIGN KEY (CELL_ID) REFERENCES AGRO_STORAGE_CELLS(ID),
+    CONSTRAINT CK_AGRO_BAT_ST CHECK (STATUS IN ('active','blocked','depleted','expired'))
+);
+
+CREATE INDEX IX_AGRO_BAT_ITEM ON AGRO_BATCHES (ITEM_ID);
+CREATE INDEX IX_AGRO_BAT_WH ON AGRO_BATCHES (WAREHOUSE_ID);
+CREATE INDEX IX_AGRO_BAT_STATUS ON AGRO_BATCHES (STATUS);
+
+-- AGRO_BATCH_CRATES (deferred from Step 2 — requires AGRO_BATCHES)
+CREATE SEQUENCE AGRO_BATCH_CRATES_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+
+CREATE TABLE AGRO_BATCH_CRATES (
+    ID              NUMBER NOT NULL,
+    BATCH_ID        NUMBER NOT NULL,
+    CRATE_ID        NUMBER NOT NULL,
+    CONSTRAINT PK_AGRO_BATCH_CRATES PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_BC_BATCH FOREIGN KEY (BATCH_ID) REFERENCES AGRO_BATCHES(ID),
+    CONSTRAINT FK_AGRO_BC_CRATE FOREIGN KEY (CRATE_ID) REFERENCES AGRO_CRATES(ID)
+);
+```
+
+- [ ] **Step 4: Add warehouse & storage tables**
+
+```sql
+-- ============================================================
+-- Warehouse & Storage
+-- ============================================================
+
+CREATE SEQUENCE AGRO_STOCK_MOVEMENTS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_STORAGE_READINGS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_STORAGE_ALERTS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_PROCESSING_TASKS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+
+CREATE TABLE AGRO_STOCK_MOVEMENTS (
+    ID              NUMBER NOT NULL,
+    BATCH_ID        NUMBER NOT NULL,
+    MOVEMENT_TYPE   VARCHAR2(20) NOT NULL,
+    FROM_WAREHOUSE_ID NUMBER,
+    FROM_CELL_ID    NUMBER,
+    TO_WAREHOUSE_ID NUMBER,
+    TO_CELL_ID      NUMBER,
+    QTY_KG          NUMBER(14,3) NOT NULL,
+    REASON          VARCHAR2(500),
+    DOC_REF         VARCHAR2(100),
+    CREATED_BY      VARCHAR2(100),
+    CREATED_AT      TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONSTRAINT PK_AGRO_STOCK_MOV PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_SM_BATCH FOREIGN KEY (BATCH_ID) REFERENCES AGRO_BATCHES(ID),
+    CONSTRAINT CK_AGRO_SM_TYPE CHECK (MOVEMENT_TYPE IN ('receipt','transfer','processing','shipment','adjustment','loss'))
+);
+
+CREATE INDEX IX_AGRO_SM_BATCH ON AGRO_STOCK_MOVEMENTS (BATCH_ID);
+CREATE INDEX IX_AGRO_SM_DATE ON AGRO_STOCK_MOVEMENTS (CREATED_AT DESC);
+
+CREATE TABLE AGRO_STORAGE_READINGS (
+    ID              NUMBER NOT NULL,
+    CELL_ID         NUMBER NOT NULL,
+    TEMPERATURE_C   NUMBER(5,2),
+    HUMIDITY_PCT    NUMBER(5,2),
+    O2_PCT          NUMBER(5,2),
+    CO2_PCT         NUMBER(5,2),
+    READING_SOURCE  VARCHAR2(10) DEFAULT 'manual',
+    SENSOR_ID       VARCHAR2(50),
+    RECORDED_BY     VARCHAR2(100),
+    RECORDED_AT     TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONSTRAINT PK_AGRO_STOR_READ PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_SR_CELL FOREIGN KEY (CELL_ID) REFERENCES AGRO_STORAGE_CELLS(ID),
+    CONSTRAINT CK_AGRO_SR_SRC CHECK (READING_SOURCE IN ('manual','sensor'))
+);
+
+CREATE INDEX IX_AGRO_SR_CELL ON AGRO_STORAGE_READINGS (CELL_ID);
+CREATE INDEX IX_AGRO_SR_DATE ON AGRO_STORAGE_READINGS (RECORDED_AT DESC);
+
+CREATE TABLE AGRO_STORAGE_ALERTS (
+    ID              NUMBER NOT NULL,
+    CELL_ID         NUMBER NOT NULL,
+    READING_ID      NUMBER,
+    ALERT_TYPE      VARCHAR2(20) NOT NULL,
+    THRESHOLD_VALUE NUMBER(8,2),
+    ACTUAL_VALUE    NUMBER(8,2),
+    ACKNOWLEDGED    CHAR(1) DEFAULT 'N',
+    ACKNOWLEDGED_BY VARCHAR2(100),
+    ACKNOWLEDGED_AT TIMESTAMP,
+    CREATED_AT      TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONSTRAINT PK_AGRO_STOR_ALERTS PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_SA_CELL FOREIGN KEY (CELL_ID) REFERENCES AGRO_STORAGE_CELLS(ID),
+    CONSTRAINT FK_AGRO_SA_READ FOREIGN KEY (READING_ID) REFERENCES AGRO_STORAGE_READINGS(ID),
+    CONSTRAINT CK_AGRO_SA_TYPE CHECK (ALERT_TYPE IN ('temp_high','temp_low','humidity','o2','co2'))
+);
+
+CREATE TABLE AGRO_PROCESSING_TASKS (
+    ID              NUMBER NOT NULL,
+    BATCH_ID        NUMBER NOT NULL,
+    TASK_TYPE       VARCHAR2(20) DEFAULT 'sorting',
+    DESCRIPTION     VARCHAR2(500),
+    ASSIGNED_TO     VARCHAR2(100),
+    STATUS          VARCHAR2(20) DEFAULT 'pending',
+    INPUT_QTY_KG    NUMBER(14,3),
+    OUTPUT_QTY_KG   NUMBER(14,3),
+    WASTE_QTY_KG    NUMBER(14,3),
+    STARTED_AT      TIMESTAMP,
+    COMPLETED_AT    TIMESTAMP,
+    NOTES           VARCHAR2(1000),
+    CONSTRAINT PK_AGRO_PROC_TASKS PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_PT_BATCH FOREIGN KEY (BATCH_ID) REFERENCES AGRO_BATCHES(ID),
+    CONSTRAINT CK_AGRO_PT_TYPE CHECK (TASK_TYPE IN ('sorting','washing','packing','labeling','other')),
+    CONSTRAINT CK_AGRO_PT_ST CHECK (STATUS IN ('pending','in_progress','completed','cancelled'))
+);
+```
+
+- [ ] **Step 5: Add QA & HACCP tables**
+
+```sql
+-- ============================================================
+-- Quality & HACCP
+-- ============================================================
+
+CREATE SEQUENCE AGRO_QA_CHECKLISTS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_QA_CHECKLIST_ITEMS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_QA_CHECKS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_QA_CHECK_VALUES_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_BATCH_BLOCKS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_HACCP_PLANS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_HACCP_CCPS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_HACCP_RECORDS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+
+CREATE TABLE AGRO_QA_CHECKLISTS (
+    ID              NUMBER NOT NULL,
+    CODE            VARCHAR2(50) NOT NULL,
+    NAME_RU         VARCHAR2(300) NOT NULL,
+    NAME_RO         VARCHAR2(300),
+    CHECKLIST_TYPE  VARCHAR2(20) DEFAULT 'incoming',
+    ACTIVE          CHAR(1) DEFAULT 'Y',
+    CONSTRAINT PK_AGRO_QA_CL PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_QA_CL_CODE UNIQUE (CODE),
+    CONSTRAINT CK_AGRO_QA_CL_TYPE CHECK (CHECKLIST_TYPE IN ('incoming','gmp','sanitary','packaging'))
+);
+
+CREATE TABLE AGRO_QA_CHECKLIST_ITEMS (
+    ID              NUMBER NOT NULL,
+    CHECKLIST_ID    NUMBER NOT NULL,
+    ITEM_ORDER      NUMBER DEFAULT 0,
+    PARAMETER_NAME_RU VARCHAR2(300) NOT NULL,
+    PARAMETER_NAME_RO VARCHAR2(300),
+    VALUE_TYPE      VARCHAR2(10) DEFAULT 'boolean',
+    MIN_VALUE       NUMBER(10,3),
+    MAX_VALUE       NUMBER(10,3),
+    CHOICES         VARCHAR2(1000),
+    IS_CRITICAL     CHAR(1) DEFAULT 'N',
+    CONSTRAINT PK_AGRO_QA_CLI PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_QA_CLI_CL FOREIGN KEY (CHECKLIST_ID) REFERENCES AGRO_QA_CHECKLISTS(ID) ON DELETE CASCADE,
+    CONSTRAINT CK_AGRO_QA_VT CHECK (VALUE_TYPE IN ('boolean','numeric','text','choice'))
+);
+
+CREATE TABLE AGRO_QA_CHECKS (
+    ID              NUMBER NOT NULL,
+    BATCH_ID        NUMBER NOT NULL,
+    CHECKLIST_ID    NUMBER NOT NULL,
+    CHECK_DATE      DATE DEFAULT TRUNC(SYSDATE),
+    RESULT          VARCHAR2(20),
+    INSPECTOR       VARCHAR2(100),
+    NOTES           VARCHAR2(1000),
+    CREATED_AT      TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONSTRAINT PK_AGRO_QA_CHECKS PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_QAC_BATCH FOREIGN KEY (BATCH_ID) REFERENCES AGRO_BATCHES(ID),
+    CONSTRAINT FK_AGRO_QAC_CL FOREIGN KEY (CHECKLIST_ID) REFERENCES AGRO_QA_CHECKLISTS(ID),
+    CONSTRAINT CK_AGRO_QAC_RES CHECK (RESULT IN ('pass','fail','conditional'))
+);
+
+CREATE TABLE AGRO_QA_CHECK_VALUES (
+    ID              NUMBER NOT NULL,
+    CHECK_ID        NUMBER NOT NULL,
+    CHECKLIST_ITEM_ID NUMBER NOT NULL,
+    VALUE           VARCHAR2(500),
+    IS_COMPLIANT    CHAR(1) DEFAULT 'Y',
+    CONSTRAINT PK_AGRO_QA_CV PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_QCV_CHK FOREIGN KEY (CHECK_ID) REFERENCES AGRO_QA_CHECKS(ID) ON DELETE CASCADE,
+    CONSTRAINT FK_AGRO_QCV_CLI FOREIGN KEY (CHECKLIST_ITEM_ID) REFERENCES AGRO_QA_CHECKLIST_ITEMS(ID)
+);
+
+CREATE TABLE AGRO_BATCH_BLOCKS (
+    ID              NUMBER NOT NULL,
+    BATCH_ID        NUMBER NOT NULL,
+    REASON          VARCHAR2(500) NOT NULL,
+    BLOCKED_BY      VARCHAR2(100),
+    BLOCKED_AT      TIMESTAMP DEFAULT SYSTIMESTAMP,
+    UNBLOCKED_BY    VARCHAR2(100),
+    UNBLOCKED_AT    TIMESTAMP,
+    RESOLUTION_NOTES VARCHAR2(1000),
+    CONSTRAINT PK_AGRO_BATCH_BLOCKS PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_BB_BATCH FOREIGN KEY (BATCH_ID) REFERENCES AGRO_BATCHES(ID)
+);
+
+CREATE TABLE AGRO_HACCP_PLANS (
+    ID              NUMBER NOT NULL,
+    CODE            VARCHAR2(50) NOT NULL,
+    NAME_RU         VARCHAR2(300) NOT NULL,
+    NAME_RO         VARCHAR2(300),
+    PROCESS_STAGE   VARCHAR2(100),
+    ACTIVE          CHAR(1) DEFAULT 'Y',
+    CONSTRAINT PK_AGRO_HACCP_PLANS PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_HACCP_CODE UNIQUE (CODE)
+);
+
+CREATE TABLE AGRO_HACCP_CCPS (
+    ID              NUMBER NOT NULL,
+    PLAN_ID         NUMBER NOT NULL,
+    CCP_NUMBER      VARCHAR2(20) NOT NULL,
+    HAZARD_TYPE     VARCHAR2(20) NOT NULL,
+    HAZARD_DESCRIPTION VARCHAR2(500),
+    CRITICAL_LIMIT_MIN NUMBER(10,3),
+    CRITICAL_LIMIT_MAX NUMBER(10,3),
+    MONITORING_FREQUENCY VARCHAR2(100),
+    CORRECTIVE_ACTION VARCHAR2(500),
+    CONSTRAINT PK_AGRO_HACCP_CCPS PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_CCP_PLAN FOREIGN KEY (PLAN_ID) REFERENCES AGRO_HACCP_PLANS(ID),
+    CONSTRAINT CK_AGRO_CCP_HAZ CHECK (HAZARD_TYPE IN ('biological','chemical','physical'))
+);
+
+CREATE TABLE AGRO_HACCP_RECORDS (
+    ID              NUMBER NOT NULL,
+    CCP_ID          NUMBER NOT NULL,
+    BATCH_ID        NUMBER NOT NULL,
+    MEASURED_VALUE  NUMBER(10,3),
+    IS_WITHIN_LIMITS CHAR(1) DEFAULT 'Y',
+    DEVIATION_NOTES VARCHAR2(500),
+    CORRECTIVE_ACTION_TAKEN VARCHAR2(500),
+    RECORDED_BY     VARCHAR2(100),
+    RECORDED_AT     TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONSTRAINT PK_AGRO_HACCP_REC PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_HR_CCP FOREIGN KEY (CCP_ID) REFERENCES AGRO_HACCP_CCPS(ID),
+    CONSTRAINT FK_AGRO_HR_BATCH FOREIGN KEY (BATCH_ID) REFERENCES AGRO_BATCHES(ID)
+);
+```
+
+- [ ] **Step 6: Add sales & export tables**
+
+```sql
+-- ============================================================
+-- Sales & Export
+-- ============================================================
+
+CREATE SEQUENCE AGRO_SALES_DOCS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_SALES_LINES_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_EXPORT_DECLS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_BATCH_ALLOC_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+
+CREATE TABLE AGRO_SALES_DOCS (
+    ID              NUMBER NOT NULL,
+    DOC_NUMBER      VARCHAR2(50) NOT NULL,
+    DOC_DATE        DATE NOT NULL,
+    CUSTOMER_ID     NUMBER NOT NULL,
+    WAREHOUSE_ID    NUMBER,
+    VEHICLE_ID      NUMBER,
+    SALE_TYPE       VARCHAR2(20) DEFAULT 'domestic',
+    CURRENCY_ID     NUMBER,
+    STATUS          VARCHAR2(20) DEFAULT 'draft',
+    TOTAL_GROSS_KG  NUMBER(14,3),
+    TOTAL_NET_KG    NUMBER(14,3),
+    TOTAL_AMOUNT    NUMBER(14,2),
+    INVOICE_NUMBER  VARCHAR2(100),
+    NOTES           VARCHAR2(2000),
+    CREATED_BY      VARCHAR2(100),
+    CREATED_AT      TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONSTRAINT PK_AGRO_SALES_DOCS PRIMARY KEY (ID),
+    CONSTRAINT UQ_AGRO_SD_NUM UNIQUE (DOC_NUMBER),
+    CONSTRAINT FK_AGRO_SD_CUST FOREIGN KEY (CUSTOMER_ID) REFERENCES AGRO_CUSTOMERS(ID),
+    CONSTRAINT FK_AGRO_SD_WH FOREIGN KEY (WAREHOUSE_ID) REFERENCES AGRO_WAREHOUSES(ID),
+    CONSTRAINT FK_AGRO_SD_VEH FOREIGN KEY (VEHICLE_ID) REFERENCES AGRO_VEHICLES(ID),
+    CONSTRAINT FK_AGRO_SD_CURR FOREIGN KEY (CURRENCY_ID) REFERENCES AGRO_CURRENCIES(ID),
+    CONSTRAINT CK_AGRO_SD_STYPE CHECK (SALE_TYPE IN ('domestic','export')),
+    CONSTRAINT CK_AGRO_SD_ST CHECK (STATUS IN ('draft','confirmed','shipped','closed','cancelled'))
+);
+
+CREATE INDEX IX_AGRO_SD_DATE ON AGRO_SALES_DOCS (DOC_DATE DESC);
+CREATE INDEX IX_AGRO_SD_CUST ON AGRO_SALES_DOCS (CUSTOMER_ID);
+
+CREATE TABLE AGRO_SALES_LINES (
+    ID              NUMBER NOT NULL,
+    SALES_DOC_ID    NUMBER NOT NULL,
+    ITEM_ID         NUMBER NOT NULL,
+    BATCH_ID        NUMBER,
+    PALLETS         NUMBER DEFAULT 0,
+    CRATES_COUNT    NUMBER DEFAULT 0,
+    GROSS_WEIGHT_KG NUMBER(14,3),
+    NET_WEIGHT_KG   NUMBER(14,3),
+    PRICE_PER_KG    NUMBER(14,4),
+    AMOUNT          NUMBER(14,2),
+    CONSTRAINT PK_AGRO_SALES_LINES PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_SL_DOC FOREIGN KEY (SALES_DOC_ID) REFERENCES AGRO_SALES_DOCS(ID) ON DELETE CASCADE,
+    CONSTRAINT FK_AGRO_SL_ITEM FOREIGN KEY (ITEM_ID) REFERENCES AGRO_ITEMS(ID),
+    CONSTRAINT FK_AGRO_SL_BATCH FOREIGN KEY (BATCH_ID) REFERENCES AGRO_BATCHES(ID)
+);
+
+CREATE TABLE AGRO_EXPORT_DECLS (
+    ID              NUMBER NOT NULL,
+    SALES_DOC_ID    NUMBER NOT NULL,
+    DECL_NUMBER     VARCHAR2(50),
+    DECL_DATE       DATE,
+    CUSTOMS_WEIGHT_KG NUMBER(14,3),
+    DESTINATION_COUNTRY VARCHAR2(100),
+    CUSTOMS_CODE    VARCHAR2(50),
+    STATUS          VARCHAR2(20) DEFAULT 'draft',
+    NOTES           VARCHAR2(1000),
+    CONSTRAINT PK_AGRO_EXPORT_DECLS PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_ED_SD FOREIGN KEY (SALES_DOC_ID) REFERENCES AGRO_SALES_DOCS(ID)
+);
+
+CREATE TABLE AGRO_BATCH_ALLOCATIONS (
+    ID              NUMBER NOT NULL,
+    SALES_LINE_ID   NUMBER NOT NULL,
+    BATCH_ID        NUMBER NOT NULL,
+    ALLOCATED_QTY_KG NUMBER(14,3) NOT NULL,
+    ALLOCATION_METHOD VARCHAR2(10) DEFAULT 'fifo',
+    CONSTRAINT PK_AGRO_BATCH_ALLOC PRIMARY KEY (ID),
+    CONSTRAINT FK_AGRO_BA_SL FOREIGN KEY (SALES_LINE_ID) REFERENCES AGRO_SALES_LINES(ID) ON DELETE CASCADE,
+    CONSTRAINT FK_AGRO_BA_BATCH FOREIGN KEY (BATCH_ID) REFERENCES AGRO_BATCHES(ID),
+    CONSTRAINT CK_AGRO_BA_METHOD CHECK (ALLOCATION_METHOD IN ('fifo','manual'))
+);
+```
+
+- [ ] **Step 7: Add audit & event log tables**
+
+```sql
+-- ============================================================
+-- Audit & Event Log
+-- ============================================================
+
+CREATE SEQUENCE AGRO_AUDIT_LOG_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_ATTACHMENTS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE AGRO_EVENT_LOG_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+
+CREATE TABLE AGRO_AUDIT_LOG (
+    ID              NUMBER NOT NULL,
+    TABLE_NAME      VARCHAR2(100) NOT NULL,
+    RECORD_ID       NUMBER,
+    ACTION          VARCHAR2(10) NOT NULL,
+    FIELD_NAME      VARCHAR2(100),
+    OLD_VALUE       VARCHAR2(4000),
+    NEW_VALUE       VARCHAR2(4000),
+    CHANGED_BY      VARCHAR2(100),
+    CHANGED_AT      TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONSTRAINT PK_AGRO_AUDIT_LOG PRIMARY KEY (ID),
+    CONSTRAINT CK_AGRO_AL_ACT CHECK (ACTION IN ('insert','update','delete'))
+);
+
+CREATE INDEX IX_AGRO_AL_TABLE ON AGRO_AUDIT_LOG (TABLE_NAME, RECORD_ID);
+CREATE INDEX IX_AGRO_AL_DATE ON AGRO_AUDIT_LOG (CHANGED_AT DESC);
+
+CREATE TABLE AGRO_ATTACHMENTS (
+    ID              NUMBER NOT NULL,
+    ENTITY_TYPE     VARCHAR2(20) NOT NULL,
+    ENTITY_ID       NUMBER NOT NULL,
+    FILE_NAME       VARCHAR2(300) NOT NULL,
+    FILE_TYPE       VARCHAR2(100),
+    FILE_SIZE       NUMBER,
+    FILE_DATA       BLOB,
+    UPLOADED_BY     VARCHAR2(100),
+    UPLOADED_AT     TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONSTRAINT PK_AGRO_ATTACHMENTS PRIMARY KEY (ID),
+    CONSTRAINT CK_AGRO_ATT_ET CHECK (ENTITY_TYPE IN ('purchase','sale','batch','qa_check'))
+);
+
+CREATE TABLE AGRO_EVENT_LOG (
+    ID              NUMBER NOT NULL,
+    EVENT_TYPE      VARCHAR2(50) NOT NULL,
+    ENTITY_TYPE     VARCHAR2(50),
+    ENTITY_ID       NUMBER,
+    PAYLOAD         CLOB,
+    CREATED_BY      VARCHAR2(100),
+    CREATED_AT      TIMESTAMP DEFAULT SYSTIMESTAMP,
+    CONSTRAINT PK_AGRO_EVENT_LOG PRIMARY KEY (ID)
+);
+
+CREATE INDEX IX_AGRO_EL_TYPE ON AGRO_EVENT_LOG (EVENT_TYPE);
+CREATE INDEX IX_AGRO_EL_DATE ON AGRO_EVENT_LOG (CREATED_AT DESC);
+```
+
+- [ ] **Step 8: Verify DDL file is complete with all 36 tables**
+
+Run: Count tables in the file
+Expected: 36 CREATE TABLE statements, 36 sequences
+
+- [ ] **Step 9: Commit DDL**
+
+```bash
+git add sql/35_agro_tables.sql
+git commit -m "feat(agro): add DDL for 36 AGRO_* tables with sequences and indexes"
+```
+
+---
+
+### Task 2: Create Views DDL
+
+**Files:**
+- Create: `sql/36_agro_views.sql`
+
+- [ ] **Step 1: Create report views**
+
+```sql
+-- ============================================================
+-- AGRO Module — Views
+-- ============================================================
+
+-- Stock balance per batch/warehouse/item
+CREATE OR REPLACE VIEW AGRO_V_STOCK_BALANCE AS
+SELECT
+    b.ID AS BATCH_ID,
+    b.BATCH_NUMBER,
+    b.ITEM_ID,
+    i.NAME_RU AS ITEM_NAME_RU,
+    i.NAME_RO AS ITEM_NAME_RO,
+    i.ITEM_GROUP,
+    b.WAREHOUSE_ID,
+    w.NAME AS WAREHOUSE_NAME,
+    b.CELL_ID,
+    sc.NAME AS CELL_NAME,
+    b.CURRENT_QTY_KG,
+    b.STATUS AS BATCH_STATUS,
+    b.RECEIVED_AT,
+    b.EXPIRY_DATE,
+    CASE WHEN b.EXPIRY_DATE < SYSDATE THEN 'Y' ELSE 'N' END AS IS_EXPIRED,
+    CASE WHEN b.STATUS = 'blocked' THEN 'Y' ELSE 'N' END AS IS_BLOCKED
+FROM AGRO_BATCHES b
+JOIN AGRO_ITEMS i ON i.ID = b.ITEM_ID
+LEFT JOIN AGRO_WAREHOUSES w ON w.ID = b.WAREHOUSE_ID
+LEFT JOIN AGRO_STORAGE_CELLS sc ON sc.ID = b.CELL_ID
+WHERE b.STATUS IN ('active', 'blocked');
+
+-- Purchase summary
+CREATE OR REPLACE VIEW AGRO_V_PURCHASES AS
+SELECT
+    pd.ID AS DOC_ID,
+    pd.DOC_NUMBER,
+    pd.DOC_DATE,
+    s.NAME AS SUPPLIER_NAME,
+    w.NAME AS WAREHOUSE_NAME,
+    pd.STATUS,
+    pd.TOTAL_GROSS_KG,
+    pd.TOTAL_NET_KG,
+    pd.TOTAL_AMOUNT,
+    c.CODE AS CURRENCY_CODE,
+    pd.CREATED_BY,
+    pd.CREATED_AT
+FROM AGRO_PURCHASE_DOCS pd
+JOIN AGRO_SUPPLIERS s ON s.ID = pd.SUPPLIER_ID
+JOIN AGRO_WAREHOUSES w ON w.ID = pd.WAREHOUSE_ID
+LEFT JOIN AGRO_CURRENCIES c ON c.ID = pd.CURRENCY_ID;
+
+-- Sales summary
+CREATE OR REPLACE VIEW AGRO_V_SALES AS
+SELECT
+    sd.ID AS DOC_ID,
+    sd.DOC_NUMBER,
+    sd.DOC_DATE,
+    cu.NAME AS CUSTOMER_NAME,
+    cu.CUSTOMER_TYPE,
+    w.NAME AS WAREHOUSE_NAME,
+    sd.SALE_TYPE,
+    sd.STATUS,
+    sd.TOTAL_GROSS_KG,
+    sd.TOTAL_NET_KG,
+    sd.TOTAL_AMOUNT,
+    c.CODE AS CURRENCY_CODE,
+    sd.CREATED_BY,
+    sd.CREATED_AT
+FROM AGRO_SALES_DOCS sd
+JOIN AGRO_CUSTOMERS cu ON cu.ID = sd.CUSTOMER_ID
+LEFT JOIN AGRO_WAREHOUSES w ON w.ID = sd.WAREHOUSE_ID
+LEFT JOIN AGRO_CURRENCIES c ON c.ID = sd.CURRENCY_ID;
+
+-- Mass balance: purchased vs sold vs current stock per item
+CREATE OR REPLACE VIEW AGRO_V_MASS_BALANCE AS
+SELECT
+    i.ID AS ITEM_ID,
+    i.NAME_RU AS ITEM_NAME_RU,
+    i.ITEM_GROUP,
+    NVL(purch.PURCHASED_KG, 0) AS PURCHASED_KG,
+    NVL(stock.CURRENT_STOCK_KG, 0) AS CURRENT_STOCK_KG,
+    NVL(sold.SOLD_KG, 0) AS SOLD_KG,
+    NVL(lost.LOSS_KG, 0) AS LOSS_KG,
+    NVL(proc.WASTE_KG, 0) AS WASTE_KG
+FROM AGRO_ITEMS i
+LEFT JOIN (
+    SELECT pl.ITEM_ID, SUM(pl.NET_WEIGHT_KG) AS PURCHASED_KG
+    FROM AGRO_PURCHASE_LINES pl
+    JOIN AGRO_PURCHASE_DOCS pd ON pd.ID = pl.PURCHASE_DOC_ID
+    WHERE pd.STATUS IN ('confirmed','closed')
+    GROUP BY pl.ITEM_ID
+) purch ON purch.ITEM_ID = i.ID
+LEFT JOIN (
+    SELECT ITEM_ID, SUM(CURRENT_QTY_KG) AS CURRENT_STOCK_KG
+    FROM AGRO_BATCHES WHERE STATUS IN ('active','blocked')
+    GROUP BY ITEM_ID
+) stock ON stock.ITEM_ID = i.ID
+LEFT JOIN (
+    SELECT sl.ITEM_ID, SUM(sl.NET_WEIGHT_KG) AS SOLD_KG
+    FROM AGRO_SALES_LINES sl
+    JOIN AGRO_SALES_DOCS sd ON sd.ID = sl.SALES_DOC_ID
+    WHERE sd.STATUS IN ('confirmed','shipped','closed')
+    GROUP BY sl.ITEM_ID
+) sold ON sold.ITEM_ID = i.ID
+LEFT JOIN (
+    SELECT b.ITEM_ID, SUM(sm.QTY_KG) AS LOSS_KG
+    FROM AGRO_STOCK_MOVEMENTS sm
+    JOIN AGRO_BATCHES b ON b.ID = sm.BATCH_ID
+    WHERE sm.MOVEMENT_TYPE = 'loss'
+    GROUP BY b.ITEM_ID
+) lost ON lost.ITEM_ID = i.ID
+LEFT JOIN (
+    SELECT b.ITEM_ID, SUM(pt.WASTE_QTY_KG) AS WASTE_KG
+    FROM AGRO_PROCESSING_TASKS pt
+    JOIN AGRO_BATCHES b ON b.ID = pt.BATCH_ID
+    WHERE pt.STATUS = 'completed'
+    GROUP BY b.ITEM_ID
+) proc ON proc.ITEM_ID = i.ID
+WHERE i.ACTIVE = 'Y';
+
+-- Latest temperature reading per cell
+CREATE OR REPLACE VIEW AGRO_V_CELL_READINGS AS
+SELECT sr.*, sc.CODE AS CELL_CODE, sc.NAME AS CELL_NAME,
+       w.NAME AS WAREHOUSE_NAME,
+       sc.TEMP_MIN, sc.TEMP_MAX, sc.HUMIDITY_MIN, sc.HUMIDITY_MAX,
+       CASE
+           WHEN sr.TEMPERATURE_C < sc.TEMP_MIN OR sr.TEMPERATURE_C > sc.TEMP_MAX THEN 'Y'
+           ELSE 'N'
+       END AS TEMP_OUT_OF_RANGE,
+       CASE
+           WHEN sr.HUMIDITY_PCT < sc.HUMIDITY_MIN OR sr.HUMIDITY_PCT > sc.HUMIDITY_MAX THEN 'Y'
+           ELSE 'N'
+       END AS HUMIDITY_OUT_OF_RANGE
+FROM AGRO_STORAGE_READINGS sr
+JOIN AGRO_STORAGE_CELLS sc ON sc.ID = sr.CELL_ID
+JOIN AGRO_WAREHOUSES w ON w.ID = sc.WAREHOUSE_ID
+WHERE sr.RECORDED_AT = (
+    SELECT MAX(sr2.RECORDED_AT) FROM AGRO_STORAGE_READINGS sr2 WHERE sr2.CELL_ID = sr.CELL_ID
+);
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add sql/36_agro_views.sql
+git commit -m "feat(agro): add report views (stock balance, purchases, sales, mass balance, cell readings)"
+```
+
+---
+
+### Task 3: Create Triggers DDL
+
+**Files:**
+- Create: `sql/37_agro_triggers.sql`
+
+- [ ] **Step 1: Create auto-ID triggers for all 36 tables**
+
+Generate one `BEFORE INSERT` trigger per table that assigns `TABLENAME_SEQ.NEXTVAL` to `:NEW.ID` when ID is NULL. Follow the pattern from existing `07_cred_triggers.sql`.
+
+- [ ] **Step 2: Create audit trigger for key business tables**
+
+```sql
+-- Audit trigger for AGRO_BATCHES (example — replicate for PURCHASE_DOCS, SALES_DOCS)
+CREATE OR REPLACE TRIGGER AGRO_BATCHES_AUDIT
+AFTER UPDATE ON AGRO_BATCHES FOR EACH ROW
+DECLARE
+    PROCEDURE log_change(p_field VARCHAR2, p_old VARCHAR2, p_new VARCHAR2) IS
+    BEGIN
+        IF NVL(p_old,'~') != NVL(p_new,'~') THEN
+            INSERT INTO AGRO_AUDIT_LOG (ID, TABLE_NAME, RECORD_ID, ACTION, FIELD_NAME, OLD_VALUE, NEW_VALUE, CHANGED_BY)
+            VALUES (AGRO_AUDIT_LOG_SEQ.NEXTVAL, 'AGRO_BATCHES', :NEW.ID, 'update', p_field, p_old, p_new, SYS_CONTEXT('USERENV','CLIENT_IDENTIFIER'));
+        END IF;
+    END;
+BEGIN
+    log_change('STATUS', :OLD.STATUS, :NEW.STATUS);
+    log_change('CURRENT_QTY_KG', TO_CHAR(:OLD.CURRENT_QTY_KG), TO_CHAR(:NEW.CURRENT_QTY_KG));
+    log_change('WAREHOUSE_ID', TO_CHAR(:OLD.WAREHOUSE_ID), TO_CHAR(:NEW.WAREHOUSE_ID));
+    log_change('CELL_ID', TO_CHAR(:OLD.CELL_ID), TO_CHAR(:NEW.CELL_ID));
+    log_change('BLOCKED_BY', :OLD.BLOCKED_BY, :NEW.BLOCKED_BY);
+END;
+/
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add sql/37_agro_triggers.sql
+git commit -m "feat(agro): add auto-ID and audit triggers"
+```
+
+---
+
+### Task 4: Create Seed Data
+
+**Files:**
+- Create: `sql/38_agro_demo_data.sql`
+
+- [ ] **Step 1: Create seed data for references**
+
+Insert demo data: 3 currencies (MDL/EUR/USD), 5 items (apple, plum, grape, cherry, peach), 3 packaging types, 2 warehouses, 4 storage cells, 2 suppliers, 2 customers, 2 vehicles, default formula params, default exchange rates.
+
+- [ ] **Step 2: Create seed data for QA/HACCP templates**
+
+Insert demo data: 2 QA checklists (incoming inspection + GMP) with 5-7 items each (including critical parameters), 1 HACCP plan with 3 CCPs (temperature, pH, metal detection).
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add sql/38_agro_demo_data.sql
+git commit -m "feat(agro): add demo/seed data for AGRO references"
+```
+
+---
+
+### Task 5: Register DDL in Deploy Script
+
+**Files:**
+- Modify: `deploy_oracle_objects.py`
+
+- [ ] **Step 1: Add AGRO files to execution order**
+
+Find the `order` list (or equivalent) and append:
+```python
+"35_agro_tables.sql",
+"36_agro_views.sql",
+"37_agro_triggers.sql",
+"38_agro_demo_data.sql",
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add deploy_oracle_objects.py
+git commit -m "feat(agro): register AGRO DDL files in deploy_oracle_objects.py"
+```
+
+---
+
+### Task 6: Create Oracle Store Skeleton
+
+**Files:**
+- Create: `models/agro_oracle_store.py`
+
+- [ ] **Step 1: Create store class with helper and master-data CRUD**
+
+```python
+"""AGRO module Oracle store — all AGRO_* table operations."""
+from __future__ import annotations
+from typing import Any, Dict, List, Optional
+from models.database import DatabaseModel
+
+
+def _norm_rows(r: Dict, keys_lower: bool = True) -> List[Dict]:
+    """Convert {success, columns, data} to list of dicts."""
+    if not r.get("success") or not r.get("data"):
+        return []
+    cols = r["columns"]
+    if keys_lower:
+        cols = [c.lower() for c in cols]
+    return [dict(zip(cols, row)) for row in r["data"]]
+
+
+class AgroStore:
+    """Static methods for all AGRO_* Oracle tables."""
+
+    # ------------------------------------------------------------------
+    # Generic CRUD helper (internal only — NEVER pass user input as table/order_by)
+    # ------------------------------------------------------------------
+    _ALLOWED_TABLES = {
+        'AGRO_SUPPLIERS', 'AGRO_CUSTOMERS', 'AGRO_WAREHOUSES',
+        'AGRO_STORAGE_CELLS', 'AGRO_ITEMS', 'AGRO_PACKAGING_TYPES',
+        'AGRO_VEHICLES', 'AGRO_CURRENCIES', 'AGRO_EXCHANGE_RATES',
+        'AGRO_FORMULA_PARAMS', 'AGRO_MODULE_CONFIG',
+    }
+
+    @staticmethod
+    def _get_all(table: str, active_only: bool = False,
+                 order_by: str = "ID") -> Dict[str, Any]:
+        if table not in AgroStore._ALLOWED_TABLES:
+            return {"success": False, "error": f"Invalid table: {table}", "data": []}
+        try:
+            with DatabaseModel() as db:
+                sql = f"SELECT * FROM {table}"
+                if active_only:
+                    sql += " WHERE ACTIVE = 'Y'"
+                sql += f" ORDER BY {order_by}"
+                r = db.execute_query(sql)
+                return {"success": True, "data": _norm_rows(r)}
+        except Exception as e:
+            return {"success": False, "error": str(e), "data": []}
+
+    @staticmethod
+    def _get_by_id(table: str, record_id: int) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                sql = f"SELECT * FROM {table} WHERE ID = :id"
+                r = db.execute_query(sql, {"id": record_id})
+                rows = _norm_rows(r)
+                if not rows:
+                    return {"success": False, "error": "Not found"}
+                return {"success": True, "data": rows[0]}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def _delete(table: str, record_id: int) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    f"DELETE FROM {table} WHERE ID = :id",
+                    {"id": record_id})
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ------------------------------------------------------------------
+    # Suppliers
+    # ------------------------------------------------------------------
+    @staticmethod
+    def get_suppliers(active_only: bool = False) -> Dict[str, Any]:
+        return AgroStore._get_all("AGRO_SUPPLIERS", active_only, "NAME")
+
+    @staticmethod
+    def upsert_supplier(data: Dict[str, Any]) -> Dict[str, Any]:
+        try:
+            with DatabaseModel() as db:
+                if data.get("id"):
+                    db.execute_query(
+                        """UPDATE AGRO_SUPPLIERS
+                           SET CODE=:code, NAME=:name, COUNTRY=:country,
+                               TAX_ID=:tax_id, CONTACT_PHONE=:phone,
+                               CONTACT_EMAIL=:email, ADDRESS=:address,
+                               ACTIVE=:active
+                           WHERE ID=:id""",
+                        {"id": data["id"], "code": data["code"],
+                         "name": data["name"], "country": data.get("country"),
+                         "tax_id": data.get("tax_id"),
+                         "phone": data.get("contact_phone"),
+                         "email": data.get("contact_email"),
+                         "address": data.get("address"),
+                         "active": data.get("active", "Y")})
+                else:
+                    db.execute_query(
+                        """INSERT INTO AGRO_SUPPLIERS
+                           (CODE, NAME, COUNTRY, TAX_ID, CONTACT_PHONE,
+                            CONTACT_EMAIL, ADDRESS, ACTIVE)
+                           VALUES (:code, :name, :country, :tax_id, :phone,
+                                   :email, :address, :active)""",
+                        {"code": data["code"], "name": data["name"],
+                         "country": data.get("country"),
+                         "tax_id": data.get("tax_id"),
+                         "phone": data.get("contact_phone"),
+                         "email": data.get("contact_email"),
+                         "address": data.get("address"),
+                         "active": data.get("active", "Y")})
+                db.connection.commit()
+                return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def delete_supplier(record_id: int) -> Dict[str, Any]:
+        return AgroStore._delete("AGRO_SUPPLIERS", record_id)
+
+    # Stub methods for remaining master-data tables follow same pattern:
+    # get_customers, upsert_customer, delete_customer
+    # get_warehouses, upsert_warehouse, delete_warehouse
+    # get_storage_cells, upsert_storage_cell, delete_storage_cell
+    # get_items, upsert_item, delete_item
+    # get_packaging_types, upsert_packaging_type, delete_packaging_type
+    # get_vehicles, upsert_vehicle, delete_vehicle
+    # get_currencies, upsert_currency
+    # get_exchange_rates, upsert_exchange_rate
+    # get_formula_params, upsert_formula_param
+    # get_module_config, upsert_module_config
+```
+
+> **Implementation note:** Each master-data entity follows the identical get/upsert/delete pattern above. Implement all of them — do NOT leave as stubs. The plan shows the pattern once; repeat for all 11 master-data tables.
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add models/agro_oracle_store.py
+git commit -m "feat(agro): add AgroStore skeleton with master-data CRUD"
+```
+
+---
+
+### Task 7: Create Admin Controller Skeleton
+
+**Files:**
+- Create: `controllers/agro_admin_controller.py`
+
+- [ ] **Step 1: Create admin controller with suppliers CRUD**
+
+```python
+"""AGRO Admin Controller — references, settings, reports."""
+from __future__ import annotations
+from typing import Any, Dict
+from models.agro_oracle_store import AgroStore
+
+
+class AgroAdminController:
+    """Handles admin API requests: references CRUD, settings, reports."""
+
+    @staticmethod
+    def get_suppliers(active_only: bool = False) -> Dict[str, Any]:
+        return AgroStore.get_suppliers(active_only)
+
+    @staticmethod
+    def upsert_supplier(data: Dict[str, Any]) -> Dict[str, Any]:
+        if not data.get('code') or not data.get('name'):
+            return {"success": False, "error": "CODE and NAME are required"}
+        return AgroStore.upsert_supplier(data)
+
+    @staticmethod
+    def delete_supplier(record_id: int) -> Dict[str, Any]:
+        return AgroStore.delete_supplier(record_id)
+
+    # Stub methods — same pattern for all remaining reference tables:
+    # get_customers, upsert_customer, delete_customer
+    # get_warehouses, upsert_warehouse, delete_warehouse
+    # ... (all 11 master-data tables)
+    # get_exchange_rates, upsert_exchange_rate
+    # get_formula_params, upsert_formula_param
+    # get_module_config, upsert_module_config
+```
+
+> **Implementation note:** Implement all methods, not stubs. Each validates mandatory fields, then delegates to AgroStore. Reports are added in Sprint 4.
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add controllers/agro_admin_controller.py
+git commit -m "feat(agro): add AgroAdminController skeleton with reference CRUD"
+```
+
+---
+
+### Task 7b: Create Remaining Controller Skeletons
+
+**Files:**
+- Create: `controllers/agro_field_controller.py`
+- Create: `controllers/agro_warehouse_controller.py`
+- Create: `controllers/agro_qa_controller.py`
+- Create: `controllers/agro_sales_controller.py`
+
+- [ ] **Step 1: Create field controller skeleton**
+
+```python
+"""AGRO Field Controller — purchases, barcodes, crates, offline sync."""
+from __future__ import annotations
+from typing import Any, Dict
+from models.agro_oracle_store import AgroStore
+
+
+class AgroFieldController:
+    @staticmethod
+    def generate_barcodes(count: int, barcode_type: str = 'internal') -> Dict[str, Any]:
+        return AgroStore.generate_barcodes(count, barcode_type)
+
+    @staticmethod
+    def scan_crate(barcode: str) -> Dict[str, Any]:
+        return AgroStore.scan_crate(barcode)
+
+    @staticmethod
+    def register_crate(data: Dict[str, Any]) -> Dict[str, Any]:
+        return AgroStore.register_crate(data)
+
+    @staticmethod
+    def get_purchases(filters: Dict[str, Any]) -> Dict[str, Any]:
+        return AgroStore.get_purchases(filters)
+
+    @staticmethod
+    def create_purchase(data: Dict[str, Any]) -> Dict[str, Any]:
+        # Validate mandatory fields per business rule #1
+        required = ['doc_date', 'supplier_id', 'warehouse_id']
+        for f in required:
+            if not data.get(f):
+                return {"success": False, "error": f"{f} is required"}
+        return AgroStore.create_purchase(data)
+
+    @staticmethod
+    def confirm_purchase(doc_id: int) -> Dict[str, Any]:
+        return AgroStore.confirm_purchase(doc_id)
+
+    @staticmethod
+    def sync_offline_queue(queue: Dict[str, Any]) -> Dict[str, Any]:
+        return AgroStore.sync_offline_queue(queue)
+
+    @staticmethod
+    def get_sync_references() -> Dict[str, Any]:
+        return AgroStore.get_sync_references()
+
+    @staticmethod
+    def get_barcode_print_batch(barcode_ids: list) -> Dict[str, Any]:
+        return AgroStore.get_barcode_print_batch(barcode_ids)
+```
+
+- [ ] **Step 2: Create warehouse controller skeleton**
+
+```python
+"""AGRO Warehouse Controller — stock, movements, readings, tasks."""
+class AgroWarehouseController:
+    # Methods: get_stock_balance, get_batch_by_id, get_batch_history,
+    # create_movement, receive_crates, get_readings, add_reading,
+    # get_alerts, acknowledge_alert, get_processing_tasks,
+    # create_processing_task, update_task_status
+```
+
+- [ ] **Step 3: Create QA controller skeleton**
+
+```python
+"""AGRO QA Controller — checklists, checks, HACCP, batch blocks."""
+class AgroQaController:
+    # Methods: get_checklists, upsert_checklist, perform_check,
+    # get_checks, block_batch, unblock_batch, get_haccp_plans,
+    # upsert_haccp_plan, record_haccp_measurement, get_haccp_deviations
+```
+
+- [ ] **Step 4: Create sales controller skeleton**
+
+```python
+"""AGRO Sales Controller — shipments, export, batch allocation."""
+class AgroSalesController:
+    # Methods: get_sales_docs, create_sales_doc, confirm_sales_doc,
+    # allocate_batches, get_available_stock, create_export_decl,
+    # calculate_amounts
+```
+
+> **Implementation note:** Each controller skeleton lists all methods. Method bodies delegate to AgroStore after input validation. Full implementations filled in during respective sprints.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add controllers/agro_field_controller.py controllers/agro_warehouse_controller.py controllers/agro_qa_controller.py controllers/agro_sales_controller.py
+git commit -m "feat(agro): add field/warehouse/qa/sales controller skeletons"
+```
+
+---
+
+### Task 7c: Register Routes in app.py
+
+**Files:**
+- Modify: `app.py`
+
+- [ ] **Step 1: Add controller imports**
+
+```python
+from controllers.agro_admin_controller import AgroAdminController
+from controllers.agro_field_controller import AgroFieldController
+from controllers.agro_warehouse_controller import AgroWarehouseController
+from controllers.agro_qa_controller import AgroQaController
+from controllers.agro_sales_controller import AgroSalesController
+```
+
+- [ ] **Step 2: Add 5 UI routes**
+
+```python
+@app.route('/UNA.md/orasldev/agro-admin')
+def agro_admin():
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('agro_admin.html')
+
+@app.route('/UNA.md/orasldev/agro-field')
+def agro_field():
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('agro_field.html')
+
+@app.route('/UNA.md/orasldev/agro-warehouse')
+def agro_warehouse():
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('agro_warehouse.html')
+
+@app.route('/UNA.md/orasldev/agro-qa')
+def agro_qa():
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('agro_qa.html')
+
+@app.route('/UNA.md/orasldev/agro-sales')
+def agro_sales():
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    return render_template('agro_sales.html')
+```
+
+- [ ] **Step 3: Add admin API routes via controller**
+
+```python
+# --- AGRO Admin API (delegates to AgroAdminController) ---
+@app.route('/api/agro-admin/suppliers', methods=['GET'])
+def api_agro_suppliers():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    active = request.args.get('active_only', 'false') == 'true'
+    return jsonify(AgroAdminController.get_suppliers(active))
+
+@app.route('/api/agro-admin/suppliers', methods=['POST'])
+def api_agro_suppliers_post():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroAdminController.upsert_supplier(request.get_json() or {}))
+
+@app.route('/api/agro-admin/suppliers/<int:sid>', methods=['DELETE'])
+def api_agro_supplier_del(sid):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroAdminController.delete_supplier(sid))
+```
+
+> Repeat this pattern for all remaining reference tables, always calling the controller, not AgroStore directly.
+
+- [ ] **Step 4: Create placeholder templates**
+
+Create minimal placeholder templates for all 5 UI pages (full implementation in later sprints):
+- `templates/agro_admin.html`
+- `templates/agro_field.html`
+- `templates/agro_warehouse.html`
+- `templates/agro_qa.html`
+- `templates/agro_sales.html`
+
+Each placeholder: HTML boilerplate with title, sidebar nav linking to all 5 pages, and empty main area.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add app.py templates/agro_admin.html templates/agro_field.html templates/agro_warehouse.html templates/agro_qa.html templates/agro_sales.html
+git commit -m "feat(agro): register UI + API routes via controllers, add placeholder templates"
+```
+
+---
+
+### Task 8: Verify Sprint 0 Foundation
+
+- [ ] **Step 1: Run deploy_oracle_objects.py locally (dry-run)**
+
+```bash
+python deploy_oracle_objects.py --dry-run
+```
+
+Expected: AGRO files listed in execution order.
+
+- [ ] **Step 2: Start app locally and test routes**
+
+```bash
+python app.py
+```
+
+Verify: `/UNA.md/orasldev/agro-admin` returns 200 (after login).
+
+- [ ] **Step 3: Test admin API endpoint**
+
+```bash
+curl -b cookies.txt http://localhost:5000/api/agro-admin/suppliers
+```
+
+Expected: `{"success": true, "data": [...]}` (empty or seed data).
+
+---
+
+## Chunk 2: Sprint 1 — References UI + Purchases + Field Operator
+
+### Task 9: Complete AgroStore — All Master Data CRUD
+
+**Files:**
+- Modify: `models/agro_oracle_store.py`
+
+- [ ] **Step 1: Implement full CRUD for all 11 master-data tables**
+
+Follow the suppliers pattern from Task 6. Each table needs: `get_*`, `upsert_*`, `delete_*`. Tables: SUPPLIERS, CUSTOMERS, WAREHOUSES, STORAGE_CELLS, ITEMS, PACKAGING_TYPES, VEHICLES, CURRENCIES, EXCHANGE_RATES, FORMULA_PARAMS, MODULE_CONFIG.
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add models/agro_oracle_store.py
+git commit -m "feat(agro): complete master-data CRUD for all 11 reference tables"
+```
+
+---
+
+### Task 10: Complete Admin Controller + API Routes for All References
+
+**Files:**
+- Modify: `controllers/agro_admin_controller.py`
+- Modify: `app.py`
+
+- [ ] **Step 1: Implement all admin controller methods**
+
+Complete `AgroAdminController` with full CRUD for all 11 reference tables. Each method validates mandatory fields then delegates to `AgroStore`. Follow the suppliers pattern from Task 7.
+
+- [ ] **Step 2: Add API routes in app.py for all remaining reference tables**
+
+Follow the suppliers pattern from Task 7c. Each table needs GET (list), POST (upsert), DELETE (by id). All routes call `AgroAdminController`, never `AgroStore` directly. Add routes for: customers, warehouses, storage-cells, items, packaging-types, vehicles, currencies, exchange-rates, formula-params, module-config.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add controllers/agro_admin_controller.py app.py
+git commit -m "feat(agro): complete admin controller and API routes for all references"
+```
+
+---
+
+### Task 11: Build Admin UI — References Management
+
+**Files:**
+- Modify: `templates/agro_admin.html`
+
+- [ ] **Step 1: Build full admin template with sidebar nav and reference pages**
+
+Sidebar sections: Справочники (Suppliers, Customers, Warehouses, Cells, Items, Packaging, Vehicles), Валюты (Currencies, Exchange Rates), Настройки (Formula Params, Module Config), Отчёты (placeholder for Sprint 4).
+
+Each reference page: table listing, add/edit modal, delete confirmation. Follow `nufarul_admin.html` CSS/JS pattern. Bilingual RU+RO labels.
+
+- [ ] **Step 2: Test all CRUD operations in browser**
+
+Navigate to `/UNA.md/orasldev/agro-admin`, verify each reference tab works.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add templates/agro_admin.html
+git commit -m "feat(agro): build admin UI with full reference management (RU+RO)"
+```
+
+---
+
+### Task 12: AgroStore — Barcode & Crate Operations
+
+**Files:**
+- Modify: `models/agro_oracle_store.py`
+
+- [ ] **Step 1: Add barcode operations**
+
+```python
+@staticmethod
+def generate_barcodes(count: int, barcode_type: str = 'internal') -> Dict[str, Any]:
+    """Generate a pool of barcodes with prefix AGRO-YYYYMMDD-NNNN."""
+    try:
+        with DatabaseModel() as db:
+            barcodes = []
+            for _ in range(count):
+                # Get next sequence value for unique barcode
+                r = db.execute_query("SELECT AGRO_BARCODES_SEQ.NEXTVAL AS V FROM DUAL")
+                seq = _norm_rows(r)[0]['v']
+                from datetime import datetime
+                barcode = f"AGRO-{datetime.now().strftime('%Y%m%d')}-{seq:06d}"
+                db.execute_query(
+                    """INSERT INTO AGRO_BARCODES (BARCODE, BARCODE_TYPE)
+                       VALUES (:bc, :bt)""",
+                    {"bc": barcode, "bt": barcode_type})
+                barcodes.append(barcode)
+            db.connection.commit()
+            return {"success": True, "data": barcodes}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@staticmethod
+def scan_crate(barcode: str) -> Dict[str, Any]:
+    """Lookup crate by barcode (internal or external)."""
+    try:
+        with DatabaseModel() as db:
+            r = db.execute_query(
+                """SELECT c.*, b.BARCODE, b.BARCODE_TYPE
+                   FROM AGRO_CRATES c
+                   LEFT JOIN AGRO_BARCODES b ON b.ID = c.BARCODE_ID
+                   WHERE b.BARCODE = :bc OR c.EXTERNAL_BARCODE = :bc""",
+                {"bc": barcode})
+            rows = _norm_rows(r)
+            if rows:
+                return {"success": True, "data": rows[0]}
+            return {"success": True, "data": None, "message": "New barcode"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@staticmethod
+def register_crate(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Register a new crate with barcode and weight."""
+    try:
+        with DatabaseModel() as db:
+            db.execute_query(
+                """INSERT INTO AGRO_CRATES
+                   (BARCODE_ID, EXTERNAL_BARCODE, PACKAGING_TYPE_ID,
+                    GROSS_WEIGHT_KG, TARE_WEIGHT_KG, NET_WEIGHT_KG, STATUS)
+                   VALUES (:bc_id, :ext_bc, :pkg_id,
+                           :gross, :tare, :net, :status)""",
+                {"bc_id": data.get("barcode_id"),
+                 "ext_bc": data.get("external_barcode"),
+                 "pkg_id": data.get("packaging_type_id"),
+                 "gross": data.get("gross_weight_kg"),
+                 "tare": data.get("tare_weight_kg"),
+                 "net": data.get("net_weight_kg"),
+                 "status": data.get("status", "filled")})
+            db.connection.commit()
+            return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add models/agro_oracle_store.py
+git commit -m "feat(agro): add barcode generation, crate scanning and registration"
+```
+
+---
+
+### Task 13: AgroStore — Purchase Documents & Batches
+
+**Files:**
+- Modify: `models/agro_oracle_store.py`
+
+- [ ] **Step 1: Add purchase document CRUD**
+
+Methods:
+- `get_purchases(filters)` — list with joins to supplier/warehouse
+- `get_purchase_by_id(doc_id)` — header + lines
+- `create_purchase(data)` — insert header + lines, calculate Q-Net and Suma
+- `confirm_purchase(doc_id)` — validate mandatory fields, set status, create batches
+- `cancel_purchase(doc_id)`
+
+Business rules to enforce:
+- `Q-Net = Q-Brut - (Crates × Tare)` using AGRO_FORMULA_PARAMS
+- `Suma = Q-Net × Price` with configurable rounding
+- Cannot confirm without: DOC_DATE, SUPPLIER_ID, WAREHOUSE_ID, ITEM_ID, GROSS_WEIGHT
+
+- [ ] **Step 2: Add batch creation on purchase confirmation**
+
+When purchase is confirmed, for each purchase line create an AGRO_BATCHES row with:
+- BATCH_NUMBER auto-generated: `B-YYYYMMDD-NNNN`
+- INITIAL_QTY_KG = CURRENT_QTY_KG = NET_WEIGHT_KG from the line
+- Create AGRO_STOCK_MOVEMENTS record (type = 'receipt')
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add models/agro_oracle_store.py
+git commit -m "feat(agro): add purchase document CRUD with Q-Net/Suma calculation and batch creation"
+```
+
+---
+
+### Task 14: Field API Routes
+
+**Files:**
+- Modify: `app.py`
+
+- [ ] **Step 1: Add field operator API endpoints**
+
+```python
+# --- AGRO Field API ---
+@app.route('/api/agro-field/barcodes/generate', methods=['GET'])
+def api_agro_barcodes_gen():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    count = int(request.args.get('count', 10))
+    return jsonify(AgroFieldController.generate_barcodes(count))
+
+@app.route('/api/agro-field/crates/scan', methods=['POST'])
+def api_agro_crate_scan():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    data = request.get_json() or {}
+    return jsonify(AgroFieldController.scan_crate(data.get('barcode', '')))
+
+@app.route('/api/agro-field/crates/weigh', methods=['POST'])
+def api_agro_crate_weigh():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.register_crate(request.get_json() or {}))
+
+@app.route('/api/agro-field/purchases', methods=['GET'])
+def api_agro_field_purchases():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.get_purchases(request.args.to_dict()))
+
+@app.route('/api/agro-field/purchases', methods=['POST'])
+def api_agro_field_purchase_create():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.create_purchase(request.get_json() or {}))
+
+@app.route('/api/agro-field/purchases/<int:doc_id>/confirm', methods=['PUT'])
+def api_agro_field_purchase_confirm(doc_id):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.confirm_purchase(doc_id))
+
+@app.route('/api/agro-field/sync', methods=['POST'])
+def api_agro_field_sync():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.sync_offline_queue(request.get_json() or {}))
+
+@app.route('/api/agro-field/sync/references', methods=['GET'])
+def api_agro_field_sync_refs():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    return jsonify(AgroFieldController.get_sync_references())
+
+@app.route('/api/agro-field/barcodes/print-batch', methods=['GET'])
+def api_agro_barcodes_print():
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    ids = request.args.getlist('ids')
+    return jsonify(AgroFieldController.get_barcode_print_batch(ids))
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add app.py
+git commit -m "feat(agro): add field operator API routes (barcodes, crates, purchases, sync)"
+```
+
+---
+
+### Task 15: Build Field Operator UI
+
+**Files:**
+- Modify: `templates/agro_field.html`
+- Create: `static/agro/barcode-scanner.js`
+- Create: `static/agro/barcode-generator.js`
+
+- [ ] **Step 1: Build tablet-first field UI**
+
+Key sections:
+1. **Scan/Register Crate** — large camera viewfinder, scan button, weight input (big numeric keypad)
+2. **New Purchase Document** — select supplier/warehouse/item from dropdowns, add crate lines, auto Q-Net/Suma
+3. **Purchase List** — drafts and confirmed, with confirm/cancel actions
+4. **Barcode Pool** — generate batch, mark as printed
+
+Touch-first design: min button height 48px, large font, high contrast. Adaptive for 768px+ tablet.
+
+- [ ] **Step 2: Integrate barcode scanner**
+
+`static/agro/barcode-scanner.js`:
+- Use QuaggaJS or ZXing-js for camera-based scanning
+- Open camera, decode barcode, return result via callback
+- Support Code128, EAN-13, QR
+
+- [ ] **Step 3: Integrate barcode generator for printing**
+
+`static/agro/barcode-generator.js`:
+- Use JsBarcode library
+- Generate printable label sheets (A4, 24 labels per page)
+- Each label: barcode image + human-readable text
+
+- [ ] **Step 4: Test full purchase flow in browser**
+
+1. Generate barcode pool → 2. Scan crate → 3. Enter weight → 4. Create purchase doc → 5. Confirm → verify batch created
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add templates/agro_field.html static/agro/barcode-scanner.js static/agro/barcode-generator.js
+git commit -m "feat(agro): build field operator UI with barcode scanning and purchase flow"
+```
+
+---
+
+## Chunk 3: Sprint 2 — Warehouse + Sales + Print Forms
+
+### Task 16: AgroStore — Warehouse Operations
+
+**Files:**
+- Modify: `models/agro_oracle_store.py`
+
+- [ ] **Step 1: Add stock & movement methods**
+
+Methods:
+- `get_stock_balance(filters)` — query AGRO_V_STOCK_BALANCE view
+- `get_batch_by_id(batch_id)` — with full history (movements, QA checks, allocations)
+- `get_batch_history(batch_id)` — timeline of all events
+- `create_movement(data)` — transfer between cells/warehouses, update AGRO_BATCHES.CURRENT_QTY_KG
+- `receive_crates(data)` — receive crates at warehouse, update status to 'accepted'
+
+Business rules:
+- Movement cannot exceed CURRENT_QTY_KG
+- Transfer updates FROM batch qty (decrease) and creates new movement record
+- Receipt updates crate status and batch location
+
+- [ ] **Step 2: Add temperature/readings methods**
+
+Methods:
+- `get_readings(cell_id, date_range)` — readings for a cell
+- `add_reading(data)` — insert reading, check thresholds, create alert if out of range
+- `get_alerts(acknowledged)` — list alerts
+- `acknowledge_alert(alert_id, user)` — mark alert as acknowledged
+
+- [ ] **Step 3: Add processing task methods**
+
+Methods:
+- `get_processing_tasks(filters)` — list tasks with batch info
+- `create_processing_task(data)` — create task, link to batch
+- `update_task_status(task_id, status, output_qty, waste_qty)` — complete task, adjust batch qty
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add models/agro_oracle_store.py
+git commit -m "feat(agro): add warehouse operations (stock, movements, readings, tasks)"
+```
+
+---
+
+### Task 17: AgroStore — Sales & Export Operations
+
+**Files:**
+- Modify: `models/agro_oracle_store.py`
+
+- [ ] **Step 1: Add sales document CRUD**
+
+Methods:
+- `get_sales_docs(filters)` — list with customer/warehouse joins
+- `get_sales_doc_by_id(doc_id)` — header + lines + allocations
+- `create_sales_doc(data)` — header + lines
+- `confirm_sales_doc(doc_id)` — validate stock, check batch blocks, allocate
+- `get_available_stock(item_id, warehouse_id)` — available (non-blocked) batches
+
+- [ ] **Step 2: Add FIFO batch allocation**
+
+```python
+@staticmethod
+def allocate_batches(sales_line_id: int, item_id: int,
+                     qty_kg: float, warehouse_id: int = None,
+                     method: str = 'fifo') -> Dict[str, Any]:
+    """Allocate batches to sales line using FIFO or manual method."""
+    try:
+        with DatabaseModel() as db:
+            # Get available batches ordered by RECEIVED_AT (FIFO)
+            sql = """SELECT ID, CURRENT_QTY_KG FROM AGRO_BATCHES
+                     WHERE ITEM_ID = :item_id AND STATUS = 'active'
+                     AND CURRENT_QTY_KG > 0"""
+            params = {"item_id": item_id}
+            if warehouse_id:
+                sql += " AND WAREHOUSE_ID = :wh_id"
+                params["wh_id"] = warehouse_id
+            sql += " ORDER BY RECEIVED_AT ASC"  # FIFO
+            r = db.execute_query(sql, params)
+            batches = _norm_rows(r)
+
+            remaining = qty_kg
+            allocations = []
+            for batch in batches:
+                if remaining <= 0:
+                    break
+                alloc = min(batch['current_qty_kg'], remaining)
+                db.execute_query(
+                    """INSERT INTO AGRO_BATCH_ALLOCATIONS
+                       (SALES_LINE_ID, BATCH_ID, ALLOCATED_QTY_KG, ALLOCATION_METHOD)
+                       VALUES (:sl, :bid, :qty, :method)""",
+                    {"sl": sales_line_id, "bid": batch['id'],
+                     "qty": alloc, "method": method})
+                remaining -= alloc
+                allocations.append({"batch_id": batch['id'], "qty": alloc})
+
+            if remaining > 0:
+                db.connection.rollback()
+                return {"success": False,
+                        "error": f"Insufficient stock: {remaining:.3f} kg short"}
+
+            db.connection.commit()
+            return {"success": True, "data": allocations}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+```
+
+- [ ] **Step 3: Add export declaration methods**
+
+Methods:
+- `create_export_decl(data)` — link to sales doc
+- `get_export_decl(decl_id)`
+- `update_export_decl(data)`
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add models/agro_oracle_store.py
+git commit -m "feat(agro): add sales/export operations with FIFO batch allocation"
+```
+
+---
+
+### Task 18: Warehouse & Sales Controllers + API Routes
+
+**Files:**
+- Modify: `controllers/agro_warehouse_controller.py`
+- Modify: `controllers/agro_sales_controller.py`
+- Modify: `app.py`
+
+- [ ] **Step 1: Complete warehouse controller**
+
+Implement all `AgroWarehouseController` methods: `get_stock_balance`, `get_batch_by_id`, `get_batch_history`, `create_movement`, `receive_crates`, `get_readings`, `add_reading`, `get_alerts`, `acknowledge_alert`, `get_processing_tasks`, `create_processing_task`, `update_task_status`. Each validates input then delegates to `AgroStore`.
+
+- [ ] **Step 2: Complete sales controller**
+
+Implement all `AgroSalesController` methods: `get_sales_docs`, `create_sales_doc`, `confirm_sales_doc`, `allocate_batches`, `get_available_stock`, `create_export_decl`, `calculate_amounts`. Business rules: cannot ship blocked batch, cannot ship more than current_qty_kg.
+
+- [ ] **Step 3: Add warehouse API routes**
+
+All routes delegate to `AgroWarehouseController`. Endpoints:
+- `GET /api/agro-warehouse/stock` — stock balances
+- `GET /api/agro-warehouse/batches` — batch list
+- `GET /api/agro-warehouse/batches/<id>/history` — batch history
+- `POST /api/agro-warehouse/movements` — create transfer
+- `POST /api/agro-warehouse/receive` — receive crates
+- `GET/POST /api/agro-warehouse/readings` — temperature readings
+- `GET /api/agro-warehouse/alerts` — alerts
+- `PUT /api/agro-warehouse/alerts/<id>/ack` — acknowledge alert
+- `GET/POST /api/agro-warehouse/tasks` — processing tasks
+- `PUT /api/agro-warehouse/tasks/<id>/status` — update task status
+
+- [ ] **Step 4: Add sales API routes**
+
+All routes delegate to `AgroSalesController`. Endpoints:
+- `GET/POST /api/agro-sales/documents` — sales documents
+- `PUT /api/agro-sales/documents/<id>/confirm` — confirm shipment
+- `POST /api/agro-sales/allocate` — allocate batches
+- `GET /api/agro-sales/available-stock` — available for sale
+- `POST /api/agro-sales/export-decl` — create export declaration
+- `GET /api/agro-sales/calculate` — calculate amounts with currency
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add controllers/agro_warehouse_controller.py controllers/agro_sales_controller.py app.py
+git commit -m "feat(agro): complete warehouse/sales controllers and API routes"
+```
+
+---
+
+### Task 19: Build Warehouse UI
+
+**Files:**
+- Modify: `templates/agro_warehouse.html`
+
+- [ ] **Step 1: Build warehouse operator interface**
+
+Sidebar pages:
+1. **Остатки** (Stock) — table with batch/item/warehouse/cell, qty, status. Filter by warehouse, item, status.
+2. **Приёмка** (Receiving) — scan crates, verify weight, accept into cell
+3. **Перемещения** (Movements) — create transfer between cells/warehouses
+4. **Температура** (Temperature) — readings grid by cell, input form, alerts panel
+5. **Задания** (Tasks) — processing task list, create/update/complete
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add templates/agro_warehouse.html
+git commit -m "feat(agro): build warehouse operator UI"
+```
+
+---
+
+### Task 20: Build Sales UI
+
+**Files:**
+- Modify: `templates/agro_sales.html`
+
+- [ ] **Step 1: Build sales manager interface**
+
+Sidebar pages:
+1. **Отгрузки** (Shipments) — document list with status filter
+2. **Новая отгрузка** (New Shipment) — customer, items, batch allocation (FIFO or manual), amounts
+3. **Экспорт** (Export) — export declarations linked to sales docs
+4. **Наличие** (Availability) — available stock summary per item/warehouse
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add templates/agro_sales.html
+git commit -m "feat(agro): build sales/export manager UI"
+```
+
+---
+
+### Task 21: Print Document Templates (9 forms)
+
+**Files:**
+- Create: `templates/agro/` directory with 9 document templates
+
+- [ ] **Step 1: Create print templates**
+
+Each template: standalone HTML page optimized for A4 print (`@media print`).
+Header: company name, document number, date.
+Body: table with items/lines.
+Footer: signatures, stamps.
+
+Create all 9:
+1. `document_purchase_act.html` — purchase acceptance act
+2. `document_weighing_act.html` — weighing act (list of crates with gross/tare/net)
+3. `document_transfer_note.html` — internal transfer note
+4. `document_invoice.html` — sales invoice
+5. `document_export_decl.html` — export declaration
+6. `document_qa_protocol.html` — QA inspection protocol
+7. `document_gmp_checklist.html` — GMP checklist (printable)
+8. `document_haccp_report.html` — HACCP deviations report
+9. `document_mass_balance.html` — mass balance report
+
+- [ ] **Step 2: Add document API routes in app.py**
+
+```python
+@app.route('/UNA.md/orasldev/agro-field/document/<int:doc_id>')
+def agro_field_document(doc_id):
+    if not AuthController.is_authenticated():
+        return _login_redirect()
+    doc_type = request.args.get('type', 'purchase_act')
+    data = AgroStore.get_document_data(doc_type, doc_id)
+    template = f"agro/document_{doc_type}.html"
+    return render_template(template, **data)
+```
+
+Similar routes for warehouse and sales documents.
+
+- [ ] **Step 3: Commit**
+
+```bash
+mkdir -p templates/agro
+git add templates/agro/ app.py
+git commit -m "feat(agro): add 9 print document templates with document routes"
+```
+
+---
+
+## Chunk 4: Sprint 3 — QA + HACCP
+
+### Task 22: AgroStore — QA & HACCP Operations
+
+**Files:**
+- Modify: `models/agro_oracle_store.py`
+
+- [ ] **Step 1: Add QA checklist management**
+
+Methods:
+- `get_checklists(checklist_type)` — list with item count
+- `get_checklist_by_id(cl_id)` — header + items
+- `upsert_checklist(data)` — create/update checklist + items
+- `delete_checklist(cl_id)`
+
+- [ ] **Step 2: Add QA check execution**
+
+Methods:
+- `perform_check(data)` — create AGRO_QA_CHECKS + VALUES, auto-evaluate:
+  - If any critical item IS_COMPLIANT = 'N' → result = 'fail'
+  - If any non-critical item IS_COMPLIANT = 'N' → result = 'conditional'
+  - All compliant → result = 'pass'
+- On FAIL: auto-create AGRO_BATCH_BLOCKS, set AGRO_BATCHES.STATUS = 'blocked'
+- `get_checks(batch_id)` — check history for a batch
+
+- [ ] **Step 3: Add batch block/unblock**
+
+```python
+@staticmethod
+def block_batch(batch_id: int, reason: str, blocked_by: str) -> Dict[str, Any]:
+    try:
+        with DatabaseModel() as db:
+            db.execute_query(
+                """INSERT INTO AGRO_BATCH_BLOCKS (BATCH_ID, REASON, BLOCKED_BY)
+                   VALUES (:bid, :reason, :by)""",
+                {"bid": batch_id, "reason": reason, "by": blocked_by})
+            db.execute_query(
+                """UPDATE AGRO_BATCHES SET STATUS='blocked',
+                   BLOCKED_BY=:by, BLOCK_REASON=:reason WHERE ID=:bid""",
+                {"bid": batch_id, "reason": reason, "by": blocked_by})
+            db.connection.commit()
+            return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+@staticmethod
+def unblock_batch(batch_id: int, unblocked_by: str,
+                  resolution: str) -> Dict[str, Any]:
+    try:
+        with DatabaseModel() as db:
+            db.execute_query(
+                """UPDATE AGRO_BATCH_BLOCKS SET UNBLOCKED_BY=:by,
+                   UNBLOCKED_AT=SYSTIMESTAMP, RESOLUTION_NOTES=:notes
+                   WHERE BATCH_ID=:bid AND UNBLOCKED_AT IS NULL""",
+                {"bid": batch_id, "by": unblocked_by, "notes": resolution})
+            db.execute_query(
+                """UPDATE AGRO_BATCHES SET STATUS='active',
+                   BLOCKED_BY=NULL, BLOCK_REASON=NULL WHERE ID=:bid""",
+                {"bid": batch_id})
+            db.connection.commit()
+            return {"success": True}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+```
+
+- [ ] **Step 4: Add HACCP plan/CCP management and recording**
+
+Methods:
+- `get_haccp_plans()`, `upsert_haccp_plan(data)`
+- `get_ccps(plan_id)`, `upsert_ccp(data)`
+- `record_haccp_measurement(data)` — insert record, evaluate IS_WITHIN_LIMITS
+- `get_haccp_deviations(date_range)` — records where IS_WITHIN_LIMITS = 'N'
+- Business rule: deviation requires CORRECTIVE_ACTION_TAKEN before closing
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add models/agro_oracle_store.py
+git commit -m "feat(agro): add QA checks, batch blocking, HACCP recording"
+```
+
+---
+
+### Task 23: QA Controller + API Routes
+
+**Files:**
+- Modify: `controllers/agro_qa_controller.py`
+- Modify: `app.py`
+
+- [ ] **Step 1: Complete QA controller**
+
+Implement all `AgroQaController` methods: `get_checklists`, `upsert_checklist`, `perform_check`, `get_checks`, `block_batch`, `unblock_batch`, `get_haccp_plans`, `upsert_haccp_plan`, `record_haccp_measurement`, `get_haccp_deviations`. Each validates input then delegates to `AgroStore`.
+
+- [ ] **Step 2: Add QA API routes**
+
+All routes delegate to `AgroQaController`. Endpoints:
+- `GET/POST /api/agro-qa/checklists`
+- `GET/POST /api/agro-qa/checks`
+- `POST /api/agro-qa/batches/<id>/block`
+- `POST /api/agro-qa/batches/<id>/unblock`
+- `GET/POST /api/agro-qa/haccp/plans`
+- `POST /api/agro-qa/haccp/records`
+- `GET /api/agro-qa/haccp/deviations`
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add controllers/agro_qa_controller.py app.py
+git commit -m "feat(agro): complete QA controller and API routes"
+```
+
+---
+
+### Task 24: Build QA UI
+
+**Files:**
+- Modify: `templates/agro_qa.html`
+
+- [ ] **Step 1: Build QA inspector interface**
+
+Sidebar pages:
+1. **Чек-листы** (Templates) — manage checklist templates and items
+2. **Проверки** (Inspections) — select batch → checklist → fill values → auto pass/fail
+3. **Блокировки** (Blocks) — active blocks, unblock with resolution
+4. **HACCP** — plan management, CCP monitoring, record measurements
+5. **Отклонения** (Deviations) — HACCP deviations list, corrective actions
+
+Visual indicators: red for blocked batches, yellow for conditional, green for pass.
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add templates/agro_qa.html
+git commit -m "feat(agro): build QA/HACCP inspector UI"
+```
+
+---
+
+## Chunk 5: Sprint 4 — Reports + Offline + Dashboard + Notifications + Docs
+
+### Task 25: AgroStore — Reports
+
+**Files:**
+- Modify: `models/agro_oracle_store.py`
+- Modify: `requirements.txt` (add `openpyxl` for xlsx export)
+
+- [ ] **Step 1: Add report methods**
+
+Methods:
+- `report_purchases(date_from, date_to, supplier_id, item_id)` — AGRO_V_PURCHASES filtered
+- `report_sales(date_from, date_to, customer_id, item_id)` — AGRO_V_SALES filtered
+- `report_mass_balance(date_from, date_to, warehouse_id, item_id)` — AGRO_V_MASS_BALANCE
+- `report_financial(date_from, date_to)` — purchase/sale amounts, advances, transfers
+- `report_losses(date_from, date_to, warehouse_id)` — losses by storage/processing
+- `report_quality(date_from, date_to)` — deviations, blocked batches, HACCP compliance
+
+- [ ] **Step 2: Add export methods (xlsx/csv/pdf)**
+
+```python
+@staticmethod
+def export_report(report_type: str, format: str, filters: Dict) -> bytes:
+    """Generate report file. Returns bytes for download."""
+    import io
+    data = getattr(AgroStore, f'report_{report_type}')(**filters)
+    if not data.get('success'):
+        return None
+
+    rows = data['data']
+    if format == 'csv':
+        import csv
+        output = io.StringIO()
+        if rows:
+            writer = csv.DictWriter(output, fieldnames=rows[0].keys())
+            writer.writeheader()
+            writer.writerows(rows)
+        return output.getvalue().encode('utf-8')
+
+    elif format == 'xlsx':
+        # Use openpyxl
+        from openpyxl import Workbook
+        wb = Workbook()
+        ws = wb.active
+        if rows:
+            ws.append(list(rows[0].keys()))
+            for row in rows:
+                ws.append(list(row.values()))
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    # pdf — generate HTML and use weasyprint or return HTML for browser print
+    return None
+```
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add models/agro_oracle_store.py
+git commit -m "feat(agro): add report methods with xlsx/csv export"
+```
+
+---
+
+### Task 26: Report API Routes + Admin Reports UI
+
+**Files:**
+- Modify: `app.py`
+- Modify: `templates/agro_admin.html`
+
+- [ ] **Step 1: Add report API routes**
+
+```python
+@app.route('/api/agro-admin/reports/<report_type>', methods=['GET'])
+def api_agro_report(report_type):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    filters = request.args.to_dict()
+    method = getattr(AgroStore, f'report_{report_type}', None)
+    if not method:
+        return jsonify({"success": False, "error": "Unknown report"}), 404
+    return jsonify(method(**filters))
+
+@app.route('/api/agro-admin/reports/export/<report_type>', methods=['GET'])
+def api_agro_report_export(report_type):
+    if not AuthController.is_authenticated():
+        return jsonify({"success": False, "error": "Auth required"}), 401
+    fmt = request.args.get('format', 'xlsx')
+    filters = {k: v for k, v in request.args.items() if k != 'format'}
+    data = AgroStore.export_report(report_type, fmt, filters)
+    if data is None:
+        return jsonify({"success": False, "error": "Export failed"}), 500
+    from flask import send_file
+    import io
+    mime = {'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'csv': 'text/csv'}.get(fmt, 'application/octet-stream')
+    return send_file(io.BytesIO(data), mimetype=mime,
+                     as_attachment=True,
+                     download_name=f'agro_{report_type}.{fmt}')
+```
+
+- [ ] **Step 2: Add reports section to admin UI**
+
+Update `agro_admin.html` to add Reports page in sidebar:
+- Date range picker, filters (supplier/customer/item/warehouse)
+- Report type selector
+- Data table preview
+- Export buttons (XLSX, CSV)
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add app.py templates/agro_admin.html
+git commit -m "feat(agro): add reports API with export + admin reports UI"
+```
+
+---
+
+### Task 27: Offline Mode — Service Worker + IndexedDB
+
+**Files:**
+- Create: `static/agro/offline-worker.js`
+- Create: `static/agro/offline-db.js`
+- Modify: `templates/agro_field.html`
+
+- [ ] **Step 1: Create Service Worker**
+
+`static/agro/offline-worker.js`:
+```javascript
+const CACHE_NAME = 'agro-field-v1';
+const URLS_TO_CACHE = [
+    '/UNA.md/orasldev/agro-field',
+    '/static/agro/offline-db.js',
+    '/static/agro/barcode-scanner.js',
+    '/static/agro/barcode-generator.js'
+];
+
+self.addEventListener('install', e => {
+    e.waitUntil(
+        caches.open(CACHE_NAME)
+            .then(cache => cache.addAll(URLS_TO_CACHE))
+    );
+});
+
+self.addEventListener('fetch', e => {
+    if (e.request.method === 'GET') {
+        e.respondWith(
+            caches.match(e.request).then(r => r || fetch(e.request))
+        );
+    } else {
+        // POST/PUT — try network, queue if offline
+        e.respondWith(
+            fetch(e.request.clone()).catch(() => {
+                // Store in IndexedDB sync_queue
+                return e.request.json().then(body => {
+                    return self.clients.matchAll().then(clients => {
+                        clients.forEach(client => {
+                            client.postMessage({
+                                type: 'QUEUE_REQUEST',
+                                url: e.request.url,
+                                method: e.request.method,
+                                body: body
+                            });
+                        });
+                    });
+                    return new Response(JSON.stringify({
+                        success: true, queued: true,
+                        message: 'Saved offline, will sync when online'
+                    }), {headers: {'Content-Type': 'application/json'}});
+                });
+            })
+        );
+    }
+});
+```
+
+- [ ] **Step 2: Create IndexedDB wrapper**
+
+`static/agro/offline-db.js`:
+- Stores: `references`, `purchases`, `crates`, `sync_queue`
+- Methods: `saveReference(type, data)`, `getReferences(type)`, `queueOperation(op)`, `getQueue()`, `clearQueue()`
+- Each queued operation has `client_uuid` for idempotency
+
+- [ ] **Step 3: Register Service Worker in field template**
+
+Add to `agro_field.html`:
+```javascript
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/static/agro/offline-worker.js');
+}
+
+// Online/offline indicator
+window.addEventListener('online', () => syncOfflineQueue());
+window.addEventListener('offline', () => showOfflineIndicator());
+```
+
+- [ ] **Step 4: Implement sync endpoint in AgroStore**
+
+```python
+@staticmethod
+def sync_offline_queue(queue: Dict[str, Any]) -> Dict[str, Any]:
+    """Process offline queue. Deduplicates by client_uuid via AGRO_EVENT_LOG."""
+    operations = queue.get('operations', [])
+    synced = 0
+    conflicts = []
+    for op in operations:
+        uuid = op.get('client_uuid')
+        # Check if already processed (stored in AGRO_EVENT_LOG.PAYLOAD)
+        existing = AgroStore._check_uuid(uuid)
+        if existing:
+            synced += 1
+            continue
+        try:
+            result = AgroStore._process_sync_op(op)
+            if result.get('success'):
+                synced += 1
+            else:
+                conflicts.append({"uuid": uuid, "error": result.get('error')})
+        except Exception as e:
+            conflicts.append({"uuid": uuid, "error": str(e)})
+    return {"success": True, "synced": synced, "conflicts": conflicts}
+
+@staticmethod
+def _check_uuid(uuid: str) -> bool:
+    """Check if client_uuid was already processed (idempotency)."""
+    if not uuid:
+        return False
+    try:
+        with DatabaseModel() as db:
+            r = db.execute_query(
+                """SELECT COUNT(*) AS CNT FROM AGRO_EVENT_LOG
+                   WHERE EVENT_TYPE = 'sync' AND PAYLOAD LIKE :pat""",
+                {"pat": f'%"client_uuid":"{uuid}"%'})
+            rows = _norm_rows(r)
+            return rows and rows[0].get('cnt', 0) > 0
+    except Exception:
+        return False
+
+@staticmethod
+def _process_sync_op(op: Dict[str, Any]) -> Dict[str, Any]:
+    """Route a sync operation to the appropriate store method."""
+    op_type = op.get('type')
+    data = op.get('data', {})
+    uuid = op.get('client_uuid')
+    dispatch = {
+        'register_crate': AgroStore.register_crate,
+        'create_purchase': AgroStore.create_purchase,
+        'weigh_crate': AgroStore.register_crate,
+    }
+    handler = dispatch.get(op_type)
+    if not handler:
+        return {"success": False, "error": f"Unknown op type: {op_type}"}
+    result = handler(data)
+    if result.get('success'):
+        # Log to event log for idempotency tracking
+        import json
+        try:
+            with DatabaseModel() as db:
+                db.execute_query(
+                    """INSERT INTO AGRO_EVENT_LOG (EVENT_TYPE, ENTITY_TYPE, PAYLOAD)
+                       VALUES ('sync', :etype, :payload)""",
+                    {"etype": op_type,
+                     "payload": json.dumps({"client_uuid": uuid})})
+                db.connection.commit()
+        except Exception:
+            pass  # sync tracking failure should not block the operation
+    return result
+
+@staticmethod
+def get_sync_references() -> Dict[str, Any]:
+    """Download all reference data for offline cache."""
+    return {
+        "success": True,
+        "data": {
+            "suppliers": AgroStore.get_suppliers(True).get('data', []),
+            "customers": AgroStore.get_customers(True).get('data', []),
+            "warehouses": AgroStore.get_warehouses(True).get('data', []),
+            "items": AgroStore.get_items(True).get('data', []),
+            "packaging_types": AgroStore.get_packaging_types(True).get('data', []),
+            "vehicles": AgroStore.get_vehicles(True).get('data', []),
+            "currencies": AgroStore.get_currencies(True).get('data', []),
+        }
+    }
+```
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add static/agro/offline-worker.js static/agro/offline-db.js templates/agro_field.html models/agro_oracle_store.py
+git commit -m "feat(agro): add offline mode with Service Worker, IndexedDB, and sync"
+```
+
+---
+
+### Task 28: Dashboard Configuration
+
+**Files:**
+- Create: `dashboards/dashboard_agro.json`
+
+- [ ] **Step 1: Create dashboard with AGRO widgets**
+
+Widgets:
+1. Stock total (kg) — `SELECT SUM(CURRENT_QTY_KG) FROM AGRO_BATCHES WHERE STATUS IN ('active','blocked')`
+2. Purchases today — `SELECT COUNT(*) FROM AGRO_PURCHASE_DOCS WHERE TRUNC(CREATED_AT)=TRUNC(SYSDATE)`
+3. Sales today — `SELECT COUNT(*) FROM AGRO_SALES_DOCS WHERE TRUNC(CREATED_AT)=TRUNC(SYSDATE)`
+4. Active alerts — `SELECT COUNT(*) FROM AGRO_STORAGE_ALERTS WHERE ACKNOWLEDGED='N'`
+5. Blocked batches — `SELECT COUNT(*) FROM AGRO_BATCHES WHERE STATUS='blocked'`
+6. Revenue today — `SELECT SUM(TOTAL_AMOUNT) FROM AGRO_SALES_DOCS WHERE TRUNC(DOC_DATE)=TRUNC(SYSDATE) AND STATUS IN ('confirmed','shipped','closed')`
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add dashboards/dashboard_agro.json
+git commit -m "feat(agro): add dashboard configuration with 6 KPI widgets"
+```
+
+---
+
+### Task 29: Socket.io Notifications
+
+**Files:**
+- Modify: `templates/agro_warehouse.html`
+- Modify: `templates/agro_qa.html`
+- Modify: `templates/agro_sales.html`
+
+- [ ] **Step 1: Add Socket.io client to warehouse/qa/sales UIs**
+
+When storage alert is created or batch is blocked, emit socket event.
+Connected clients of relevant role see toast notification.
+
+In store methods (add_reading, block_batch), after Oracle commit, emit event:
+```python
+# In app.py or via a helper
+from flask_socketio import emit
+emit('agro_alert', {'type': 'temp_high', 'cell': cell_name}, namespace='/agro', broadcast=True)
+```
+
+- [ ] **Step 2: Commit**
+
+```bash
+git add templates/agro_warehouse.html templates/agro_qa.html templates/agro_sales.html app.py
+git commit -m "feat(agro): add Socket.io real-time notifications for alerts and batch blocks"
+```
+
+---
+
+### Task 30: i18n — RU + RO Translations
+
+**Files:**
+- Modify: `translations/` (add AGRO strings)
+
+- [ ] **Step 1: Extract AGRO strings**
+
+```bash
+pybabel extract -F babel.cfg -o messages.pot .
+pybabel update -i messages.pot -d translations -l ru
+pybabel update -i messages.pot -d translations -l ro
+```
+
+- [ ] **Step 2: Fill RU and RO translations for all AGRO labels**
+
+Ensure all UI labels, button texts, column headers have both RU and RO versions.
+
+- [ ] **Step 3: Compile translations**
+
+```bash
+pybabel compile -d translations
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add translations/ messages.pot
+git commit -m "feat(agro): add RU + RO translations for all AGRO UI strings"
+```
+
+---
+
+### Task 31: Documentation
+
+**Files:**
+- Create: `docs/AGRO/README.md`
+- Create: `docs/AGRO/DATABASE_SCHEMA.md`
+- Create: `docs/AGRO/API.md`
+- Create: `docs/AGRO/USER_GUIDE.md`
+- Create: `docs/AGRO/DEPLOYMENT.md`
+- Create: `docs/dashboards/agro_dashboard.md`
+- Modify: `docs/README.md` (add AGRO section)
+
+- [ ] **Step 1: Create AGRO documentation directory and files**
+
+Each file per CLAUDE.md requirements:
+1. `README.md` — module overview, Oracle objects, UI routes
+2. `DATABASE_SCHEMA.md` — all 36 tables with columns and relationships
+3. `API.md` — all ~55 endpoints with request/response examples
+4. `USER_GUIDE.md` — workflows per role (admin, field, warehouse, qa, sales)
+5. `DEPLOYMENT.md` — local setup, remote deploy, DDL execution, wallet config
+6. `docs/dashboards/agro_dashboard.md` — widget descriptions
+
+- [ ] **Step 2: Update main docs/README.md**
+
+Add AGRO section with link to `docs/AGRO/README.md`.
+
+- [ ] **Step 3: Commit**
+
+```bash
+git add docs/AGRO/ docs/dashboards/agro_dashboard.md docs/README.md
+git commit -m "docs(agro): add comprehensive module documentation"
+```
+
+---
+
+### Task 32: Final Verification
+
+- [ ] **Step 1: Run deploy_oracle_objects.py dry-run**
+
+```bash
+python deploy_oracle_objects.py --dry-run
+```
+
+Expected: All 4 AGRO files (35-38) listed in order.
+
+- [ ] **Step 2: Verify Oracle objects**
+
+```sql
+SELECT OBJECT_TYPE, OBJECT_NAME FROM USER_OBJECTS WHERE OBJECT_NAME LIKE 'AGRO_%' ORDER BY OBJECT_TYPE, OBJECT_NAME;
+```
+
+Expected: 36 tables, 36 sequences, triggers, views.
+
+- [ ] **Step 3: Test all 5 UI routes**
+
+Navigate to each `/UNA.md/orasldev/agro-*` page, verify loading.
+
+- [ ] **Step 4: Test full purchase → batch → QA → sale flow**
+
+1. Create purchase doc → confirm → batch created
+2. Receive at warehouse → place in cell
+3. Record temperature reading → verify alert if out of range
+4. QA check → pass or fail with batch block
+5. Create sale → FIFO allocation → confirm → shipment
+6. Print all document forms
+7. Test offline mode: disconnect → create purchase → reconnect → sync
+
+- [ ] **Step 5: Run CLAUDE.md checklist**
+
+Verify per CLAUDE.md:
+- [ ] No SQLite/file-based authoritative state
+- [ ] No generic runtime-table names (APP_RUNTIME_KV)
+- [ ] Oracle objects exist in USER_OBJECTS
+- [ ] Dashboards use AGRO_* table names
+- [ ] Local launch works
+- [ ] Remote deploy preserves .env and wallet
+- [ ] URLs under `/UNA.md/orasldev/agro-*`
+
+- [ ] **Step 6: Final commit**
+
+```bash
+git add -A
+git commit -m "feat(agro): complete AGRO module MVP — all sprints 0-4"
+```

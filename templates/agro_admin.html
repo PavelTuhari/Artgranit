@@ -1,0 +1,2379 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AGRO Admin</title>
+<script>if(location.search.indexOf('embed=1')!==-1)document.documentElement.classList.add('embed');</script>
+<style>
+:root {
+    --primary: #e94560;
+    --primary-dark: #d63a55;
+    --accent: #53d769;
+    --bg: #1a1a2e;
+    --card-bg: #16213e;
+    --sidebar-bg: #16213e;
+    --sidebar-text: #b0b0c8;
+    --text: #e0e0e0;
+    --text-muted: #8888aa;
+    --border: #0f3460;
+    --white: #fff;
+    --danger: #e94560;
+    --danger-bg: #dc354530;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ---------- Embed mode (inside MDI) ---------- */
+html.embed .top-bar { display: none; }
+html.embed .main { height: 100vh; }
+
+/* ---------- Top Bar ---------- */
+.top-bar {
+    background: #16213e;
+    border-bottom: 1px solid #0f3460;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+    flex-shrink: 0;
+}
+.top-bar .logo {
+    color: #53d769;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 1px;
+    margin-right: 8px;
+}
+.top-bar .logo span { color: #e94560; }
+.top-bar .nav-item {
+    padding: 6px 12px;
+    cursor: pointer;
+    color: #a0a0c0;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: all .2s;
+    white-space: nowrap;
+    text-decoration: none;
+}
+.top-bar .nav-item:hover { background: #0f3460; color: #fff; }
+.top-bar .nav-item.active { background: #e94560; color: #fff; }
+.top-bar .spacer { flex: 1; }
+.back-link {
+    color: #8888aa;
+    text-decoration: none;
+    font-size: 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.back-link:hover { color: #e94560; }
+
+/* ---------- Main Layout ---------- */
+.main-layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+}
+
+/* ---------- Sidebar ---------- */
+.sidebar {
+    width: 220px;
+    background: #16213e;
+    border-right: 1px solid #0f3460;
+    overflow-y: auto;
+    flex-shrink: 0;
+}
+.sidebar-section {
+    padding: 10px 14px 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #6c6c8a;
+    font-weight: 600;
+}
+.sidebar a {
+    display: block;
+    padding: 7px 14px 7px 20px;
+    color: #b0b0c8;
+    text-decoration: none;
+    font-size: 13px;
+    transition: all .15s;
+    border-left: 3px solid transparent;
+}
+.sidebar a:hover { background: #0f3460; color: #fff; }
+.sidebar a.active { background: #0f346080; color: #fff; border-left-color: #e94560; font-weight: 600; }
+.sidebar-divider { border-top: 1px solid #0f3460; margin: 6px 0; }
+
+/* ---------- Main ---------- */
+.main {
+    flex: 1;
+    padding: 20px 28px;
+    overflow-y: auto;
+    height: calc(100vh - 48px);
+    min-width: 0;
+}
+.page { display: none; }
+.page.active { display: block; }
+
+/* ---------- Card ---------- */
+.card {
+    background: var(--card-bg);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.06);
+    padding: 20px;
+    margin-bottom: 20px;
+}
+
+/* ---------- Page header ---------- */
+.page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.page-header h1 { font-size: 22px; color: #e0e0e0; }
+.page-header .subtitle { font-size: 14px; color: #8888aa; margin-top: 2px; }
+
+/* ---------- Buttons ---------- */
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: opacity .15s;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.btn:hover { opacity: .88; }
+.btn-primary { background: var(--primary); color: var(--white); }
+.btn-accent { background: var(--accent); color: var(--white); }
+.btn-ghost { background: #1a1a3e; color: var(--text); border: 1px solid var(--border); }
+.btn-danger { background: #dc354530; color: #e94560; }
+.btn-sm { padding: 5px 10px; font-size: 12px; border-radius: 6px; }
+.btn-icon { padding: 4px 8px; font-size: 14px; background: none; border: none; cursor: pointer; border-radius: 6px; color: #b0b0c8; }
+.btn-icon:hover { background: #0f3460; color: #fff; }
+.btn-icon.btn-danger { background: none; color: #e94560; }
+.btn-icon.btn-danger:hover { background: #dc354530; }
+
+/* ---------- Table ---------- */
+.table-wrap {
+    overflow-x: auto;
+    margin-top: 12px;
+    max-height: calc(100vh - 240px);
+    overflow-y: auto;
+}
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); white-space: nowrap; }
+th {
+    background: #0f3460;
+    font-weight: 600;
+    color: #8888aa;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    cursor: pointer;
+    user-select: none;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: .3px;
+}
+th:hover { color: #e0e0e0; }
+th .sort-arrow { font-size: 10px; margin-left: 4px; }
+tr:hover td { background: #1a1a3e; }
+td.actions { white-space: nowrap; }
+.badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+}
+.badge-active { background: #28a74530; color: #53d769; }
+.badge-inactive { background: #dc354530; color: #e94560; }
+.empty-row td { text-align: center; color: #8888aa; padding: 24px; font-size: 14px; }
+.count-label { font-size: 13px; color: #8888aa; margin-bottom: 4px; }
+
+/* ---------- Modal ---------- */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.45);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal {
+    background: #16213e;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    max-width: 520px;
+    width: 92%;
+    padding: 28px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border: 1px solid #0f3460;
+}
+.modal h2 { font-size: 18px; color: #e0e0e0; margin-bottom: 20px; }
+.field { margin-bottom: 14px; }
+.field label { display: block; font-size: 12px; color: #8888aa; margin-bottom: 5px; font-weight: 500; }
+.field input, .field select, .field textarea {
+    width: 100%;
+    padding: 9px 12px;
+    border: 1px solid #333366;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #e0e0e0;
+    background: #1a1a2e;
+    transition: border-color .15s;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+    outline: none;
+    border-color: #e94560;
+    box-shadow: 0 0 0 3px rgba(233,69,96,.15);
+}
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; }
+.modal-actions { display: flex; gap: 12px; margin-top: 22px; justify-content: flex-end; }
+
+/* ---------- Toast ---------- */
+.toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: 14px 24px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    z-index: 2000;
+    transform: translateY(100px);
+    opacity: 0;
+    transition: transform .3s, opacity .3s;
+    color: var(--white);
+}
+.toast.show { transform: translateY(0); opacity: 1; }
+.toast-success { background: #53d769; color: #1a1a2e; }
+.toast-error { background: #e94560; color: #fff; }
+
+/* ---------- Filters ---------- */
+.filters { display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+.filters select, .filters input {
+    padding: 7px 12px;
+    border: 1px solid #333366;
+    border-radius: 8px;
+    font-size: 13px;
+    background: #1a1a2e;
+    color: #e0e0e0;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 768px) {
+    .sidebar { width: 180px; }
+    .main { padding: 16px; }
+    .page-header { flex-direction: column; align-items: flex-start; }
+    .field-row { flex-direction: column; gap: 0; }
+}
+.chip {
+    display: inline-block; padding: 4px 12px; background: #0f3460;
+    border: 1px solid #2a3a5c; border-radius: 16px; font-size: 12px;
+    color: #b0b0c8;
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================ -->
+<!-- TOP BAR                                                        -->
+<!-- ============================================================ -->
+<div class="top-bar">
+    <div class="logo">AGRO</div>
+    <a href="/UNA.md/orasldev/agro-admin" class="nav-item active">Admin</a>
+    <a href="/UNA.md/orasldev/agro-field" class="nav-item">Приёмка</a>
+    <a href="/UNA.md/orasldev/agro-warehouse" class="nav-item">Склад</a>
+    <a href="/UNA.md/orasldev/agro-qa" class="nav-item">QA / HACCP</a>
+    <a href="/UNA.md/orasldev/agro-sales" class="nav-item">Продажи</a>
+    <div class="spacer"></div>
+    <a href="/UNA.md/orasldev" class="back-link">&#8592; SQL Developer</a>
+</div>
+
+<!-- ============================================================ -->
+<!-- MAIN LAYOUT: SIDEBAR + CONTENT                                -->
+<!-- ============================================================ -->
+<div class="main-layout">
+
+<!-- ============================================================ -->
+<!-- SIDEBAR                                                       -->
+<!-- ============================================================ -->
+<nav class="sidebar">
+    <div class="sidebar-section">Справочники / Referinte</div>
+    <a href="#suppliers" class="nav-link active" data-page="suppliers">Поставщики / Furnizori</a>
+    <a href="#customers" class="nav-link" data-page="customers">Покупатели / Clienti</a>
+    <a href="#warehouses" class="nav-link" data-page="warehouses">Склады / Depozite</a>
+    <a href="#cells" class="nav-link" data-page="cells">Ячейки / Celule</a>
+    <a href="#items" class="nav-link" data-page="items">Продукция / Produse</a>
+    <a href="#varieties" class="nav-link" data-page="varieties">Сорта / Soiuri</a>
+    <a href="#packaging" class="nav-link" data-page="packaging">Типы тары / Ambalaj</a>
+    <a href="#vehicles" class="nav-link" data-page="vehicles">Транспорт / Transport</a>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Приёмка / Receptie</div>
+    <a href="#profiles" class="nav-link" data-page="profiles">Профили приёмки / Profile</a>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Валюты / Valute</div>
+    <a href="#currencies" class="nav-link" data-page="currencies">Валюты / Valute</a>
+    <a href="#rates" class="nav-link" data-page="rates">Курсы / Cursuri</a>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Настройки / Setari</div>
+    <a href="#formulas" class="nav-link" data-page="formulas">Формулы / Formule</a>
+    <a href="#scales" class="nav-link" data-page="scales">Весы / Cântar</a>
+    <a href="#config" class="nav-link" data-page="config">Конфигурация / Config</a>
+
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">Отчёты / Rapoarte</div>
+    <a href="#reports" class="nav-link" data-page="reports">Отчёты / Rapoarte</a>
+</nav>
+
+<!-- ============================================================ -->
+<!-- MAIN CONTENT                                                  -->
+<!-- ============================================================ -->
+<main class="main">
+
+<!-- ==================== 1. SUPPLIERS ==================== -->
+<div id="page-suppliers" class="page active">
+    <div class="page-header">
+        <div><h1>Поставщики</h1><div class="subtitle">Furnizori</div></div>
+        <button class="btn btn-primary" onclick="openModal('supplier')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="suppliersCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('suppliers','code')">Код <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable('suppliers','name')">Название <span class="sort-arrow"></span></th>
+                    <th onclick="sortTable('suppliers','country')">Страна <span class="sort-arrow"></span></th>
+                    <th>ИНН / IDNO</th>
+                    <th>Телефон</th>
+                    <th>Email</th>
+                    <th>Адрес</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="suppliersTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 2. CUSTOMERS ==================== -->
+<div id="page-customers" class="page">
+    <div class="page-header">
+        <div><h1>Покупатели</h1><div class="subtitle">Clienti</div></div>
+        <button class="btn btn-primary" onclick="openModal('customer')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="customersCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('customers','code')">Код</th>
+                    <th onclick="sortTable('customers','name')">Название</th>
+                    <th>Тип</th>
+                    <th>Страна</th>
+                    <th>ИНН / IDNO</th>
+                    <th>Телефон</th>
+                    <th>Email</th>
+                    <th>Адрес</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="customersTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 3. WAREHOUSES ==================== -->
+<div id="page-warehouses" class="page">
+    <div class="page-header">
+        <div><h1>Склады</h1><div class="subtitle">Depozite</div></div>
+        <button class="btn btn-primary" onclick="openModal('warehouse')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="warehousesCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('warehouses','code')">Код</th>
+                    <th onclick="sortTable('warehouses','name')">Название</th>
+                    <th>Тип</th>
+                    <th>Адрес</th>
+                    <th>Вместимость, кг</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="warehousesTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 4. STORAGE CELLS ==================== -->
+<div id="page-cells" class="page">
+    <div class="page-header">
+        <div><h1>Ячейки хранения</h1><div class="subtitle">Celule de depozitare</div></div>
+        <button class="btn btn-primary" onclick="openModal('cell')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="filters">
+            <label>Склад:</label>
+            <select id="cellsFilterWarehouse" onchange="loadCells()">
+                <option value="">Все</option>
+            </select>
+        </div>
+        <div class="count-label" id="cellsCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('cells','code')">Код</th>
+                    <th>Название</th>
+                    <th>Склад</th>
+                    <th>Тип</th>
+                    <th>t min</th>
+                    <th>t max</th>
+                    <th>Влаж. min</th>
+                    <th>Влаж. max</th>
+                    <th>Вместимость, кг</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="cellsTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 5. ITEMS ==================== -->
+<div id="page-items" class="page">
+    <div class="page-header">
+        <div><h1>Продукция</h1><div class="subtitle">Produse</div></div>
+        <button class="btn btn-primary" onclick="openModal('item')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="itemsCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('items','code')">Код</th>
+                    <th onclick="sortTable('items','name_ru')">Название (RU)</th>
+                    <th>Название (RO)</th>
+                    <th>Группа</th>
+                    <th>Ед.</th>
+                    <th>Тара, кг</th>
+                    <th>Срок, дн.</th>
+                    <th>t min</th>
+                    <th>t max</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="itemsTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 5a. ITEM VARIETIES ==================== -->
+<div id="page-varieties" class="page">
+    <div class="page-header">
+        <div><h1>Сорта продукции</h1><div class="subtitle">Soiuri de produse</div></div>
+        <button class="btn btn-primary" onclick="openModal('variety')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:12px">
+            <label>Фильтр по продукту:</label>
+            <select id="varietyFilterItem" onchange="loadVarieties()" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px">
+                <option value="">Все</option>
+            </select>
+            <span class="count-label" id="varietiesCount"></span>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th>Продукт</th>
+                    <th>Код</th>
+                    <th>Название (RU)</th>
+                    <th>Название (RO)</th>
+                    <th>Калибр мин</th>
+                    <th>Brix мин</th>
+                    <th>Окраска %</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="varietiesTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 5b. ACCEPTANCE PROFILES ==================== -->
+<div id="page-profiles" class="page">
+    <div class="page-header">
+        <div><h1>Профили приёмки</h1><div class="subtitle">Profile de receptie</div></div>
+        <button class="btn btn-primary" onclick="openModal('profile')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="profilesCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th>Код</th>
+                    <th>Название</th>
+                    <th>Класс</th>
+                    <th>Калибр мин</th>
+                    <th>Дефекты серьёз. %</th>
+                    <th>Brix мин</th>
+                    <th>t мин-макс</th>
+                    <th>Мин. балл</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="profilesTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 6. PACKAGING TYPES ==================== -->
+<div id="page-packaging" class="page">
+    <div class="page-header">
+        <div><h1>Типы тары</h1><div class="subtitle">Tipuri de ambalaj</div></div>
+        <button class="btn btn-primary" onclick="openModal('packaging')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="packagingCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('packaging','code')">Код</th>
+                    <th onclick="sortTable('packaging','name_ru')">Название (RU)</th>
+                    <th>Название (RO)</th>
+                    <th>Вес тары, кг</th>
+                    <th>Вместимость, кг</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="packagingTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 7. VEHICLES ==================== -->
+<div id="page-vehicles" class="page">
+    <div class="page-header">
+        <div><h1>Транспорт</h1><div class="subtitle">Transport</div></div>
+        <button class="btn btn-primary" onclick="openModal('vehicle')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="vehiclesCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('vehicles','plate_number')">Номер</th>
+                    <th>Тип</th>
+                    <th>Водитель</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="vehiclesTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 8. CURRENCIES ==================== -->
+<div id="page-currencies" class="page">
+    <div class="page-header">
+        <div><h1>Валюты</h1><div class="subtitle">Valute</div></div>
+        <button class="btn btn-primary" onclick="openModal('currency')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="currenciesCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('currencies','code')">Код</th>
+                    <th onclick="sortTable('currencies','name')">Название</th>
+                    <th>Символ</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="currenciesTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 9. EXCHANGE RATES ==================== -->
+<div id="page-rates" class="page">
+    <div class="page-header">
+        <div><h1>Курсы валют</h1><div class="subtitle">Cursuri valutare</div></div>
+        <button class="btn btn-primary" onclick="openModal('rate')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="ratesCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th>Из / Din</th>
+                    <th>В / In</th>
+                    <th onclick="sortTable('rates','rate')">Курс</th>
+                    <th onclick="sortTable('rates','rate_date')">Дата</th>
+                    <th>Источник</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="ratesTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 10. FORMULA PARAMS ==================== -->
+<div id="page-formulas" class="page">
+    <div class="page-header">
+        <div><h1>Параметры формул</h1><div class="subtitle">Parametrii formulelor</div></div>
+        <button class="btn btn-primary" onclick="openModal('formula')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="formulasCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('formulas','param_name')">Параметр</th>
+                    <th>Значение</th>
+                    <th>Продукт (ID)</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="formulasTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 11. SCALE DRIVERS ==================== -->
+<div id="page-scales" class="page">
+    <div class="page-header">
+        <div><h1>Весы / Cântar</h1><div class="subtitle">Configurare drivere cântar — настройка драйверов весов</div></div>
+        <button class="btn btn-primary" onclick="openModal('scale-driver')">+ Добавить драйвер</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="scaleDriverCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th>Имя / Nume</th>
+                    <th>Марка / Brand</th>
+                    <th>Протокол</th>
+                    <th>Порт</th>
+                    <th>Макс. вес</th>
+                    <th>Разрешение</th>
+                    <th>Статус</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="scaleDriverTable"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+        <h3 style="margin-bottom:8px;">Поддерживаемые марки / Branduri suportate</h3>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;">
+            <span class="chip">Alex SE</span>
+            <span class="chip">CAS DB-II</span>
+            <span class="chip">CAS CI-200</span>
+            <span class="chip">Jadever JWI-700</span>
+            <span class="chip">DIGI SM5300</span>
+            <span class="chip">Massa-K ВПН</span>
+            <span class="chip">Massa-K ТВ</span>
+            <span class="chip">Emulator</span>
+        </div>
+    </div>
+</div>
+
+<!-- Scale Driver Modal -->
+<div class="modal-overlay" id="modal-scale-driver">
+    <div class="modal">
+        <div class="modal-header">
+            <h2 id="scaleDriverModalTitle">Драйвер весов / Driver cântar</h2>
+            <button class="modal-close" onclick="closeModal('scale-driver')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="sd_id">
+            <div class="field-row">
+                <div class="field"><label>Имя / Nume</label><input id="sd_name" placeholder="Весы приёмка №1"></div>
+                <div class="field"><label>Марка / Brand</label>
+                    <select id="sd_brand" onchange="onScaleBrandChange()">
+                        <option value="">-- Выбрать --</option>
+                        <option value="Alex SE">Alex SE</option>
+                        <option value="CAS DB-II">CAS DB-II</option>
+                        <option value="CAS CI-200">CAS CI-200</option>
+                        <option value="Jadever JWI-700">Jadever JWI-700</option>
+                        <option value="DIGI SM5300">DIGI SM5300</option>
+                        <option value="Massa-K ВПН">Massa-K ВПН</option>
+                        <option value="Massa-K ТВ">Massa-K ТВ</option>
+                        <option value="Emulator">Emulator</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="field"><label>Протокол / Protocol</label>
+                    <select id="sd_protocol">
+                        <option value="RS232">RS232</option>
+                        <option value="RS485">RS485</option>
+                        <option value="USB">USB</option>
+                        <option value="TCP/IP">TCP/IP</option>
+                        <option value="Virtual">Virtual (Emulator)</option>
+                    </select>
+                </div>
+                <div class="field"><label>Порт / Port</label><input id="sd_port" placeholder="COM3 / /dev/ttyS0"></div>
+            </div>
+            <div class="field-row">
+                <div class="field"><label>Baud Rate</label>
+                    <select id="sd_baudrate">
+                        <option value="2400">2400</option>
+                        <option value="4800">4800</option>
+                        <option value="9600" selected>9600</option>
+                        <option value="19200">19200</option>
+                        <option value="38400">38400</option>
+                        <option value="115200">115200</option>
+                    </select>
+                </div>
+                <div class="field"><label>Data / Parity / Stop</label>
+                    <select id="sd_dataformat">
+                        <option value="8N1">8 / None / 1</option>
+                        <option value="8E1">8 / Even / 1</option>
+                        <option value="8O1">8 / Odd / 1</option>
+                        <option value="7E1">7 / Even / 1</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="field"><label>Макс. вес (кг)</label><input id="sd_max_capacity" type="number" value="600"></div>
+                <div class="field"><label>Разрешение (кг)</label><input id="sd_resolution" type="number" step="0.001" value="0.02"></div>
+            </div>
+            <div class="field-row">
+                <div class="field"><label>Время стабилизации (сек)</label><input id="sd_settle_time" type="number" step="0.1" value="2.0"></div>
+                <div class="field"><label>Интервал эмулятора (мс)</label><input id="sd_emu_interval" type="number" value="3000"></div>
+            </div>
+            <div class="field-row">
+                <div class="field">
+                    <label><input type="checkbox" id="sd_active" checked> Активен / Activ</label>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-ghost" onclick="closeModal('scale-driver')">Отмена</button>
+            <button class="btn btn-primary" onclick="saveScaleDriver()">Сохранить</button>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== 12. MODULE CONFIG ==================== -->
+<div id="page-config" class="page">
+    <div class="page-header">
+        <div><h1>Конфигурация модуля</h1><div class="subtitle">Configurare modul</div></div>
+        <button class="btn btn-primary" onclick="openModal('mconfig')">+ Добавить</button>
+    </div>
+    <div class="card">
+        <div class="count-label" id="configCount"></div>
+        <div class="table-wrap">
+            <table>
+                <thead><tr>
+                    <th onclick="sortTable('config','config_key')">Ключ / Cheie</th>
+                    <th>Значение / Valoare</th>
+                    <th>Группа / Grup</th>
+                    <th>Описание</th>
+                    <th></th>
+                </tr></thead>
+                <tbody id="configTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== REPORTS ==================== -->
+<div id="page-reports" class="page">
+    <div class="page-header">
+        <div><h1>Отчёты / Rapoarte</h1><div class="subtitle">Rapoarte operationale si analitice</div></div>
+    </div>
+    <div class="card">
+        <h3 style="margin-bottom:14px;">Фильтры / Filtre</h3>
+        <div class="field-row">
+            <div class="field"><label>Дата от / De la</label><input type="date" id="rptFrom"></div>
+            <div class="field"><label>Дата до / Pana la</label><input type="date" id="rptTo"></div>
+            <div class="field"><label>Склад / Depozit</label><select id="rptWarehouse"><option value="">Все / Toate</option></select></div>
+            <div class="field"><label>Продукт / Produs</label><select id="rptItem"><option value="">Все / Toate</option></select></div>
+        </div>
+        <div class="field-row">
+            <div class="field"><label>Тип отчёта / Tip raport</label>
+                <select id="rptType">
+                    <option value="stock">Остатки / Stoc curent</option>
+                    <option value="purchases">Закупки / Achizitii</option>
+                    <option value="sales">Продажи / Vanzari</option>
+                    <option value="mass_balance">Баланс массы / Bilant masa</option>
+                    <option value="expiry">Сроки годности / Termene expirare</option>
+                </select>
+            </div>
+            <div class="field" style="display:flex;align-items:flex-end;gap:8px;">
+                <button class="btn btn-primary" onclick="runReport()">Сформировать / Genereaza</button>
+                <button class="btn btn-ghost" onclick="exportReport('xlsx')">XLSX</button>
+                <button class="btn btn-ghost" onclick="exportReport('csv')">CSV</button>
+            </div>
+        </div>
+    </div>
+    <div class="card" id="reportResults" style="display:none;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <h3 id="reportTitle">Результаты</h3>
+            <span id="reportCount" style="font-size:13px;color:var(--text-muted);"></span>
+        </div>
+        <div class="table-wrap"><table id="reportTable"><thead id="reportHead"></thead><tbody id="reportBody"></tbody></table></div>
+    </div>
+</div>
+
+</main>
+
+</div><!-- /.main-layout -->
+
+<!-- ============================================================ -->
+<!-- MODALS                                                        -->
+<!-- ============================================================ -->
+
+<!-- Supplier Modal -->
+<div class="modal-overlay" id="modal-supplier">
+<div class="modal">
+    <h2 id="modal-supplier-title">Поставщик / Furnizor</h2>
+    <input type="hidden" id="supplier-id">
+    <div class="field-row">
+        <div class="field"><label>Код *</label><input type="text" id="supplier-code" placeholder="SUP001"></div>
+        <div class="field"><label>Название *</label><input type="text" id="supplier-name" placeholder="Наименование"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Страна</label><input type="text" id="supplier-country" placeholder="MD"></div>
+        <div class="field"><label>ИНН / IDNO</label><input type="text" id="supplier-tax_id"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Телефон</label><input type="text" id="supplier-contact_phone"></div>
+        <div class="field"><label>Email</label><input type="email" id="supplier-contact_email"></div>
+    </div>
+    <div class="field"><label>Адрес</label><input type="text" id="supplier-address"></div>
+    <div class="field"><label>Активен</label><select id="supplier-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('supplier')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveSupplier()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Customer Modal -->
+<div class="modal-overlay" id="modal-customer">
+<div class="modal">
+    <h2 id="modal-customer-title">Покупатель / Client</h2>
+    <input type="hidden" id="customer-id">
+    <div class="field-row">
+        <div class="field"><label>Код *</label><input type="text" id="customer-code" placeholder="CUS001"></div>
+        <div class="field"><label>Название *</label><input type="text" id="customer-name"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Тип</label>
+            <select id="customer-customer_type">
+                <option value="domestic">Внутренний / Intern</option>
+                <option value="export">Экспорт / Export</option>
+            </select>
+        </div>
+        <div class="field"><label>Страна</label><input type="text" id="customer-country" placeholder="MD"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>ИНН / IDNO</label><input type="text" id="customer-tax_id"></div>
+        <div class="field"><label>Телефон</label><input type="text" id="customer-contact_phone"></div>
+    </div>
+    <div class="field"><label>Email</label><input type="email" id="customer-contact_email"></div>
+    <div class="field"><label>Адрес</label><input type="text" id="customer-address"></div>
+    <div class="field"><label>Активен</label><select id="customer-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('customer')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveCustomer()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Warehouse Modal -->
+<div class="modal-overlay" id="modal-warehouse">
+<div class="modal">
+    <h2 id="modal-warehouse-title">Склад / Depozit</h2>
+    <input type="hidden" id="warehouse-id">
+    <div class="field-row">
+        <div class="field"><label>Код *</label><input type="text" id="warehouse-code" placeholder="WH01"></div>
+        <div class="field"><label>Название *</label><input type="text" id="warehouse-name"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Тип</label>
+            <select id="warehouse-warehouse_type">
+                <option value="cold_storage">Холодильник / Frigider</option>
+                <option value="dry_storage">Сухой / Uscat</option>
+                <option value="freezer">Морозильник / Congelator</option>
+                <option value="open">Открытый / Deschis</option>
+            </select>
+        </div>
+        <div class="field"><label>Вместимость, кг</label><input type="number" id="warehouse-capacity_kg" step="1" min="0"></div>
+    </div>
+    <div class="field"><label>Адрес</label><input type="text" id="warehouse-address"></div>
+    <div class="field"><label>Активен</label><select id="warehouse-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('warehouse')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveWarehouse()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Storage Cell Modal -->
+<div class="modal-overlay" id="modal-cell">
+<div class="modal">
+    <h2 id="modal-cell-title">Ячейка хранения / Celula</h2>
+    <input type="hidden" id="cell-id">
+    <div class="field"><label>Склад *</label><select id="cell-warehouse_id"></select></div>
+    <div class="field-row">
+        <div class="field"><label>Код *</label><input type="text" id="cell-code" placeholder="A-01"></div>
+        <div class="field"><label>Название</label><input type="text" id="cell-name"></div>
+    </div>
+    <div class="field"><label>Тип ячейки</label>
+        <select id="cell-cell_type">
+            <option value="chamber">Камера / Camera</option>
+            <option value="shelf">Полка / Raft</option>
+            <option value="pallet">Паллет / Palet</option>
+            <option value="zone">Зона / Zona</option>
+        </select>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>t min, C</label><input type="number" id="cell-temp_min" step="0.1"></div>
+        <div class="field"><label>t max, C</label><input type="number" id="cell-temp_max" step="0.1"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Влажность min, %</label><input type="number" id="cell-humidity_min" step="0.1" min="0" max="100"></div>
+        <div class="field"><label>Влажность max, %</label><input type="number" id="cell-humidity_max" step="0.1" min="0" max="100"></div>
+    </div>
+    <div class="field"><label>Вместимость, кг</label><input type="number" id="cell-capacity_kg" step="1" min="0"></div>
+    <div class="field"><label>Активна</label><select id="cell-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('cell')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveCell()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Item Modal -->
+<div class="modal-overlay" id="modal-item">
+<div class="modal">
+    <h2 id="modal-item-title">Продукция / Produs</h2>
+    <input type="hidden" id="item-id">
+    <div class="field"><label>Код *</label><input type="text" id="item-code" placeholder="APPLE01"></div>
+    <div class="field-row">
+        <div class="field"><label>Название (RU) *</label><input type="text" id="item-name_ru"></div>
+        <div class="field"><label>Название (RO)</label><input type="text" id="item-name_ro"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Группа</label>
+            <select id="item-item_group">
+                <option value="fruit">Фрукты / Fructe</option>
+                <option value="vegetable">Овощи / Legume</option>
+                <option value="grain">Зерно / Cereale</option>
+                <option value="nut">Орехи / Nuci</option>
+                <option value="berry">Ягоды / Fructe de padure</option>
+                <option value="other">Прочее / Altele</option>
+            </select>
+        </div>
+        <div class="field"><label>Ед. измерения</label><input type="text" id="item-unit" value="kg" placeholder="kg, buc, l"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Тара по умолч., кг</label><input type="number" id="item-default_tare_kg" step="0.01" min="0"></div>
+        <div class="field"><label>Срок хранения, дн.</label><input type="number" id="item-shelf_life_days" step="1" min="0"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Оптим. t min, C</label><input type="number" id="item-optimal_temp_min" step="0.1"></div>
+        <div class="field"><label>Оптим. t max, C</label><input type="number" id="item-optimal_temp_max" step="0.1"></div>
+    </div>
+    <div class="field"><label>Активен</label><select id="item-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('item')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveItem()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Packaging Type Modal -->
+<div class="modal-overlay" id="modal-packaging">
+<div class="modal">
+    <h2 id="modal-packaging-title">Тип тары / Tip ambalaj</h2>
+    <input type="hidden" id="packaging-id">
+    <div class="field"><label>Код *</label><input type="text" id="packaging-code" placeholder="BOX20"></div>
+    <div class="field-row">
+        <div class="field"><label>Название (RU) *</label><input type="text" id="packaging-name_ru"></div>
+        <div class="field"><label>Название (RO)</label><input type="text" id="packaging-name_ro"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Вес тары, кг</label><input type="number" id="packaging-tare_weight_kg" step="0.01" min="0"></div>
+        <div class="field"><label>Вместимость, кг</label><input type="number" id="packaging-capacity_kg" step="0.1" min="0"></div>
+    </div>
+    <div class="field"><label>Активен</label><select id="packaging-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('packaging')">Отмена</button>
+        <button class="btn btn-accent" onclick="savePackaging()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Vehicle Modal -->
+<div class="modal-overlay" id="modal-vehicle">
+<div class="modal">
+    <h2 id="modal-vehicle-title">Транспорт / Transport</h2>
+    <input type="hidden" id="vehicle-id">
+    <div class="field"><label>Гос. номер *</label><input type="text" id="vehicle-plate_number" placeholder="ABC 123"></div>
+    <div class="field"><label>Тип</label>
+        <select id="vehicle-vehicle_type">
+            <option value="truck">Грузовик / Camion</option>
+            <option value="van">Фургон / Furgon</option>
+            <option value="refrigerator">Рефрижератор / Frigorific</option>
+            <option value="trailer">Прицеп / Remorca</option>
+        </select>
+    </div>
+    <div class="field"><label>Водитель</label><input type="text" id="vehicle-driver_name"></div>
+    <div class="field"><label>Активен</label><select id="vehicle-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('vehicle')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveVehicle()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Currency Modal -->
+<div class="modal-overlay" id="modal-currency">
+<div class="modal">
+    <h2 id="modal-currency-title">Валюта / Valuta</h2>
+    <input type="hidden" id="currency-id">
+    <div class="field"><label>Код * (ISO)</label><input type="text" id="currency-code" placeholder="MDL" maxlength="3"></div>
+    <div class="field"><label>Название</label><input type="text" id="currency-name" placeholder="Лей молдавский"></div>
+    <div class="field"><label>Символ</label><input type="text" id="currency-symbol" placeholder="L" maxlength="5"></div>
+    <div class="field"><label>Активна</label><select id="currency-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('currency')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveCurrency()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Exchange Rate Modal -->
+<div class="modal-overlay" id="modal-rate">
+<div class="modal">
+    <h2 id="modal-rate-title">Курс валюты / Curs valutar</h2>
+    <input type="hidden" id="rate-id">
+    <div class="field-row">
+        <div class="field"><label>Из валюты *</label><input type="text" id="rate-from_currency" placeholder="USD" maxlength="3"></div>
+        <div class="field"><label>В валюту *</label><input type="text" id="rate-to_currency" placeholder="MDL" maxlength="3"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Курс *</label><input type="number" id="rate-rate" step="0.0001" min="0"></div>
+        <div class="field"><label>Дата *</label><input type="date" id="rate-rate_date"></div>
+    </div>
+    <div class="field"><label>Источник / Sursa</label><input type="text" id="rate-source" placeholder="BNM, manual"></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('rate')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveRate()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Formula Param Modal -->
+<div class="modal-overlay" id="modal-formula">
+<div class="modal">
+    <h2 id="modal-formula-title">Параметр формулы / Parametru formula</h2>
+    <input type="hidden" id="formula-id">
+    <div class="field"><label>Название параметра *</label><input type="text" id="formula-param_name" placeholder="loss_rate_percent"></div>
+    <div class="field"><label>Значение</label><input type="text" id="formula-param_value" placeholder="0.03"></div>
+    <div class="field"><label>ID продукта (пусто = глобальный)</label><input type="number" id="formula-item_id" step="1" min="1"></div>
+    <div class="field"><label>Активен</label><select id="formula-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('formula')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveFormula()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Module Config Modal -->
+<div class="modal-overlay" id="modal-mconfig">
+<div class="modal">
+    <h2 id="modal-mconfig-title">Конфигурация / Configurare</h2>
+    <input type="hidden" id="mconfig-id">
+    <div class="field"><label>Ключ *</label><input type="text" id="mconfig-config_key" placeholder="default_currency"></div>
+    <div class="field"><label>Значение</label><input type="text" id="mconfig-config_value"></div>
+    <div class="field"><label>Группа</label><input type="text" id="mconfig-config_group" placeholder="general"></div>
+    <div class="field"><label>Описание</label><textarea id="mconfig-description" rows="2"></textarea></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('mconfig')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveMconfig()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Variety Modal -->
+<div class="modal-overlay" id="modal-variety">
+<div class="modal">
+    <h2 id="modal-variety-title">Сорт / Soi</h2>
+    <input type="hidden" id="variety-id">
+    <div class="field"><label>Продукт *</label><select id="variety-item_id"></select></div>
+    <div class="field"><label>Код *</label><input type="text" id="variety-code" placeholder="GALA"></div>
+    <div class="field-row">
+        <div class="field"><label>Название (RU) *</label><input type="text" id="variety-name_ru"></div>
+        <div class="field"><label>Название (RO)</label><input type="text" id="variety-name_ro"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Калибр мин, мм</label><input type="number" id="variety-min_calibre_mm" step="1" min="0"></div>
+        <div class="field"><label>Brix мин</label><input type="number" id="variety-min_brix" step="0.1" min="0"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Срок хранения, дн.</label><input type="number" id="variety-shelf_life_days" step="1" min="0"></div>
+        <div class="field"><label>Окраска, %</label><input type="number" id="variety-color_coverage_pct" step="1" min="0" max="100"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Оптим. t min, C</label><input type="number" id="variety-optimal_temp_min" step="0.1"></div>
+        <div class="field"><label>Оптим. t max, C</label><input type="number" id="variety-optimal_temp_max" step="0.1"></div>
+    </div>
+    <div class="field"><label>Активен</label><select id="variety-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('variety')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveVariety()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Acceptance Profile Modal -->
+<div class="modal-overlay" id="modal-profile">
+<div class="modal" style="max-width:680px;">
+    <h2 id="modal-profile-title">Профиль приёмки / Profil receptie</h2>
+    <input type="hidden" id="profile-id">
+    <div class="field-row">
+        <div class="field"><label>Код *</label><input type="text" id="profile-code" placeholder="KAUFLAND_DEFAULT"></div>
+        <div class="field"><label>Название (RU) *</label><input type="text" id="profile-name_ru"></div>
+    </div>
+    <div class="field"><label>Название (RO)</label><input type="text" id="profile-name_ro"></div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Качество / Calitate</h3>
+    <div class="field-row">
+        <div class="field"><label>Треб. класс</label>
+            <select id="profile-required_class">
+                <option value="Extra">Extra</option>
+                <option value="I" selected>I</option>
+                <option value="II">II</option>
+            </select>
+        </div>
+        <div class="field"><label>Допустить класс II</label><select id="profile-allow_class_ii"><option value="N">Нет</option><option value="Y">Да</option></select></div>
+    </div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Калибровка / Calibrare</h3>
+    <div class="field-row">
+        <div class="field"><label>Калибр мин, мм</label><input type="number" id="profile-min_calibre_mm" step="1" min="0"></div>
+        <div class="field"><label>Макс. ниже мин, %</label><input type="number" id="profile-max_below_min_pct" step="0.1" min="0" max="100"></div>
+        <div class="field"><label>Макс. разнокалибр, %</label><input type="number" id="profile-max_mixed_size_pct" step="0.1" min="0" max="100"></div>
+    </div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Дефекты / Defecte</h3>
+    <div class="field-row">
+        <div class="field"><label>Незначит. макс, %</label><input type="number" id="profile-max_minor_defects_pct" step="0.1" min="0" max="100"></div>
+        <div class="field"><label>Серьёзные макс, %</label><input type="number" id="profile-max_serious_defects_pct" step="0.1" min="0" max="100"></div>
+    </div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Зрелость и температура / Maturitate si temperatura</h3>
+    <div class="field-row">
+        <div class="field"><label>Brix мин</label><input type="number" id="profile-min_brix" step="0.1" min="0"></div>
+        <div class="field"><label>t мин, C</label><input type="number" id="profile-temp_min_c" step="0.1"></div>
+        <div class="field"><label>t макс, C</label><input type="number" id="profile-temp_max_c" step="0.1"></div>
+    </div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Документы / Documente</h3>
+    <div class="field-row">
+        <div class="field"><label>Лаборатория</label><select id="profile-lab_req"><option value="Y">Да</option><option value="N">Нет</option></select></div>
+        <div class="field"><label>Фитосанитарный</label><select id="profile-phyto_req"><option value="Y">Да</option><option value="N">Нет</option></select></div>
+        <div class="field"><label>Трассируемость</label><select id="profile-trace_req"><option value="Y">Да</option><option value="N">Нет</option></select></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Упаковка</label><select id="profile-pack_req"><option value="Y">Да</option><option value="N">Нет</option></select></div>
+        <div class="field"><label>Маркировка</label><select id="profile-label_req"><option value="Y">Да</option><option value="N">Нет</option></select></div>
+    </div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Пестициды / Pesticide</h3>
+    <div class="field-row">
+        <div class="field"><label>Макс. в.в.</label><input type="number" id="profile-max_actives" step="1" min="0"></div>
+        <div class="field"><label>Одно в.в. % MRL</label><input type="number" id="profile-max_single_residue_pct_mrl" step="0.1" min="0"></div>
+    </div>
+    <div class="field-row">
+        <div class="field"><label>Сумма % MRL</label><input type="number" id="profile-max_total_residue_pct" step="0.1" min="0"></div>
+        <div class="field"><label>Глифосат % MRL</label><input type="number" id="profile-max_glyphosate_pct_mrl" step="0.1" min="0"></div>
+    </div>
+
+    <h3 style="margin:14px 0 6px;font-size:13px;color:var(--text-muted);text-transform:uppercase;">Скоринг / Scor</h3>
+    <div class="field-row">
+        <div class="field"><label>Мин. балл приёмки</label><input type="number" id="profile-accept_min_score" step="1" min="0" max="100" value="85"></div>
+        <div class="field"><label>Активен</label><select id="profile-active"><option value="Y">Да / Da</option><option value="N">Нет / Nu</option></select></div>
+    </div>
+
+    <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('profile')">Отмена</button>
+        <button class="btn btn-accent" onclick="saveProfile()">Сохранить</button>
+    </div>
+</div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<!-- ============================================================ -->
+<!-- JAVASCRIPT                                                    -->
+<!-- ============================================================ -->
+<script>
+const API = '/api/agro-admin';
+
+/* ---------- Utility ---------- */
+function esc(s) {
+    if (s == null) return '';
+    const d = document.createElement('div');
+    d.textContent = String(s);
+    return d.innerHTML;
+}
+
+function showToast(msg, type) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast ' + (type === 'error' ? 'toast-error' : 'toast-success') + ' show';
+    clearTimeout(el._tid);
+    el._tid = setTimeout(() => el.classList.remove('show'), 3500);
+}
+
+function activeBadge(v) {
+    return v === 'Y'
+        ? '<span class="badge badge-active">Да</span>'
+        : '<span class="badge badge-inactive">Нет</span>';
+}
+
+function numFmt(v) {
+    if (v == null || v === '') return '';
+    return Number(v).toLocaleString('ru-RU');
+}
+
+function dateFmt(v) {
+    if (!v) return '';
+    return String(v).slice(0, 10);
+}
+
+/* ---------- Modal open/close ---------- */
+function openModal(entity, id) {
+    const el = document.getElementById('modal-' + entity);
+    if (!el) return;
+    el.classList.add('open');
+}
+
+function closeModal(entity) {
+    const el = document.getElementById('modal-' + entity);
+    if (el) el.classList.remove('open');
+}
+
+function getField(entity, field) {
+    return document.getElementById(entity + '-' + field);
+}
+function getVal(entity, field) {
+    const el = getField(entity, field);
+    return el ? el.value.trim() : '';
+}
+function setVal(entity, field, val) {
+    const el = getField(entity, field);
+    if (el) el.value = (val != null) ? val : '';
+}
+function clearForm(entity, fields) {
+    fields.forEach(f => setVal(entity, f, ''));
+}
+
+/* ---------- Sort state ---------- */
+const sortState = {};
+
+function sortTable(page, col) {
+    const key = page + '.' + col;
+    sortState[key] = sortState[key] === 'asc' ? 'desc' : 'asc';
+    const dir = sortState[key];
+    const data = cachedData[page];
+    if (!data) return;
+    data.sort((a, b) => {
+        let va = a[col], vb = b[col];
+        if (va == null) va = '';
+        if (vb == null) vb = '';
+        if (typeof va === 'number' && typeof vb === 'number') return dir === 'asc' ? va - vb : vb - va;
+        va = String(va).toLowerCase();
+        vb = String(vb).toLowerCase();
+        return dir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    });
+    renderFns[page](data);
+}
+
+/* ---------- Data cache for sorting ---------- */
+const cachedData = {};
+
+/* ---------- Generic fetch ---------- */
+async function apiFetch(path) {
+    const r = await fetch(API + path, { headers: { 'Content-Type': 'application/json' } });
+    return await r.json();
+}
+
+async function apiPost(path, data) {
+    const r = await fetch(API + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+    return await r.json();
+}
+
+async function apiDelete(path) {
+    const r = await fetch(API + path, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
+    return await r.json();
+}
+
+/* ================================================================
+   1. SUPPLIERS
+   ================================================================ */
+async function loadSuppliers() {
+    const j = await apiFetch('/suppliers');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.suppliers = j.data || [];
+    document.getElementById('suppliersCount').textContent = 'Всего: ' + cachedData.suppliers.length;
+    renderSuppliers(cachedData.suppliers);
+}
+function renderSuppliers(rows) {
+    document.getElementById('suppliersTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(r.country)}</td>
+        <td>${esc(r.tax_id)}</td><td>${esc(r.contact_phone)}</td><td>${esc(r.contact_email)}</td>
+        <td>${esc(r.address)}</td><td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editSupplier(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteSupplier(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="9">Нет данных</td></tr>';
+}
+function editSupplier(id) {
+    const r = cachedData.suppliers.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-supplier-title').textContent = 'Редактировать поставщика';
+    setVal('supplier','id', r.id);
+    ['code','name','country','tax_id','contact_phone','contact_email','address','active'].forEach(f => setVal('supplier', f, r[f]));
+    openModal('supplier', id);
+}
+async function deleteSupplier(id) {
+    if (!confirm('Удалить поставщика?')) return;
+    const j = await apiDelete('/suppliers/' + id);
+    if (j.success) { showToast('Удалено'); loadSuppliers(); } else showToast(j.error, 'error');
+}
+async function saveSupplier() {
+    const data = {};
+    ['code','name','country','tax_id','contact_phone','contact_email','address','active'].forEach(f => data[f] = getVal('supplier', f));
+    const idVal = getVal('supplier','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/suppliers', data);
+    if (j.success) { closeModal('supplier'); showToast('Сохранено'); loadSuppliers(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   2. CUSTOMERS
+   ================================================================ */
+async function loadCustomers() {
+    const j = await apiFetch('/customers');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.customers = j.data || [];
+    document.getElementById('customersCount').textContent = 'Всего: ' + cachedData.customers.length;
+    renderCustomers(cachedData.customers);
+}
+function renderCustomers(rows) {
+    document.getElementById('customersTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(r.customer_type)}</td>
+        <td>${esc(r.country)}</td><td>${esc(r.tax_id)}</td><td>${esc(r.contact_phone)}</td>
+        <td>${esc(r.contact_email)}</td><td>${esc(r.address)}</td><td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editCustomer(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteCustomer(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="10">Нет данных</td></tr>';
+}
+function editCustomer(id) {
+    const r = cachedData.customers.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-customer-title').textContent = 'Редактировать покупателя';
+    setVal('customer','id', r.id);
+    ['code','name','customer_type','country','tax_id','contact_phone','contact_email','address','active'].forEach(f => setVal('customer', f, r[f]));
+    openModal('customer', id);
+}
+async function deleteCustomer(id) {
+    if (!confirm('Удалить покупателя?')) return;
+    const j = await apiDelete('/customers/' + id);
+    if (j.success) { showToast('Удалено'); loadCustomers(); } else showToast(j.error, 'error');
+}
+async function saveCustomer() {
+    const data = {};
+    ['code','name','customer_type','country','tax_id','contact_phone','contact_email','address','active'].forEach(f => data[f] = getVal('customer', f));
+    const idVal = getVal('customer','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/customers', data);
+    if (j.success) { closeModal('customer'); showToast('Сохранено'); loadCustomers(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   3. WAREHOUSES
+   ================================================================ */
+let warehousesList = [];
+
+async function loadWarehouses() {
+    const j = await apiFetch('/warehouses');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.warehouses = j.data || [];
+    warehousesList = cachedData.warehouses;
+    document.getElementById('warehousesCount').textContent = 'Всего: ' + cachedData.warehouses.length;
+    renderWarehouses(cachedData.warehouses);
+}
+function renderWarehouses(rows) {
+    const typeLabels = { cold_storage: 'Холодильник', dry_storage: 'Сухой', freezer: 'Морозильник', open: 'Открытый' };
+    document.getElementById('warehousesTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(typeLabels[r.warehouse_type] || r.warehouse_type)}</td>
+        <td>${esc(r.address)}</td><td>${numFmt(r.capacity_kg)}</td><td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editWarehouse(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteWarehouse(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="7">Нет данных</td></tr>';
+}
+function editWarehouse(id) {
+    const r = cachedData.warehouses.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-warehouse-title').textContent = 'Редактировать склад';
+    setVal('warehouse','id', r.id);
+    ['code','name','warehouse_type','address','capacity_kg','active'].forEach(f => setVal('warehouse', f, r[f]));
+    openModal('warehouse', id);
+}
+async function deleteWarehouse(id) {
+    if (!confirm('Удалить склад?')) return;
+    const j = await apiDelete('/warehouses/' + id);
+    if (j.success) { showToast('Удалено'); loadWarehouses(); } else showToast(j.error, 'error');
+}
+async function saveWarehouse() {
+    const data = {};
+    ['code','name','warehouse_type','address','active'].forEach(f => data[f] = getVal('warehouse', f));
+    data.capacity_kg = parseFloat(getVal('warehouse','capacity_kg')) || null;
+    const idVal = getVal('warehouse','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/warehouses', data);
+    if (j.success) { closeModal('warehouse'); showToast('Сохранено'); loadWarehouses(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   4. STORAGE CELLS
+   ================================================================ */
+async function loadCells() {
+    const whId = document.getElementById('cellsFilterWarehouse').value;
+    let path = '/storage-cells';
+    if (whId) path += '?warehouse_id=' + whId;
+    const j = await apiFetch(path);
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.cells = j.data || [];
+    document.getElementById('cellsCount').textContent = 'Всего: ' + cachedData.cells.length;
+    renderCells(cachedData.cells);
+}
+function renderCells(rows) {
+    const whMap = {};
+    warehousesList.forEach(w => whMap[w.id] = w.name);
+    const typeLabels = { chamber: 'Камера', shelf: 'Полка', pallet: 'Паллет', zone: 'Зона' };
+    document.getElementById('cellsTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(whMap[r.warehouse_id] || r.warehouse_id)}</td>
+        <td>${esc(typeLabels[r.cell_type] || r.cell_type)}</td>
+        <td>${r.temp_min != null ? r.temp_min : ''}</td><td>${r.temp_max != null ? r.temp_max : ''}</td>
+        <td>${r.humidity_min != null ? r.humidity_min : ''}</td><td>${r.humidity_max != null ? r.humidity_max : ''}</td>
+        <td>${numFmt(r.capacity_kg)}</td><td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editCell(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteCell(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="11">Нет данных</td></tr>';
+}
+function populateCellWarehouseSelects() {
+    const opts = '<option value="">-- выберите --</option>' + warehousesList.map(w =>
+        `<option value="${w.id}">${esc(w.name)} (${esc(w.code)})</option>`
+    ).join('');
+    document.getElementById('cell-warehouse_id').innerHTML = opts;
+    const filterSel = document.getElementById('cellsFilterWarehouse');
+    filterSel.innerHTML = '<option value="">Все</option>' + warehousesList.map(w =>
+        `<option value="${w.id}">${esc(w.name)}</option>`
+    ).join('');
+}
+function editCell(id) {
+    const r = cachedData.cells.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-cell-title').textContent = 'Редактировать ячейку';
+    populateCellWarehouseSelects();
+    setVal('cell','id', r.id);
+    ['warehouse_id','code','name','cell_type','temp_min','temp_max','humidity_min','humidity_max','capacity_kg','active'].forEach(f => setVal('cell', f, r[f]));
+    openModal('cell', id);
+}
+async function deleteCell(id) {
+    if (!confirm('Удалить ячейку?')) return;
+    const j = await apiDelete('/storage-cells/' + id);
+    if (j.success) { showToast('Удалено'); loadCells(); } else showToast(j.error, 'error');
+}
+async function saveCell() {
+    const data = {};
+    ['code','name','cell_type','active'].forEach(f => data[f] = getVal('cell', f));
+    data.warehouse_id = parseInt(getVal('cell','warehouse_id')) || null;
+    ['temp_min','temp_max','humidity_min','humidity_max','capacity_kg'].forEach(f => {
+        const v = getVal('cell', f);
+        data[f] = v !== '' ? parseFloat(v) : null;
+    });
+    const idVal = getVal('cell','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/storage-cells', data);
+    if (j.success) { closeModal('cell'); showToast('Сохранено'); loadCells(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   5. ITEMS
+   ================================================================ */
+async function loadItems() {
+    const j = await apiFetch('/items');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.items = j.data || [];
+    document.getElementById('itemsCount').textContent = 'Всего: ' + cachedData.items.length;
+    renderItems(cachedData.items);
+}
+function renderItems(rows) {
+    const groupLabels = { fruit: 'Фрукты', vegetable: 'Овощи', grain: 'Зерно', nut: 'Орехи', berry: 'Ягоды', other: 'Прочее' };
+    document.getElementById('itemsTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name_ru)}</td><td>${esc(r.name_ro)}</td>
+        <td>${esc(groupLabels[r.item_group] || r.item_group)}</td><td>${esc(r.unit)}</td>
+        <td>${numFmt(r.default_tare_kg)}</td><td>${r.shelf_life_days || ''}</td>
+        <td>${r.optimal_temp_min != null ? r.optimal_temp_min : ''}</td>
+        <td>${r.optimal_temp_max != null ? r.optimal_temp_max : ''}</td>
+        <td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editItem(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteItem(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="11">Нет данных</td></tr>';
+}
+function editItem(id) {
+    const r = cachedData.items.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-item-title').textContent = 'Редактировать продукцию';
+    setVal('item','id', r.id);
+    ['code','name_ru','name_ro','item_group','unit','default_tare_kg','shelf_life_days','optimal_temp_min','optimal_temp_max','active'].forEach(f => setVal('item', f, r[f]));
+    openModal('item', id);
+}
+async function deleteItem(id) {
+    if (!confirm('Удалить продукцию?')) return;
+    const j = await apiDelete('/items/' + id);
+    if (j.success) { showToast('Удалено'); loadItems(); } else showToast(j.error, 'error');
+}
+async function saveItem() {
+    const data = {};
+    ['code','name_ru','name_ro','item_group','unit','active'].forEach(f => data[f] = getVal('item', f));
+    ['default_tare_kg','shelf_life_days','optimal_temp_min','optimal_temp_max'].forEach(f => {
+        const v = getVal('item', f);
+        data[f] = v !== '' ? parseFloat(v) : null;
+    });
+    const idVal = getVal('item','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/items', data);
+    if (j.success) { closeModal('item'); showToast('Сохранено'); loadItems(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   6. PACKAGING TYPES
+   ================================================================ */
+async function loadPackaging() {
+    const j = await apiFetch('/packaging-types');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.packaging = j.data || [];
+    document.getElementById('packagingCount').textContent = 'Всего: ' + cachedData.packaging.length;
+    renderPackaging(cachedData.packaging);
+}
+function renderPackaging(rows) {
+    document.getElementById('packagingTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name_ru)}</td><td>${esc(r.name_ro)}</td>
+        <td>${numFmt(r.tare_weight_kg)}</td><td>${numFmt(r.capacity_kg)}</td>
+        <td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editPackaging(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deletePackaging(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="7">Нет данных</td></tr>';
+}
+function editPackaging(id) {
+    const r = cachedData.packaging.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-packaging-title').textContent = 'Редактировать тип тары';
+    setVal('packaging','id', r.id);
+    ['code','name_ru','name_ro','tare_weight_kg','capacity_kg','active'].forEach(f => setVal('packaging', f, r[f]));
+    openModal('packaging', id);
+}
+async function deletePackaging(id) {
+    if (!confirm('Удалить тип тары?')) return;
+    const j = await apiDelete('/packaging-types/' + id);
+    if (j.success) { showToast('Удалено'); loadPackaging(); } else showToast(j.error, 'error');
+}
+async function savePackaging() {
+    const data = {};
+    ['code','name_ru','name_ro','active'].forEach(f => data[f] = getVal('packaging', f));
+    ['tare_weight_kg','capacity_kg'].forEach(f => {
+        const v = getVal('packaging', f);
+        data[f] = v !== '' ? parseFloat(v) : null;
+    });
+    const idVal = getVal('packaging','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/packaging-types', data);
+    if (j.success) { closeModal('packaging'); showToast('Сохранено'); loadPackaging(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   7. VEHICLES
+   ================================================================ */
+async function loadVehicles() {
+    const j = await apiFetch('/vehicles');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.vehicles = j.data || [];
+    document.getElementById('vehiclesCount').textContent = 'Всего: ' + cachedData.vehicles.length;
+    renderVehicles(cachedData.vehicles);
+}
+function renderVehicles(rows) {
+    const typeLabels = { truck: 'Грузовик', van: 'Фургон', refrigerator: 'Рефрижератор', trailer: 'Прицеп' };
+    document.getElementById('vehiclesTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.plate_number)}</td><td>${esc(typeLabels[r.vehicle_type] || r.vehicle_type)}</td>
+        <td>${esc(r.driver_name)}</td><td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editVehicle(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteVehicle(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="5">Нет данных</td></tr>';
+}
+function editVehicle(id) {
+    const r = cachedData.vehicles.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-vehicle-title').textContent = 'Редактировать транспорт';
+    setVal('vehicle','id', r.id);
+    ['plate_number','vehicle_type','driver_name','active'].forEach(f => setVal('vehicle', f, r[f]));
+    openModal('vehicle', id);
+}
+async function deleteVehicle(id) {
+    if (!confirm('Удалить транспорт?')) return;
+    const j = await apiDelete('/vehicles/' + id);
+    if (j.success) { showToast('Удалено'); loadVehicles(); } else showToast(j.error, 'error');
+}
+async function saveVehicle() {
+    const data = {};
+    ['plate_number','vehicle_type','driver_name','active'].forEach(f => data[f] = getVal('vehicle', f));
+    const idVal = getVal('vehicle','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/vehicles', data);
+    if (j.success) { closeModal('vehicle'); showToast('Сохранено'); loadVehicles(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   8. CURRENCIES
+   ================================================================ */
+async function loadCurrencies() {
+    const j = await apiFetch('/currencies');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.currencies = j.data || [];
+    document.getElementById('currenciesCount').textContent = 'Всего: ' + cachedData.currencies.length;
+    renderCurrencies(cachedData.currencies);
+}
+function renderCurrencies(rows) {
+    document.getElementById('currenciesTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td><td>${esc(r.name)}</td><td>${esc(r.symbol)}</td>
+        <td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editCurrency(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteCurrency(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="5">Нет данных</td></tr>';
+}
+function editCurrency(id) {
+    const r = cachedData.currencies.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-currency-title').textContent = 'Редактировать валюту';
+    setVal('currency','id', r.id);
+    ['code','name','symbol','active'].forEach(f => setVal('currency', f, r[f]));
+    openModal('currency', id);
+}
+async function deleteCurrency(id) {
+    if (!confirm('Удалить валюту?')) return;
+    const j = await apiDelete('/currencies/' + id);
+    if (j.success) { showToast('Удалено'); loadCurrencies(); } else showToast(j.error, 'error');
+}
+async function saveCurrency() {
+    const data = {};
+    ['code','name','symbol','active'].forEach(f => data[f] = getVal('currency', f));
+    const idVal = getVal('currency','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/currencies', data);
+    if (j.success) { closeModal('currency'); showToast('Сохранено'); loadCurrencies(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   9. EXCHANGE RATES
+   ================================================================ */
+async function loadRates() {
+    const j = await apiFetch('/exchange-rates');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.rates = j.data || [];
+    document.getElementById('ratesCount').textContent = 'Всего: ' + cachedData.rates.length;
+    renderRates(cachedData.rates);
+}
+function renderRates(rows) {
+    document.getElementById('ratesTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.from_currency)}</td><td>${esc(r.to_currency)}</td>
+        <td>${r.rate}</td><td>${dateFmt(r.rate_date)}</td><td>${esc(r.source)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editRate(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteRate(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="6">Нет данных</td></tr>';
+}
+function editRate(id) {
+    const r = cachedData.rates.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-rate-title').textContent = 'Редактировать курс';
+    setVal('rate','id', r.id);
+    setVal('rate','from_currency', r.from_currency);
+    setVal('rate','to_currency', r.to_currency);
+    setVal('rate','rate', r.rate);
+    setVal('rate','rate_date', dateFmt(r.rate_date));
+    setVal('rate','source', r.source);
+    openModal('rate', id);
+}
+async function deleteRate(id) {
+    if (!confirm('Удалить курс?')) return;
+    const j = await apiDelete('/exchange-rates/' + id);
+    if (j.success) { showToast('Удалено'); loadRates(); } else showToast(j.error, 'error');
+}
+async function saveRate() {
+    const data = {
+        from_currency: getVal('rate','from_currency'),
+        to_currency: getVal('rate','to_currency'),
+        rate: parseFloat(getVal('rate','rate')) || 0,
+        rate_date: getVal('rate','rate_date'),
+        source: getVal('rate','source') || null
+    };
+    const idVal = getVal('rate','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/exchange-rates', data);
+    if (j.success) { closeModal('rate'); showToast('Сохранено'); loadRates(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   10. FORMULA PARAMS
+   ================================================================ */
+async function loadFormulas() {
+    const j = await apiFetch('/formula-params');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.formulas = j.data || [];
+    document.getElementById('formulasCount').textContent = 'Всего: ' + cachedData.formulas.length;
+    renderFormulas(cachedData.formulas);
+}
+function renderFormulas(rows) {
+    document.getElementById('formulasTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.param_name)}</td><td>${esc(r.param_value)}</td>
+        <td>${r.item_id || '<span style="color:#94a3b8">глоб.</span>'}</td>
+        <td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editFormula(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteFormula(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="5">Нет данных</td></tr>';
+}
+function editFormula(id) {
+    const r = cachedData.formulas.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-formula-title').textContent = 'Редактировать параметр';
+    setVal('formula','id', r.id);
+    setVal('formula','param_name', r.param_name);
+    setVal('formula','param_value', r.param_value);
+    setVal('formula','item_id', r.item_id);
+    setVal('formula','active', r.active);
+    openModal('formula', id);
+}
+async function deleteFormula(id) {
+    if (!confirm('Удалить параметр?')) return;
+    const j = await apiDelete('/formula-params/' + id);
+    if (j.success) { showToast('Удалено'); loadFormulas(); } else showToast(j.error, 'error');
+}
+async function saveFormula() {
+    const data = {
+        param_name: getVal('formula','param_name'),
+        param_value: getVal('formula','param_value') || null,
+        item_id: parseInt(getVal('formula','item_id')) || null,
+        active: getVal('formula','active')
+    };
+    const idVal = getVal('formula','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/formula-params', data);
+    if (j.success) { closeModal('formula'); showToast('Сохранено'); loadFormulas(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   11. MODULE CONFIG
+   ================================================================ */
+async function loadConfig() {
+    const j = await apiFetch('/module-config');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.config = j.data || [];
+    document.getElementById('configCount').textContent = 'Всего: ' + cachedData.config.length;
+    renderConfig(cachedData.config);
+}
+function renderConfig(rows) {
+    document.getElementById('configTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.config_key)}</td><td>${esc(r.config_value)}</td>
+        <td>${esc(r.config_group)}</td><td>${esc(r.description)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editMconfig(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteMconfig(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="5">Нет данных</td></tr>';
+}
+function editMconfig(id) {
+    const r = cachedData.config.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-mconfig-title').textContent = 'Редактировать конфигурацию';
+    setVal('mconfig','id', r.id);
+    setVal('mconfig','config_key', r.config_key);
+    setVal('mconfig','config_value', r.config_value);
+    setVal('mconfig','config_group', r.config_group);
+    setVal('mconfig','description', r.description);
+    openModal('mconfig', id);
+}
+async function deleteMconfig(id) {
+    if (!confirm('Удалить параметр конфигурации?')) return;
+    const j = await apiDelete('/module-config/' + id);
+    if (j.success) { showToast('Удалено'); loadConfig(); } else showToast(j.error, 'error');
+}
+async function saveMconfig() {
+    const data = {
+        config_key: getVal('mconfig','config_key'),
+        config_value: getVal('mconfig','config_value') || null,
+        config_group: getVal('mconfig','config_group') || null,
+        description: getVal('mconfig','description') || null
+    };
+    const idVal = getVal('mconfig','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/module-config', data);
+    if (j.success) { closeModal('mconfig'); showToast('Сохранено'); loadConfig(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   12. SCALE DRIVERS (stored in module-config with group='scale_driver')
+   ================================================================ */
+cachedData.scaleDrivers = [];
+
+async function loadScaleDrivers() {
+    const j = await apiFetch('/module-config');
+    if (!j.success) return;
+    cachedData.scaleDrivers = (j.data || []).filter(r => r.config_group === 'scale_driver');
+    // Auto-seed emulator driver if no drivers exist
+    if (cachedData.scaleDrivers.length === 0) {
+        await seedEmulatorDriver();
+        return; // seedEmulatorDriver will call loadScaleDrivers again
+    }
+    document.getElementById('scaleDriverCount').textContent = 'Драйверов: ' + cachedData.scaleDrivers.length;
+    renderScaleDrivers(cachedData.scaleDrivers);
+}
+
+async function seedEmulatorDriver() {
+    const cfg = {
+        brand: 'Emulator', protocol: 'Virtual', port: '—',
+        baudrate: '9600', dataformat: '8N1',
+        max_capacity: 600, resolution: 0.02,
+        settle_time: 2.0, emu_interval: 10000, active: true
+    };
+    await apiPost('/module-config', {
+        config_key: 'scale_emulator',
+        config_value: JSON.stringify(cfg),
+        config_group: 'scale_driver',
+        description: 'Emulator — Virtual (авто-создан)'
+    });
+    showToast('Создан эмулятор весов по умолчанию');
+    await loadScaleDrivers();
+}
+
+function renderScaleDrivers(rows) {
+    document.getElementById('scaleDriverTable').innerHTML = rows.length ? rows.map(r => {
+        let cfg = {};
+        try { cfg = JSON.parse(r.config_value || '{}'); } catch(e) {}
+        let statusHtml = cfg.active !== false
+            ? '<span style="color:#53d769;">● Активен</span>'
+            : '<span style="color:#888;">● Выкл</span>';
+        return `<tr>
+            <td>${esc(r.config_key)}</td>
+            <td><b>${esc(cfg.brand || '—')}</b></td>
+            <td>${esc(cfg.protocol || '—')} ${cfg.baudrate ? cfg.baudrate + ',' + (cfg.dataformat||'8N1') : ''}</td>
+            <td>${esc(cfg.port || '—')}</td>
+            <td>${cfg.max_capacity || 600} kg</td>
+            <td>${cfg.resolution || 0.02} kg</td>
+            <td>${statusHtml}</td>
+            <td class="actions">
+                <button class="btn-icon" onclick="editScaleDriver(${r.id})">&#9998;</button>
+                <button class="btn-icon btn-danger" onclick="deleteScaleDriver(${r.id})">&#10005;</button>
+            </td></tr>`;
+    }).join('') : '<tr class="empty-row"><td colspan="8">Нет драйверов. Добавьте первый.</td></tr>';
+}
+
+// Brand presets for auto-filling protocol params
+const scaleBrandPresets = {
+    'Alex SE': { protocol: 'RS232', baudrate: '9600', dataformat: '8N1', max_capacity: 600, resolution: 0.02 },
+    'CAS DB-II': { protocol: 'RS232', baudrate: '9600', dataformat: '8N1', max_capacity: 600, resolution: 0.02 },
+    'CAS CI-200': { protocol: 'RS232', baudrate: '9600', dataformat: '8N1', max_capacity: 200, resolution: 0.01 },
+    'Jadever JWI-700': { protocol: 'RS232', baudrate: '9600', dataformat: '8N1', max_capacity: 600, resolution: 0.05 },
+    'DIGI SM5300': { protocol: 'RS232', baudrate: '9600', dataformat: '8E1', max_capacity: 6000, resolution: 0.5 },
+    'Massa-K ВПН': { protocol: 'RS232', baudrate: '9600', dataformat: '8N1', max_capacity: 600, resolution: 0.02 },
+    'Massa-K ТВ': { protocol: 'RS232', baudrate: '9600', dataformat: '8N1', max_capacity: 300, resolution: 0.01 },
+    'Emulator': { protocol: 'Virtual', baudrate: '9600', dataformat: '8N1', max_capacity: 600, resolution: 0.02 }
+};
+window.onScaleBrandChange = function() {
+    const brand = document.getElementById('sd_brand').value;
+    const preset = scaleBrandPresets[brand];
+    if (preset) {
+        document.getElementById('sd_protocol').value = preset.protocol;
+        document.getElementById('sd_baudrate').value = preset.baudrate;
+        document.getElementById('sd_dataformat').value = preset.dataformat;
+        document.getElementById('sd_max_capacity').value = preset.max_capacity;
+        document.getElementById('sd_resolution').value = preset.resolution;
+        if (brand === 'Emulator') document.getElementById('sd_port').value = '—';
+    }
+};
+
+function editScaleDriver(id) {
+    const r = cachedData.scaleDrivers.find(x => x.id === id);
+    if (!r) return;
+    let cfg = {};
+    try { cfg = JSON.parse(r.config_value || '{}'); } catch(e) {}
+    document.getElementById('scaleDriverModalTitle').textContent = 'Редактировать драйвер';
+    document.getElementById('sd_id').value = r.id;
+    document.getElementById('sd_name').value = r.config_key;
+    document.getElementById('sd_brand').value = cfg.brand || '';
+    document.getElementById('sd_protocol').value = cfg.protocol || 'RS232';
+    document.getElementById('sd_port').value = cfg.port || '';
+    document.getElementById('sd_baudrate').value = cfg.baudrate || '9600';
+    document.getElementById('sd_dataformat').value = cfg.dataformat || '8N1';
+    document.getElementById('sd_max_capacity').value = cfg.max_capacity || 600;
+    document.getElementById('sd_resolution').value = cfg.resolution || 0.02;
+    document.getElementById('sd_settle_time').value = cfg.settle_time || 2.0;
+    document.getElementById('sd_emu_interval').value = cfg.emu_interval || 3000;
+    document.getElementById('sd_active').checked = cfg.active !== false;
+    openModal('scale-driver', id);
+}
+window.editScaleDriver = editScaleDriver;
+
+async function deleteScaleDriver(id) {
+    if (!confirm('Удалить драйвер весов?')) return;
+    const j = await apiDelete('/module-config/' + id);
+    if (j.success) { showToast('Удалено'); loadScaleDrivers(); } else showToast(j.error, 'error');
+}
+window.deleteScaleDriver = deleteScaleDriver;
+
+async function saveScaleDriver() {
+    const cfg = {
+        brand: document.getElementById('sd_brand').value,
+        protocol: document.getElementById('sd_protocol').value,
+        port: document.getElementById('sd_port').value,
+        baudrate: document.getElementById('sd_baudrate').value,
+        dataformat: document.getElementById('sd_dataformat').value,
+        max_capacity: parseFloat(document.getElementById('sd_max_capacity').value) || 600,
+        resolution: parseFloat(document.getElementById('sd_resolution').value) || 0.02,
+        settle_time: parseFloat(document.getElementById('sd_settle_time').value) || 2.0,
+        emu_interval: parseInt(document.getElementById('sd_emu_interval').value) || 3000,
+        active: document.getElementById('sd_active').checked
+    };
+    const data = {
+        config_key: document.getElementById('sd_name').value,
+        config_value: JSON.stringify(cfg),
+        config_group: 'scale_driver',
+        description: cfg.brand + ' — ' + cfg.protocol + ' ' + cfg.port
+    };
+    const idVal = document.getElementById('sd_id').value;
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/module-config', data);
+    if (j.success) { closeModal('scale-driver'); showToast('Драйвер сохранён'); loadScaleDrivers(); } else showToast(j.error, 'error');
+}
+window.saveScaleDriver = saveScaleDriver;
+
+/* ================================================================
+   5a. ITEM VARIETIES
+   ================================================================ */
+let itemsList = [];
+
+async function loadVarieties() {
+    if (!itemsList.length) {
+        const ij = await apiFetch('/items');
+        if (ij.success) itemsList = ij.data || [];
+        populateVarietyItemSelects();
+    }
+    const filterItem = document.getElementById('varietyFilterItem').value;
+    const params = filterItem ? '?item_id=' + filterItem : '';
+    const j = await apiFetch('/item-varieties' + params);
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.varieties = j.data || [];
+    document.getElementById('varietiesCount').textContent = 'Всего: ' + cachedData.varieties.length;
+    renderVarieties(cachedData.varieties);
+}
+function populateVarietyItemSelects() {
+    const filterSel = document.getElementById('varietyFilterItem');
+    if (filterSel && filterSel.options.length <= 1) {
+        itemsList.forEach(it => { const o = document.createElement('option'); o.value = it.id; o.textContent = it.name_ru || it.code; filterSel.appendChild(o); });
+    }
+    const modalSel = document.getElementById('variety-item_id');
+    if (modalSel) {
+        modalSel.innerHTML = '<option value="">-- Выбрать --</option>';
+        itemsList.forEach(it => { const o = document.createElement('option'); o.value = it.id; o.textContent = it.name_ru || it.code; modalSel.appendChild(o); });
+    }
+}
+function renderVarieties(rows) {
+    const itemMap = {};
+    itemsList.forEach(it => itemMap[it.id] = it.name_ru || it.code);
+    document.getElementById('varietiesTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.item_name_ru || itemMap[r.item_id] || r.item_id)}</td>
+        <td>${esc(r.code)}</td><td>${esc(r.name_ru)}</td><td>${esc(r.name_ro)}</td>
+        <td>${r.min_calibre_mm != null ? r.min_calibre_mm : ''}</td>
+        <td>${r.min_brix != null ? r.min_brix : ''}</td>
+        <td>${r.color_coverage_pct != null ? r.color_coverage_pct : ''}</td>
+        <td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editVariety(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteVariety(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="9">Нет данных</td></tr>';
+}
+function editVariety(id) {
+    const r = cachedData.varieties.find(x => x.id === id);
+    if (!r) return;
+    populateVarietyItemSelects();
+    document.getElementById('modal-variety-title').textContent = 'Редактировать сорт';
+    setVal('variety','id', r.id);
+    ['item_id','code','name_ru','name_ro','min_calibre_mm','min_brix','shelf_life_days','color_coverage_pct','optimal_temp_min','optimal_temp_max','active'].forEach(f => setVal('variety', f, r[f]));
+    openModal('variety', id);
+}
+async function deleteVariety(id) {
+    if (!confirm('Удалить сорт?')) return;
+    const j = await apiDelete('/item-varieties/' + id);
+    if (j.success) { showToast('Удалено'); loadVarieties(); } else showToast(j.error, 'error');
+}
+async function saveVariety() {
+    const data = {};
+    ['code','name_ru','name_ro','active'].forEach(f => data[f] = getVal('variety', f));
+    const itemId = getVal('variety','item_id');
+    if (!itemId) { showToast('Выберите продукт', 'error'); return; }
+    data.item_id = parseInt(itemId);
+    ['min_calibre_mm','min_brix','shelf_life_days','color_coverage_pct','optimal_temp_min','optimal_temp_max'].forEach(f => {
+        const v = getVal('variety', f);
+        data[f] = v !== '' ? parseFloat(v) : null;
+    });
+    const idVal = getVal('variety','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/item-varieties', data);
+    if (j.success) { closeModal('variety'); showToast('Сохранено'); loadVarieties(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   5b. ACCEPTANCE PROFILES
+   ================================================================ */
+async function loadProfiles() {
+    const j = await apiFetch('/acceptance-profiles');
+    if (!j.success) { showToast(j.error || 'Error', 'error'); return; }
+    cachedData.profiles = j.data || [];
+    document.getElementById('profilesCount').textContent = 'Всего: ' + cachedData.profiles.length;
+    renderProfiles(cachedData.profiles);
+}
+function renderProfiles(rows) {
+    document.getElementById('profilesTable').innerHTML = rows.length ? rows.map(r => `<tr>
+        <td>${esc(r.code)}</td>
+        <td>${esc(r.name_ru)}</td>
+        <td>${esc(r.required_class)}</td>
+        <td>${r.min_calibre_mm != null ? r.min_calibre_mm : ''}</td>
+        <td>${r.max_serious_defects_pct != null ? r.max_serious_defects_pct : ''}</td>
+        <td>${r.min_brix != null ? r.min_brix : ''}</td>
+        <td>${r.temp_min_c != null ? r.temp_min_c + '…' + (r.temp_max_c != null ? r.temp_max_c : '') : ''}</td>
+        <td>${r.accept_min_score != null ? r.accept_min_score : ''}</td>
+        <td>${activeBadge(r.active)}</td>
+        <td class="actions">
+            <button class="btn-icon" onclick="editProfile(${r.id})">&#9998;</button>
+            <button class="btn-icon btn-danger" onclick="deleteProfile(${r.id})">&#10005;</button>
+        </td></tr>`).join('') : '<tr class="empty-row"><td colspan="10">Нет данных</td></tr>';
+}
+const profileFields = ['code','name_ru','name_ro','required_class','allow_class_ii',
+    'min_calibre_mm','max_below_min_pct','max_mixed_size_pct',
+    'max_minor_defects_pct','max_serious_defects_pct',
+    'min_brix','temp_min_c','temp_max_c',
+    'lab_req','phyto_req','trace_req','pack_req','label_req',
+    'max_actives','max_single_residue_pct_mrl','max_total_residue_pct','max_glyphosate_pct_mrl',
+    'accept_min_score','active'];
+const profileNumericFields = ['min_calibre_mm','max_below_min_pct','max_mixed_size_pct',
+    'max_minor_defects_pct','max_serious_defects_pct','min_brix','temp_min_c','temp_max_c',
+    'max_actives','max_single_residue_pct_mrl','max_total_residue_pct','max_glyphosate_pct_mrl',
+    'accept_min_score'];
+
+function editProfile(id) {
+    const r = cachedData.profiles.find(x => x.id === id);
+    if (!r) return;
+    document.getElementById('modal-profile-title').textContent = 'Редактировать профиль';
+    setVal('profile','id', r.id);
+    profileFields.forEach(f => setVal('profile', f, r[f]));
+    openModal('profile', id);
+}
+async function deleteProfile(id) {
+    if (!confirm('Удалить профиль приёмки?')) return;
+    const j = await apiDelete('/acceptance-profiles/' + id);
+    if (j.success) { showToast('Удалено'); loadProfiles(); } else showToast(j.error, 'error');
+}
+async function saveProfile() {
+    const data = {};
+    profileFields.forEach(f => {
+        if (profileNumericFields.includes(f)) {
+            const v = getVal('profile', f);
+            data[f] = v !== '' ? parseFloat(v) : null;
+        } else {
+            data[f] = getVal('profile', f);
+        }
+    });
+    const idVal = getVal('profile','id');
+    if (idVal) data.id = parseInt(idVal);
+    const j = await apiPost('/acceptance-profiles', data);
+    if (j.success) { closeModal('profile'); showToast('Сохранено'); loadProfiles(); } else showToast(j.error, 'error');
+}
+
+/* ================================================================
+   RENDER FUNCTION MAP (for sorting)
+   ================================================================ */
+const renderFns = {
+    suppliers: renderSuppliers,
+    customers: renderCustomers,
+    warehouses: renderWarehouses,
+    cells: renderCells,
+    items: renderItems,
+    packaging: renderPackaging,
+    vehicles: renderVehicles,
+    currencies: renderCurrencies,
+    rates: renderRates,
+    formulas: renderFormulas,
+    config: renderConfig,
+    scaleDrivers: renderScaleDrivers,
+    varieties: renderVarieties,
+    profiles: renderProfiles
+};
+
+/* ================================================================
+   REPORTS
+   ================================================================ */
+function initReports() {
+    // Populate warehouse and item selects for reports
+    const rptWh = document.getElementById('rptWarehouse');
+    const rptIt = document.getElementById('rptItem');
+    if (rptWh.options.length <= 1 && warehousesList.length) {
+        warehousesList.forEach(w => { const o = document.createElement('option'); o.value = w.id; o.textContent = w.name; rptWh.appendChild(o); });
+    }
+    if (rptIt.options.length <= 1) {
+        apiFetch('items').then(data => {
+            (data || []).forEach(i => { const o = document.createElement('option'); o.value = i.id; o.textContent = i.name; rptIt.appendChild(o); });
+        });
+    }
+}
+
+function runReport() {
+    const type = document.getElementById('rptType').value;
+    const params = new URLSearchParams();
+    const df = document.getElementById('rptFrom').value;
+    const dt = document.getElementById('rptTo').value;
+    const wh = document.getElementById('rptWarehouse').value;
+    const it = document.getElementById('rptItem').value;
+    if (df) params.set('date_from', df);
+    if (dt) params.set('date_to', dt);
+    if (wh) params.set('warehouse_id', wh);
+    if (it) params.set('item_id', it);
+
+    const url = '/api/agro-admin/reports/' + type + (params.toString() ? '?' + params : '');
+    fetch(url, { headers: { 'Content-Type': 'application/json' } })
+        .then(r => r.json())
+        .then(d => {
+            const rows = d.data || [];
+            const container = document.getElementById('reportResults');
+            container.style.display = '';
+            const titles = { stock: 'Остатки / Stoc', purchases: 'Закупки / Achizitii', sales: 'Продажи / Vanzari', mass_balance: 'Баланс массы', expiry: 'Сроки годности' };
+            document.getElementById('reportTitle').textContent = titles[type] || type;
+            document.getElementById('reportCount').textContent = rows.length + ' записей';
+
+            if (!rows.length) {
+                document.getElementById('reportHead').innerHTML = '';
+                document.getElementById('reportBody').innerHTML = '<tr><td style="text-align:center;padding:24px;color:var(--text-muted);">Нет данных</td></tr>';
+                return;
+            }
+            const keys = Object.keys(rows[0]);
+            document.getElementById('reportHead').innerHTML = '<tr>' + keys.map(k => '<th>' + k + '</th>').join('') + '</tr>';
+            document.getElementById('reportBody').innerHTML = rows.map(r =>
+                '<tr>' + keys.map(k => '<td>' + (r[k] != null ? r[k] : '-') + '</td>').join('') + '</tr>'
+            ).join('');
+        })
+        .catch(() => showToast('Ошибка загрузки отчёта', 'error'));
+}
+
+function exportReport(fmt) {
+    const type = document.getElementById('rptType').value;
+    const params = new URLSearchParams();
+    params.set('format', fmt);
+    const df = document.getElementById('rptFrom').value;
+    const dt = document.getElementById('rptTo').value;
+    const wh = document.getElementById('rptWarehouse').value;
+    const it = document.getElementById('rptItem').value;
+    if (df) params.set('date_from', df);
+    if (dt) params.set('date_to', dt);
+    if (wh) params.set('warehouse_id', wh);
+    if (it) params.set('item_id', it);
+    window.open('/api/agro-admin/reports/export/' + type + '?' + params, '_blank');
+}
+
+/* ================================================================
+   PAGE SWITCHING
+   ================================================================ */
+const pageLoaders = {
+    suppliers: loadSuppliers,
+    customers: loadCustomers,
+    warehouses: () => { loadWarehouses().then(() => populateCellWarehouseSelects()); },
+    cells: () => {
+        if (!warehousesList.length) {
+            loadWarehouses().then(() => { populateCellWarehouseSelects(); loadCells(); });
+        } else {
+            populateCellWarehouseSelects(); loadCells();
+        }
+    },
+    items: loadItems,
+    packaging: loadPackaging,
+    vehicles: loadVehicles,
+    currencies: loadCurrencies,
+    rates: loadRates,
+    formulas: loadFormulas,
+    scales: loadScaleDrivers,
+    config: loadConfig,
+    reports: initReports,
+    varieties: loadVarieties,
+    profiles: loadProfiles
+};
+
+const defaultForms = {
+    supplier: ['id','code','name','country','tax_id','contact_phone','contact_email','address'],
+    customer: ['id','code','name','customer_type','country','tax_id','contact_phone','contact_email','address'],
+    warehouse: ['id','code','name','warehouse_type','address','capacity_kg'],
+    cell: ['id','warehouse_id','code','name','cell_type','temp_min','temp_max','humidity_min','humidity_max','capacity_kg'],
+    item: ['id','code','name_ru','name_ro','item_group','unit','default_tare_kg','shelf_life_days','optimal_temp_min','optimal_temp_max'],
+    packaging: ['id','code','name_ru','name_ro','tare_weight_kg','capacity_kg'],
+    vehicle: ['id','plate_number','vehicle_type','driver_name'],
+    currency: ['id','code','name','symbol'],
+    rate: ['id','from_currency','to_currency','rate','rate_date','source'],
+    formula: ['id','param_name','param_value','item_id'],
+    mconfig: ['id','config_key','config_value','config_group','description'],
+    variety: ['id','item_id','code','name_ru','name_ro','min_calibre_mm','min_brix','shelf_life_days','color_coverage_pct','optimal_temp_min','optimal_temp_max'],
+    profile: ['id','code','name_ru','name_ro','required_class','allow_class_ii','min_calibre_mm','max_below_min_pct','max_mixed_size_pct','max_minor_defects_pct','max_serious_defects_pct','min_brix','temp_min_c','temp_max_c','lab_req','phyto_req','trace_req','pack_req','label_req','max_actives','max_single_residue_pct_mrl','max_total_residue_pct','max_glyphosate_pct_mrl','accept_min_score']
+};
+
+const defaultTitles = {
+    supplier: 'Новый поставщик / Furnizor nou',
+    customer: 'Новый покупатель / Client nou',
+    warehouse: 'Новый склад / Depozit nou',
+    cell: 'Новая ячейка / Celula noua',
+    item: 'Новая продукция / Produs nou',
+    packaging: 'Новый тип тары / Tip ambalaj nou',
+    vehicle: 'Новый транспорт / Transport nou',
+    currency: 'Новая валюта / Valuta noua',
+    rate: 'Новый курс / Curs nou',
+    formula: 'Новый параметр / Parametru nou',
+    mconfig: 'Новый параметр / Configurare noua',
+    variety: 'Новый сорт / Soi nou',
+    profile: 'Новый профиль / Profil nou'
+};
+
+/* Override openModal to also clear form for new entries */
+const _origOpenModal = openModal;
+openModal = function(entity, id) {
+    if (!id && defaultForms[entity]) {
+        clearForm(entity, defaultForms[entity]);
+        /* Set defaults for selects */
+        if (entity === 'supplier' || entity === 'customer' || entity === 'warehouse' ||
+            entity === 'cell' || entity === 'item' || entity === 'packaging' ||
+            entity === 'vehicle' || entity === 'currency' || entity === 'formula') {
+            setVal(entity, 'active', 'Y');
+        }
+        if (entity === 'customer') setVal('customer', 'customer_type', 'domestic');
+        if (entity === 'warehouse') setVal('warehouse', 'warehouse_type', 'cold_storage');
+        if (entity === 'cell') { setVal('cell', 'cell_type', 'chamber'); populateCellWarehouseSelects(); }
+        if (entity === 'item') { setVal('item', 'item_group', 'fruit'); setVal('item', 'unit', 'kg'); }
+        if (entity === 'vehicle') setVal('vehicle', 'vehicle_type', 'truck');
+        if (entity === 'variety') { setVal('variety', 'active', 'Y'); populateVarietyItemSelects(); }
+        if (entity === 'profile') {
+            setVal('profile', 'active', 'Y');
+            setVal('profile', 'required_class', 'I');
+            setVal('profile', 'allow_class_ii', 'N');
+            setVal('profile', 'accept_min_score', '85');
+            ['lab_req','phyto_req','trace_req','pack_req','label_req'].forEach(f => setVal('profile', f, 'Y'));
+        }
+        const titleEl = document.getElementById('modal-' + entity + '-title');
+        if (titleEl && defaultTitles[entity]) titleEl.textContent = defaultTitles[entity];
+    }
+    _origOpenModal(entity, id);
+};
+
+function showPage(name) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-link').forEach(a => a.classList.remove('active'));
+    const page = document.getElementById('page-' + name);
+    const link = document.querySelector('.nav-link[data-page="' + name + '"]');
+    if (page) page.classList.add('active');
+    if (link) link.classList.add('active');
+    if (pageLoaders[name]) pageLoaders[name]();
+    window.location.hash = name;
+}
+
+/* Sidebar navigation */
+document.querySelectorAll('.nav-link').forEach(a => {
+    a.addEventListener('click', (e) => {
+        e.preventDefault();
+        showPage(a.dataset.page);
+    });
+});
+
+/* Close modal on overlay click */
+document.querySelectorAll('.modal-overlay').forEach(ov => {
+    ov.addEventListener('click', (e) => {
+        if (e.target === ov) ov.classList.remove('open');
+    });
+});
+
+/* Close modal on Escape */
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+    }
+});
+
+/* Init from hash or default */
+const initPage = window.location.hash.replace('#','') || 'suppliers';
+showPage(initPage);
+</script>
+</body>
+</html>

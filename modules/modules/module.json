@@ -1,0 +1,8 @@
+{
+  "title": {"ru": "Карта системы", "ro": "Harta sistemului", "en": "System map"},
+  "icon": "🗺️",
+  "order": 205,
+  "group": "tools",
+  "url": "/UNA.md/orasldev/modules",
+  "descr": "Все модули и страницы, найденные автоматически при запуске"
+}

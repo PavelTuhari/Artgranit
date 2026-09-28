@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Oracle SQL Developer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            line-height: 1.6;
+        }
+        
+        .docs-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .docs-header {
+            background: #252526;
+            padding: 20px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+            border-left: 4px solid #007acc;
+        }
+        
+        .docs-header h1 {
+            color: #4ec9b0;
+            margin-bottom: 10px;
+        }
+        
+        .docs-nav {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #3c3c3c;
+        }
+        
+        .docs-nav a {
+            color: #007acc;
+            text-decoration: none;
+            margin-right: 15px;
+            padding: 5px 10px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+        
+        .docs-nav a:hover {
+            background: #3c3c3c;
+        }
+        
+        .docs-content {
+            background: #252526;
+            padding: 30px;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+        
+        .docs-content h1 {
+            color: #4ec9b0;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 28px;
+        }
+        
+        .docs-content h2 {
+            color: #4ec9b0;
+            margin-top: 25px;
+            margin-bottom: 12px;
+            font-size: 22px;
+            border-bottom: 1px solid #3c3c3c;
+            padding-bottom: 8px;
+        }
+        
+        .docs-content h3 {
+            color: #ce9178;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .docs-content h4 {
+            color: #dcdcaa;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            font-size: 16px;
+        }
+        
+        .docs-content p {
+            margin-bottom: 15px;
+            color: #d4d4d4;
+        }
+        
+        .docs-content ul, .docs-content ol {
+            margin-left: 30px;
+            margin-bottom: 15px;
+        }
+        
+        .docs-content li {
+            margin-bottom: 8px;
+            color: #d4d4d4;
+        }
+        
+        .docs-content code {
+            background: #1e1e1e;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            color: #ce9178;
+            font-size: 14px;
+        }
+        
+        .docs-content pre {
+            background: #1e1e1e;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin-bottom: 15px;
+            border-left: 3px solid #007acc;
+        }
+        
+        .docs-content pre code {
+            background: transparent;
+            padding: 0;
+            color: #d4d4d4;
+            font-size: 13px;
+        }
+        
+        .docs-content strong {
+            color: #4ec9b0;
+            font-weight: 600;
+        }
+        
+        .docs-content a {
+            color: #007acc;
+            text-decoration: none;
+        }
+        
+        .docs-content a:hover {
+            text-decoration: underline;
+        }
+        
+        .back-button {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 8px 16px;
+            background: #007acc;
+            color: white;
+            text-decoration: none;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        
+        .back-button:hover {
+            background: #005a9e;
+        }
+    </style>
+</head>
+<body>
+    <div class="docs-container">
+        <div class="docs-header">
+            <h1>{{ title }}</h1>
+            <div class="docs-nav">
+                <a href="/UNA.md/orasldev/docs">📚 Главная документации</a>
+                <a href="/UNA.md/orasldev/dashboard">📊 Дашборды</a>
+                <a href="/UNA.md/orasldev">🏠 Главная</a>
+            </div>
+        </div>
+        
+        <a href="/UNA.md/orasldev/docs" class="back-button">← Назад к документации</a>
+        
+        <div class="docs-content">
+            {{ content|safe }}
+        </div>
+    </div>
+</body>
+</html>

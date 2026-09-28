@@ -1,0 +1,25 @@
+{
+  "httpPort": 5488,
+  "extensions": {
+    "express": {
+      "hostname": "127.0.0.1"
+    },
+    "authentication": {
+      "enabled": false
+    }
+  },
+  "trustUserCode": true,
+  "reportTimeout": 60000,
+  "workers": {
+    "numberOfWorkers": 1
+  },
+  "chrome": {
+    "timeout": 50000,
+    "launchOptions": {
+      "args": ["--no-sandbox", "--disable-dev-shm-usage", "--disable-gpu"]
+    }
+  },
+  "logger": {
+    "console": { "transport": "console", "level": "info" }
+  }
+}

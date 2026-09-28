@@ -1,0 +1,8 @@
+{
+  "title": {"ru": "Документация проекта", "ro": "Documentația proiectului", "en": "Project documentation"},
+  "icon": "☰",
+  "order": 210,
+  "group": "tools",
+  "url": "/UNA.md/orasldev/docs",
+  "descr": "Индекс документации, материалы модулей, ТЗ"
+}

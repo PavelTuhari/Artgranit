@@ -1,0 +1,8 @@
+{
+  "title": {"ru": "DECOR — заказы декора", "ro": "DECOR — comenzi decor", "en": "DECOR — decor orders"},
+  "icon": "🎨",
+  "order": 90,
+  "url": "/UNA.md/orasldev/decor",
+  "sql_prefix": "DECOR_",
+  "descr": "Оператор и администрирование заказов"
+}

@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colass - Catalog resurse si lucrari</title>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: #111827;
+            color: #e5e7eb;
+        }
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 18px;
+            border-bottom: 1px solid #374151;
+            background: #0b1220;
+            gap: 12px;
+        }
+        .topbar h1 {
+            margin: 0;
+            font-size: 18px;
+            color: #93c5fd;
+        }
+        .topbar .links { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .topbar a {
+            color: #93c5fd;
+            text-decoration: none;
+            font-size: 13px;
+        }
+        .topbar select {
+            border-radius: 8px;
+            border: 1px solid #4b5563;
+            background: #111827;
+            color: #e5e7eb;
+            padding: 6px 8px;
+            font-size: 12px;
+        }
+        .toolbar {
+            display: grid;
+            grid-template-columns: 1fr 210px 120px;
+            gap: 10px;
+            padding: 12px 18px;
+            border-bottom: 1px solid #374151;
+            background: #1f2937;
+        }
+        .toolbar input,
+        .toolbar select,
+        .toolbar button {
+            width: 100%;
+            border-radius: 8px;
+            border: 1px solid #4b5563;
+            background: #111827;
+            color: #e5e7eb;
+            padding: 9px 10px;
+            font-size: 13px;
+        }
+        .toolbar button {
+            background: #2563eb;
+            border-color: #2563eb;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .content {
+            display: grid;
+            grid-template-columns: 360px 1fr;
+            gap: 0;
+            height: calc(100vh - 110px);
+        }
+        .panel {
+            overflow: auto;
+            border-right: 1px solid #374151;
+            padding: 12px;
+        }
+        .panel-right {
+            overflow: auto;
+            padding: 12px;
+        }
+        .tree-node {
+            margin-bottom: 6px;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            background: #0f172a;
+        }
+        .tree-header {
+            padding: 8px 10px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #bfdbfe;
+            border-bottom: 1px solid #1f2937;
+        }
+        .tree-child {
+            padding: 8px 12px;
+            border-top: 1px solid #1f2937;
+            font-size: 12px;
+            color: #d1d5db;
+        }
+        .work-chip {
+            display: inline-block;
+            margin: 4px 6px 4px 0;
+            padding: 5px 8px;
+            font-size: 11px;
+            border-radius: 999px;
+            border: 1px solid #374151;
+            background: #111827;
+            cursor: pointer;
+            color: #e5e7eb;
+        }
+        .work-chip.active {
+            background: #1d4ed8;
+            border-color: #1d4ed8;
+        }
+        .cards {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+        .card {
+            border: 1px solid #374151;
+            border-radius: 10px;
+            background: #0f172a;
+            overflow: hidden;
+        }
+        .card h2 {
+            margin: 0;
+            font-size: 14px;
+            padding: 10px 12px;
+            background: #1f2937;
+            border-bottom: 1px solid #374151;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+        }
+        th, td {
+            text-align: left;
+            padding: 8px 10px;
+            border-bottom: 1px solid #1f2937;
+            vertical-align: top;
+        }
+        th { color: #9ca3af; font-weight: 600; background: #111827; }
+        tr:hover td { background: #172033; }
+        tr.selected td { background: #1d4ed8; }
+        .muted { color: #9ca3af; }
+        .empty { padding: 14px; color: #9ca3af; font-size: 13px; }
+        @media (max-width: 1100px) {
+            .content { grid-template-columns: 1fr; height: auto; }
+            .panel { border-right: 0; border-bottom: 1px solid #374151; max-height: 420px; }
+            .toolbar { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="topbar">
+        <h1 id="titleMain"></h1>
+        <div class="links">
+            <a href="/UNA.md/orasldev/colass-estimator" id="linkEstimator"></a>
+            <a href="/UNA.md/orasldev/colass-crm" id="linkCrm"></a>
+            <a href="/UNA.md/orasldev/colass-contracts" id="linkContracts"></a>
+            <a href="/UNA.md/orasldev/docs/colass" id="linkDocs"></a>
+            <a href="/UNA.md/orasldev/dashboard">Dashboard</a>
+            <select id="langSelect">
+                <option value="ru">RU</option>
+                <option value="ro">RO</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="toolbar">
+        <input id="searchInput" type="text" />
+        <select id="typeFilter"></select>
+        <button id="refreshBtn"></button>
+    </div>
+
+    <div class="content">
+        <div class="panel" id="treePanel"></div>
+
+        <div class="panel-right">
+            <div class="cards">
+                <div class="card">
+                    <h2 id="worksTitle"></h2>
+                    <div id="worksWrap" class="empty"></div>
+                </div>
+
+                <div class="card">
+                    <h2 id="resourcesTitle"></h2>
+                    <div id="resourcesWrap" class="empty"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const I18N = {
+            ru: {
+                titleMain: 'Colass - Каталог ресурсов/услуг/материалов (F3/F5)',
+                linkEstimator: 'Сметчик',
+                linkCrm: 'CRM',
+                linkContracts: 'Contracts',
+                linkDocs: 'Документация Colass',
+                searchPlaceholder: 'Поиск по коду/названию работы или ресурса',
+                refresh: 'Обновить',
+                worksTitle: 'Каталог работ',
+                resourcesChoose: 'Ресурсы (выберите работу в каталоге)',
+                resourcesNone: 'Нет данных',
+                treeEmpty: 'Дерево пустое',
+                noWorks: 'Работы не найдены',
+                noNorms: 'Для этой работы не найдено норм расхода',
+                chooseWork: 'Выберите работу, чтобы увидеть состав ресурсов',
+                resourcesRef: 'Справочник ресурсов',
+                resourcesNotFound: 'Ресурсы не найдены',
+                loading: 'Загрузка...',
+                noJobs: 'нет работ',
+                projResourceByWork: 'Ресурсы по работе',
+                thNo: '№',
+                thType: 'Тип',
+                thCode: 'Код',
+                thWork: 'Работа',
+                thRes: 'Ресурс',
+                thUnit: 'Ед.',
+                thAmount: 'Сумма',
+                thNorms: 'Норм',
+                thNorm: 'Норма',
+                thPrice: 'Цена',
+                typeAll: 'Все типы ресурсов',
+                typeManopera: 'Работы (manopera)',
+                typeMateriale: 'Материалы',
+                typeUtilaje: 'Техника',
+                typeMap: { MANOPERA: 'Работы', MATERIALE: 'Материалы', UTILAJE: 'Техника', OTHER: 'Прочее' }
+            },
+            ro: {
+                titleMain: 'Colass - Catalog resurse/servicii/materiale (F3/F5)',
+                linkEstimator: 'Devizier',
+                linkCrm: 'CRM',
+                linkContracts: 'Contracts',
+                linkDocs: 'Documentatie Colass',
+                searchPlaceholder: 'Cautare dupa cod/nume lucrare sau resursa',
+                refresh: 'Actualizeaza',
+                worksTitle: 'Catalog lucrari',
+                resourcesChoose: 'Resurse (selectati o lucrare din catalog)',
+                resourcesNone: 'Nu exista date',
+                treeEmpty: 'Arbore gol',
+                noWorks: 'Nu au fost gasite lucrari',
+                noNorms: 'Pentru aceasta lucrare nu exista norme de consum',
+                chooseWork: 'Selectati o lucrare pentru a vedea compozitia resurselor',
+                resourcesRef: 'Nomenclator resurse',
+                resourcesNotFound: 'Resurse negasite',
+                loading: 'Se incarca...',
+                noJobs: 'fara lucrari',
+                projResourceByWork: 'Resurse pe lucrare',
+                thNo: 'Nr',
+                thType: 'Tip',
+                thCode: 'Cod',
+                thWork: 'Lucrare',
+                thRes: 'Resursa',
+                thUnit: 'UM',
+                thAmount: 'Suma',
+                thNorms: 'Norme',
+                thNorm: 'Norma',
+                thPrice: 'Pret',
+                typeAll: 'Toate tipurile de resurse',
+                typeManopera: 'Manopera',
+                typeMateriale: 'Materiale',
+                typeUtilaje: 'Utilaje',
+                typeMap: { MANOPERA: 'Manopera', MATERIALE: 'Materiale', UTILAJE: 'Utilaje', OTHER: 'Altele' }
+            }
+        };
+
+        const state = {
+            lang: localStorage.getItem('colass_lang') || 'ru',
+            search: '',
+            typeCode: '',
+            tree: [],
+            works: [],
+            selectedWorkId: null,
+            selectedWorkName: ''
+        };
+
+        const el = {
+            titleMain: document.getElementById('titleMain'),
+            linkEstimator: document.getElementById('linkEstimator'),
+            linkCrm: document.getElementById('linkCrm'),
+            linkContracts: document.getElementById('linkContracts'),
+            linkDocs: document.getElementById('linkDocs'),
+            langSelect: document.getElementById('langSelect'),
+            treePanel: document.getElementById('treePanel'),
+            worksTitle: document.getElementById('worksTitle'),
+            worksWrap: document.getElementById('worksWrap'),
+            resourcesWrap: document.getElementById('resourcesWrap'),
+            resourcesTitle: document.getElementById('resourcesTitle'),
+            searchInput: document.getElementById('searchInput'),
+            typeFilter: document.getElementById('typeFilter'),
+            refreshBtn: document.getElementById('refreshBtn')
+        };
+
+        function t(key) {
+            return (I18N[state.lang] && I18N[state.lang][key]) || (I18N.ru && I18N.ru[key]) || key;
+        }
+
+        function esc(s) {
+            return String(s ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;');
+        }
+
+        function num(v, digits = 2) {
+            const n = Number(v || 0);
+            if (!Number.isFinite(n)) return '0';
+            const locale = state.lang === 'ro' ? 'ro-RO' : 'ru-RU';
+            return n.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: digits });
+        }
+
+        function typeLabel(typeCode, row) {
+            if (state.lang === 'ro' && row && row.type_name_ro) return row.type_name_ro;
+            if (state.lang === 'ru' && row && row.type_name_ru) return row.type_name_ru;
+            return (I18N[state.lang].typeMap || {})[String(typeCode || 'OTHER').toUpperCase()] || String(typeCode || 'OTHER');
+        }
+
+        function applyLanguage() {
+            document.documentElement.lang = state.lang;
+            document.title = t('titleMain');
+            el.langSelect.value = state.lang;
+            el.titleMain.textContent = t('titleMain');
+            el.linkEstimator.textContent = t('linkEstimator');
+            el.linkCrm.textContent = t('linkCrm');
+            el.linkContracts.textContent = t('linkContracts');
+            el.linkDocs.textContent = t('linkDocs');
+            el.searchInput.placeholder = t('searchPlaceholder');
+            el.refreshBtn.textContent = t('refresh');
+            el.worksTitle.textContent = t('worksTitle');
+            if (!state.selectedWorkId && !state.typeCode) {
+                el.resourcesTitle.textContent = t('resourcesChoose');
+            }
+            if (!state.works.length) {
+                el.worksWrap.innerHTML = `<div class="empty">${esc(t('loading'))}</div>`;
+            }
+            renderTypeFilter();
+        }
+
+        function renderTypeFilter() {
+            const current = state.typeCode || '';
+            el.typeFilter.innerHTML = `
+                <option value="">${esc(t('typeAll'))}</option>
+                <option value="MANOPERA">${esc(t('typeManopera'))}</option>
+                <option value="MATERIALE">${esc(t('typeMateriale'))}</option>
+                <option value="UTILAJE">${esc(t('typeUtilaje'))}</option>
+            `;
+            el.typeFilter.value = current;
+        }
+
+        async function getJson(url) {
+            const r = await fetch(url, { credentials: 'same-origin' });
+            return await r.json();
+        }
+
+        function renderTree() {
+            if (!state.tree.length) {
+                el.treePanel.innerHTML = `<div class="empty">${esc(t('treeEmpty'))}</div>`;
+                return;
+            }
+            const html = state.tree.map(l1 => {
+                const l2Html = (l1.children || []).map(l2 => {
+                    const l3Html = (l2.children || []).map(l3 => {
+                        const chips = (l3.works || []).map(w => {
+                            const active = state.selectedWorkId === w.id ? 'active' : '';
+                            return `<span class="work-chip ${active}" data-work-id="${w.id}" title="${esc(w.work_name)}">${esc(w.work_code || '#' + w.work_no)} · ${esc(w.work_name)}</span>`;
+                        }).join('');
+                        return `<div class="tree-child"><b>${esc(l3.name)}</b><br>${chips || `<span class="muted">${esc(t('noJobs'))}</span>`}</div>`;
+                    }).join('');
+                    return `<div class="tree-child"><b>${esc(l2.name)}</b>${l3Html}</div>`;
+                }).join('');
+                return `<div class="tree-node"><div class="tree-header">${esc(l1.name)}</div>${l2Html}</div>`;
+            }).join('');
+            el.treePanel.innerHTML = html;
+
+            el.treePanel.querySelectorAll('[data-work-id]').forEach(node => {
+                node.addEventListener('click', () => {
+                    const wid = Number(node.getAttribute('data-work-id'));
+                    const work = state.works.find(x => Number(x.id) === wid);
+                    state.selectedWorkId = wid;
+                    state.selectedWorkName = work?.work_name || '';
+                    renderTree();
+                    renderWorks();
+                    loadWorkResources();
+                });
+            });
+        }
+
+        function renderWorks() {
+            if (!state.works.length) {
+                el.worksWrap.innerHTML = `<div class="empty">${esc(t('noWorks'))}</div>`;
+                return;
+            }
+            const rows = state.works.map(w => {
+                const active = Number(w.id) === Number(state.selectedWorkId) ? 'selected' : '';
+                return `<tr class="${active}" data-work-id="${w.id}">
+                    <td>${esc(w.work_no)}</td>
+                    <td>${esc(w.work_code || '')}</td>
+                    <td>${esc(w.work_name || '')}</td>
+                    <td>${esc(w.unit || '')}</td>
+                    <td>${num(w.amount)}</td>
+                    <td>${esc(w.resources_count || 0)}</td>
+                </tr>`;
+            }).join('');
+
+            el.worksWrap.innerHTML = `<table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>${esc(t('thCode'))}</th>
+                        <th>${esc(t('thWork'))}</th>
+                        <th>${esc(t('thUnit'))}</th>
+                        <th>${esc(t('thAmount'))}</th>
+                        <th>${esc(t('thNorms'))}</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>`;
+
+            el.worksWrap.querySelectorAll('[data-work-id]').forEach(tr => {
+                tr.addEventListener('click', () => {
+                    const wid = Number(tr.getAttribute('data-work-id'));
+                    const work = state.works.find(x => Number(x.id) === wid);
+                    state.selectedWorkId = wid;
+                    state.selectedWorkName = work?.work_name || '';
+                    renderTree();
+                    renderWorks();
+                    loadWorkResources();
+                });
+            });
+        }
+
+        async function loadWorkResources() {
+            if (!state.selectedWorkId) {
+                el.resourcesTitle.textContent = t('resourcesChoose');
+                el.resourcesWrap.innerHTML = `<div class="empty">${esc(t('chooseWork'))}</div>`;
+                return;
+            }
+            const data = await getJson(`/api/colass/catalog/work/${state.selectedWorkId}/resources`);
+            const rows = data.data || [];
+            el.resourcesTitle.textContent = `${t('projResourceByWork')}: ${state.selectedWorkName || ('#' + state.selectedWorkId)}`;
+
+            if (!rows.length) {
+                el.resourcesWrap.innerHTML = `<div class="empty">${esc(t('noNorms'))}</div>`;
+                return;
+            }
+
+            const htmlRows = rows.map(r => `<tr>
+                <td>${esc(r.sort_order || '')}</td>
+                <td>${esc(typeLabel(r.type_code, r))}</td>
+                <td>${esc(r.resource_code || '')}</td>
+                <td>${esc(r.resource_name || '')}</td>
+                <td>${esc(r.unit || '')}</td>
+                <td>${num(r.qty_norm, 3)}</td>
+                <td>${num(r.unit_price)}</td>
+                <td>${num(r.amount)}</td>
+            </tr>`).join('');
+
+            el.resourcesWrap.innerHTML = `<table>
+                <thead>
+                    <tr>
+                        <th>${esc(t('thNo'))}</th>
+                        <th>${esc(t('thType'))}</th>
+                        <th>${esc(t('thCode'))}</th>
+                        <th>${esc(t('thRes'))}</th>
+                        <th>${esc(t('thUnit'))}</th>
+                        <th>${esc(t('thNorm'))}</th>
+                        <th>${esc(t('thPrice'))}</th>
+                        <th>${esc(t('thAmount'))}</th>
+                    </tr>
+                </thead>
+                <tbody>${htmlRows}</tbody>
+            </table>`;
+        }
+
+        async function loadCatalog() {
+            state.search = (el.searchInput.value || '').trim();
+            state.typeCode = (el.typeFilter.value || '').trim();
+
+            const params = new URLSearchParams();
+            if (state.search) params.set('search', state.search);
+
+            const [tree, works] = await Promise.all([
+                getJson('/api/colass/catalog/tree?' + params.toString()),
+                getJson('/api/colass/catalog/works?' + params.toString())
+            ]);
+
+            state.tree = tree.data || [];
+            state.works = works.data || [];
+
+            if (state.selectedWorkId && !state.works.some(w => Number(w.id) === Number(state.selectedWorkId))) {
+                state.selectedWorkId = null;
+                state.selectedWorkName = '';
+            }
+
+            renderTree();
+            renderWorks();
+
+            if (state.typeCode) {
+                const resources = await getJson('/api/colass/catalog/resources?type=' + encodeURIComponent(state.typeCode) + '&limit=500');
+                const arr = resources.data || [];
+                el.resourcesTitle.textContent = `${t('resourcesRef')} (${state.typeCode})`;
+                if (!arr.length) {
+                    el.resourcesWrap.innerHTML = `<div class="empty">${esc(t('resourcesNotFound'))}</div>`;
+                } else {
+                    const htmlRows = arr.map(r => `<tr>
+                        <td>${esc(typeLabel(r.type_code, r))}</td>
+                        <td>${esc(r.resource_code || '')}</td>
+                        <td>${esc(r.name || '')}</td>
+                        <td>${esc(r.unit || '')}</td>
+                        <td>${num(r.price)}</td>
+                        <td>${num(r.amount)}</td>
+                    </tr>`).join('');
+                    el.resourcesWrap.innerHTML = `<table>
+                        <thead>
+                            <tr><th>${esc(t('thType'))}</th><th>${esc(t('thCode'))}</th><th>${esc(t('thRes'))}</th><th>${esc(t('thUnit'))}</th><th>${esc(t('thPrice'))}</th><th>${esc(t('thAmount'))}</th></tr>
+                        </thead>
+                        <tbody>${htmlRows}</tbody>
+                    </table>`;
+                }
+                return;
+            }
+
+            loadWorkResources();
+        }
+
+        el.refreshBtn.addEventListener('click', loadCatalog);
+        el.searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') loadCatalog();
+        });
+        el.typeFilter.addEventListener('change', loadCatalog);
+        el.langSelect.addEventListener('change', async () => {
+            state.lang = el.langSelect.value === 'ro' ? 'ro' : 'ru';
+            localStorage.setItem('colass_lang', state.lang);
+            applyLanguage();
+            await loadCatalog();
+        });
+
+        applyLanguage();
+        loadCatalog();
+    </script>
+</body>
+</html>

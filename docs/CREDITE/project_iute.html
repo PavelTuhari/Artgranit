@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Документация: Интеграция Iute</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --accent: #22c55e;
+            --bg: #f8fafc;
+            --card: #fff;
+            --text: #1e293b;
+            --muted: #64748b;
+            --border: #e2e8f0;
+            --code-bg: #1e293b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            padding: 24px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        h1 { font-size: 28px; margin-bottom: 8px; color: var(--primary); }
+        h2 { font-size: 20px; margin: 32px 0 16px; color: var(--text); border-bottom: 2px solid var(--border); padding-bottom: 8px; }
+        h3 { font-size: 16px; margin: 24px 0 12px; color: var(--primary); }
+        p { margin-bottom: 12px; }
+        .subtitle { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+        .card {
+            background: var(--card);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,.08);
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+        .badge-purple { background: #ede9fe; color: #7c3aed; }
+        .badge-green { background: #dcfce7; color: #166534; }
+        .badge-yellow { background: #fef3c7; color: #92400e; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+            margin: 16px 0;
+        }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+        th { background: #f8fafc; font-weight: 600; color: var(--muted); }
+        code {
+            background: #f1f5f9;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 13px;
+        }
+        pre {
+            background: var(--code-bg);
+            color: #e2e8f0;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+            margin: 12px 0;
+        }
+        pre code { background: none; padding: 0; color: inherit; }
+        .highlight { color: #a78bfa; }
+        .string { color: #86efac; }
+        .comment { color: #64748b; }
+        ul, ol { margin: 12px 0 12px 24px; }
+        li { margin-bottom: 6px; }
+        a { color: var(--primary); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .note {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 12px 16px;
+            border-radius: 0 8px 8px 0;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+        .footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 13px; color: var(--muted); }
+        .back-link { display: inline-block; margin-bottom: 12px; font-size: 13px; color: var(--muted); }
+        .back-link a { color: var(--primary); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <p class="back-link">← <a href="/UNA.md/orasldev/docs">Документация</a></p>
+        <h1>💳 Интеграция Iute REST API</h1>
+        <p class="subtitle">Oracle SQL Developer Web — Модуль кредитования (основной проект + Biro26/OfficePlus)</p>
+
+        <h2>📌 Обзор</h2>
+        <div class="card">
+            <p>Интеграция с Iute (MyIute) для оформления кредитов через REST API.</p>
+            <div style="margin-top: 16px;">
+                <span class="badge badge-purple">Технология</span> Python + Flask + REST (JSON)
+                <span class="badge badge-green">Статус</span> В разработке
+            </div>
+        </div>
+
+        <table>
+            <tr><th>Параметр</th><th>Значение</th></tr>
+            <tr><td>Base URL</td><td><code>https://iute-core-partner-gateway.iute.eu</code></td></tr>
+            <tr><td>Авторизация</td><td>Header <code>Authorization: {API_KEY}</code></td></tr>
+            <tr><td>Документация</td><td><a href="https://iute-core-partner-gateway.iute.eu/docs/public/guide.html" target="_blank">guide.html</a></td></tr>
+        </table>
+
+        <h2>🏗️ Архитектура</h2>
+        <div class="card">
+            <pre><code>Artgranit/
+├── integrations/
+│   └── <span class="highlight">iute_client.py</span>        # REST клиент
+├── data/
+│   └── iute_settings.json    # Конфигурация (в .gitignore)
+├── templates/
+│   └── credit_iute.html      # Форма оформления
+└── app.py                    # Flask API endpoints</code></pre>
+        </div>
+
+        <h2>📡 API Endpoints</h2>
+
+        <div class="card">
+            <h3>Check Auth</h3>
+            <p>Проверка авторизации и получение информации о партнёре.</p>
+            <pre><code><span class="highlight">GET</span> /api/v1/physical-api-partners/me
+Headers: Authorization: {API_KEY}</code></pre>
+            <p><strong>Ответ:</strong> partnerId, posId, products[]</p>
+        </div>
+
+        <div class="card">
+            <h3>Create Order</h3>
+            <p>Создание заказа (заявки на кредит).</p>
+            <pre><code><span class="highlight">POST</span> /api/v1/physical-api-partners/orders
+Headers: Authorization: {API_KEY}
+Content-Type: application/json
+
+{
+  <span class="string">"posIdentifier"</span>: "...",
+  <span class="string">"salesmanIdentifier"</span>: "...",
+  <span class="string">"phoneNumber"</span>: "+373...",
+  <span class="string">"orderAmount"</span>: 15000,
+  <span class="string">"currency"</span>: "MDL",
+  <span class="string">"items"</span>: [{ <span class="string">"name"</span>: "...", <span class="string">"quantity"</span>: 1, <span class="string">"price"</span>: 15000 }]
+}</code></pre>
+        </div>
+
+        <div class="card">
+            <h3>Get Order Status</h3>
+            <p>Проверка статуса заказа.</p>
+            <pre><code><span class="highlight">GET</span> /api/v1/physical-api-partners/orders/{orderId}
+Headers: Authorization: {API_KEY}</code></pre>
+            <p><strong>Статусы:</strong> PENDING, IN_PROGRESS, PAID, CANCELLED, CUSTOMER_NOT_EXISTS</p>
+        </div>
+
+        <h2>⚙️ Конфигурация</h2>
+        <div class="card">
+            <p>Настройки больше не хранятся в <code>data/iute_settings.json</code> — этот файл
+            используется только как одноразовый seed при первом деплое
+            (<code>deploy_credite_oracle.py</code>). Авторитетное хранилище — Oracle, таблицы
+            <code>TMS_CREDITE_PROVIDER</code> (<code>CODE='iute'</code>: <code>ENABLED, ENV,
+            BASE_URL</code>) и <code>TMS_CREDITE_PROVIDER_PARAM</code> с параметрами:</p>
+            <table>
+                <tr><th>Параметр</th><th>Секретный</th><th>Назначение</th></tr>
+                <tr><td><code>api_key</code></td><td>да</td><td>ключ авторизации, заголовок <code>Authorization</code></td></tr>
+                <tr><td><code>pos_identifier</code></td><td>нет</td><td>идентификатор точки продаж</td></tr>
+                <tr><td><code>salesman_identifier</code></td><td>нет</td><td>идентификатор продавца</td></tr>
+            </table>
+            <p>Как и для EasyCredit, у Iute — два независимых контура: <code>TMS_CREDITE_PROVIDER</code>
+            в Oracle ADB основного проекта (<code>/UNA.md/orasldev/credit-admin</code>) и та же схема
+            в Oracle 11g OfficePlus (<code>/UNA.md/orasldev/biro26-credit-admin</code>, вкладка
+            «Provideri API»). Пустое значение <code>api_key</code> при сохранении — «не менять».
+            Подробности архитектуры (<code>CrediteSettings</code>, <code>build_registry</code>,
+            правило «пустой секрет = не менять», фолбэк на <code>.env</code>, демо-креды после
+            деплоя) — общие для всех провайдеров, см.
+            <a href="/UNA.md/orasldev/docs/easycredit">документацию EasyCredit, §4</a>.</p>
+            <div class="note">
+                <strong>⚠️ Безопасность:</strong> API ключи скрыты в интерфейсе бэк-офиса
+                (маска <code>xxx***</code>), реальные значения НЕ передаются в frontend
+                (<code>CrediteSettings.masked()</code>).
+            </div>
+        </div>
+
+        <h2>🛒 Витрина Biro26</h2>
+        <div class="card">
+            <p>Iute доступен в корзине магазина Biro26 (<code>shop.html</code>,
+            <code>site_cart.html</code>) наравне с EasyCredit — тот же UI, те же маршруты
+            <code>/api/biro26/shop/credit/api/{preapproved,submit,status}</code>, тот же реестр
+            <code>build_registry(biro26_settings())</code>. Условие показа то же: провайдер включён
+            И привязан к организации (<code>TMS_CREDITE_ORG.PROVIDER_ID</code>) в бэк-офисе.</p>
+            <div class="note">
+                <strong>⚠️ Известное ограничение:</strong> <code>IuteProvider</code>
+                (<code>integrations/iute_provider.py</code>) реализует только
+                <code>check_auth / create_order / order_status</code> (замаппленные на
+                <code>submit()</code> / <code>check_status()</code>). Метод <code>preapproved()</code>
+                не переопределён и наследуется от базового класса, который возвращает
+                <code>{"success": false, "error": "Not supported"}</code>. Витрина всегда начинает
+                флоу с шага «Preapproved» (<a href="/UNA.md/orasldev/docs/easycredit#flow">см. §7
+                EasyCredit</a>), поэтому для организации, привязанной к Iute, первый шаг сейчас
+                завершится этой ошибкой и кнопка отправки заявки останется заблокированной — заявку
+                через API отправить нельзя, пока в <code>IuteProvider</code> не появится
+                <code>preapproved()</code> (например, как заглушка «всегда допустить к подаче»,
+                раз у Iute нет отдельного эндпоинта предодобрения) или пока флоу на витрине не
+                научится пропускать этот шаг для провайдеров без capability <code>preapproved</code>.
+                Тестовое подключение в бэк-офисе («Test conexiune») этой проблемы не имеет — оно
+                использует <code>check_auth</code>, который у Iute реализован.
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>📅 Документ обновлён: 31.07.2026 | Версия: 2.0 (TMS_CREDITE_*, витрина Biro26,
+            известное ограничение preapproved)</p>
+            <p>Oracle SQL Developer Web — Artgranit Project</p>
+        </div>
+    </div>
+</body>
+</html>

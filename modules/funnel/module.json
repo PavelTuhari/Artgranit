@@ -1,0 +1,15 @@
+{
+  "title": {
+    "ru": "Воронка продаж",
+    "ro": "Palnia de vinzari",
+    "en": "Sales funnel"
+  },
+  "icon": "📈",
+  "order": 116,
+  "url": "/UNA.md/orasldev/funnel",
+  "descr": "Заказы, отгрузки, конверсия, зависшие заказы и автономная сводка администрации",
+  "pages": {
+    "funnel": "Воронка и сводка"
+  },
+  "docs": "Funnel"
+}

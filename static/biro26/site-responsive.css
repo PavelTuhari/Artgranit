@@ -1,0 +1,144 @@
+/* =====================================================================
+   OfficePlus — noul site Figma: ADAPTIV (TZ par.5.2)
+   RO: prototipul landingfigma1 este fix 1440px; aceste media-query-uri il
+   fac fluid pe tablet (<=1024) si mobil (<=640), pastrind tokens/culorile.
+   Breakpoints: 1440 -> fluid, 1024 -> tableta, 640 -> mobil (375 ok).
+   ===================================================================== */
+
+/* butonul "Filtre" exista doar pe tableta/mobil */
+.plp-ftoggle { display: none; }
+
+/* ── FLUID mereu (aliniat la fereastra): prototipul era fix 1440px;
+   acum fundalul alb umple TOATA fereastra la orice latime/zoom, iar
+   continutul sta centrat pe max-width 1260. ── */
+html, body { background: #ffffff; }
+.page-shell { padding: 0; }
+.homepage, .header, .main, .footer, .newsletter, .footer-main { width: 100%; }
+.homepage { min-height: auto; box-shadow: none; }
+.topbar-inner, .navbar, .section, .hero, .newsletter-inner,
+.footer-grid, .footer-bottom p {
+  width: auto;
+  max-width: 1260px;
+  padding-left: 16px;
+  padding-right: 16px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.hero { box-sizing: border-box; }
+.hero-slider { flex: 1 1 auto; width: auto; min-width: 0; }
+.hero-slide-visual { width: 100%; }
+.products-export img { width: 100%; height: auto; }
+
+@media (max-width: 1024px) {
+  .page-shell { padding: 0 0 32px; }
+  .hero { flex-direction: column; align-items: stretch; gap: 24px; }
+  .hero-slider { width: 100%; }
+  .deal-card { width: 100%; min-height: auto; }
+  .deal-image { min-height: 200px; }
+  .categories { grid-template-columns: repeat(4, 1fr); }
+  .product-grid, .product-grid.five,
+  .plp .product-grid { grid-template-columns: repeat(3, 1fr); }
+  .brands { grid-template-columns: repeat(4, 1fr); }
+  .plp { flex-direction: column; }
+  /* RO: pe tableta/mobil filtrele stau ascunse dupa butonul "Filtre"
+     (stil Amazon, ca in magazinul clasic) */
+  .plp-ftoggle { display: block; }
+  .plp-side { width: 100%; }
+  /* :not(.open) bate regula inline din site_base (specificitate mai mare) */
+  .plp-side:not(.open) { display: none; }
+  .ftree { max-height: 260px; }
+  .pdp { flex-direction: column; }
+  .pdp-img { width: 100%; min-height: 320px; }
+  .cart-lay { flex-direction: column; }
+  .cart-side { width: 100%; }
+  .newsletter-inner { flex-direction: column; align-items: stretch; gap: 18px; }
+  .newsletter-form { min-width: 0; width: 100%; }
+  .footer-grid { grid-template-columns: 1fr 1fr; gap: 28px; }
+  .hero-title { font-size: 34px; }
+  .page-h1 { font-size: 30px; line-height: 1.2; }
+  .section-title { font-size: 28px; }
+}
+
+@media (max-width: 640px) {
+  .topbar { height: auto; padding: 6px 0; }
+  .topbar-inner { height: auto; flex-wrap: wrap; gap: 6px 14px; }
+  .topbar-text { display: none; }           /* orarul — prea lung pe 375px */
+  .topbar-nav { display: none; }            /* meniul de sus — doar desktop */
+  .navbar { height: auto; flex-wrap: wrap; gap: 10px 14px; padding: 10px 16px 14px; }
+  .logo, .logo img { width: 150px; height: auto; }
+  .search { order: 3; flex-basis: 100%; }
+  .search-field { height: 44px; padding: 0 10px 0 14px; }
+  .search-input, .search-placeholder { font-size: 15px; }
+  .catalog-btn { height: 44px; min-width: 0; padding: 0 12px; font-size: 13.5px; }
+  .nav-actions { gap: 8px; margin-left: auto; }
+  .hero-slide-visual { height: 400px; }
+  .hero-slide-content { left: 22px; top: 26px; right: 22px; max-width: none; }
+  .hero-title { font-size: 26px; }
+  .hero-sub { font-size: 14px; }
+  .hero-slide-art { width: 300px; height: 300px; right: -80px; bottom: -80px; }
+  .categories { grid-template-columns: repeat(2, 1fr); }
+  .product-grid, .product-grid.five,
+  .plp .product-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  .product-card { min-height: 0; padding: 10px 10px 12px; }
+  .product-img { height: 120px; }
+  .product-name { font-size: 13.5px; min-height: 0; }
+  .price { font-size: 15px; }
+  .btn-cart, .btn-buy-sm { height: 38px; font-size: 13.5px; }
+  .brands { grid-template-columns: repeat(2, 1fr); }
+  .tabs { gap: 6px; }
+  .tab { height: 34px; padding: 0 12px; font-size: 12.5px; }
+  .page-h1 { font-size: 22px; margin-bottom: 20px; }
+  .section-title { font-size: 22px; }
+  .section { margin-bottom: 34px; }
+  .pdp-name { font-size: 21px; }
+  .pdp-price { font-size: 26px; }
+  .pdp-img { min-height: 220px; }
+  .pdp-qty { flex-wrap: wrap; }
+  .btn-big { width: 100%; }
+  .wp-page { padding: 22px 16px; }
+  .wp-page h1 { font-size: 24px; }
+  .footer-grid { grid-template-columns: 1fr; gap: 22px; }
+  .newsletter-title { font-size: 22px; }
+  .newsletter-form { padding: 4px 4px 4px 12px; }
+  .newsletter-btn { padding: 0 16px; font-size: 14px; }
+  .cart-tbl th, .cart-tbl td { padding: 8px 6px; font-size: 12.5px; }
+  .cart-tbl input { width: 54px; }
+  .acc-box { min-width: 0; }
+}
+
+/* ── PLASA DE SIGURANTA: carduri compacte pe desktop ─────────────────────
+   RO: site_base.html (sablon comun) e rescris periodic de cealalta echipa.
+   Pe 01.09.2026 rescrierea a pierdut <link>-ul catre site-mobile.css SI a
+   pus in blocul <style> inline (dupa foile legate):
+       @media (min-width:1025px){.plp .product-grid{grid-template-columns:repeat(4,1fr)}}
+   `1fr` = minmax(auto, 1fr): coloana creste pina la cel mai lung cuvint
+   nerupt din denumire («IR2016/2018/2020/...») — doua coloane de 870px in loc
+   de sase compacte. Aceeasi specificitate + sursa mai tirzie = inline-ul
+   cistiga. De aceea regulile de aici folosesc ID-ul grilei (#grid): un ID
+   bate orice regula doar-cu-clase, oriunde ar sta ea. Fisierul acesta a
+   ramas legat in sablonul lor, deci supravietuieste urmatoarei rescrieri.
+   EN: safety net with ID specificity so the shared template's inline
+   repeat(4,1fr) can never win again. */
+#grid.product-grid, .plp #grid.product-grid, #grid.product-grid.five {
+  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+}
+#grid .product-card { min-width: 0; }
+#grid .product-card .product-name,
+#grid .product-card .product-code { overflow-wrap: anywhere; }
+/* RO: denumirile din «Piese Imprimanta» au 6-7 rinduri si cardul ajungea la
+   518px inaltime. Pe desktop denumirea se taie la 4 rinduri (pe telefon la 3,
+   in site-mobile.css); numele intreg e pe fisa produsului si in title. */
+#grid .product-card .product-name {
+  display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (max-width: 1024px) {
+  #grid.product-grid, .plp #grid.product-grid, #grid.product-grid.five {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  #grid.product-grid, .plp #grid.product-grid, #grid.product-grid.five {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

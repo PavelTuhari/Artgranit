@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Colass Contracts</title>
+  <style>
+    :root { --bg:#0b1220; --card:#111827; --line:#334155; --text:#e5e7eb; --muted:#94a3b8; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:radial-gradient(circle at 10% 10%, #1e3a8a, var(--bg) 40%); color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; height:100vh; display:flex; flex-direction:column; }
+    .top { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; align-items:center; padding:10px 12px; border-bottom:1px solid var(--line); background:#111827d9; position:sticky; top:0; z-index:5; }
+    .links { display:flex; gap:8px; flex-wrap:wrap; }
+    .links a { text-decoration:none; color:#bfdbfe; border:1px solid var(--line); border-radius:8px; padding:6px 9px; font-size:12px; }
+    .layout { display:grid; grid-template-columns:1.05fr 1fr; gap:10px; padding:10px; min-height:0; flex:1; }
+    .panel { min-height:0; display:flex; flex-direction:column; gap:8px; background:#111827f0; border:1px solid var(--line); border-radius:10px; padding:10px; }
+    .row { display:grid; grid-template-columns:repeat(4,minmax(110px,1fr)); gap:8px; }
+    .row2 { display:grid; grid-template-columns:repeat(2,minmax(110px,1fr)); gap:8px; }
+    input,select,textarea,button { width:100%; padding:8px; border:1px solid var(--line); border-radius:8px; background:#0b1220; color:var(--text); font-size:13px; }
+    textarea { min-height:64px; resize:vertical; }
+    .btn { cursor:pointer; }
+    .btn.primary { background:#075985; }
+    .btn.good { background:#14532d; }
+    .btn.warn { background:#7c2d12; }
+    .muted { color:var(--muted); font-size:12px; }
+    .table-wrap { min-height:0; flex:1; overflow:auto; border:1px solid var(--line); border-radius:8px; }
+    table { width:100%; border-collapse:collapse; font-size:12px; }
+    th,td { padding:7px; border-bottom:1px solid #1f2937; text-align:left; }
+    th { position:sticky; top:0; background:#0b1220; }
+    tr.sel { background:#0284c71f; }
+    .triple { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; min-height:0; }
+    .mini { border:1px solid var(--line); border-radius:8px; padding:8px; background:#0b1220; display:flex; flex-direction:column; min-height:120px; gap:6px; }
+    .mini-list { min-height:0; flex:1; overflow:auto; font-size:12px; }
+    .mini-item { display:flex; justify-content:space-between; gap:6px; padding:4px 0; border-bottom:1px solid #1f2937; align-items:center; }
+    .badge { display:inline-block; font-size:11px; padding:2px 6px; border-radius:999px; border:1px solid var(--line); }
+    .badge.ok { background:#14532d; }
+    .badge.miss { background:#7c2d12; }
+    @media (max-width: 1100px) { .layout { grid-template-columns:1fr; } .row,.row2,.triple { grid-template-columns:1fr; } }
+  </style>
+</head>
+<body>
+  <div class="top">
+    <div class="links">
+      <a href="/UNA.md/orasldev/colass-crm" id="lnkCrm"></a>
+      <a href="/UNA.md/orasldev/colass-estimator" id="lnkEstimator"></a>
+      <a href="/UNA.md/orasldev/colass-catalog" id="lnkCatalog"></a>
+      <a href="/UNA.md/orasldev/docs/colass" id="lnkDocs"></a>
+      <a href="/UNA.md/orasldev/dashboard">Dashboard</a>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span id="title"></span>
+      <select id="lang"><option value="ru">Русский</option><option value="ro">Română</option></select>
+    </div>
+  </div>
+
+  <div class="layout">
+    <section class="panel">
+      <div class="row2">
+        <input id="search" />
+        <button class="btn primary" id="refresh"></button>
+      </div>
+      <div class="table-wrap">
+        <table id="tblContracts"><thead><tr>
+          <th>ID</th><th id="thNo"></th><th id="thDate"></th><th id="thCompany"></th><th id="thLead"></th><th id="thEstimate"></th><th id="thAmount"></th><th id="thStatus"></th>
+        </tr></thead><tbody></tbody></table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="row">
+        <div><div class="muted" id="lblNo"></div><input id="fNo" /></div>
+        <div><div class="muted" id="lblDate"></div><input id="fDate" type="date" /></div>
+        <div><div class="muted" id="lblLead"></div><select id="fLead"></select></div>
+        <div><div class="muted" id="lblEstimate"></div><select id="fEstimate"></select></div>
+      </div>
+      <div class="row2">
+        <div><div class="muted" id="lblCompany"></div><input id="fCompany" /></div>
+        <div><div class="muted" id="lblLegal"></div><input id="fLegal" /></div>
+      </div>
+      <div class="row">
+        <div><div class="muted" id="lblFiscal"></div><input id="fFiscal" /></div>
+        <div><div class="muted" id="lblVat"></div><input id="fVat" /></div>
+        <div><div class="muted" id="lblAmount"></div><input id="fAmount" type="number" step="0.01" /></div>
+        <div><div class="muted" id="lblStatus"></div><input id="fStatus" value="DRAFT" /></div>
+      </div>
+      <div><div class="muted" id="lblNotes"></div><textarea id="fNotes"></textarea></div>
+
+      <div class="row2">
+        <button class="btn good" id="btnCreate"></button>
+        <button class="btn primary" id="btnSave"></button>
+      </div>
+      <div class="row2">
+        <button class="btn warn" id="btnDelete"></button>
+        <button id="btnSync"></button>
+      </div>
+      <div class="row2">
+        <button id="btnExportWord" class="btn primary"></button>
+        <button id="btnApprovalStart" class="btn good"></button>
+      </div>
+
+      <div class="triple">
+        <div class="mini"><div class="muted" id="ttlEmails"></div><div class="mini-list" id="emails"></div><button id="addEmail"></button></div>
+        <div class="mini"><div class="muted" id="ttlPhones"></div><div class="mini-list" id="phones"></div><button id="addPhone"></button></div>
+        <div class="mini"><div class="muted" id="ttlRoutes"></div><div class="mini-list" id="routes"></div><button id="addRoute"></button></div>
+      </div>
+
+      <div class="mini" style="min-height:130px;">
+        <div class="muted" id="ttlAttachments"></div>
+        <div class="row" style="grid-template-columns: 1fr 1fr 1fr;">
+          <select id="attType"></select>
+          <input id="attFile" type="file" />
+          <button id="btnUploadAtt"></button>
+        </div>
+        <div id="requiredState" class="muted"></div>
+        <div class="mini-list" id="attachments"></div>
+      </div>
+
+      <div class="mini" style="min-height:130px;">
+        <div class="muted" id="ttlApproval"></div>
+        <div class="row2">
+          <input id="approvalUsers" />
+          <button id="btnApprovalRefresh"></button>
+        </div>
+        <div class="mini-list" id="approvalSteps"></div>
+      </div>
+
+      <div class="table-wrap" style="max-height:170px;">
+        <table id="tblItems"><thead><tr><th id="ithCode"></th><th id="ithName"></th><th id="ithUnit"></th><th id="ithQty"></th><th id="ithPrice"></th><th id="ithAmount"></th><th id="ithType"></th></tr></thead><tbody></tbody></table>
+      </div>
+
+      <div class="muted" id="status"></div>
+    </section>
+  </div>
+
+<script>
+const I18N = {
+  ru: {
+    title:'Colass Contracts: реестр договоров', lnkCrm:'CRM', lnkEstimator:'Сметчик', lnkCatalog:'Каталог', lnkDocs:'Документация',
+    search:'Поиск по номеру/компании/лиду', refresh:'Обновить',
+    thNo:'№ договора', thDate:'Дата', thCompany:'Компания', thLead:'Лид', thEstimate:'Смета', thAmount:'Сумма', thStatus:'Статус',
+    lblNo:'Номер договора', lblDate:'Дата договора', lblLead:'Лид CRM', lblEstimate:'Смета', lblCompany:'Компания', lblLegal:'Форма',
+    lblFiscal:'Фиск. код', lblVat:'TVA', lblAmount:'Сумма', lblStatus:'Статус', lblNotes:'Примечание',
+    btnCreate:'Создать договор', btnSave:'Сохранить', btnDelete:'Удалить', btnSync:'Синхронизировать позиции из сметы',
+    btnExportWord:'Экспорт в Word (.docx)', btnApprovalStart:'Запустить групповое согласование',
+    ttlEmails:'Email', ttlPhones:'Телефоны', ttlRoutes:'Маршруты/объект', addEmail:'+ Email', addPhone:'+ Телефон', addRoute:'+ Маршрут',
+    ttlAttachments:'Приложения к договору', btnUploadAtt:'Загрузить приложение',
+    reqFin:'Финансовые условия', reqEst:'Сметные условия', reqPrice:'Общий прайс-лист',
+    ttlApproval:'Групповое согласование', btnApprovalRefresh:'Обновить согласование', approvalUsers:'Согласующие: Имя1, Имя2, Имя3',
+    ithCode:'Код', ithName:'Позиция', ithUnit:'Ед', ithQty:'Кол-во', ithPrice:'Цена', ithAmount:'Сумма', ithType:'Тип',
+    askDelete:'Удалить договор?', askEmail:'Новый email', askPhone:'Новый телефон', askRoute:'Новый маршрут/объект',
+    askApproveComment:'Комментарий (опц.)', askRejectComment:'Причина отклонения',
+    saved:'Сохранено', created:'Создано', deleted:'Удалено',
+    attFinancial:'Финансовые условия', attEstimate:'Сметные условия', attPrice:'Общий прайс-лист', attOther:'Прочее приложение',
+    msgNeedContract:'Сначала выберите договор', msgUploadNoFile:'Выберите файл', msgApprovalStarted:'Согласование запущено',
+    msgDecided:'Решение зафиксировано', btnApprove:'Одобрить', btnReject:'Отклонить',
+    approvalNone:'Согласование не запущено'
+  },
+  ro: {
+    title:'Colass Contracts: registru contracte', lnkCrm:'CRM', lnkEstimator:'Devizier', lnkCatalog:'Catalog', lnkDocs:'Documentație',
+    search:'Căutare după număr/companie/lead', refresh:'Actualizează',
+    thNo:'Nr contract', thDate:'Data', thCompany:'Companie', thLead:'Lead', thEstimate:'Deviz', thAmount:'Sumă', thStatus:'Status',
+    lblNo:'Număr contract', lblDate:'Data contractului', lblLead:'Lead CRM', lblEstimate:'Deviz', lblCompany:'Companie', lblLegal:'Forma juridică',
+    lblFiscal:'Cod fiscal', lblVat:'TVA', lblAmount:'Sumă', lblStatus:'Status', lblNotes:'Notițe',
+    btnCreate:'Creează contract', btnSave:'Salvează', btnDelete:'Șterge', btnSync:'Sincronizează pozițiile din deviz',
+    btnExportWord:'Export în Word (.docx)', btnApprovalStart:'Pornește aprobarea în grup',
+    ttlEmails:'Email', ttlPhones:'Telefoane', ttlRoutes:'Rute/obiect', addEmail:'+ Email', addPhone:'+ Telefon', addRoute:'+ Rută',
+    ttlAttachments:'Anexe contract', btnUploadAtt:'Încarcă anexa',
+    reqFin:'Condiții financiare', reqEst:'Condiții de deviz', reqPrice:'Pricelist general',
+    ttlApproval:'Aprobare în grup', btnApprovalRefresh:'Actualizează aprobarea', approvalUsers:'Aprobatori: Nume1, Nume2, Nume3',
+    ithCode:'Cod', ithName:'Poziție', ithUnit:'UM', ithQty:'Cant.', ithPrice:'Preț', ithAmount:'Sumă', ithType:'Tip',
+    askDelete:'Ștergeți contractul?', askEmail:'Email nou', askPhone:'Telefon nou', askRoute:'Rută/obiect nou',
+    askApproveComment:'Comentariu (opțional)', askRejectComment:'Motiv respingere',
+    saved:'Salvat', created:'Creat', deleted:'Șters',
+    attFinancial:'Condiții financiare', attEstimate:'Condiții de deviz', attPrice:'Pricelist general', attOther:'Anexă',
+    msgNeedContract:'Selectați mai întâi contractul', msgUploadNoFile:'Selectați fișier', msgApprovalStarted:'Aprobarea a fost pornită',
+    msgDecided:'Decizia a fost salvată', btnApprove:'Aprobă', btnReject:'Respinge',
+    approvalNone:'Aprobarea nu este pornită'
+  }
+};
+
+const s = { lang: localStorage.getItem('colass_lang') || 'ru', contracts: [], leads: [], estimates: [], sel: null, approval: null, approvalSteps: [] };
+const $ = (id) => document.getElementById(id);
+const t = (k) => (I18N[s.lang] && I18N[s.lang][k]) || k;
+const esc = (v) => String(v ?? '').replace(/[&<>'"]/g, (m) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m] || m));
+
+async function getJson(url, options = {}) {
+  const r = await fetch(url, options);
+  const j = await r.json();
+  if (!r.ok || j.success === false) throw new Error(j.error || r.statusText);
+  return j;
+}
+
+function setTexts() {
+  const keys = ['title','lnkCrm','lnkEstimator','lnkCatalog','lnkDocs','refresh','thNo','thDate','thCompany','thLead','thEstimate','thAmount','thStatus','lblNo','lblDate','lblLead','lblEstimate','lblCompany','lblLegal','lblFiscal','lblVat','lblAmount','lblStatus','lblNotes','btnCreate','btnSave','btnDelete','btnSync','btnExportWord','btnApprovalStart','ttlEmails','ttlPhones','ttlRoutes','addEmail','addPhone','addRoute','ttlAttachments','btnUploadAtt','ttlApproval','btnApprovalRefresh','ithCode','ithName','ithUnit','ithQty','ithPrice','ithAmount','ithType'];
+  keys.forEach((k) => { const e = $(k); if (e) e.textContent = t(k); });
+  $('title').textContent = t('title');
+  $('search').placeholder = t('search');
+  $('approvalUsers').placeholder = t('approvalUsers');
+  document.title = t('title');
+  const at = $('attType');
+  at.innerHTML = [
+    ['FINANCIAL_TERMS', t('attFinancial')],
+    ['ESTIMATE_TERMS', t('attEstimate')],
+    ['PRICE_LIST', t('attPrice')],
+    ['OTHER', t('attOther')],
+  ].map(([v,n]) => `<option value="${v}">${esc(n)}</option>`).join('');
+}
+
+function renderContracts() {
+  const tb = $('tblContracts').querySelector('tbody');
+  if (!s.contracts.length) { tb.innerHTML = '<tr><td colspan="8" class="muted">-</td></tr>'; return; }
+  tb.innerHTML = s.contracts.map((c) => `<tr data-id="${c.id}" class="${Number(c.id)===Number(s.sel)?'sel':''}"><td>${c.id}</td><td>${esc(c.contract_no||'')}</td><td>${esc((c.contract_date||'').slice(0,10))}</td><td>${esc(c.company_name||'')}</td><td>${esc(c.lead_no||'')}</td><td>${esc(c.estimate_name||'')}</td><td>${Number(c.total_amount||0).toFixed(2)}</td><td>${esc(c.status||'')}</td></tr>`).join('');
+  tb.querySelectorAll('tr[data-id]').forEach((r) => r.addEventListener('click', async () => { s.sel = Number(r.dataset.id); renderContracts(); await loadDetail(); }));
+}
+
+function fillLeadEstimateSelects() {
+  $('fLead').innerHTML = '<option value=""></option>' + s.leads.map((l) => `<option value="${l.id}">${esc(l.lead_no+' | '+(l.contact_name||l.company_name||''))}</option>`).join('');
+  $('fEstimate').innerHTML = '<option value=""></option>' + s.estimates.map((e) => `<option value="${e.id}">${esc(e.code||e.name||('ID '+e.id))}</option>`).join('');
+}
+
+function renderMini(id, rows, kind, field) {
+  const el = $(id);
+  el.innerHTML = (rows || []).map((r) => `<div class="mini-item"><span>${esc(r[field]||r.route_name||'')}</span><button data-id="${r.id}" data-kind="${kind}">x</button></div>`).join('') || '<div class="muted">-</div>';
+  el.querySelectorAll('button[data-id]').forEach((b) => b.addEventListener('click', () => delContact(b.dataset.kind, Number(b.dataset.id))));
+}
+
+function renderItems(rows) {
+  const tb = $('tblItems').querySelector('tbody');
+  tb.innerHTML = (rows || []).map((i) => `<tr><td>${esc(i.item_code||'')}</td><td>${esc(i.item_name||'')}</td><td>${esc(i.unit||'')}</td><td>${Number(i.qty||0).toFixed(3)}</td><td>${Number(i.price||0).toFixed(2)}</td><td>${Number(i.amount||0).toFixed(2)}</td><td>${esc(s.lang==='ro'?(i.type_name_ro||i.type_code):(i.type_name_ru||i.type_code)||'')}</td></tr>`).join('') || '<tr><td colspan="7" class="muted">-</td></tr>';
+}
+
+function renderAttachments(rows, req) {
+  const container = $('attachments');
+  container.innerHTML = (rows || []).map((a) => `<div class="mini-item"><span>${esc(a.file_name)} <span class="muted">[${esc(a.type_code)}]</span></span><span><a style="color:#93c5fd" href="/api/colass/contracts/attachments/${a.id}/download" target="_blank">↓</a> <button data-id="${a.id}" class="btnDelAtt">x</button></span></div>`).join('') || '<div class="muted">-</div>';
+  container.querySelectorAll('.btnDelAtt').forEach((b) => b.addEventListener('click', () => deleteAttachment(Number(b.dataset.id))));
+
+  const f = Number(req?.has_financial_terms || 0) === 1;
+  const e = Number(req?.has_estimate_terms || 0) === 1;
+  const p = Number(req?.has_price_list || 0) === 1;
+  $('requiredState').innerHTML =
+    `<span class="badge ${f?'ok':'miss'}">${esc(t('reqFin'))}: ${f?'OK':'MISS'}</span> ` +
+    `<span class="badge ${e?'ok':'miss'}">${esc(t('reqEst'))}: ${e?'OK':'MISS'}</span> ` +
+    `<span class="badge ${p?'ok':'miss'}">${esc(t('reqPrice'))}: ${p?'OK':'MISS'}</span>`;
+}
+
+function renderApproval(approval, steps) {
+  const box = $('approvalSteps');
+  if (!approval) { box.innerHTML = `<div class="muted">${esc(t('approvalNone'))}</div>`; return; }
+  box.innerHTML = `<div class="mini-item"><span>Status: <b>${esc(approval.status || '')}</b></span><span class="muted">${esc((approval.started_at || '').slice(0,19))}</span></div>` +
+    (steps || []).map((srow) => {
+      const controls = (srow.decision === 'PENDING')
+        ? `<button data-step="${srow.id}" data-dec="APPROVED">${esc(t('btnApprove'))}</button> <button data-step="${srow.id}" data-dec="REJECTED">${esc(t('btnReject'))}</button>`
+        : `<span class="muted">${esc(srow.decision || '')}</span>`;
+      return `<div class="mini-item"><span>${esc(srow.step_no)}. ${esc(srow.approver_name || '')}</span><span>${controls}</span></div>`;
+    }).join('');
+  box.querySelectorAll('button[data-step]').forEach((b) => b.addEventListener('click', () => decideStep(Number(b.dataset.step), b.dataset.dec)));
+}
+
+function formPayload() {
+  return {
+    contract_no: $('fNo').value.trim(),
+    contract_date: $('fDate').value || null,
+    crm_lead_id: $('fLead').value || null,
+    estimate_id: $('fEstimate').value || null,
+    company_name: $('fCompany').value.trim(),
+    legal_form: $('fLegal').value.trim(),
+    fiscal_code: $('fFiscal').value.trim(),
+    vat_code: $('fVat').value.trim(),
+    total_amount: $('fAmount').value || 0,
+    status: $('fStatus').value.trim() || 'DRAFT',
+    notes: $('fNotes').value.trim()
+  };
+}
+
+function fillForm(d) {
+  $('fNo').value = d.contract_no || '';
+  $('fDate').value = (d.contract_date || '').slice(0, 10);
+  $('fLead').value = d.crm_lead_id || '';
+  $('fEstimate').value = d.estimate_id || '';
+  $('fCompany').value = d.company_name || '';
+  $('fLegal').value = d.legal_form || '';
+  $('fFiscal').value = d.fiscal_code || '';
+  $('fVat').value = d.vat_code || '';
+  $('fAmount').value = d.total_amount || '';
+  $('fStatus').value = d.status || 'DRAFT';
+  $('fNotes').value = d.notes || '';
+}
+
+async function loadContracts() {
+  const p = new URLSearchParams();
+  if ($('search').value.trim()) p.set('search', $('search').value.trim());
+  p.set('limit', '500');
+  const out = await getJson('/api/colass/contracts?' + p.toString());
+  s.contracts = out.data || [];
+  if (!s.sel && s.contracts.length) s.sel = Number(s.contracts[0].id);
+  renderContracts();
+  if (s.sel) await loadDetail();
+}
+
+async function loadDetail() {
+  if (!s.sel) return;
+  const out = await getJson(`/api/colass/contracts/${s.sel}`);
+  fillForm(out.data || {});
+  renderMini('emails', out.emails || [], 'email', 'email');
+  renderMini('phones', out.phones || [], 'phone', 'phone');
+  renderMini('routes', out.routes || [], 'route', 'route_name');
+  renderItems(out.items || []);
+
+  const att = await getJson(`/api/colass/contracts/${s.sel}/attachments`);
+  renderAttachments(att.data || [], att.required || {});
+
+  const appr = await getJson(`/api/colass/contracts/${s.sel}/approval`);
+  s.approval = appr.approval || null;
+  s.approvalSteps = appr.steps || [];
+  renderApproval(s.approval, s.approvalSteps);
+}
+
+async function loadLeadEstimateData() {
+  const leads = await getJson('/api/colass/crm/leads?limit=500');
+  s.leads = leads.data || [];
+  const pro = await getJson('/api/colass/projects');
+  let est = [];
+  for (const p of (pro.data || [])) {
+    const x = await getJson(`/api/colass/projects/${p.id}/estimates`);
+    est = est.concat(x.data || []);
+  }
+  s.estimates = est;
+  fillLeadEstimateSelects();
+}
+
+async function createC() {
+  const out = await getJson('/api/colass/contracts', { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(formPayload()) });
+  $('status').textContent = `${t('created')}: ${out.contract_no || out.id}`;
+  s.sel = Number(out.id || 0);
+  await loadContracts();
+}
+
+async function saveC(sync = false) {
+  if (!s.sel) return;
+  const p = formPayload();
+  if (sync) p.sync_items_from_estimate = true;
+  await getJson(`/api/colass/contracts/${s.sel}`, { method:'PUT', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify(p) });
+  $('status').textContent = t('saved');
+  await loadContracts();
+}
+
+async function deleteC() {
+  if (!s.sel) return;
+  if (!confirm(t('askDelete'))) return;
+  await getJson(`/api/colass/contracts/${s.sel}`, { method:'DELETE' });
+  $('status').textContent = t('deleted');
+  s.sel = null;
+  await loadContracts();
+}
+
+async function addContact(kind) {
+  if (!s.sel) { $('status').textContent = t('msgNeedContract'); return; }
+  const txt = prompt(t(kind === 'email' ? 'askEmail' : kind === 'phone' ? 'askPhone' : 'askRoute'));
+  if (!txt || !txt.trim()) return;
+  await getJson(`/api/colass/contracts/${s.sel}/contacts`, { method:'POST', headers:{ 'Content-Type':'application/json' }, body:JSON.stringify({ kind, value:txt.trim(), is_primary:'N' }) });
+  await loadDetail();
+}
+
+async function delContact(kind, rowId) {
+  if (!s.sel) return;
+  await getJson(`/api/colass/contracts/${s.sel}/contacts/${kind}/${rowId}`, { method:'DELETE' });
+  await loadDetail();
+}
+
+async function uploadAttachment() {
+  if (!s.sel) { $('status').textContent = t('msgNeedContract'); return; }
+  const file = $('attFile').files && $('attFile').files[0];
+  if (!file) { $('status').textContent = t('msgUploadNoFile'); return; }
+  const fd = new FormData();
+  fd.append('type_code', $('attType').value);
+  fd.append('file', file);
+  const r = await fetch(`/api/colass/contracts/${s.sel}/attachments`, { method:'POST', body:fd });
+  const j = await r.json();
+  if (!r.ok || j.success === false) throw new Error(j.error || r.statusText);
+  $('attFile').value = '';
+  await loadDetail();
+}
+
+async function deleteAttachment(attId) {
+  if (!s.sel) return;
+  await getJson(`/api/colass/contracts/${s.sel}/attachments/${attId}`, { method:'DELETE' });
+  await loadDetail();
+}
+
+async function exportWord() {
+  if (!s.sel) { $('status').textContent = t('msgNeedContract'); return; }
+  window.open(`/api/colass/contracts/${s.sel}/export-word`, '_blank');
+}
+
+async function startApproval() {
+  if (!s.sel) { $('status').textContent = t('msgNeedContract'); return; }
+  const raw = ($('approvalUsers').value || '').split(',').map((x) => x.trim()).filter(Boolean);
+  if (!raw.length) { $('status').textContent = t('approvalUsers'); return; }
+  const approvers = raw.map((name, i) => ({ name, role: i === 0 ? 'Legal' : 'Finance' }));
+  await getJson(`/api/colass/contracts/${s.sel}/approval/start`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ approvers })
+  });
+  $('status').textContent = t('msgApprovalStarted');
+  await loadDetail();
+}
+
+async function decideStep(stepId, decision) {
+  const comment = prompt(t(decision === 'APPROVED' ? 'askApproveComment' : 'askRejectComment')) || '';
+  await getJson(`/api/colass/contracts/approval/steps/${stepId}/decision`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decision, comment_text: comment })
+  });
+  $('status').textContent = t('msgDecided');
+  await loadDetail();
+}
+
+async function boot() {
+  $('lang').value = s.lang;
+  setTexts();
+  await loadLeadEstimateData();
+  await loadContracts();
+
+  $('lang').addEventListener('change', async (e) => {
+    s.lang = e.target.value;
+    localStorage.setItem('colass_lang', s.lang);
+    setTexts();
+    renderContracts();
+    if (s.sel) await loadDetail();
+  });
+
+  $('refresh').onclick = loadContracts;
+  $('search').addEventListener('keydown', (e) => { if (e.key === 'Enter') loadContracts(); });
+  $('btnCreate').onclick = createC;
+  $('btnSave').onclick = () => saveC(false);
+  $('btnDelete').onclick = deleteC;
+  $('btnSync').onclick = () => saveC(true);
+  $('btnExportWord').onclick = exportWord;
+  $('btnApprovalStart').onclick = startApproval;
+  $('btnApprovalRefresh').onclick = loadDetail;
+  $('addEmail').onclick = () => addContact('email');
+  $('addPhone').onclick = () => addContact('phone');
+  $('addRoute').onclick = () => addContact('route');
+  $('btnUploadAtt').onclick = uploadAttachment;
+}
+
+boot().catch((e) => { $('status').textContent = e.message || String(e); });
+</script>
+</body>
+</html>

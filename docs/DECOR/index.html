@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DECOR - Documentație / Материалы ТЗ</title>
+  <style>
+    :root { --primary:#0f766e; --bg:#eef7f8; --card:#fff; --text:#12323c; --muted:#5f7480; --line:#d6e2e8; }
+    * { box-sizing:border-box; margin:0; padding:0; }
+    body { font-family: Segoe UI, system-ui, sans-serif; background:var(--bg); color:var(--text); padding:24px; max-width:860px; margin:0 auto; }
+    h1 { margin-bottom:16px; }
+    .lead { margin-bottom:18px; border:1px solid var(--line); background:#e7f6f4; border-radius:12px; padding:14px; }
+    .langbar { display:flex; gap:8px; margin:0 0 14px; }
+    .langbar button { border:1px solid var(--line); background:#fff; border-radius:999px; padding:7px 12px; cursor:pointer; color:var(--text); }
+    .langbar button.active { background:var(--primary); color:#fff; border-color:var(--primary); }
+    ul { list-style:none; }
+    li { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:12px 14px; margin-bottom:10px; }
+    li a { color:var(--primary); font-weight:600; text-decoration:none; }
+    li span { display:block; margin-top:4px; color:var(--muted); font-size:13px; }
+    a { color:var(--primary); }
+    .lang-ro { display:inline; }
+    .lang-en { display:none; }
+    .lang-ru { display:none; }
+    body.lang-ru .lang-ro, body.lang-en .lang-ro { display:none; }
+    body.lang-en .lang-en { display:inline; }
+    body.lang-ru .lang-ru { display:inline; }
+  </style>
+</head>
+<body>
+  <div class="langbar">
+    <button id="btnRo" class="active" type="button">RO (principal)</button>
+    <button id="btnRu" type="button">RU</button>
+    <button id="btnEn" type="button">EN</button>
+  </div>
+  <h1><span class="lang-ro">Proiect DECOR - documentație</span><span class="lang-ru">Проект DECOR - материалы ТЗ</span><span class="lang-en">DECOR Project - Documentation</span></h1>
+  <p class="lead">
+    <a href="/UNA.md/orasldev/docs/decor/TZ.html">TZ.html</a> —
+    <span class="lang-ro">specificația tehnică pentru modulul DECOR (admin + operator) și descrierea implementării.</span>
+    <span class="lang-ru">техническое задание на модуль DECOR (админка + оператор) и описание реализации.</span>
+    <span class="lang-en">technical specification for the DECOR module (admin + operator) and implementation notes.</span>
+  </p>
+  <ul>
+    <li>
+      <a href="/UNA.md/orasldev/docs/decor/TZ.html">TZ.html</a>
+      <span><span class="lang-ro">Specificație tehnică DECOR (acoperișuri din sticlă / verande / pergole)</span><span class="lang-ru">Техническое задание DECOR (стеклянные крыши / веранды / перголы)</span><span class="lang-en">DECOR technical specification (glass roofs / verandas / pergolas)</span></span>
+    </li>
+    <li>
+      <a href="/UNA.md/orasldev/docs/decor/huun_new_veranda_material_base_price_list_2024.html">huun_new_veranda_material_base_price_list_2024.html</a>
+      <span><span class="lang-ro">Lista de prețuri materiale HUUN veranda 2024 · xlsx</span><span class="lang-ru">HUUN- NEW VERANDA- Material Base Price List -2024.xlsx · xlsx</span><span class="lang-en">HUUN veranda material base price list 2024 · xlsx</span></span>
+    </li>
+    <li>
+      <a href="/UNA.md/orasldev/docs/decor/yeni_veranda_u_reti_m_mali_yet_hesaplama.html">yeni_veranda_u_reti_m_mali_yet_hesaplama.html</a>
+      <span><span class="lang-ro">Calcul cost producție YENI veranda · xlsx</span><span class="lang-ru">YENİ VERANDA ÜRETİM MALİYET HESAPLAMA.xlsx · xlsx</span><span class="lang-en">YENI veranda production cost calculation · xlsx</span></span>
+    </li>
+    <li>
+      <a href="/UNA.md/orasldev/docs/decor/Configurator2%20Proiect%20Test%20UNA%201.html">Configurator2 Proiect Test UNA 1.html</a>
+      <span><span class="lang-ro">Configurator test UNA (export HTML cu imagini componente)</span><span class="lang-ru">Тестовый конфигуратор UNA (HTML-экспорт с изображениями компонентов)</span><span class="lang-en">UNA test configurator (HTML export with component images)</span></span>
+    </li>
+    <li>
+      <a href="/UNA.md/orasldev/docs/decor/xml_order_tables/3_canale_1huun__order_table.html">xml_order_tables/3_canale_1huun__order_table.html</a>
+      <span><span class="lang-ro">Conversie XML comandă (3 canale 1HUUN) cu tabel pe linii și imagini separate în `.fld`</span><span class="lang-ru">XML-конверт заказа (3 canale 1HUUN): построчная таблица + отдельная папка изображений `.fld`</span><span class="lang-en">XML order conversion (3 canale 1HUUN): line-by-line table + separate `.fld` image folder</span></span>
+    </li>
+    <li>
+      <a href="/UNA.md/orasldev/docs/decor/xml_order_tables/index.html">xml_order_tables/index.html</a>
+      <span><span class="lang-ro">Index conversii XML comenzi DECOR</span><span class="lang-ru">Индекс XML-конвертов заказов DECOR</span><span class="lang-en">DECOR XML order conversion index</span></span>
+    </li>
+    <li>
+      <a href="/UNA.md/orasldev/docs/decor/veranda.html">veranda.html</a>
+      <span><span class="lang-ro">Veranda.pdf · pdf (wrapper HTML)</span><span class="lang-ru">Veranda.pdf · pdf (HTML-обёртка)</span><span class="lang-en">Veranda.pdf · pdf (HTML wrapper)</span></span>
+    </li>
+  </ul>
+  <script>
+    (function () {
+      const b = document.body;
+      const btnRo = document.getElementById('btnRo');
+      const btnRu = document.getElementById('btnRu');
+      const btnEn = document.getElementById('btnEn');
+      function setLang(lang) {
+        b.classList.toggle('lang-ru', lang === 'ru');
+        b.classList.toggle('lang-en', lang === 'en');
+        btnRo.classList.toggle('active', lang === 'ro');
+        btnRu.classList.toggle('active', lang === 'ru');
+        btnEn.classList.toggle('active', lang === 'en');
+        try { localStorage.setItem('decorDocsLang', lang); } catch (e) {}
+      }
+      btnRo.addEventListener('click', () => setLang('ro'));
+      btnRu.addEventListener('click', () => setLang('ru'));
+      btnEn.addEventListener('click', () => setLang('en'));
+      let saved = 'ro';
+      try { saved = localStorage.getItem('decorDocsLang') || 'ro'; } catch (e) {}
+      setLang(saved === 'ru' ? 'ru' : (saved === 'en' ? 'en' : 'ro'));
+    })();
+  </script>
+</body>
+</html>

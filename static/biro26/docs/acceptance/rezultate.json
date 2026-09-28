@@ -1,0 +1,222 @@
+[
+ {
+  "nr": 1,
+  "titlu": "CRM lucreaza pe datele reale ale ERP-ului",
+  "asteptat": "fiecare sectiune arata date din Oracle, nu un set inventat",
+  "masurat": {
+   "clients": 45,
+   "contacts": 27,
+   "leads": 18,
+   "deals": 33,
+   "items": 201,
+   "orders": 164,
+   "projects": 0,
+   "tasks": 0,
+   "employees": 35
+  },
+  "chirias": {
+   "id": 0,
+   "kind": "office",
+   "label": "OfficePlus"
+  },
+  "erp": {
+   "clients": 45,
+   "erp_goods": 188857,
+   "erp_orgs": 33,
+   "items": 1,
+   "items_erp": 1,
+   "real": true,
+   "shop_clients": 26,
+   "tenant": "office"
+  },
+  "ok": true,
+  "capturi": [
+   "01_tablou.png"
+  ]
+ },
+ {
+  "nr": 2,
+  "titlu": "Nomenclator — marfa reala din dictionarul ERP",
+  "asteptat": "pozitii reale cu pret si stoc, plus panoul de cautare in ERP",
+  "masurat": {
+   "rinduri in lista": 201,
+   "pozitii active in dictionar": 188857
+  },
+  "ok": true,
+  "capturi": [
+   "02_nomenclator.png"
+  ]
+ },
+ {
+  "nr": 3,
+  "titlu": "Fisa produsului = cea din back-office",
+  "asteptat": "poza, cod de bare, grupa si istoricul de preturi, ca in fila Nomenclator",
+  "masurat": {
+   "articol": "TL-SF1024D",
+   "cod de bare": "9359843444894",
+   "grupa": "TVR",
+   "perioade de pret": 1,
+   "poza": true
+  },
+  "ok": true,
+  "capturi": [
+   "03_fisa_marfa.png"
+  ]
+ },
+ {
+  "nr": 4,
+  "titlu": "Comenzi — conturile de plata reale ale magazinului",
+  "asteptat": "documentele din ERP cu client, suma si liniile lor",
+  "masurat": {
+   "comenzi in lista": 164,
+   "prima": "A-93",
+   "client": "SRL ARTINICA-CV",
+   "total": 310,
+   "linii": 4
+  },
+  "ok": true,
+  "capturi": [
+   "04_comanda.png"
+  ]
+ },
+ {
+  "nr": 5,
+  "titlu": "Contacte, lead-uri si oportunitati reale",
+  "asteptat": "oameni si cereri adevarate, nu inventate",
+  "masurat": {
+   "contacte": 27,
+   "lead-uri": 18,
+   "oportunitati": 33
+  },
+  "ok": true,
+  "capturi": [
+   "05_contacte.png",
+   "06_oportunitati.png"
+  ]
+ },
+ {
+  "nr": 6,
+  "titlu": "Angajati — conturile ERP administrate din web",
+  "asteptat": "lista cu data inregistrarii si starea contului",
+  "masurat": {
+   "angajati": 35
+  },
+  "ok": true,
+  "capturi": [
+   "07_angajati.png"
+  ]
+ },
+ {
+  "nr": 7,
+  "titlu": "Rapoarte, inclusiv «pe angajati» cu total",
+  "asteptat": "raportul se construieste si are rind de total",
+  "masurat": {
+   "rinduri in raport": 0,
+   "are total": true
+  },
+  "ok": true,
+  "capturi": [
+   "08_rapoarte.png"
+  ]
+ },
+ {
+  "nr": 8,
+  "titlu": "Alerte — tranzactii nefinisate si datorii",
+  "asteptat": "pagina se deschide si arata alertele pe datele curente",
+  "masurat": {
+   "pagina": "se deschide"
+  },
+  "ok": true,
+  "capturi": [
+   "09_alerte.png"
+  ]
+ },
+ {
+  "nr": 9,
+  "titlu": "Regimul demo este separat de datele reale",
+  "asteptat": "comutatorul schimba chiriasul; datele reale raman neatinse",
+  "masurat": {
+   "demo": {
+    "clients": 17,
+    "orders": 23,
+    "tasks": 124
+   },
+   "comenzi reale dupa intoarcere": 164
+  },
+  "ok": true,
+  "capturi": [
+   "10_demo.png"
+  ]
+ },
+ {
+  "nr": 10,
+  "titlu": "Hub-ul Biro26 — toate plachetele duc undeva viu",
+  "asteptat": "nicio legatura moarta; placheta WordPress duce la instalarea acestui contur",
+  "masurat": {
+   "carduri": 46,
+   "legaturi": 47,
+   "stricate": [],
+   "wp": [
+    "https://officeplus.md/op-intrare-6b89dc08",
+    "/UNA.md/orasldev/b26docs/Biro26/WP_LOGIN_SECRET.md",
+    "/UNA.md/orasldev/b26docs/Biro26/WP_SHOP_NUFARUL.md"
+   ]
+  },
+  "ok": true,
+  "capturi": [
+   "11_hub.png"
+  ]
+ },
+ {
+  "nr": 11,
+  "titlu": "Documentele se deschid din portal, cu capturile lor",
+  "asteptat": "ghidul, documentatia tehnica si actul — fara imagini stricate",
+  "masurat": {
+   "ghidul utilizatorului": {
+    "imagini": 15,
+    "stricate": 0,
+    "titlu": "CRM OfficePlus • Ghidul utilizatorului"
+   },
+   "documentatia tehnica": {
+    "imagini": 0,
+    "stricate": 0,
+    "titlu": "OfficePlus • Oracle E-commerce Platform • Documentație tehnică"
+   },
+   "actul cosului": {
+    "imagini": 10,
+    "stricate": 0,
+    "titlu": "Act de testare • Coșul se golește doar după plata confirmată"
+   }
+  },
+  "ok": true,
+  "capturi": [
+   "12_documente.png"
+  ]
+ },
+ {
+  "nr": 12,
+  "titlu": "Magazin: cosul se goleste doar dupa plata confirmata",
+  "asteptat": "contul de plata nu goleste cosul; plata confirmata il goleste",
+  "masurat": {
+   "cos pus": 2,
+   "dupa factura": 2,
+   "dupa pay=fail": 2,
+   "dupa pay=ok": 0
+  },
+  "ok": true,
+  "capturi": [],
+  "act": "/UNA.md/orasldev/b26docs/Biro26/ACT_TESTARE_COS_2026-09-12.html"
+ },
+ {
+  "nr": 13,
+  "titlu": "Contururile sint sanatoase dupa toate schimbarile",
+  "asteptat": "magazinul si CRM-ul raspund 200",
+  "masurat": {
+   "https://officeplus.md/cos": 200,
+   "https://officeplus.md/": 200,
+   "https://officeplus.md/UNA.md/orasldev/crm/": 200
+  },
+  "ok": true,
+  "capturi": []
+ }
+]

@@ -1,0 +1,2101 @@
+"""Biro26 module Oracle store — all SQL + YBIRO_Import_Marfa package calls.
+
+Target DB: OfficePlus ERP (Oracle 11g) via models.biro26_db.Biro26DB (subprocess
+worker, thick mode). Prefix for our own objects: YBIRO_.
+
+11g notes: no OFFSET/FETCH — pagination uses the ROWNUM pattern (see _page()).
+Multi-statement atomic ops use db.execute_script([...]) (one transaction).
+"""
+from __future__ import annotations
+
+import json
+import os
+import re as _re
+import tempfile
+import time
+from typing import Any, Dict, List, Optional
+
+from models.biro26_db import Biro26DB
+
+PKG = "YBIRO_Import_Marfa"
+
+# Canonical configurable package vars (without g_ prefix), TZ §7.1.
+G_PARAMS: List[str] = [
+    "tbl_goods", "col_key", "col_id", "col_brand", "col_articol",
+    "col_denumire", "col_angro", "col_ionline", "col_retail", "seq_key",
+    "codprice", "um", "gr1", "tip", "caccess", "codtva",
+    "date_start", "date_end", "group_type", "empty_brand",
+    "len_codvechi", "len_denumire", "isarhiv_arc", "isarhiv_lock",
+    "confus_max_cyr",
+]
+
+# g_* typed as NUMBER / PLS_INTEGER → emit unquoted in PL/SQL
+_NUMERIC = {"codprice", "len_codvechi", "len_denumire", "confus_max_cyr"}
+# g_* typed as DATE → emit DATE 'YYYY-MM-DD'
+_DATE = {"date_start", "date_end"}
+
+
+def _rows(r: Dict) -> List[Dict]:
+    if not r.get("success") or not r.get("data"):
+        return []
+    cols = [c.lower() for c in r["columns"]]
+    out = [dict(zip(cols, row)) for row in r["data"]]
+    for d in out:           # drop the ROWNUM pagination artifact from _page()
+        d.pop("rn", None)
+    return out
+
+
+def _result(r: Dict) -> Dict[str, Any]:
+    """Standard read result: surface DB errors instead of masking as empty success."""
+    if not r.get("success"):
+        return {"success": False, "error": r.get("message")}
+    return {"success": True, "data": _rows(r)}
+
+
+def _q(v: Any) -> str:
+    return "'" + str(v).replace("'", "''") + "'"
+
+
+_IDENT_RE = _re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,60}$")
+
+
+def _is_ident(name: str) -> bool:
+    return bool(name and _IDENT_RE.match(name))
+
+
+def _page(inner_sql: str, limit: int, offset: int) -> str:
+    """Wrap an ORDER-BY'd inner SELECT with Oracle 11g ROWNUM pagination."""
+    return (f"SELECT * FROM (SELECT a.*, ROWNUM rn FROM ({inner_sql}) a "
+            f"WHERE ROWNUM <= {int(offset) + int(limit)}) WHERE rn > {int(offset)}")
+
+
+def build_gset_block(profile: Dict[str, Any]) -> str:
+    """Build PL/SQL assignment lines that set YBIRO_Import_Marfa.g_* vars."""
+    lines = []
+    for name, val in profile.items():
+        if name not in G_PARAMS or val is None or val == "":
+            continue
+        if name in _NUMERIC:
+            rhs = str(int(val))  # numeric param: coerce, reject non-integer
+        elif name in _DATE:
+            rhs = f"DATE {_q(val)}"
+        else:
+            rhs = _q(val)
+        lines.append(f"  {PKG}.g_{name} := {rhs};")
+    return "\n".join(lines)
+
+
+# ── RO: cache in memorie pentru interogarile GRELE si RAR schimbatoare ──
+#    Fiecare interogare Oracle trece printr-un subproces thick (~0,4 s doar
+#    pornirea), iar arborele de grupe costa ~1,6 s si se schimba o data pe zi,
+#    dupa import. Numaratoarea totala la cautare costa ~2,7 s si se repeta la
+#    fiecare pagina. Cache-ul scurt le face instantanee, fara sa schimbe
+#    comportamentul: dupa TTL datele se recitesc.
+# EN: in-memory TTL cache for heavy, rarely-changing catalog queries.
+_CACHE: Dict[str, Any] = {}
+
+# RO: cache-ul trebuie sa fie COMUN pentru toate procesele. In productie
+#     aplicatia ruleaza sub gunicorn cu 2 workeri, fiecare cu memoria lui:
+#     un cache doar in RAM se nimerea in ~50% din cereri, iar workerul "rece"
+#     platea pretul intreg (arborele de grupe ~1,6 s). De aceea valorile se
+#     scriu si intr-un fisier: citirea e instantanee, scrierea e atomica
+#     (fisier temporar + os.replace), iar continutul e public (arbore de
+#     grupe, branduri, numaratori) — nimic sensibil.
+# EN: shared on-disk cache; a RAM-only cache misses ~50% under 2 gunicorn
+#     workers. Atomic writes; cached data is public catalog metadata.
+_CACHE_DIR = os.path.join(tempfile.gettempdir(), "biro26_cache")
+
+
+def _disk_path(key: str) -> str:
+    import hashlib
+    return os.path.join(_CACHE_DIR, hashlib.md5(key.encode()).hexdigest() + ".json")
+
+
+def _disk_get(key: str, ttl: float):
+    try:
+        f = _disk_path(key)
+        if time.time() - os.path.getmtime(f) > ttl:
+            return None
+        with open(f, "r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
+
+
+def _disk_put(key: str, val) -> None:
+    try:
+        os.makedirs(_CACHE_DIR, exist_ok=True)
+        f = _disk_path(key)
+        tmp = f + f".{os.getpid()}.tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(val, fh, ensure_ascii=False, default=str)
+        os.replace(tmp, f)          # atomic: alt worker nu vede fisier partial
+    except (OSError, TypeError, ValueError):
+        pass
+
+
+def _cached(key: str, ttl: float, producer):
+    hit = _CACHE.get(key)
+    if hit and hit[0] > time.time():
+        return hit[1]
+    shared = _disk_get(key, ttl)          # scris de celalalt worker
+    if shared is not None:
+        _CACHE[key] = (time.time() + ttl, shared)
+        return shared
+    val = producer()
+    # nu punem in cache raspunsurile esuate — altfel o eroare de retea
+    # ar ramine "lipita" pina la expirarea TTL-ului
+    if isinstance(val, dict) and val.get("success") is False:
+        return val
+    _CACHE[key] = (time.time() + ttl, val)
+    _disk_put(key, val)
+    return val
+
+
+def cache_clear(prefix: str = "") -> int:
+    """RO: goleste cache-ul (tot sau dupa prefix) — se apeleaza dupa import.
+    EN: drop cached entries after an import refreshes the catalog."""
+    keys = [k for k in _CACHE if not prefix or k.startswith(prefix)]
+    for k in keys:
+        _CACHE.pop(k, None)
+    try:                                  # si copia de pe disc (toti workerii)
+        for f in os.listdir(_CACHE_DIR):
+            os.unlink(os.path.join(_CACHE_DIR, f))
+    except OSError:
+        pass
+    return len(keys)
+
+
+def _one_word(q: str) -> bool:
+    """RO: un singur cuvint, fara semne speciale — DOAR pentru asemenea
+    interogari s-a dovedit ca indexul de text da EXACT acelasi rezultat ca
+    scanarea. La mai multe cuvinte semantica difera (Oracle Text cauta
+    cuvintele, nu subsirul: '50%' ar da 8.091 in loc de 139), deci acolo
+    ramine scanarea — mai lenta, dar identica cu ce vedea clientul pina acum.
+    EN: single word, no special chars — only there CONTAINS matches INSTR."""
+    return bool(_re.fullmatch(r"[0-9A-Za-zА-Яа-яЁёĂÂÎȘȚăâîșț]+", (q or "").strip()))
+
+
+class Biro26Store:
+    """All OfficePlus CRUD + package orchestration for Biro26."""
+
+    # ============================================================
+    # CONNECTION
+    # ============================================================
+    @staticmethod
+    def test_connection() -> Dict[str, Any]:
+        try:
+            return Biro26DB().test_connection()
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # MAPPING PROFILES
+    # ============================================================
+    @staticmethod
+    def get_profiles() -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT id, name, codprice, is_default, "
+                "TO_CHAR(created_at,'DD.MM.YYYY HH24:MI') created_at, created_by "
+                "FROM YBIRO_MAP_PROFILE ORDER BY is_default DESC, name")
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_profile(profile_id: int) -> Dict[str, Any]:
+        try:
+            db = Biro26DB()
+            head = _rows(db.execute_query(
+                "SELECT id, name, codprice, is_default FROM YBIRO_MAP_PROFILE WHERE id=:id",
+                {"id": profile_id}))
+            if not head:
+                return {"success": False, "error": "profile not found"}
+            params = _rows(db.execute_query(
+                "SELECT param_name, param_value FROM YBIRO_MAP_PARAM WHERE profile_id=:id",
+                {"id": profile_id}))
+            pmap = {p["param_name"]: p["param_value"] for p in params}
+            return {"success": True, "data": {**head[0], "params": pmap}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def create_profile(name: str, codprice: int, params: Dict[str, str]) -> Dict[str, Any]:
+        try:
+            stmts: List[Dict[str, Any]] = [{
+                "sql": "INSERT INTO YBIRO_MAP_PROFILE(name, codprice, is_default) "
+                       "VALUES(:n, :c, '0')",
+                "params": {"n": name, "c": codprice}, "kind": "dml",
+            }]
+            for k, v in params.items():
+                if k in G_PARAMS:
+                    stmts.append({
+                        "sql": "INSERT INTO YBIRO_MAP_PARAM(profile_id, param_name, param_value) "
+                               "SELECT id, :k, :v FROM YBIRO_MAP_PROFILE WHERE name=:n",
+                        "params": {"k": k, "v": str(v), "n": name}, "kind": "dml",
+                    })
+            stmts.append({
+                "sql": "SELECT id FROM YBIRO_MAP_PROFILE WHERE name=:n",
+                "params": {"n": name}, "kind": "query",
+            })
+            res = Biro26DB().execute_script(stmts)
+            if not res.get("success"):
+                return {"success": False, "error": res.get("message")}
+            last = res["results"][-1]
+            new_id = last["data"][0][0] if last.get("data") else None
+            return {"success": True, "data": {"id": new_id}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_profile(profile_id: int, params: Dict[str, str],
+                       codprice: Optional[int] = None) -> Dict[str, Any]:
+        try:
+            stmts: List[Dict[str, Any]] = []
+            if codprice is not None:
+                stmts.append({
+                    "sql": "UPDATE YBIRO_MAP_PROFILE SET codprice=:c WHERE id=:id",
+                    "params": {"c": codprice, "id": profile_id}, "kind": "dml"})
+            for k, v in params.items():
+                if k not in G_PARAMS:
+                    continue
+                stmts.append({
+                    "sql": "MERGE INTO YBIRO_MAP_PARAM t "
+                           "USING (SELECT :p pid, :k pn FROM dual) s "
+                           "ON (t.profile_id=s.pid AND t.param_name=s.pn) "
+                           "WHEN MATCHED THEN UPDATE SET param_value=:v "
+                           "WHEN NOT MATCHED THEN INSERT(profile_id,param_name,param_value) "
+                           "VALUES(:p,:k,:v)",
+                    "params": {"p": profile_id, "k": k, "v": str(v)}, "kind": "dml"})
+            if not stmts:
+                return {"success": True}
+            res = Biro26DB().execute_script(stmts)
+            return {"success": res.get("success", False), "error": res.get("message") or None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def activate_profile(profile_id: int) -> Dict[str, Any]:
+        try:
+            res = Biro26DB().execute_script([
+                {"sql": "UPDATE YBIRO_MAP_PROFILE SET is_default='0'",
+                 "params": {}, "kind": "dml"},
+                {"sql": "UPDATE YBIRO_MAP_PROFILE SET is_default='1' WHERE id=:id",
+                 "params": {"id": profile_id}, "kind": "dml"},
+            ])
+            return {"success": res.get("success", False), "error": res.get("message") or None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # internal: active profile params for the g_* preamble
+    @staticmethod
+    def _active_params() -> Dict[str, str]:
+        rows = _rows(Biro26DB().execute_query(
+            "SELECT param_name, param_value FROM YBIRO_MAP_PARAM WHERE profile_id="
+            "(SELECT id FROM (SELECT id FROM YBIRO_MAP_PROFILE WHERE is_default='1' "
+            " ORDER BY id) WHERE ROWNUM=1)"))
+        return {r["param_name"]: r["param_value"] for r in rows}
+
+    @staticmethod
+    def _run_pkg(proc_call: str, capture: bool = True) -> Dict[str, Any]:
+        """Set active g_* then run a package proc in ONE block (session state)."""
+        try:
+            preamble = build_gset_block(Biro26Store._active_params())
+            block = f"BEGIN\n{preamble}\n  {PKG}.{proc_call}\nEND;"
+            res = Biro26DB().call_proc(block, capture_output=capture)
+            return {"success": res.get("success", False),
+                    "output": res.get("output_lines", []),
+                    "error": res.get("message") or None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # SOURCE FEED — BIRO26_GOODS
+    # ============================================================
+    @staticmethod
+    def get_goods(search: Optional[str] = None, brand: Optional[str] = None,
+                  furnizor: Optional[str] = None, status: Optional[str] = None,
+                  limit: int = 200, offset: int = 0) -> Dict[str, Any]:
+        try:
+            # ROW_STATUS: IN_DICT (key already in dictionary), CONFLICT (same
+            # CODVECHI maps to an existing product), else NEW.
+            inner = """
+              SELECT g.ID, g.ARTICOL, g.DENUMIRE, g.BRAND, g.FURNIZOR,
+                     g.ANGRO, g.IONLINE, g.RETAIL1, g.STOC, g.COD_UNIVERS,
+                     g.PHOTO_URL, g.IMAGE_LINK,
+                     CASE
+                       WHEN g.COD_UNIVERS IS NOT NULL
+                         AND EXISTS (SELECT 1 FROM TMS_UNIVERS u
+                                     WHERE u.COD = g.COD_UNIVERS) THEN 'IN_DICT'
+                       WHEN EXISTS (SELECT 1 FROM TMS_UNIVERS u
+                                    WHERE u.CODVECHI = SUBSTR(g.ARTICOL,1,20)
+                                      AND u.TIP='P') THEN 'CONFLICT'
+                       ELSE 'NEW'
+                     END AS ROW_STATUS
+                FROM BIRO26_GOODS g
+               WHERE 1=1"""
+            params: Dict[str, Any] = {}
+            if search:
+                inner += " AND (UPPER(g.DENUMIRE) LIKE UPPER(:s) OR UPPER(g.ARTICOL) LIKE UPPER(:s))"
+                params["s"] = f"%{search}%"
+            if brand:
+                inner += " AND g.BRAND = :brand"; params["brand"] = brand
+            if furnizor:
+                inner += " AND g.FURNIZOR = :furnizor"; params["furnizor"] = furnizor
+            inner += " ORDER BY g.ID"
+            r = Biro26DB().execute_query(_page(inner, limit, offset), params)
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            data = _rows(r)
+            if status:
+                data = [d for d in data if d.get("row_status") == status]
+            return {"success": True, "data": data}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def goods_brands() -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT BRAND, COUNT(*) CNT FROM BIRO26_GOODS GROUP BY BRAND ORDER BY BRAND")
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def goods_count() -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_query("SELECT COUNT(*) CNT FROM BIRO26_GOODS")
+            return {"success": True, "data": {"count": r["data"][0][0] if r["data"] else 0}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def validate_input() -> Dict[str, Any]:
+        return Biro26Store._run_pkg("validate_input;", capture=True)
+
+    @staticmethod
+    def prepare_input() -> Dict[str, Any]:
+        r = Biro26Store._run_pkg("prepare_input;", capture=True)
+        cache_clear()   # RO: catalogul s-a schimbat — golim cache-ul
+        return r
+
+    @staticmethod
+    def assign_keys() -> Dict[str, Any]:
+        r = Biro26Store._run_pkg("assign_keys;", capture=True)
+        cache_clear()   # RO: catalogul s-a schimbat — golim cache-ul
+        return r
+
+    @staticmethod
+    def source_columns(source: str) -> Dict[str, Any]:
+        """Column names of a table/view source (identifier-validated)."""
+        if not _is_ident(source):
+            return {"success": False, "error": "invalid source name"}
+        try:
+            r = Biro26DB().execute_query(f"SELECT * FROM {source} WHERE ROWNUM = 0")
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "data": list(r.get("columns", []))}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def source_sample(source: str, limit: int = 20) -> Dict[str, Any]:
+        if not _is_ident(source):
+            return {"success": False, "error": "invalid source name"}
+        try:
+            r = Biro26DB().execute_query(
+                f"SELECT * FROM {source} WHERE ROWNUM <= :n", {"n": int(limit)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "columns": list(r.get("columns", [])),
+                    "data": [list(row) for row in r.get("data", [])]}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # DICTIONARY — TMS_UNIVERS + TMS_MPT
+    # ============================================================
+    @staticmethod
+    def get_univers(search: Optional[str] = None, gr1: Optional[str] = None,
+                    arhiv: Optional[str] = None, limit: int = 200,
+                    offset: int = 0) -> Dict[str, Any]:
+        try:
+            inner = ("SELECT COD, CODVECHI, DENUMIREA, NAMERUS, GR1, UM, ISARHIV "
+                     "FROM TMS_UNIVERS WHERE TIP='P'")
+            params: Dict[str, Any] = {}
+            if search:
+                inner += (" AND (UPPER(DENUMIREA) LIKE UPPER(:s) "
+                          "OR UPPER(NAMERUS) LIKE UPPER(:s) OR CODVECHI LIKE :s "
+                          "OR EXISTS (SELECT 1 FROM TMS_MPT_BARCODE b "
+                          "  WHERE b.COD = TMS_UNIVERS.COD AND b.BARCODE LIKE :s))")
+                params["s"] = f"%{search}%"
+            if gr1:
+                inner += " AND GR1=:gr1"; params["gr1"] = gr1
+            if arhiv == "active":
+                inner += " AND (ISARHIV IS NULL OR ISARHIV='0')"
+            elif arhiv == "archived":
+                inner += " AND ISARHIV IS NOT NULL AND ISARHIV<>'0'"
+            inner += " ORDER BY DENUMIREA"
+            r = Biro26DB().execute_query(_page(inner, limit, offset), params)
+            res = _result(r)
+            from models.biro26_imgproxy import rewrite_rows
+            rewrite_rows(res.get("data") or res.get("rows"), "IMAGE")
+            return res
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_univers_card(cod: int) -> Dict[str, Any]:
+        try:
+            db = Biro26DB()
+            u = _rows(db.execute_query("SELECT * FROM TMS_UNIVERS WHERE COD=:c", {"c": cod}))
+            if not u:
+                return {"success": False, "error": "not found"}
+            mpt = _rows(db.execute_query("SELECT * FROM TMS_MPT WHERE COD=:c", {"c": cod}))
+            # primary image: ERP VMS_MPT_TVR.IE_LINKADRES (keyed by COD); fallback to feed
+            tvr = _rows(db.execute_query(
+                "SELECT IE_LINKADRES FROM VMS_MPT_TVR WHERE COD=:c AND ROWNUM=1", {"c": cod}))
+            img = _rows(db.execute_query(
+                "SELECT PHOTO_URL, IMAGE_LINK FROM BIRO26_GOODS "
+                "WHERE COD_UNIVERS = :c AND ROWNUM = 1", {"c": cod}))
+            photo = img[0] if img else {}
+            ie = tvr[0].get("ie_linkadres") if tvr else None
+            barcodes = [b["barcode"] for b in _rows(db.execute_query(
+                "SELECT BARCODE FROM TMS_MPT_BARCODE WHERE COD=:c ORDER BY BARCODE",
+                {"c": cod}))]
+            goods = _rows(db.execute_query(
+                "SELECT BRAND, GRUPA, CATEGORIE, ANGRO, IONLINE, RETAIL1 "
+                "FROM BIRO26_GOODS WHERE COD_UNIVERS=:c AND ROWNUM=1", {"c": cod}))
+            from models.biro26_imgproxy import proxy_url
+            return {"success": True,
+                    "data": {"univers": u[0], "mpt": mpt[0] if mpt else None,
+                             "photo_url": proxy_url(ie or photo.get("photo_url")),
+                             "image_link": proxy_url(photo.get("image_link")),
+                             "ie_linkadres": proxy_url(ie),
+                             "barcodes": barcodes,
+                             "goods": goods[0] if goods else None}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def import_univers() -> Dict[str, Any]:
+        return Biro26Store._run_pkg("import_univers;", capture=True)
+
+    @staticmethod
+    def import_images() -> Dict[str, Any]:
+        """Import feed image links into TMS_MPT_TVR.IE_LINKADRES (keyed by COD).
+
+        Set-based MERGE from BIRO26_GOODS: one row per COD_UNIVERS (PHOTO_URL,
+        else IMAGE_LINK). Idempotent — re-run after a new feed updates/inserts links.
+        Backs the product-card image (VMS_MPT_TVR is a view over TMS_MPT_TVR)."""
+        try:
+            r = Biro26DB().execute_dml(
+                "MERGE INTO TMS_MPT_TVR t USING ("
+                "  SELECT COD_UNIVERS AS COD, "
+                "         MAX(SUBSTR(NVL(PHOTO_URL, IMAGE_LINK),1,1000)) AS URL "
+                "  FROM BIRO26_GOODS "
+                "  WHERE COD_UNIVERS IS NOT NULL "
+                "    AND (PHOTO_URL IS NOT NULL OR IMAGE_LINK IS NOT NULL) "
+                "  GROUP BY COD_UNIVERS"
+                ") s ON (t.COD = s.COD) "
+                "WHEN MATCHED THEN UPDATE SET t.IE_LINKADRES = s.URL "
+                "WHEN NOT MATCHED THEN INSERT (COD, IE_LINKADRES) VALUES (s.COD, s.URL)")
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "rows": r.get("rowcount", 0)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def archive_univers(isarhiv: str = "1") -> Dict[str, Any]:
+        # value '2' is blocked by trigger TMS_UNIVERS_DONT_DELETE; guard upstream too
+        return Biro26Store._run_pkg(f"archive_univers(p_isarhiv => {_q(isarhiv)});",
+                                    capture=True)
+
+    @staticmethod
+    def fix_denumirea_confusables(cod: Optional[int] = None) -> Dict[str, Any]:
+        arg = f"p_cod => {int(cod)}" if cod is not None else "p_cod => NULL"
+        return Biro26Store._run_pkg(f"fix_denumirea_confusables({arg});", capture=True)
+
+    # ============================================================
+    # GROUPS — VPR01M_GROUPS + category tree (read-only)
+    # ============================================================
+    @staticmethod
+    def get_groups(codprice: int = 1) -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT CODPRICE, CODGRP, GRPNAME, TYPE_SC, GR1_SC "
+                "FROM VPR01M_GROUPS WHERE CODPRICE=:c ORDER BY CODGRP", {"c": codprice})
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_group(codprice: int, codgrp: int, grpname: str) -> Dict[str, Any]:
+        try:
+            return Biro26DB().execute_dml(
+                "UPDATE VPR01M_GROUPS SET GRPNAME=:n WHERE CODPRICE=:c AND CODGRP=:g",
+                {"n": grpname, "c": codprice, "g": codgrp})
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def import_groups(codprice: int = 1) -> Dict[str, Any]:
+        return Biro26Store._run_pkg(f"import_groups(p_codprice => {int(codprice)});",
+                                    capture=True)
+
+    @staticmethod
+    def merge_groups(codprice: int, src_codgrp: int, dst_codgrp: int) -> Dict[str, Any]:
+        """Move prices from src group to dst, then delete empty src group (one tx)."""
+        try:
+            res = Biro26DB().execute_script([
+                {"sql": "UPDATE TPR1D_PERPRLIST SET CODGRP=:dst "
+                        "WHERE CODPRICE=:c AND CODGRP=:src",
+                 "params": {"dst": dst_codgrp, "c": codprice, "src": src_codgrp},
+                 "kind": "dml"},
+                {"sql": "DELETE FROM VPR01M_GROUPS WHERE CODPRICE=:c AND CODGRP=:src",
+                 "params": {"c": codprice, "src": src_codgrp}, "kind": "dml"},
+            ])
+            return {"success": res.get("success", False), "error": res.get("message") or None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_categories() -> Dict[str, Any]:
+        """Read-only category roots from TMS_SYSGR (phase 1; labels in TEXT)."""
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT ID0, TEXT AS LABEL, TIP, GR1, NODETYPE "
+                "FROM TMS_SYSGR ORDER BY ID0")
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # SUPPLIERS — TMS_ORG (+ name via TMS_UNIVERS TIP='O') / FURNIZOR
+    # ============================================================
+    @staticmethod
+    def get_suppliers(search: Optional[str] = None,
+                      limit: int = 200, offset: int = 0) -> Dict[str, Any]:
+        try:
+            inner = ("SELECT o.COD, u.DENUMIREA AS NAME, o.GR1, o.ADRESS, o.BANK, "
+                     "o.CODFISCAL FROM TMS_ORG o "
+                     "LEFT JOIN TMS_UNIVERS u ON u.COD=o.COD AND u.TIP='O'")
+            params: Dict[str, Any] = {}
+            if search:
+                inner += " WHERE UPPER(u.DENUMIREA) LIKE UPPER(:s)"
+                params["s"] = f"%{search}%"
+            inner += " ORDER BY u.DENUMIREA, u.COD"
+            r = Biro26DB().execute_query(_page(inner, limit, offset), params)
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_furnizori() -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT FURNIZOR, COUNT(*) CNT FROM BIRO26_GOODS "
+                "WHERE FURNIZOR IS NOT NULL GROUP BY FURNIZOR ORDER BY FURNIZOR")
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # PRICE LIST — VPR1D_PRDATE / VTPR1D_PERPRLIST
+    # ============================================================
+    @staticmethod
+    def get_pricelists() -> Dict[str, Any]:
+        """Price lists (VPR0M_PRICES) — left panel of the Windows-style layout."""
+        try:
+            return _result(Biro26DB().execute_query(
+                "SELECT CODPRICE, PRICENAME, VAL, TYPE_SC FROM VPR0M_PRICES ORDER BY CODPRICE"))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_prices(codprice: int = 1, codgrp: Optional[int] = None,
+                   limit: int = 200, offset: int = 0) -> Dict[str, Any]:
+        try:
+            # join item name (TMS_UNIVERS) + image link (VMS_MPT_TVR.IE_LINKADRES)
+            inner = ("SELECT p.CODPRICE, p.CODGRP, p.SC, u.DENUMIREA, "
+                     "p.PRETV, p.PRETV1, p.PRETV2, p.PRETV3, "
+                     "TO_CHAR(p.DATASTART,'DD.MM.YYYY') DATASTART, m.IE_LINKADRES IMAGE "
+                     "FROM VTPR1D_PERPRLIST p "
+                     "LEFT JOIN TMS_UNIVERS u ON u.COD = p.SC "
+                     "LEFT JOIN VMS_MPT_TVR m ON m.COD = p.SC "
+                     "WHERE p.CODPRICE=:c")
+            params: Dict[str, Any] = {"c": codprice}
+            if codgrp is not None:
+                inner += " AND p.CODGRP=:g"; params["g"] = codgrp
+            inner += " ORDER BY p.CODGRP, u.DENUMIREA"
+            r = Biro26DB().execute_query(_page(inner, limit, offset), params)
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_dates(codprice: int = 1) -> Dict[str, Any]:
+        try:
+            # DATAEND is computed inside the view via a date conversion that raises
+            # ORA-01843 under our session NLS, so it is omitted (open-end is implicit).
+            r = Biro26DB().execute_query(
+                "SELECT CODPRICE, CODGRP, TO_CHAR(DATA,'DD.MM.YYYY') DATA, NRDOC "
+                "FROM VPR1D_PRDATE WHERE CODPRICE=:c ORDER BY CODGRP",
+                {"c": codprice})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_price(codprice: int, codgrp: int, sc: int, datastart: str,
+                     pretv=None, pretv1=None, pretv2=None) -> Dict[str, Any]:
+        """Update price cells via the INSTEAD OF trigger on VTPR1D_PERPRLIST.
+        datastart is 'DD.MM.YYYY'. PK = (CODPRICE, CODGRP, SC, DATASTART)."""
+        try:
+            return Biro26DB().execute_dml(
+                "UPDATE VTPR1D_PERPRLIST SET PRETV=:p, PRETV1=:p1, PRETV2=:p2 "
+                "WHERE CODPRICE=:c AND CODGRP=:g AND SC=:sc "
+                "AND DATASTART=TO_DATE(:d,'DD.MM.YYYY')",
+                {"p": pretv, "p1": pretv1, "p2": pretv2,
+                 "c": codprice, "g": codgrp, "sc": sc, "d": datastart})
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def import_dates(codprice: int = 1, data: Optional[str] = None) -> Dict[str, Any]:
+        arg = f"p_codprice => {int(codprice)}"
+        if data:
+            arg += f", p_data => DATE {_q(data)}"
+        return Biro26Store._run_pkg(f"import_dates({arg});", capture=True)
+
+    # RO: cheia setarii — reinnoirea preturilor DOAR in baza Articolelor.
+    #     Implicit ACTIVA ('1'): pretul se scrie doar marfii al carei ARTICOL
+    #     din ERP (TMS_UNIVERS.CODVECHI) coincide cu Articolul din sursa, deci
+    #     un articol lipsa sau gresit nu mai poate schimba pretul altei marfi.
+    # EN: refresh prices by ARTICLE only — ON by default.
+    PRICE_BY_ARTICLE_KEY = "PRICE_UPDATE_BY_ARTICLE"
+
+    @staticmethod
+    def price_by_article() -> bool:
+        return Biro26Store.get_setting(
+            Biro26Store.PRICE_BY_ARTICLE_KEY, "1") != "0"
+
+    @staticmethod
+    def set_price_by_article(on: bool) -> Dict[str, Any]:
+        return Biro26Store.set_setting(
+            Biro26Store.PRICE_BY_ARTICLE_KEY, "1" if on else "0")
+
+    @staticmethod
+    def import_prices(codprice: int = 1, date_start: Optional[str] = None,
+                      date_end: Optional[str] = None,
+                      only_articol: Optional[bool] = None) -> Dict[str, Any]:
+        if only_articol is None:
+            only_articol = Biro26Store.price_by_article()
+        arg = f"p_codprice => {int(codprice)}"
+        if date_start:
+            arg += f", p_date_start => DATE {_q(date_start)}"
+        if date_end:
+            arg += f", p_date_end => DATE {_q(date_end)}"
+        arg += f", p_only_articol => {1 if only_articol else 0}"
+        return Biro26Store._run_pkg(f"import_prices({arg});", capture=True)
+
+    @staticmethod
+    def rollback_pricelist(codprice: int = 1) -> Dict[str, Any]:
+        return Biro26Store._run_pkg(
+            f"rollback_pricelist(p_codprice => {int(codprice)});", capture=True)
+
+    # ============================================================
+    # STOCK BALANCES — UN$SOLD.GET_SOLDT (session-scoped GTT) persisted
+    # into normal tables so any later request can read the result fast.
+    # ============================================================
+
+    STOCK_GTT = "YBIRO_STOCK_GTT"          # fixed name so the whole calc runs in ONE session
+    DEFAULT_CONT = "217 2165 2114"          # RO: conturi marfa / EN: goods GL accounts
+    DEFAULT_PFILT = "ACDE12"                # RO: masca filtru / EN: filter mask (per formula)
+
+    @staticmethod
+    def calc_stock(data_doc: str, dep_filter: str = "",
+                   cont_filter: Optional[str] = None,
+                   pfilt: Optional[str] = None) -> Dict[str, Any]:
+        """Run UN$SOLD.GET_SOLDT and persist the balance into YBIRO_STOCK_CALC(_ITEM).
+
+        data_doc: 'YYYY-MM-DD' (the :datadoc bind). dep_filter: the :m_ctdep bind
+        (blank = no department filter value supplied by the caller). Everything
+        (compute + persist) runs in ONE Oracle session (one execute_script call)
+        because GET_SOLDT's result is a Global Temporary Table, visible only within
+        the session that created it — a later request cannot see its rows. The
+        persisted YBIRO_STOCK_CALC_ITEM already carries its own index (SC), so no
+        index is created on the ephemeral GTT (Oracle blocks that: ORA-14452).
+        """
+        cont = cont_filter or Biro26Store.DEFAULT_CONT
+        flt = pfilt or Biro26Store.DEFAULT_PFILT
+        gtt = Biro26Store.STOCK_GTT
+        try:
+            res = Biro26DB().execute_script([
+                {"sql": "UPDATE YBIRO_STOCK_CALC SET is_latest='0' WHERE is_latest='1'",
+                 "params": {}, "kind": "dml"},
+                {"sql": f"BEGIN EXECUTE IMMEDIATE 'DROP TABLE {gtt}'; "
+                        "EXCEPTION WHEN OTHERS THEN NULL; END;",
+                 "params": {}, "kind": "dml"},
+                {"sql": ("DECLARE v VARCHAR2(100); BEGIN "
+                        f"v := UN$SOLD.GET_SOLDT(pData => TO_DATE(:p_data,'YYYY-MM-DD'), "
+                        f"sTableName => '{gtt}', pFilt => :p_pfilt, pCont => :p_cont, "
+                        "pDep => :p_dep); END;"),
+                 "params": {"p_data": data_doc, "p_pfilt": flt, "p_cont": cont,
+                            "p_dep": dep_filter or " "},
+                 "kind": "dml"},
+                {"sql": "INSERT INTO YBIRO_STOCK_CALC(data_doc, dep_filter, cont_filter, "
+                        "pfilt, src_table, row_count, is_latest, status) "
+                        "VALUES(TO_DATE(:p_data,'YYYY-MM-DD'), :p_dep, :p_cont, :p_pfilt, "
+                        f"'{gtt}', (SELECT COUNT(*) FROM {gtt}), '1', 'OK')",
+                 "params": {"p_data": data_doc, "p_dep": dep_filter or "", "p_cont": cont,
+                            "p_pfilt": flt},
+                 "kind": "dml"},
+                {"sql": "INSERT INTO YBIRO_STOCK_CALC_ITEM(calc_id, sc, dep, cant, cant1) "
+                        "SELECT (SELECT MAX(id) FROM YBIRO_STOCK_CALC WHERE is_latest='1'), "
+                        f"SC, NVL(DEP,0), SUM(CANT), SUM(CANT1) FROM {gtt} "
+                        "WHERE SC IS NOT NULL GROUP BY SC, NVL(DEP,0)",
+                 "params": {}, "kind": "dml"},
+            ])
+            if not res.get("success"):
+                return {"success": False, "error": res.get("message")}
+            head = _rows(Biro26DB().execute_query(
+                "SELECT * FROM (SELECT id, row_count, "
+                "TO_CHAR(run_at,'DD.MM.YYYY HH24:MI') run_at FROM YBIRO_STOCK_CALC "
+                "WHERE is_latest='1' ORDER BY id DESC) WHERE ROWNUM=1"))
+            return {"success": True, "data": head[0] if head else None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_latest_stock_calc() -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT * FROM (SELECT id, TO_CHAR(data_doc,'DD.MM.YYYY') data_doc, "
+                "dep_filter, cont_filter, pfilt, row_count, status, err_text, "
+                "TO_CHAR(run_at,'DD.MM.YYYY HH24:MI') run_at FROM YBIRO_STOCK_CALC "
+                "WHERE is_latest='1' ORDER BY id DESC) WHERE ROWNUM=1")
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            rows = _rows(r)
+            return {"success": True, "data": rows[0] if rows else None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_stock_items(limit: int = 500, offset: int = 0) -> Dict[str, Any]:
+        """Rows of the latest stock calculation (SC, total CANT across depts)."""
+        try:
+            inner = ("SELECT i.sc, u.DENUMIREA, SUM(i.cant) cant FROM YBIRO_STOCK_CALC_ITEM i "
+                     "LEFT JOIN TMS_UNIVERS u ON u.COD = i.sc "
+                     "WHERE i.calc_id = (SELECT id FROM YBIRO_STOCK_CALC WHERE is_latest='1') "
+                     "GROUP BY i.sc, u.DENUMIREA ORDER BY u.DENUMIREA")
+            r = Biro26DB().execute_query(_page(inner, limit, offset))
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ── cautarea in descrieri: index Oracle Text sau scanare ──────────
+    @staticmethod
+    def _text_index_ok() -> bool:
+        """RO: exista indexul de text si e valid? Raspunsul se tine 10 min —
+        daca indexul dispare (recreare, mutare de baza), cautarea revine
+        automat la scanare, fara eroare pentru client.
+        EN: is the Text index present and valid? Cached, with graceful
+        fallback to the scan when it is not."""
+        rows = _cached("txtidx", 600, lambda: _rows(Biro26DB().execute_query(
+            "SELECT COUNT(*) CNT FROM USER_INDEXES "
+            "WHERE INDEX_NAME = 'IX_WEBATTR_DESCR_RO' AND STATUS = 'VALID'")))
+        try:
+            return bool(rows) and int(rows[0]["cnt"]) > 0
+        except (KeyError, ValueError, TypeError):
+            return False
+
+    @staticmethod
+    def _descr_predicate(q_norm: str) -> str:
+        """RO: predicatul pentru cautarea in descrieri (CLOB). Cu index de
+        text: 0,02-0,18 s in loc de 2,2-2,8 s, rezultat identic (verificat
+        pe hp/toner/ergonomic/creion/plastic/birou/a4).
+        EN: description-search predicate — Text index when applicable."""
+        if _one_word(q_norm) and Biro26Store._text_index_ok():
+            return "CONTAINS(DESCRIERE_NON_DIACR_RO, :ct) > 0"
+        return ("DBMS_LOB.INSTR(UPPER(DESCRIERE_NON_DIACR_RO), "
+                "                UPPER(:sq)) > 0")
+
+    @staticmethod
+    def get_products_stock(search: Optional[str] = None, gr1: Optional[str] = None,
+                           brand: Optional[str] = None, categorie: Optional[str] = None,
+                           grupa: Optional[str] = None, cod: Optional[int] = None,
+                           limit: int = 200, offset: int = 0,
+                           price_date: Optional[str] = None,
+                           price_min: Optional[float] = None,
+                           price_max: Optional[float] = None,
+                           only_new: bool = False,
+                           with_count: bool = False,
+                           archived: bool = False,
+                           sort: str = "name") -> Dict[str, Any]:
+        """Product + stock grid (Windows-Excel-style columns), TIP='P' driven.
+
+        Real balance comes from the latest YBIRO_STOCK_CALC_ITEM (NULL if never
+        calculated or item has no postings). App/UI applies the visual placeholder
+        constant when real_cant is NULL or 0, mirroring the legacy Excel export.
+        Paginated (ROWNUM, 11g) so the UI can page through all ~78k products via
+        infinite scroll instead of loading everything at once.
+        BARCODE = first EAN from TMS_MPT_BARCODE, BC_CNT = how many the item has;
+        text search also matches any of the item's barcodes.
+        Prices (retail1/angro/ionline) come from the period price list
+        TPR1D_PERPRLIST (codprice=1) AS OF price_date ('YYYY-MM-DD', default
+        today) — same principle as the Listă de prețuri tab — falling back to
+        the BIRO26_GOODS feed values for items not in the price list yet.
+        Faceted filters (Amazon-style, public shop + backoffice): `brand`
+        accepts a single value or a comma-separated list; price_min/price_max
+        bound the effective retail price.
+        """
+        if not price_date:
+            from datetime import date as _date
+            price_date = _date.today().isoformat()
+        # RO: pretul retail efectiv (folosit in SELECT si in filtrul de pret)
+        # EN: effective retail price (used in SELECT and in the price filter);
+        #     RETAIL1 is VARCHAR in the feed — convert only numeric-looking values
+        price_expr = ("NVL(pl.PRETV, CASE WHEN REGEXP_LIKE(TRIM(g.RETAIL1), "
+                      "'^-?[0-9]+([.,][0-9]+)?$') THEN "
+                      "TO_NUMBER(REPLACE(TRIM(g.RETAIL1),',','.')) END)")
+        try:
+            # RO: drumul SCURT pentru forma cea mai ceruta (74% din trafic:
+            #     filtre pe grupa/categorie/brand). Logica in
+            #     models/biro26_catalog_fast.py — regula nr. 2.
+            # EN: fast path, see models/biro26_catalog_fast.py
+            from models import biro26_catalog_fast as _fast
+            if _fast.supports(search, price_min, price_max, sort):
+                fsql, fcount, fparams = _fast.build(
+                    price_expr, price_date, gr1=gr1, brand=brand,
+                    categorie=categorie, grupa=grupa, cod=cod,
+                    only_new=only_new, archived=archived, sort=sort,
+                    limit=limit, offset=offset)
+                fres = _result(Biro26DB().execute_query(fsql, fparams))
+                if fres.get("success"):
+                    from models.biro26_imgproxy import rewrite_rows
+                    rewrite_rows(fres.get("data") or fres.get("rows"), "IMAGE")
+                    if with_count:
+                        # RO: numaratoarea nu foloseste toate bind-urile
+                        #     paginii (`:pd` lipseste din ea) — Oracle refuza
+                        #     bind-urile in plus, iar totalul iesea 0.
+                        cp = {k: v for k, v in fparams.items()
+                              if (":" + k) in fcount}
+                        import hashlib as _hf
+                        fk = "cnt:" + _hf.md5(
+                            (fcount + repr(sorted(cp.items()))).encode()
+                        ).hexdigest()
+                        fres["total"] = _cached(fk, 300, lambda: (
+                            lambda rc: int(rc[0]["cnt"]) if rc else 0)(
+                                _rows(Biro26DB().execute_query(fcount, cp))))
+                    return fres
+            # RO: nucleu ieftin (doar u+g+pl: filtrele si sortarea), paginat cu
+            #     ROWNUM; join-urile scumpe (VMS_MPT_TVR view, stoc, barcode,
+            #     variante) se aplica DOAR pe pagina de <=200 randuri.
+            # EN: cheap core (u+g+pl only: all filters and the sort), ROWNUM
+            #     paged; the expensive joins (VMS_MPT_TVR view, stock, barcode,
+            #     variants) run ONLY over the <=200-row page. With filters like
+            #     GRUPA the old single-query form lost the ROWNUM stopkey and
+            #     evaluated the heavy joins across thousands of rows (minutes).
+            inner = (
+                "SELECT u.COD, u.CODVECHI, u.DENUMIREA, u.NAMERUS, u.UM, u.TIP, "
+                "g.GRUPA, g.CATEGORIE, g.BRAND, g.PHOTO_URL, g.IMAGE_LINK, "
+                # RO: marcajul "produse noi" pus de importul BIRO26PT
+                # EN: the "new products" flag set by the BIRO26PT import
+                "NVL(mp.MATGR1, 0) MATGR1, "
+                "NVL(pl.PRETV1, g.ANGRO) ANGRO, "
+                "NVL(pl.PRETV2, g.IONLINE) IONLINE, "
+                f"{price_expr} RETAIL1, "
+                "ROUND(NVL(pl.PRETV1, g.ANGRO)/1.2,2) ANGRO_FARA_TVA "
+                "FROM TMS_UNIVERS u "
+                # RO: BIRO26_GOODS e unic pe COD_UNIVERS din 02.09.2026 (index
+                #     UX_BIRO26_GOODS_CODUNIV) — join direct, fara ROW_NUMBER
+                #     peste toata tabela la fiecare cerere.
+                # EN: unique feed since 02.09.2026 — plain join, no window dedupe.
+                "LEFT JOIN BIRO26_GOODS g ON g.COD_UNIVERS = u.COD "
+                # RO: pretul in vigoare la data ceruta / EN: price effective at the requested date
+                "LEFT JOIN TPR1D_PERPRLIST pl ON pl.CODPRICE = 1 AND pl.SC = u.COD "
+                "  AND TO_DATE(:pd,'YYYY-MM-DD') BETWEEN pl.DATASTART AND pl.DATAEND "
+                "LEFT JOIN TMS_MPT mp ON mp.COD = u.COD "
+                "WHERE u.TIP='P'")
+            # RO: soft-delete nativ OfficePlus: ISARHIV='2' = carte
+            #     dezactivata. Implicit se vad DOAR cele active; filtrul
+            #     special "Vizualizare marfa dezactivata" le arata pe cele
+            #     arhivate. Magazinul public nu vede niciodata arhiva.
+            # EN: native OfficePlus soft-delete: ISARHIV='2' = deactivated
+            #     card. Default shows ACTIVE only; the special filter shows
+            #     the archived ones. The public shop never sees them.
+            inner += (" AND u.ISARHIV = '2'" if archived
+                      else " AND NVL(u.ISARHIV,'0') <> '2'")
+            params: Dict[str, Any] = {"pd": price_date}
+            if search:
+                # RO: interogarea se NORMALIZEAZA (cp1251_safe: 'cărți'->'carti')
+                #     — DENUMIREA din DB e deja transliterata, iar copiile
+                #     TMS_MPT_WEBATTR sint fara diacritice, deci 'carti',
+                #     'cărți' si 'CARTI' dau acelasi rezultat (TZ WEBATTR §4).
+                # EN: normalize the query with the SAME function the importer
+                #     uses; search also covers the TMS_MPT_WEBATTR copies.
+                try:
+                    from models.biro26pt_loader import cp1251_safe
+                    q_norm = cp1251_safe(str(search)).strip()
+                except Exception:
+                    q_norm = str(search).strip()
+                # pre-resolve the matching COD set (cheap scans) instead of
+                # OR/EXISTS predicates inside the heavy join — with the VMS_MPT_TVR
+                # view and the ROW_NUMBER feed dedupe in play, the OR form made
+                # Oracle evaluate the whole join row-by-row (minutes, not seconds)
+                inner += (" AND u.COD IN ("
+                          "SELECT COD FROM TMS_UNIVERS WHERE TIP='P' AND ("
+                          "  UPPER(DENUMIREA) LIKE UPPER(:s) "
+                          "  OR UPPER(NAMERUS) LIKE UPPER(:s) OR CODVECHI LIKE :s) "
+                          "UNION "
+                          "SELECT COD FROM TMS_MPT_BARCODE WHERE BARCODE LIKE :s "
+                          # RO: denumirea completa + descrierea (copii fara
+                          #     diacritice; LIKE pe CLOB nu merge -> DBMS_LOB.INSTR)
+                          "UNION "
+                          "SELECT COD FROM TMS_MPT_WEBATTR WHERE "
+                          "  UPPER(DENUMIRE_FULL_RO) LIKE UPPER(:s) "
+                          "  OR UPPER(DENUMIRE_FULL_RU) LIKE UPPER(:s) "
+                          f"  OR {Biro26Store._descr_predicate(q_norm)})")
+                params["s"] = f"%{q_norm}%"
+                if _one_word(q_norm) and Biro26Store._text_index_ok():
+                    params["ct"] = f"%{q_norm}%"
+                else:
+                    params["sq"] = q_norm
+            if cod:
+                # RO: fisa unui singur produs (pagina PDP a noului site)
+                inner += " AND u.COD=:cod"; params["cod"] = int(cod)
+            if gr1:
+                inner += " AND u.GR1=:gr1"; params["gr1"] = gr1
+            if brand:
+                # single value or comma-separated multi-select (shop facets)
+                bl = [b.strip() for b in str(brand).split(",") if b.strip()][:30]
+                marks = ",".join(f":br{i}" for i in range(len(bl)))
+                inner += f" AND g.BRAND IN ({marks})"
+                params.update({f"br{i}": b for i, b in enumerate(bl)})
+            if grupa:
+                inner += " AND g.GRUPA=:grupa"; params["grupa"] = grupa
+            if categorie:
+                inner += " AND g.CATEGORIE=:categorie"; params["categorie"] = categorie
+            if price_min is not None:
+                inner += f" AND {price_expr} >= :pmin"; params["pmin"] = float(price_min)
+            if price_max is not None:
+                inner += f" AND {price_expr} <= :pmax"; params["pmax"] = float(price_max)
+            if only_new:
+                # RO/EN: filtrul "produse noi" — SELECT ... WHERE matgr1 = 1
+                inner += " AND mp.MATGR1 = 1"
+            # RO: totalul (paginarea numerotata) se numara pe nucleul ieftin,
+            #     INAINTE de ORDER BY — doar cind e cerut explicit.
+            # EN: the total (numbered pagination) is counted over the cheap
+            #     core, BEFORE the ORDER BY — only when explicitly asked.
+            count_sql = f"SELECT COUNT(*) CNT FROM ({inner})"
+            # RO: sortare — alfabetic (implicit) sau dupa pretul efectiv
+            # EN: sorting — alphabetical (default) or by effective price
+            if sort == "price_asc":
+                inner += f" ORDER BY {price_expr} ASC NULLS LAST, u.DENUMIREA, u.COD"
+            elif sort == "price_desc":
+                inner += f" ORDER BY {price_expr} DESC NULLS LAST, u.DENUMIREA, u.COD"
+            elif sort == "name_desc":
+                inner += " ORDER BY u.DENUMIREA DESC, u.COD"
+            else:
+                inner += " ORDER BY u.DENUMIREA, u.COD"
+            # RO: join-urile scumpe doar peste pagina / EN: heavy joins over the page only
+            outer = (
+                "SELECT c.COD, c.CODVECHI, c.DENUMIREA, c.NAMERUS, c.UM, c.TIP, "
+                "c.GRUPA, c.CATEGORIE, c.BRAND, c.MATGR1, "
+                "c.ANGRO, c.IONLINE, c.RETAIL1, "
+                "c.ANGRO_FARA_TVA, "
+                "NVL(m.IE_LINKADRES, NVL(c.PHOTO_URL, c.IMAGE_LINK)) IMAGE, "
+                "s.CANT REAL_CANT, NVL(rz.QTY, 0) RESERVED, "
+                "GREATEST(NVL(s.CANT, 0) - NVL(rz.QTY, 0), 0) AVAIL_CANT, "
+                # RO: codul de bare si numarul de variante — subinterogari
+                #     SCALARE, evaluate DOAR pentru cele <=200 rinduri ale
+                #     paginii. Varianta veche (LEFT JOIN peste un GROUP BY al
+                #     INTREGII tabele) agrega 197.704 de coduri de bare la
+                #     fiecare cerere de catalog: 2,3-3,0 s din cele ~2,6 s ale
+                #     interogarii. Indexul TMS_MPT_BARCODE_PK (COD, BARCODE)
+                #     face fiecare subinterogare instantanee: 0,04 s pentru 24
+                #     de rinduri, adica de ~58 de ori mai rapid.
+                # EN: scalar subqueries run only for the page rows; the old
+                #     GROUP BY inline view aggregated the whole barcode table
+                #     (197k rows) on every catalog request.
+                "(SELECT MIN(b.BARCODE) FROM TMS_MPT_BARCODE b "
+                "   WHERE b.COD = c.COD) BARCODE, "
+                "(SELECT COUNT(*) FROM TMS_MPT_BARCODE b "
+                "   WHERE b.COD = c.COD) BC_CNT, "
+                "vr.VARIANT, vr.MASTER_COD, "
+                # RO: fara familie de variante numarul e 1. COUNT(*) pe un
+                #     MASTER_COD NULL intoarce 0 (nu NULL), deci NVL nu ajuta —
+                #     de aceea CASE explicit.
+                # EN: COUNT(*) over a NULL key returns 0, not NULL — use CASE.
+                "CASE WHEN vr.MASTER_COD IS NULL THEN 1 ELSE "
+                "  (SELECT COUNT(*) FROM BIRO26_VARIANTS v2 "
+                "     WHERE v2.MASTER_COD = vr.MASTER_COD) END VAR_CNT, "
+                # RO: denumirea completa din TMS_MPT_WEBATTR — copia VARCHAR2
+                #     (ieftina) pentru grila/tooltip; BLOB-ul DOAR in fisa
+                "w.DENUMIRE_FULL_RO DENUM_FULL, w.DENUMIRE_FULL_RU DENUM_FULL_RU "
+                f"FROM ({_page(inner, limit, offset)}) c "
+                "LEFT JOIN TMS_MPT_WEBATTR w ON w.COD = c.COD "
+                "LEFT JOIN VMS_MPT_TVR m ON m.COD = c.COD "
+                "LEFT JOIN (SELECT sc, SUM(cant) cant FROM YBIRO_STOCK_CALC_ITEM "
+                "  WHERE calc_id = (SELECT id FROM YBIRO_STOCK_CALC WHERE is_latest='1') "
+                "  GROUP BY sc) s ON s.sc = c.COD "
+                # RO: cantitatea BLOCATA de comenzile magazinului. Instantaneul
+                #     de stoc (YBIRO_STOCK_CALC) se recalculeaza periodic, deci
+                #     nu stie nici de comenzile neonorate, nici de livrarile de
+                #     dupa data lui. Scadem ambele:
+                #       - contul de plata NElivrat (ctnrdoc IS NULL) -> rezervat;
+                #       - livrat DUPA data instantaneului -> marfa a plecat deja.
+                #     Cele doua cazuri nu se suprapun: la livrare comanda se inchide.
+                # EN: quantity locked by shop orders — the stock snapshot is
+                #     periodic, so subtract both unshipped orders and shipments
+                #     made after the snapshot date.
+                "LEFT JOIN (SELECT d.CTSC SC, SUM(NVL(d.CANT, 0)) QTY "
+                "  FROM VMDB_ST201D d "
+                "  JOIN VMDB_ST201M m ON m.NRDOC = d.NRDOC "
+                "  JOIN VMDB_DOCS   h ON h.COD = d.NRDOC AND h.SYSFID = 12280 "
+                "  WHERE d.CTSC IS NOT NULL AND ("
+                "        m.CTNRDOC IS NULL "
+                "     OR NVL((SELECT dh.DATAMANUAL FROM VMDB_DOCS dh "
+                "               WHERE dh.COD = m.CTNRDOC), h.DATAMANUAL) > "
+                "        NVL((SELECT MAX(DATA_DOC) FROM YBIRO_STOCK_CALC "
+                "               WHERE IS_LATEST = '1'), DATE '1900-01-01')) "
+                "  GROUP BY d.CTSC) rz ON rz.SC = c.COD "
+                "LEFT JOIN BIRO26_VARIANTS vr ON vr.COD_UNIVERS = c.COD "
+                "ORDER BY c.rn")
+            # RO: raspunsul CAUTARII se tine in cache 5 minute, cu tot cu
+            #     pagina. Cautarea costa ~4-6 s pentru ca descrierile sint in
+            #     CLOB fara index de text, iar Oracle le citeste pe toate la
+            #     fiecare cerere. Nu putem sari peste ele fara sa PIERDEM
+            #     rezultate (verificat: "ergonomic" scade de la 406 la 143
+            #     produse), deci pastram cautarea completa si o facem sa se
+            #     plateasca o singura data: paginile urmatoare, revenirile si
+            #     ceilalti vizitatori o primesc gata. Solutia definitiva ar fi
+            #     un index Oracle Text pe descrieri — decizie separata, cere
+            #     DDL pe baza de productie.
+            # EN: cache the full search response (page included) for 5 minutes;
+            #     skipping the CLOB scan would silently drop results.
+            if search:
+                import hashlib as _hh
+                skey = "srch:" + _hh.md5(
+                    (outer + repr(sorted(params.items())) + str(with_count))
+                    .encode()).hexdigest()
+                hit = _cached(skey, 300, lambda: _result(
+                    Biro26DB().execute_query(outer, params)))
+                if hit.get("success"):
+                    res = dict(hit)
+                    if with_count:
+                        import hashlib as _h2
+                        ck2 = "cnt:" + _h2.md5(
+                            (count_sql + repr(sorted(params.items()))).encode()
+                        ).hexdigest()
+                        res["total"] = _cached(ck2, 300, lambda: (
+                            lambda rc: int(rc[0]["cnt"]) if rc else 0)(
+                                _rows(Biro26DB().execute_query(count_sql, params))))
+                    return res
+            r = Biro26DB().execute_query(outer, params)
+            res = _result(r)
+            # RO: sursele fara HTTPS (impreso.md) trec prin proxy, altfel browserul
+            #     le blocheaza ca "mixed content" pe o pagina https.
+            # EN: non-HTTPS sources go through the proxy, else the browser blocks them.
+            from models.biro26_imgproxy import rewrite_rows
+            rewrite_rows(res.get("data") or res.get("rows"), "IMAGE")
+            if with_count and res.get("success"):
+                # RO: numaratoarea totala nu depinde de pagina si costa scump
+                #     la cautare (scanare completa cu LIKE '%…%': ~2,7 s).
+                #     O tinem in cache 5 minute dupa cheia filtrelor, deci
+                #     paginile 2,3,4… si vizitatorii urmatori o primesc gata.
+                # EN: the total is page-independent and expensive on search —
+                #     cache it per filter set for 5 minutes.
+                import hashlib as _h
+                ckey = "cnt:" + _h.md5(
+                    (count_sql + repr(sorted(params.items()))).encode()
+                ).hexdigest()
+                total = _cached(ckey, 300, lambda: (
+                    lambda rc: int(rc[0]["cnt"]) if rc else 0)(
+                        _rows(Biro26DB().execute_query(count_sql, params))))
+                res["total"] = total
+            return res
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def set_product_archived(cod: int, archived: bool) -> Dict[str, Any]:
+        """RO: 'stergere' ca in aplicatia de baza OfficePlus — soft-delete:
+        TMS_UNIVERS.ISARHIV='2' (dezactivat) / NULL (reactivat). Trigger-ele
+        native cer env-urile DOC_CHANGE_ISARHIV si PARAM_USERID (user din
+        grupul UNIVERS/DEL/ALLOW; 1 = admin) — le setam in acelasi bloc,
+        exact cum face aplicatia nativa; randul NU se sterge fizic.
+        EN: native OfficePlus soft-delete: ISARHIV='2' / NULL. The native
+        triggers require the DOC_CHANGE_ISARHIV + PARAM_USERID envs (a user
+        from the UNIVERS/DEL/ALLOW group; 1 = admin) — set in the same
+        block, exactly like the base application; no physical delete."""
+        try:
+            r = Biro26DB().execute_dml(
+                "BEGIN "
+                "  un4public.set_env('DOC_CHANGE_ISARHIV','1'); "
+                "  un4public.set_env('PARAM_USERID','1'); "
+                "  UPDATE TMS_UNIVERS SET ISARHIV = "
+                "    CASE WHEN :a = '1' THEN '2' ELSE NULL END "
+                "  WHERE COD = :c AND TIP = 'P'; "
+                "  un4public.set_env('DOC_CHANGE_ISARHIV', NULL); "
+                "END;",
+                {"a": "1" if archived else "0", "c": int(cod)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ── per-document metadata (YBIRO_DOC_META): TVA mode of the invoice ──
+
+    @staticmethod
+    def set_doc_tva_mode(doc_cod: int, mode: str) -> Dict[str, Any]:
+        """RO: modul TVA ales la generarea contului: 'inclus'/'0'/'fara'.
+        EN: the VAT mode chosen when the invoice was generated."""
+        if mode not in ("inclus", "0", "fara"):
+            mode = "inclus"
+        try:
+            r = Biro26DB().execute_dml(
+                "MERGE INTO YBIRO_DOC_META t USING (SELECT :c COD FROM dual) s "
+                "ON (t.DOC_COD = s.COD) "
+                "WHEN MATCHED THEN UPDATE SET t.TVA_MODE = :m1 "
+                "WHEN NOT MATCHED THEN INSERT (DOC_COD, TVA_MODE) VALUES (:c2, :m2)",
+                {"c": int(doc_cod), "m1": mode, "c2": int(doc_cod), "m2": mode})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def set_doc_credit(doc_cod: int, plan_id: int, months: int,
+                       avans: float) -> Dict[str, Any]:
+        """RO: metadatele creditului pe document (plan/luni/avans).
+        EN: per-document credit metadata."""
+        try:
+            r = Biro26DB().execute_dml(
+                "MERGE INTO YBIRO_DOC_META t USING (SELECT :c COD FROM dual) s "
+                "ON (t.DOC_COD = s.COD) "
+                "WHEN MATCHED THEN UPDATE SET t.CREDIT_PLAN_ID = :p1, "
+                "  t.CREDIT_MONTHS = :m1, t.CREDIT_AVANS = :a1 "
+                "WHEN NOT MATCHED THEN INSERT "
+                "  (DOC_COD, CREDIT_PLAN_ID, CREDIT_MONTHS, CREDIT_AVANS) "
+                "  VALUES (:c2, :p2, :m2, :a2)",
+                {"c": int(doc_cod), "p1": int(plan_id), "m1": int(months),
+                 "a1": float(avans or 0), "c2": int(doc_cod),
+                 "p2": int(plan_id), "m2": int(months), "a2": float(avans or 0)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_doc_tva_mode(doc_cod: int) -> str:
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT TVA_MODE FROM YBIRO_DOC_META WHERE DOC_COD = :c",
+                {"c": int(doc_cod)}))
+            m = (rows[0]["tva_mode"] if rows else "") or "inclus"
+            return m if m in ("inclus", "0", "fara") else "inclus"
+        except Exception:
+            return "inclus"
+
+    # ── module settings (YBIRO_SETTINGS via y_ai_BIRO26.set_setting) ──
+
+    @staticmethod
+    def get_setting(key: str, default: str = "") -> str:
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT SVAL FROM YBIRO_SETTINGS WHERE SKEY = :k", {"k": key}))
+            return (rows[0]["sval"] if rows else None) or default
+        except Exception:
+            return default
+
+    @staticmethod
+    def get_settings_many(keys: List[str]) -> Dict[str, str]:
+        """RO: mai multe setari INTR-O SINGURA interogare.
+
+        Fiecare `get_setting` porneste un worker-subproces (Oracle thick) —
+        ~2 secunde. Noua chei citite pe rind insemnau ~20 s la deschiderea
+        cosului. Aici se citeste tot dintr-un foc; cheile lipsa vin ca ''.
+        EN: read several settings in ONE query — each separate get_setting
+        spawns a subprocess worker (~2 s), so N keys cost N × 2 s.
+        """
+        out = {k: "" for k in keys}
+        if not keys:
+            return out
+        binds = {f"k{i}": k for i, k in enumerate(keys)}
+        names = ", ".join(f":k{i}" for i in range(len(keys)))
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                f"SELECT SKEY, SVAL FROM YBIRO_SETTINGS WHERE SKEY IN ({names})",
+                binds))
+        except Exception:                              # noqa: BLE001
+            return out
+        for r in rows:
+            k = r.get("skey")
+            if k in out:
+                out[k] = r.get("sval") or ""
+        return out
+
+    @staticmethod
+    def set_setting(key: str, val: str) -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_dml(
+                "BEGIN y_ai_BIRO26.set_setting(:k, :v); END;",
+                {"k": key, "v": str(val or "")[:400]})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_product_tree() -> Dict[str, Any]:
+        return _cached("tree", 600, Biro26Store._get_product_tree_uncached)
+
+    @staticmethod
+    def _get_product_tree_uncached() -> Dict[str, Any]:
+        """RO: arborele se citeste prin cache (10 min) — costa ~1,6 s si se
+        schimba doar dupa import. EN: cached for 10 minutes.
+
+        GRUPA -> CATEGORIE counts for the Marfă/Stoc left-panel tree
+        (same TIP='P' + BIRO26_GOODS scope as the grid; ~768 rows).
+        RO: numele RU/EN vin din dictionarul editabil YBIRO_GRP_I18N
+        (principiul una-shops: traduceri ca DATE, fallback pe romana).
+        EN: RU/EN names come from the editable YBIRO_GRP_I18N dictionary."""
+        try:
+            # RO: COUNT(DISTINCT u.COD) — feed-ul BIRO26_GOODS contine rinduri
+            #     duplicate per produs (grila le dedupe prin ROW_NUMBER);
+            #     fara DISTINCT arborele arata 333 unde grila arata 168.
+            r = Biro26DB().execute_query(
+                "SELECT g.GRUPA, g.CATEGORIE, COUNT(DISTINCT u.COD) CNT, "
+                "MIN(gi.NAME_RU) GRUPA_RU, MIN(gi.NAME_EN) GRUPA_EN, "
+                "MIN(ci.NAME_RU) CAT_RU, MIN(ci.NAME_EN) CAT_EN "
+                "FROM TMS_UNIVERS u "
+                "JOIN BIRO26_GOODS g ON g.COD_UNIVERS=u.COD "
+                "LEFT JOIN YBIRO_GRP_I18N gi "
+                "  ON gi.KIND='grupa' AND gi.NAME_RO = g.GRUPA "
+                "LEFT JOIN YBIRO_GRP_I18N ci "
+                "  ON ci.KIND='categorie' AND ci.NAME_RO = g.CATEGORIE "
+                "WHERE u.TIP='P' AND g.GRUPA IS NOT NULL "
+                "AND NVL(u.ISARHIV,'0') <> '2' "
+                "GROUP BY g.GRUPA, g.CATEGORIE ORDER BY g.GRUPA, g.CATEGORIE")
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_product_brands() -> Dict[str, Any]:
+        """RO: lista de branduri — cache 10 min (se schimba doar la import)."""
+        return _cached("brands", 600, Biro26Store._get_product_brands_uncached)
+
+    @staticmethod
+    def _get_product_brands_uncached() -> Dict[str, Any]:
+        """Distinct brands for the Marfă/Stoc filter dropdown, scoped to the same
+        TIP='P' + BIRO26_GOODS join as get_products_stock (so filter options never
+        lead to an empty result)."""
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT g.BRAND, COUNT(DISTINCT u.COD) CNT FROM TMS_UNIVERS u "
+                "JOIN BIRO26_GOODS g ON g.COD_UNIVERS=u.COD "
+                "WHERE u.TIP='P' AND g.BRAND IS NOT NULL "
+                "AND NVL(u.ISARHIV,'0') <> '2' "
+                "GROUP BY g.BRAND ORDER BY g.BRAND")
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def get_product_categories() -> Dict[str, Any]:
+        """Distinct product groups (CATEGORIE) for the Marfă/Stoc filter dropdown."""
+        try:
+            r = Biro26DB().execute_query(
+                "SELECT g.CATEGORIE, COUNT(*) CNT FROM TMS_UNIVERS u "
+                "JOIN BIRO26_GOODS g ON g.COD_UNIVERS=u.COD "
+                "WHERE u.TIP='P' AND g.CATEGORIE IS NOT NULL "
+                "GROUP BY g.CATEGORIE ORDER BY g.CATEGORIE")
+            return _result(r)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # PRODUCT EDITING — attributes across TMS_UNIVERS / BIRO26_GOODS /
+    # TMS_MPT_TVR (image) / TMS_MPT_BARCODE, one atomic script.
+    # TMS_UNIVERS updates are audited by its history triggers; CODVECHI
+    # uniqueness and barcode uniqueness are enforced by DB triggers and
+    # surface as errors here.
+    # ============================================================
+
+    UNIVERS_EDIT_FIELDS = {"denumirea": "DENUMIREA", "namerus": "NAMERUS",
+                           "codvechi": "CODVECHI", "um": "UM"}
+    GOODS_EDIT_FIELDS = {"brand": "BRAND", "grupa": "GRUPA", "categorie": "CATEGORIE",
+                         "angro": "ANGRO", "ionline": "IONLINE", "retail1": "RETAIL1"}
+
+    @staticmethod
+    def update_product(cod: int, univers: Optional[Dict[str, Any]] = None,
+                       goods: Optional[Dict[str, Any]] = None,
+                       image: Optional[str] = None,
+                       bc_add: Optional[List[str]] = None,
+                       bc_remove: Optional[List[str]] = None) -> Dict[str, Any]:
+        try:
+            cod = int(cod)
+            stmts: List[Dict[str, Any]] = []
+
+            uv = {k: v for k, v in (univers or {}).items()
+                  if k in Biro26Store.UNIVERS_EDIT_FIELDS}
+            if uv:
+                sets = ", ".join(f"{Biro26Store.UNIVERS_EDIT_FIELDS[k]} = :{k}" for k in uv)
+                stmts.append({"sql": f"UPDATE TMS_UNIVERS SET {sets} WHERE COD = :cod",
+                              "params": {**uv, "cod": cod}, "kind": "dml"})
+
+            gv = {k: v for k, v in (goods or {}).items()
+                  if k in Biro26Store.GOODS_EDIT_FIELDS}
+            if gv:
+                sets = ", ".join(f"{Biro26Store.GOODS_EDIT_FIELDS[k]} = :{k}" for k in gv)
+                stmts.append({"sql": f"UPDATE BIRO26_GOODS SET {sets} WHERE COD_UNIVERS = :cod",
+                              "params": {**gv, "cod": cod}, "kind": "dml"})
+
+            if image is not None:
+                stmts.append({"sql": "MERGE INTO TMS_MPT_TVR t USING (SELECT :cod c FROM dual) s "
+                                     "ON (t.COD = s.c) "
+                                     "WHEN MATCHED THEN UPDATE SET t.IE_LINKADRES = :img "
+                                     "WHEN NOT MATCHED THEN INSERT (COD, IE_LINKADRES) "
+                                     "VALUES (:cod, :img)",
+                              "params": {"cod": cod, "img": image[:1000] if image else None},
+                              "kind": "dml"})
+
+            for b in (bc_add or []):
+                b = str(b).strip()[:15]
+                if not b:
+                    continue
+                # barcode FK needs a TMS_MPT card; create a minimal one if missing
+                stmts.append({"sql": "INSERT INTO TMS_MPT (COD) "
+                                     "SELECT :cod FROM dual WHERE NOT EXISTS "
+                                     "(SELECT 1 FROM TMS_MPT WHERE COD = :cod)",
+                              "params": {"cod": cod}, "kind": "dml"})
+                stmts.append({"sql": "INSERT INTO TMS_MPT_BARCODE (COD, BARCODE) "
+                                     "SELECT :cod, :b FROM dual WHERE NOT EXISTS "
+                                     "(SELECT 1 FROM TMS_MPT_BARCODE WHERE COD = :cod AND BARCODE = :b)",
+                              "params": {"cod": cod, "b": b}, "kind": "dml"})
+
+            for b in (bc_remove or []):
+                stmts.append({"sql": "DELETE FROM TMS_MPT_BARCODE WHERE COD = :cod AND BARCODE = :b",
+                              "params": {"cod": cod, "b": str(b).strip()}, "kind": "dml"})
+
+            if not stmts:
+                return {"success": False, "error": "nothing to update"}
+            res = Biro26DB().execute_script(stmts)
+            if not res.get("success"):
+                return {"success": False, "error": res.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ── product tree editing (BIRO26_GOODS.GRUPA / .CATEGORIE) ─────────
+    @staticmethod
+    def rename_tree_node(level: str, old: str, new: str,
+                         grupa: Optional[str] = None) -> Dict[str, Any]:
+        try:
+            if not old or not new:
+                return {"success": False, "error": "old and new names are required"}
+            if level == "grupa":
+                r = Biro26DB().execute_dml(
+                    "UPDATE BIRO26_GOODS SET GRUPA = :new WHERE GRUPA = :old",
+                    {"new": new, "old": old})
+            elif level == "categorie":
+                r = Biro26DB().execute_dml(
+                    "UPDATE BIRO26_GOODS SET CATEGORIE = :new "
+                    "WHERE GRUPA = :g AND CATEGORIE = :old",
+                    {"new": new, "old": old, "g": grupa})
+            else:
+                return {"success": False, "error": "level must be grupa|categorie"}
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "rows": r.get("rowcount", 0)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def move_tree_categorie(grupa: str, categorie: str, new_grupa: str) -> Dict[str, Any]:
+        try:
+            if not (grupa and categorie and new_grupa):
+                return {"success": False, "error": "grupa, categorie, new_grupa are required"}
+            r = Biro26DB().execute_dml(
+                "UPDATE BIRO26_GOODS SET GRUPA = :ng "
+                "WHERE GRUPA = :g AND CATEGORIE = :c",
+                {"ng": new_grupa, "g": grupa, "c": categorie})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "rows": r.get("rowcount", 0)}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # WEB-SHOP — self-registered clients (YBIRO_CLIENT + TMS_UNIVERS
+    # TIP='O' via package y_ai_BIRO26) and "cont de plata" invoices
+    # (TMDB_DOCS + VMDB_ST201M/D, visible in VMDB_DOCS_WORK).
+    # ============================================================
+
+    @staticmethod
+    def shop_register_client(email: str, full_name: str, phone: str,
+                             pwd_hash: str, address: str = "",
+                             idno: str = "",
+                             is_company: bool = False) -> Dict[str, Any]:
+        try:
+            res = Biro26DB().execute_script([
+                {"sql": """DECLARE
+  v_cod NUMBER;
+BEGIN
+  v_cod := y_ai_BIRO26.register_client(p_name => :nm);
+  INSERT INTO YBIRO_CLIENT (univers_cod, email, full_name, phone, pwd_hash,
+                            address, idno, is_company)
+  VALUES (v_cod, :em, :nm, :ph, :pw, :ad, :idno, :isco);
+END;""",
+                 "params": {"nm": full_name, "em": email.lower().strip(),
+                            "ph": phone or "", "pw": pwd_hash,
+                            "ad": (address or "")[:400],
+                            "idno": (idno or "")[:20],
+                            "isco": "1" if is_company else "0"},
+                 "kind": "dml"},
+                {"sql": "SELECT id, univers_cod FROM YBIRO_CLIENT WHERE email = :em",
+                 "params": {"em": email.lower().strip()}, "kind": "query"},
+            ])
+            if not res.get("success"):
+                return {"success": False, "error": res.get("message")}
+            row = res["results"][-1]["data"]
+            return {"success": True,
+                    "data": {"client_id": row[0][0], "univers_cod": row[0][1]}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def set_client_invoice_fmt(univers_cod: int, fmt: str) -> Dict[str, Any]:
+        """RO: constanta personala a clientului — formatele contului
+        (ex. 'pdf' / 'pdf,html'); se refoloseste la conturile urmatoare."""
+        try:
+            r = Biro26DB().execute_dml(
+                "UPDATE YBIRO_CLIENT SET invoice_fmt = :f "
+                "WHERE univers_cod = :c",
+                {"f": (fmt or "pdf")[:20], "c": int(univers_cod)})
+            return (r if r.get("success")
+                    else {"success": False, "error": r.get("message")})
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # RO: marcajele permise pentru clientii magazinului. 'admin' vede detaliile
+    #     tehnice ale erorilor pe vitrina; 'test'/'trusted' sint doar etichete
+    #     pentru operator. EN: allowed client marks.
+    CLIENT_MARKS = ("admin", "test", "trusted")
+
+    @staticmethod
+    def shop_clients_list(search: str = "", limit: int = 200) -> Dict[str, Any]:
+        """RO: lista clientilor magazinului pentru pagina de marcare din back-office."""
+        try:
+            w, params = "", {"n": max(1, min(int(limit), 500))}
+            if (search or "").strip():
+                w = ("WHERE UPPER(EMAIL) LIKE :q OR UPPER(FULL_NAME) LIKE :q "
+                     "OR PHONE LIKE :q OR TO_CHAR(UNIVERS_COD) LIKE :q OR IDNO LIKE :q ")
+                params["q"] = f"%{search.strip().upper()}%"
+            return _result(Biro26DB().execute_query(
+                f"SELECT * FROM (SELECT ID, UNIVERS_COD, EMAIL, FULL_NAME, PHONE, "
+                f"IDNO, IS_COMPANY, CLIENT_MARK, INVOICE_FMT, "
+                f"TO_CHAR(CREATED_AT,'DD.MM.YYYY HH24:MI') CREATED_AT "
+                f"FROM YBIRO_CLIENT {w} ORDER BY ID DESC) WHERE ROWNUM <= :n", params))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_client_set_mark(univers_cod, mark: str) -> Dict[str, Any]:
+        """RO: pune/scoate marcajul clientului. Sir gol = fara marcaj."""
+        m = (mark or "").strip().lower()
+        if m and m not in Biro26Store.CLIENT_MARKS:
+            return {"success": False,
+                    "error": "marcaj permis: " + " | ".join(Biro26Store.CLIENT_MARKS)}
+        try:
+            cod = int(univers_cod)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "client invalid"}
+        r = Biro26DB().execute_dml(
+            "UPDATE YBIRO_CLIENT SET CLIENT_MARK = :m WHERE UNIVERS_COD = :c",
+            {"m": m or None, "c": cod})
+        if not r.get("success"):
+            return {"success": False, "error": r.get("message")}
+        if not r.get("rowcount"):
+            return {"success": False, "error": "client inexistent"}
+        return {"success": True, "data": {"univers_cod": cod, "mark": m}}
+
+    @staticmethod
+    def shop_client_mark(univers_cod) -> str:
+        """RO: marcajul clientului ('' daca nu are) — folosit pe vitrina."""
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT CLIENT_MARK FROM YBIRO_CLIENT WHERE UNIVERS_COD = :c",
+                {"c": int(univers_cod)}))
+        except Exception:
+            return ""
+        return (rows[0].get("client_mark") or "") if rows else ""
+
+    # ── datele formularului de credit memorate in cabinet ──
+
+    @staticmethod
+    def shop_credit_profile(univers_cod) -> Dict[str, Any]:
+        """RO: datele memorate ale formularului de credit (pentru precompletare).
+        `save` = '0' inseamna ca clientul a oprit memorarea — cimpurile sint goale."""
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT CREDIT_NNP, CREDIT_IDNP, CREDIT_ADDRESS, CREDIT_PHONE, "
+                "TO_CHAR(CREDIT_BIRTH,'YYYY-MM-DD') CREDIT_BIRTH, CREDIT_SAVE "
+                "FROM YBIRO_CLIENT WHERE UNIVERS_COD = :c", {"c": int(univers_cod)}))
+        except Exception:                              # noqa: BLE001
+            return {"save": True}
+        if not rows:
+            return {"save": True}
+        r = rows[0]
+        save = str(r.get("credit_save") or "1") != "0"
+        return {"save": save,
+                "nnp": (r.get("credit_nnp") or "") if save else "",
+                "idnp": (r.get("credit_idnp") or "") if save else "",
+                "address": (r.get("credit_address") or "") if save else "",
+                "birth_date": (r.get("credit_birth") or "") if save else "",
+                "phone": (r.get("credit_phone") or "") if save else ""}
+
+    @staticmethod
+    def shop_credit_profile_save(univers_cod, d: Dict[str, Any]) -> Dict[str, Any]:
+        """RO: salveaza TACIT datele formularului — orice modificare le suprascrie.
+        Nu face nimic daca clientul a oprit memorarea (CREDIT_SAVE = '0')."""
+        try:
+            cod = int(univers_cod)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "client invalid"}
+        if not Biro26Store.shop_credit_profile(cod).get("save", True):
+            return {"success": True, "data": {"saved": False}}
+        b = (d.get("birth_date") or "").strip()[:10]
+        r = Biro26DB().execute_dml(
+            "UPDATE YBIRO_CLIENT SET CREDIT_NNP = :n, CREDIT_IDNP = :i, "
+            "CREDIT_ADDRESS = :a, CREDIT_PHONE = :p, CREDIT_BIRTH = "
+            + ("TO_DATE(:b,'YYYY-MM-DD')" if b else "NULL")
+            + " WHERE UNIVERS_COD = :c",
+            {"n": (d.get("nnp") or "").strip()[:200] or None,
+             "i": (d.get("idnp") or "").strip()[:20] or None,
+             "a": (d.get("address") or "").strip()[:400] or None,
+             "p": (d.get("phone") or "").strip()[:40] or None,
+             "c": cod, **({"b": b} if b else {})})
+        if not r.get("success"):
+            return {"success": False, "error": r.get("message")}
+        return {"success": True, "data": {"saved": True}}
+
+    @staticmethod
+    def shop_credit_profile_set_save(univers_cod, save: bool) -> Dict[str, Any]:
+        """RO: butonul din cabinet — memorare pornita/oprita. La oprire datele
+        deja memorate se STERG, ca sa nu ramina in baza fara acordul clientului."""
+        try:
+            cod = int(univers_cod)
+        except (TypeError, ValueError):
+            return {"success": False, "error": "client invalid"}
+        sql = "UPDATE YBIRO_CLIENT SET CREDIT_SAVE = :s"
+        if not save:
+            sql += (", CREDIT_NNP = NULL, CREDIT_IDNP = NULL, CREDIT_ADDRESS = NULL, "
+                    "CREDIT_PHONE = NULL, CREDIT_BIRTH = NULL")
+        r = Biro26DB().execute_dml(sql + " WHERE UNIVERS_COD = :c",
+                                   {"s": "1" if save else "0", "c": cod})
+        if not r.get("success"):
+            return {"success": False, "error": r.get("message")}
+        return {"success": True, "data": {"save": bool(save)}}
+
+    @staticmethod
+    def shop_client_by_email(email: str) -> Dict[str, Any]:
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT id, univers_cod, email, full_name, phone, pwd_hash, "
+                "invoice_fmt, is_company, idno "
+                "FROM YBIRO_CLIENT WHERE email = :em",
+                {"em": (email or "").lower().strip()}))
+            return {"success": True, "data": rows[0] if rows else None}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_create_invoice(client_cod: int, items: List[Dict[str, Any]],
+                            coment: str = "") -> Dict[str, Any]:
+        """Create the invoice + all lines in ONE session/transaction, then
+        return {cod, nrmanual, nrset}. items: [{cod, qty, price, name?}].
+        RO: nrmanual = numarul vizibil al contului; nrset = subset intern.
+        EN: nrmanual = visible invoice number; nrset = internal subset."""
+        try:
+            if not items:
+                return {"success": False, "error": "empty cart"}
+            lines = []
+            params: Dict[str, Any] = {"client": int(client_cod)}
+            for i, it in enumerate(items[:200]):
+                lines.append(f"  y_ai_BIRO26.add_line(v_cod, :sc{i}, :q{i}, :p{i}, :c{i});")
+                params[f"sc{i}"] = int(it["cod"])
+                params[f"q{i}"] = float(it.get("qty") or 0)
+                params[f"p{i}"] = float(it.get("price") or 0)
+                params[f"c{i}"] = (str(it.get("name") or "")[:180] or None)
+            block = ("DECLARE\n  v_cod NUMBER;\nBEGIN\n"
+                     "  v_cod := y_ai_BIRO26.create_invoice(p_client_cod => :client);\n"
+                     + "\n".join(lines) + "\nEND;")
+            res = Biro26DB().execute_script([
+                {"sql": block, "params": params, "kind": "dml"},
+                {"sql": "SELECT y_ai_BIRO26.last_doc FROM dual",
+                 "params": {}, "kind": "query"},
+            ])
+            if not res.get("success"):
+                return {"success": False, "error": res.get("message")}
+            cod = res["results"][-1]["data"][0][0]
+            nr = _rows(Biro26DB().execute_query(
+                "SELECT NRMANUAL, NRSET FROM TMDB_DOCS WHERE COD = :c",
+                {"c": cod}))
+            nrmanual = nr[0].get("nrmanual") if nr else None
+            nrset = nr[0].get("nrset") if nr else None
+            return {"success": True,
+                    "data": {
+                        "cod": cod,
+                        "nrmanual": nrmanual,
+                        # RO/EN: compat — UI vechi asteapta "nrset" ca numar afisat
+                        "nrset": nrmanual if nrmanual not in (None, "") else nrset,
+                    }}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # RO: coloanele de pret dupa tipul clientului (setare in backoffice):
+    #     'retail1' = pret cu amanuntul (PRETV), 'ionline' = pret online
+    #     (PRETV2), 'angro' = pret angro (PRETV1). Implicit: pers. FIZICE ->
+    #     retail1, pers. JURIDICE -> ionline; fallback mereu pe retail.
+    _PRICE_FIELDS = {"retail1": ("PRETV", "RETAIL1"),
+                     "ionline": ("PRETV2", "IONLINE"),
+                     "angro": ("PRETV1", "ANGRO")}
+
+    @staticmethod
+    def client_price_field(univers_cod) -> str:
+        """RO: cimpul de pret al clientului — dupa tipul din cabinet
+        (IS_COMPANY) si setarile SHOP_PRICE_FIZ / SHOP_PRICE_JUR."""
+        is_company = False
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT IS_COMPANY FROM YBIRO_CLIENT WHERE univers_cod = :c",
+                {"c": int(univers_cod)}))
+            is_company = bool(rows and str(rows[0]["is_company"]) in ("1", "Y"))
+        except Exception:
+            pass
+        key = "SHOP_PRICE_JUR" if is_company else "SHOP_PRICE_FIZ"
+        default = "ionline" if is_company else "retail1"
+        f = Biro26Store.get_setting(key, default)
+        return f if f in Biro26Store._PRICE_FIELDS else default
+
+    @staticmethod
+    def set_client_type(univers_cod: int, is_company: bool,
+                        idno: str = "") -> Dict[str, Any]:
+        """RO: tipul clientului (fizica/juridica) din cabinet — schimba
+        automat preturile afisate si cele din conturile viitoare."""
+        try:
+            r = Biro26DB().execute_dml(
+                "UPDATE YBIRO_CLIENT SET is_company = :ic, "
+                "idno = CASE WHEN :ic2 = 1 THEN :idno ELSE idno END "
+                "WHERE univers_cod = :c",
+                {"ic": 1 if is_company else 0, "ic2": 1 if is_company else 0,
+                 "idno": (idno or "")[:20] or None, "c": int(univers_cod)})
+            return (r if r.get("success")
+                    else {"success": False, "error": r.get("message")})
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_prices_for(cods: List[int],
+                        price_field: str = "retail1") -> Dict[str, Any]:
+        """Authoritative prices for the shop invoice (server-side — the
+        public client must not supply its own price). price_field alege
+        coloana dupa tipul clientului (fizica/juridica); daca valoarea
+        aleasa lipseste, cade inapoi pe pretul cu amanuntul. Reads the
+        period price list (codprice=1) as of today, falling back to the
+        BIRO26_GOODS feed values."""
+        try:
+            col_pl, col_g = Biro26Store._PRICE_FIELDS.get(
+                price_field, Biro26Store._PRICE_FIELDS["retail1"])
+            cods = [int(c) for c in cods][:200]
+            if not cods:
+                return {"success": True, "data": {}}
+            marks = ",".join(f":c{i}" for i in range(len(cods)))
+            params = {f"c{i}": c for i, c in enumerate(cods)}
+            retail_num = ("MAX(CASE WHEN REGEXP_LIKE(TRIM(g.RETAIL1), "
+                          "'^-?[0-9]+([.,][0-9]+)?$') THEN "
+                          "TO_NUMBER(REPLACE(TRIM(g.RETAIL1), ',', '.')) END)")
+            chosen = (f"COALESCE(MAX(pl.{col_pl}), MAX(g.{col_g}), "
+                      f"MAX(pl.PRETV), {retail_num})"
+                      if price_field != "retail1"
+                      else f"NVL(MAX(pl.PRETV), {retail_num})")
+            rows = _rows(Biro26DB().execute_query(
+                f"SELECT g.COD_UNIVERS COD, {chosen} PRICE "
+                f"FROM BIRO26_GOODS g "
+                f"LEFT JOIN TPR1D_PERPRLIST pl ON pl.CODPRICE = 1 "
+                f"  AND pl.SC = g.COD_UNIVERS "
+                f"  AND TRUNC(SYSDATE) BETWEEN pl.DATASTART AND pl.DATAEND "
+                f"WHERE g.COD_UNIVERS IN ({marks}) "
+                f"GROUP BY g.COD_UNIVERS", params))
+            return {"success": True,
+                    "data": {int(r["cod"]): float(r["price"] or 0) for r in rows}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # PRICE PERIODS on Marfă/Stoc — y_ai_BIRO26.set_price/del_price
+    # over TPR1D_PERPRLIST (same principle as the Listă de prețuri
+    # tab: a change SPLITS the period at the chosen date, a delete
+    # MERGES neighbouring periods; the last row cannot be deleted).
+    # ============================================================
+
+    @staticmethod
+    def get_price_history(sc: int, codprice: int = 1) -> Dict[str, Any]:
+        """All price periods of one item, oldest first (the Istoric prețuri
+        bottom panel of Marfă/Stoc)."""
+        try:
+            return _result(Biro26DB().execute_query(
+                "SELECT CODPRICE, CODGRP, SC, "
+                "TO_CHAR(DATASTART,'DD.MM.YYYY') DATASTART, "
+                "TO_CHAR(DATAEND,'DD.MM.YYYY') DATAEND, "
+                "PRETV, PRETV1, PRETV2 "
+                "FROM TPR1D_PERPRLIST "
+                "WHERE CODPRICE = :cp AND SC = :sc ORDER BY DATASTART",
+                {"cp": int(codprice), "sc": int(sc)}))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def set_product_price(sc: int, data: str, retail1=None, angro=None,
+                          ionline=None, codprice: int = 1) -> Dict[str, Any]:
+        """Set item prices effective from `data` ('YYYY-MM-DD') via
+        y_ai_BIRO26.set_price (splits the period). None keeps the current
+        value of that price column."""
+        try:
+            r = Biro26DB().execute_dml(
+                "BEGIN y_ai_BIRO26.set_price("
+                "p_sc => :sc, p_data => TO_DATE(:d,'YYYY-MM-DD'), "
+                "p_pretv => :pv, p_pretv1 => :p1, p_pretv2 => :p2, "
+                "p_codprice => :cp); END;",
+                {"sc": int(sc), "d": data,
+                 "pv": None if retail1 is None else float(retail1),
+                 "p1": None if angro is None else float(angro),
+                 "p2": None if ionline is None else float(ionline),
+                 "cp": int(codprice)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return Biro26Store.get_price_history(sc, codprice)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def delete_price_period(sc: int, data: str,
+                            codprice: int = 1) -> Dict[str, Any]:
+        """Delete the period starting at `data` ('DD.MM.YYYY' as shown in the
+        history panel) via y_ai_BIRO26.del_price (merges periods; the last
+        remaining row raises ORA-20261)."""
+        try:
+            r = Biro26DB().execute_dml(
+                "BEGIN y_ai_BIRO26.del_price("
+                "p_sc => :sc, p_data => TO_DATE(:d,'DD.MM.YYYY'), "
+                "p_codprice => :cp); END;",
+                {"sc": int(sc), "d": data, "cp": int(codprice)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return Biro26Store.get_price_history(sc, codprice)
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_services() -> Dict[str, Any]:
+        """Optional services offered in the public shop cart: all items of
+        the group named by the YBIRO_SETTINGS key SHOP_SERVICES_GRUPA
+        (created via y_ai_BIRO26.add_product), priced as of today from the
+        period price list. Transport tariffs (TMS_MPT_DISTANTE) are handled
+        separately — mandatory, by order distance — so they are excluded."""
+        try:
+            return _result(Biro26DB().execute_query(
+                "SELECT u.COD, u.DENUMIREA, u.UM, "
+                "NVL(pl.PRETV, TO_NUMBER(REPLACE(TRIM(g.RETAIL1),',','.'))) PRICE "
+                "FROM TMS_UNIVERS u "
+                "JOIN BIRO26_GOODS g ON g.COD_UNIVERS = u.COD "
+                "LEFT JOIN TPR1D_PERPRLIST pl ON pl.CODPRICE = 1 AND pl.SC = u.COD "
+                "  AND TRUNC(SYSDATE) BETWEEN pl.DATASTART AND pl.DATAEND "
+                "WHERE u.TIP = 'P' AND g.GRUPA = "
+                "  (SELECT sval FROM YBIRO_SETTINGS WHERE skey = 'SHOP_SERVICES_GRUPA') "
+                "  AND NOT EXISTS (SELECT 1 FROM TMS_MPT_DISTANTE d WHERE d.cod = u.COD) "
+                "ORDER BY u.DENUMIREA"))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_transport_tariffs() -> Dict[str, Any]:
+        """RO: grila de tarife transport tur-retur (TMS_MPT_DISTANTE) cu
+        pretul in vigoare azi — cosul o afiseaza si alege tariful automat
+        dupa distanta. / EN: the round-trip transport tariff grid with
+        today's price; the cart displays it and auto-picks by distance."""
+        try:
+            return _result(Biro26DB().execute_query(
+                "SELECT d.cod, d.km_min, d.km_max, d.tarif_mode, "
+                "u.DENUMIREA, u.UM, "
+                "NVL(pl.PRETV, 0) PRICE "
+                "FROM TMS_MPT_DISTANTE d "
+                "JOIN TMS_UNIVERS u ON u.COD = d.cod "
+                "LEFT JOIN TPR1D_PERPRLIST pl ON pl.CODPRICE = 1 AND pl.SC = d.cod "
+                "  AND TRUNC(SYSDATE) BETWEEN pl.DATASTART AND pl.DATAEND "
+                "ORDER BY d.km_min"))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def shop_logistics_centers(active_only: bool = True) -> Dict[str, Any]:
+        """RO: centrele logistice (transportul tur-retur pleaca DE LA centrul
+        logistic; activ momentan doar mun. Balti). / EN: logistics centers
+        (the round-trip transport starts FROM the center; only mun. Balti is
+        active for now)."""
+        try:
+            sql = ("SELECT id, denumire, activ FROM TMS_MPT_CENTRE_LOG "
+                   + ("WHERE activ = '1' " if active_only else "")
+                   + "ORDER BY nrord, id")
+            return _result(Biro26DB().execute_query(sql))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def transport_for_km(km: float) -> Dict[str, Any]:
+        """The tariff row matching a distance (server-side authority for the
+        MANDATORY transport line of shop invoices)."""
+        try:
+            rows = _rows(Biro26DB().execute_query(
+                "SELECT d.cod, d.km_min, d.km_max, d.tarif_mode, u.DENUMIREA "
+                "FROM TMS_MPT_DISTANTE d JOIN TMS_UNIVERS u ON u.COD = d.cod "
+                "WHERE :km >= d.km_min AND (:km2 <= d.km_max OR d.km_max IS NULL) "
+                "ORDER BY d.km_min", {"km": float(km), "km2": float(km)}))
+            if not rows:
+                return {"success": False,
+                        "error": f"no transport tariff for {km} km"}
+            return {"success": True, "data": rows[0]}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # PRODUCT INFO — YBIRO_PROD_INFO (descriere) + YBIRO_PROD_COMMENTS
+    # (comentariile clientilor). RO: alimenteaza fereastra mare de
+    # produs din magazin si fisa din backoffice. EN: backs the shop's
+    # large product window and the backoffice item card.
+    # ============================================================
+
+    # RO: coloanele BLOB din TMS_MPT_WEBATTR se citesc DIRECT ca text —
+    #     worker-ul are fetch_lobs=False si decodeaza bytes -> UTF-8, deci
+    #     diacriticele ajung intacte in aplicatie (TZ WEBATTR §3).
+    _WEBATTR_LANGS = ("RO", "RU", "EN")
+
+    @staticmethod
+    def _webattr_row(cod: int) -> Optional[Dict[str, Any]]:
+        rows = _rows(Biro26DB().execute_query(
+            "SELECT DESCRIERE_RO, DESCRIERE_RU, DESCRIERE_EN, "
+            "DENUMIRE_FULL_BLOB_RO, DENUMIRE_FULL_BLOB_RU, "
+            "DENUMIRE_FULL_BLOB_EN "
+            "FROM TMS_MPT_WEBATTR WHERE COD = :c", {"c": int(cod)}))
+        return rows[0] if rows else None
+
+    @staticmethod
+    def _webattr_pick(row: Optional[Dict[str, Any]], lang: str,
+                      base: str) -> Optional[str]:
+        """RO: alege limba ceruta cu intoarcere pe RO (limba de baza)."""
+        if not row:
+            return None
+        for L in ((lang or "ro").upper(), "RO"):
+            if L in Biro26Store._WEBATTR_LANGS:
+                v = row.get(f"{base}_{L}".lower())
+                if v:
+                    return v
+        return None
+
+    @staticmethod
+    def get_webattr(cod: int) -> Dict[str, Any]:
+        """RO: toate valorile pe limbi — pentru editorul din backoffice."""
+        try:
+            row = Biro26Store._webattr_row(cod) or {}
+            return {"success": True, "data": {
+                L.lower(): {
+                    "descriere": row.get(f"descriere_{L.lower()}") or "",
+                    "denum_full": row.get(f"denumire_full_blob_{L.lower()}") or "",
+                } for L in Biro26Store._WEBATTR_LANGS}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def save_webattr(cod: int, lang: str, descr: Optional[str],
+                     full: Optional[str]) -> Dict[str, Any]:
+        """RO: scrie DOAR coloanele BLOB (originalul UTF-8) — copiile fara
+        diacritice le regenereaza triggerul TMS_MPT_WEBATTR_BIU. Textul
+        pleaca la worker ca bytes ({"__b64__"}) legat explicit ca BLOB, ca
+        sa nu treaca prin conversia de charset a sesiunii (TZ WEBATTR §5).
+        EN: BLOB-only write; the trigger rebuilds the search copies."""
+        import base64
+        L = (lang or "").upper()
+        if L not in Biro26Store._WEBATTR_LANGS:      # numele coloanei intra
+            return {"success": False, "error": "lang invalid"}   # in SQL!
+        def b64(t):
+            return ({"__b64__": base64.b64encode(
+                t.encode("utf-8")).decode("ascii")} if t else None)
+        try:
+            r = Biro26DB().execute_dml(
+                f"MERGE INTO TMS_MPT_WEBATTR t "
+                f"USING (SELECT :c COD FROM dual) s ON (t.COD = s.COD) "
+                f"WHEN MATCHED THEN UPDATE SET "
+                f"  t.DESCRIERE_{L} = :d, t.DENUMIRE_FULL_BLOB_{L} = :f "
+                f"WHEN NOT MATCHED THEN "
+                f"  INSERT (COD, DESCRIERE_{L}, DENUMIRE_FULL_BLOB_{L}, SRC) "
+                f"  VALUES (:c2, :d2, :f2, 'BACKOFFICE')",
+                {"c": int(cod), "d": b64(descr), "f": b64(full),
+                 "c2": int(cod), "d2": b64(descr), "f2": b64(full)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def product_info(cod: int, lang: str = "ro") -> Dict[str, Any]:
+        """Description + comments for one product (public shop + card).
+        RO: descrierea vine din TMS_MPT_WEBATTR (BLOB — cu diacritice),
+        cu intoarcere limba->RO->YBIRO_PROD_INFO (mostenirea veche)."""
+        try:
+            db = Biro26DB()
+            wa = Biro26Store._webattr_row(cod)
+            descr = Biro26Store._webattr_pick(wa, lang, "DESCRIERE")
+            full = Biro26Store._webattr_pick(wa, lang, "DENUMIRE_FULL_BLOB")
+            if not descr:
+                legacy = _rows(db.execute_query(
+                    "SELECT DESCRIERE FROM YBIRO_PROD_INFO WHERE COD = :c",
+                    {"c": int(cod)}))
+                descr = (legacy[0]["descriere"] if legacy else "") or ""
+            comments = _rows(db.execute_query(
+                "SELECT * FROM (SELECT ID, AUTOR, TXT, "
+                "TO_CHAR(CREATED,'DD.MM.YYYY HH24:MI') CREATED "
+                "FROM YBIRO_PROD_COMMENTS WHERE COD = :c "
+                "ORDER BY ID DESC) WHERE ROWNUM <= 100", {"c": int(cod)}))
+            return {"success": True, "data": {
+                "descriere": descr or "",
+                "denum_full": full or "",
+                "comments": comments}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def set_product_desc(cod: int, text: str) -> Dict[str, Any]:
+        """Backoffice: create/replace the product description (MERGE)."""
+        try:
+            r = Biro26DB().execute_dml(
+                "MERGE INTO YBIRO_PROD_INFO t USING "
+                "(SELECT :c COD FROM dual) s ON (t.COD = s.COD) "
+                "WHEN MATCHED THEN UPDATE SET t.DESCRIERE = :d1, t.UPDATED = SYSDATE "
+                "WHEN NOT MATCHED THEN INSERT (COD, DESCRIERE) VALUES (:c2, :d2)",
+                {"c": int(cod), "d1": (text or "")[:4000],
+                 "c2": int(cod), "d2": (text or "")[:4000]})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def add_product_comment(cod: int, autor: str, client_cod: Optional[int],
+                            text: str) -> Dict[str, Any]:
+        try:
+            text = (text or "").strip()
+            if not text:
+                return {"success": False, "error": "empty comment"}
+            r = Biro26DB().execute_dml(
+                "INSERT INTO YBIRO_PROD_COMMENTS (ID, COD, AUTOR, CLIENT_COD, TXT) "
+                "VALUES (YBIRO_PROD_COMMENTS_SEQ.NEXTVAL, :c, :a, :cc, :t)",
+                {"c": int(cod), "a": (autor or "")[:200],
+                 "cc": int(client_cod) if client_cod else None,
+                 "t": text[:2000]})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def delete_product_comment(comment_id: int) -> Dict[str, Any]:
+        try:
+            r = Biro26DB().execute_dml(
+                "DELETE FROM YBIRO_PROD_COMMENTS WHERE ID = :i",
+                {"i": int(comment_id)})
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True}
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    # ============================================================
+    # PRODUCT VARIANTS — BIRO26_VARIANTS (master/detail families,
+    # see docs BIRO26_VARIANTS_IMPLEMENTATION.md). Group key =
+    # MASTER_COD; prices belong to the group (from the master row);
+    # single products have VARIANT NULL and a one-row family.
+    # ============================================================
+
+    @staticmethod
+    def get_variants(cod: int) -> Dict[str, Any]:
+        """All variants of the family that `cod` belongs to (any member code).
+        Rows with MASTER_COD NULL (unlinked master) fall back to the single
+        row so the card never comes back empty for a known item."""
+        try:
+            sel = ("SELECT v.ID, v.MASTER_ID, v.MASTER_COD, v.COD_UNIVERS, "
+                   "v.ARTICOL, v.BASE_NAME, v.VARIANT, v.FULL_NAME, "
+                   "v.ANGRO, v.ONLINE_PR, v.RETAIL, v.FURNIZOR, "
+                   "(SELECT LISTAGG(b.BARCODE, ',') WITHIN GROUP (ORDER BY b.BARCODE) "
+                   "  FROM TMS_MPT_BARCODE b WHERE b.COD = v.COD_UNIVERS) BARCODES "
+                   "FROM BIRO26_VARIANTS v ")
+            return _result(Biro26DB().execute_query(
+                sel + "WHERE v.MASTER_COD IN "
+                      "(SELECT MASTER_COD FROM BIRO26_VARIANTS WHERE COD_UNIVERS = :c1) "
+                      "UNION ALL " +
+                sel + "WHERE v.COD_UNIVERS = :c2 AND v.MASTER_COD IS NULL "
+                      "ORDER BY 1",
+                {"c1": int(cod), "c2": int(cod)}))
+        except Exception as e:
+            return {"success": False, "error": str(e)}
+
+    @staticmethod
+    def update_variant(cod: int, variant: Optional[str] = None,
+                       articol: Optional[str] = None,
+                       furnizor: Optional[str] = None) -> Dict[str, Any]:
+        """Edit one variant row (by its COD_UNIVERS). A VARIANT change also
+        refreshes TMS_MPT_BARCODE.COMENT for that item (the label/cash-desk
+        caption, kept in sync per the variants implementation doc)."""
+        try:
+            sets, params = [], {"cod": int(cod)}
+            if variant is not None:
+                sets.append("VARIANT = :v")
+                params["v"] = (variant.strip()[:500] or None)
+            if articol is not None:
+                sets.append("ARTICOL = :a"); params["a"] = articol.strip()[:200]
+            if furnizor is not None:
+                sets.append("FURNIZOR = :f"); params["f"] = furnizor.strip()[:200]
+            if not sets:
+                return {"success": False, "error": "nothing to update"}
+            steps = [{"sql": "UPDATE BIRO26_VARIANTS SET " + ", ".join(sets) +
+                             " WHERE COD_UNIVERS = :cod",
+                      "params": params, "kind": "dml"}]
+            if variant is not None:
+                steps.append({"sql": "UPDATE TMS_MPT_BARCODE SET COMENT = :v "
+                                     "WHERE COD = :cod",
+                              "params": {"v": params["v"], "cod": int(cod)},
+                              "kind": "dml"})
+            r = Biro26DB().execute_script(steps)
+            if not r.get("success"):
+                return {"success": False, "error": r.get("message")}
+            return {"success": True, "data": {"cod": int(cod)}}
+        except Exception as e:
+            return {"success": False, "error": str(e)}

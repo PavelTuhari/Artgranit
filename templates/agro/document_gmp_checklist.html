@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>GMP Чек-лист / Lista de verificare GMP</title>
+<style>
+@media print { body { margin: 0; } .no-print { display: none !important; } @page { size: A4; margin: 15mm 20mm; } }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Times New Roman', serif; font-size: 12pt; color: #000; max-width: 210mm; margin: 0 auto; padding: 20mm; }
+.header { text-align: center; margin-bottom: 16px; border-bottom: 2px solid #000; padding-bottom: 10px; }
+.header h1 { font-size: 15pt; margin-bottom: 4px; }
+.header .company { font-size: 10pt; color: #555; }
+.doc-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 11pt; }
+.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11pt; margin-bottom: 16px; }
+.info-grid .label { color: #555; }
+.info-grid .value { font-weight: bold; }
+table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 11pt; }
+th, td { border: 1px solid #000; padding: 6px 8px; text-align: left; }
+th { background: #f0f0f0; font-weight: bold; font-size: 10pt; }
+.check-yes { color: #065f46; font-weight: bold; }
+.check-no { color: #991b1b; font-weight: bold; }
+.check-na { color: #64748b; }
+.summary { border: 2px solid #000; padding: 14px; margin: 16px 0; font-size: 11pt; }
+.summary .score { font-size: 20pt; font-weight: bold; text-align: center; margin: 8px 0; }
+.signatures { display: flex; justify-content: space-between; margin-top: 40px; }
+.sig-block { width: 40%; }
+.sig-block .line { border-bottom: 1px solid #000; height: 25px; margin-top: 20px; }
+.sig-block .label { font-size: 10pt; color: #555; margin-top: 4px; }
+.no-print { text-align: center; margin-bottom: 16px; }
+.no-print button { padding: 10px 30px; font-size: 14px; cursor: pointer; background: #059669; color: #fff; border: none; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div class="no-print"><button onclick="window.print()">Печать / Tipareste</button></div>
+<div class="header">
+    <div class="company">{{ company_name or 'AGRO Company SRL' }}</div>
+    <h1>GMP ЧЕК-ЛИСТ / LISTA DE VERIFICARE GMP</h1>
+</div>
+<div class="doc-row">
+    <div>Номер / Nr.: <strong>{{ checklist_number or '—' }}</strong></div>
+    <div>Дата / Data: <strong>{{ check_date or '—' }}</strong></div>
+</div>
+<div class="info-grid">
+    <div><span class="label">Чек-лист / Lista:</span> <span class="value">{{ checklist_name or '—' }}</span></div>
+    <div><span class="label">Зона / Zona:</span> <span class="value">{{ zone or '—' }}</span></div>
+    <div><span class="label">Инспектор:</span> <span class="value">{{ inspector or '—' }}</span></div>
+    <div><span class="label">Склад / Depozit:</span> <span class="value">{{ warehouse_name or '—' }}</span></div>
+</div>
+<table>
+    <thead><tr><th style="width:5%;">#</th><th style="width:45%;">Пункт / Punct de verificare</th><th style="width:15%;">Статус</th><th style="width:35%;">Примечание / Observatii</th></tr></thead>
+    <tbody>
+    {% for item in items or [] %}
+    <tr>
+        <td>{{ loop.index }}</td>
+        <td>{{ item.description or '—' }}</td>
+        <td class="{{ 'check-yes' if item.status == 'yes' else ('check-no' if item.status == 'no' else 'check-na') }}">
+            {{ 'ДА / DA' if item.status == 'yes' else ('НЕТ / NU' if item.status == 'no' else 'Н/П / N/A') }}
+        </td>
+        <td>{{ item.notes or '' }}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+</table>
+<div class="summary">
+    <div style="text-align:center;font-weight:bold;">Результат / Rezultat</div>
+    <div class="score">{{ score or '—' }} / {{ total_items or '—' }}</div>
+    <div style="text-align:center;font-size:11pt;">Соответствие / Conformitate: <strong>{{ compliance_pct or '—' }}%</strong></div>
+</div>
+{% if corrective_actions %}
+<div style="margin:16px 0;">
+    <strong>Корректирующие действия / Actiuni corective:</strong>
+    <div style="margin-top:8px;font-size:11pt;">{{ corrective_actions }}</div>
+</div>
+{% endif %}
+<div class="signatures">
+    <div class="sig-block"><div class="line"></div><div class="label">Инспектор GMP</div></div>
+    <div class="sig-block"><div class="line"></div><div class="label">Ответственный / Responsabil</div></div>
+</div>
+</body>
+</html>

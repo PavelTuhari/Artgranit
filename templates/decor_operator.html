@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+    <title>DECOR - Operator comenzi / Оператор заказов</title>
+    <style>
+        :root {
+            --bg: #eef4f7;
+            --ink: #12323c;
+            --muted: #5f7480;
+            --card: #ffffff;
+            --line: #d6e2e8;
+            --brand: #0f766e;
+            --brand-2: #0ea5a4;
+            --warn: #b91c1c;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: ui-sans-serif, -apple-system, Segoe UI, sans-serif; background: linear-gradient(180deg,#f7fbfd 0%, #eaf2f5 100%); color: var(--ink); padding: 14px; max-width: 920px; margin: 0 auto; }
+        h1 { font-size: 24px; margin-bottom: 8px; }
+        .muted { color: var(--muted); font-size: 13px; }
+        .top-links { margin-bottom: 14px; font-size: 13px; }
+        .top-links a { color: var(--brand); text-decoration: none; }
+        .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 14px; box-shadow: 0 4px 14px rgba(15, 23, 42, .04); }
+        .grid { display: grid; gap: 12px; }
+        .grid-2 { grid-template-columns: 1fr 1fr; }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        @media (max-width: 760px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+        label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 5px; }
+        input, select, textarea { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); font-size: 14px; background: #fff; }
+        textarea { min-height: 72px; resize: vertical; }
+        .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+        .btn { border: 0; border-radius: 10px; padding: 11px 14px; cursor: pointer; font-weight: 600; font-size: 14px; }
+        .btn-primary { background: var(--brand); color: #fff; }
+        .btn-alt { background: #dff4f2; color: #0f5c57; }
+        .btn-ghost { background: #f6fafb; color: var(--ink); border: 1px solid var(--line); }
+        .btn:disabled { opacity: .6; cursor: not-allowed; }
+        .checkbox { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink); }
+        .checkbox input { width: auto; }
+        .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+        @media (max-width: 760px) { .kpis { grid-template-columns: 1fr 1fr; } }
+        .kpi { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: #fbfeff; }
+        .kpi .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+        .kpi .value { font-size: 18px; font-weight: 700; margin-top: 4px; color: var(--brand); }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th, td { border-bottom: 1px solid var(--line); padding: 8px; text-align: left; vertical-align: top; }
+        th { color: var(--muted); font-weight: 600; background: #f6fafb; }
+        .right { text-align: right; }
+        .quote-total { font-size: 20px; font-weight: 800; color: var(--brand); }
+        .err { color: var(--warn); font-size: 13px; margin-top: 8px; }
+        .okbox { background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 12px; padding: 14px; }
+        .history-item { border-top: 1px solid var(--line); padding: 10px 0; }
+        .history-item:first-child { border-top: 0; }
+        .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #dff4f2; color: #0f5c57; font-size: 11px; }
+        .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+        .lang-toggle { display:flex; gap:6px; margin: 0 0 12px; }
+        .lang-toggle .btn { padding: 7px 10px; font-size: 12px; }
+        .lang-toggle .btn.is-active { background: var(--brand); color:#fff; }
+        .ui-langbar { display:flex; gap:6px; margin: 0 0 10px; }
+        .ui-langbar .btn { padding:6px 10px; font-size:12px; }
+        .ui-langbar .btn.is-active { background: var(--brand-2); color:#fff; }
+        .gallery { display:grid; grid-template-columns: repeat(3, 1fr); gap:10px; }
+        @media (max-width: 760px) { .gallery { grid-template-columns: 1fr; } }
+        .mat-card { border:1px solid var(--line); border-radius: 12px; padding: 10px; background:#fbfeff; display:flex; gap:10px; }
+        .mat-thumb { width:84px; height:64px; border-radius:8px; border:1px solid var(--line); background:#fff; overflow:hidden; flex:0 0 auto; }
+        .mat-thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+        .mat-thumb.empty { display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:11px; text-align:center; padding:4px; }
+        .mat-meta { min-width:0; }
+        .mat-meta .code { font-size:11px; color:var(--muted); }
+        .mat-meta .name { font-size:13px; font-weight:700; line-height:1.25; margin: 2px 0; }
+        .mat-meta .sub { font-size:11px; color:var(--muted); }
+        .quote-thumb { width:52px; height:38px; border-radius:6px; border:1px solid var(--line); object-fit:cover; background:#fff; display:block; }
+        .quote-thumb-empty { width:52px; height:38px; border-radius:6px; border:1px dashed var(--line); color:var(--muted); font-size:10px; display:flex; align-items:center; justify-content:center; }
+        .ai-box { border:1px solid var(--line); border-radius:12px; padding:12px; background:#fbfeff; margin-bottom:10px; }
+        .ai-results { display:grid; gap:8px; margin-top:10px; }
+        .ai-item { border:1px solid var(--line); border-radius:10px; padding:8px; background:#fff; display:grid; grid-template-columns:56px 1fr auto; gap:8px; align-items:start; }
+        .ai-item .thumb img { width:52px; height:38px; object-fit:cover; border-radius:6px; border:1px solid var(--line); background:#fff; }
+        .ai-item .thumb .empty { width:52px; height:38px; border:1px dashed var(--line); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:10px; color:var(--muted); }
+        .ai-item .meta { font-size:12px; }
+        .ai-item .meta .title { font-weight:700; color:var(--ink); }
+        .ai-item .meta .sub { color:var(--muted); margin-top:2px; }
+        .ai-item .act { display:flex; flex-direction:column; gap:6px; align-items:end; }
+        .ai-pill { display:inline-block; padding:2px 7px; border-radius:999px; background:#eef9f7; color:#0f766e; font-size:11px; }
+        .ai-batch-list { margin-top:8px; }
+        .ai-batch-row { display:flex; justify-content:space-between; gap:8px; align-items:center; border-top:1px solid var(--line); padding:6px 0; font-size:12px; }
+        .ai-batch-row:first-child { border-top:0; }
+        .ai-batch-row button { border:1px solid var(--line); background:#fff; border-radius:8px; padding:4px 8px; cursor:pointer; font-size:11px; }
+    </style>
+</head>
+<body>
+    <div class="ui-langbar">
+        <button class="btn btn-ghost is-active" id="btnUiRo" type="button">RO</button>
+        <button class="btn btn-ghost" id="btnUiRu" type="button">RU</button>
+        <button class="btn btn-ghost" id="btnUiEn" type="button">EN</button>
+    </div>
+    <h1 id="titleMain">DECOR - Operator comenzi</h1>
+    <p class="top-links">
+        <a href="/UNA.md/orasldev/decor-admin" id="linkAdmin">Admin</a> ·
+        <a href="/UNA.md/orasldev/docs/decor/" id="linkDocs">Documentație</a>
+    </p>
+    <div class="lang-toggle">
+        <button class="btn btn-ghost is-active" id="btnLangRo" type="button">RO (activ / основной)</button>
+        <button class="btn btn-ghost" id="btnLangOrig" type="button">Original (EN/TR)</button>
+    </div>
+    <p class="muted" id="introText" style="margin-bottom:12px;">Calcul și preluare comandă pentru acoperiș din sticlă / verandă / pergolă.</p>
+
+    <div class="card" style="padding:10px 16px;">
+        <div class="row" style="gap:12px;">
+            <label style="font-weight:700; font-size:14px; margin:0;">Tip produs:</label>
+            <button class="btn btn-primary" id="btnProductVeranda" type="button" onclick="setProductType('veranda')">Verandă</button>
+            <button class="btn btn-ghost" id="btnProductSliding" type="button" onclick="setProductType('sliding')">Sliding</button>
+        </div>
+    </div>
+
+    <div class="card" id="slidingFormBlock" style="display:none;">
+        <h2 style="font-size:16px; margin-bottom:10px;">1. Parametrii Sliding</h2>
+        <div class="grid grid-3">
+            <div>
+                <label>Familie sistem</label>
+                <select id="slidingFamily" onchange="onSlidingFamilyChange()">
+                    <option value="3rail">3 Rail Single Glass</option>
+                    <option value="5rail">5 Rail Single Glass</option>
+                    <option value="thermal">Thermal Sliding</option>
+                </select>
+            </div>
+            <div>
+                <label>Configurație panouri</label>
+                <select id="slidingVariant"></select>
+            </div>
+            <div>
+                <label>Culoare</label>
+                <select id="slidingColor"></select>
+            </div>
+            <div><label>Lățime, mm</label><input type="number" id="slidingWidth" value="3000" min="1000" max="6000"></div>
+            <div><label>Înălțime, mm</label><input type="number" id="slidingHeight" value="2500" min="1000" max="3000"></div>
+            <div>
+                <label>Orientare</label>
+                <select id="slidingOrientation">
+                    <option value="left">Stânga (sol)</option>
+                    <option value="right">Dreapta (sağ)</option>
+                </select>
+            </div>
+            <div><label>Denumire proiect</label><input type="text" id="slidingProjectName" placeholder="Villa / Terrace"></div>
+        </div>
+
+        <div style="margin-top:12px; padding:12px; border:1px solid var(--line); border-radius:10px; background:#fbfeff;">
+            <div style="font-weight:700; font-size:13px; margin-bottom:8px;">Opțiuni sticlă</div>
+            <div class="row" style="margin-bottom:8px;">
+                <label class="checkbox"><input type="checkbox" id="slidingIncludeGlass" checked onchange="toggleSlidingGlassOptions()"> Sticlă inclusă</label>
+            </div>
+            <div id="slidingGlassOptions" class="grid grid-3">
+                <div>
+                    <label>Tip sistem sticlă</label>
+                    <select id="slidingGlassSystem">
+                        <option value="TEKCAM">TEKCAM (simplă)</option>
+                        <option value="ISICAM">ISICAM (termoizolantă)</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Finisaj sticlă</label>
+                    <select id="slidingGlassFinish">
+                        <option value="transparent">Transparentă</option>
+                        <option value="tinted">Tonată</option>
+                        <option value="matte">Mată</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Grosime sticlă</label>
+                    <select id="slidingGlassThickness">
+                        <option value="8mm">8 mm</option>
+                        <option value="10mm" selected>10 mm</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+            <label class="checkbox"><input type="checkbox" id="slidingThreshold"> Prag suplimentar</label>
+            <label class="checkbox"><input type="checkbox" id="slidingAssembly"> Asamblare inclusă</label>
+            <label class="checkbox"><input type="checkbox" id="slidingInstallation"> Montaj inclus</label>
+            <button class="btn btn-primary" id="btnCalcSliding" onclick="calcSliding()">Calculează</button>
+            <button class="btn btn-ghost" onclick="resetSliding()">Reset</button>
+        </div>
+        <div id="slidingCalcError" class="err" style="display:none;"></div>
+        <div id="slidingQuoteBlock" style="display:none; margin-top:12px;">
+            <div class="kpis">
+                <div class="kpi"><div class="label">Arie</div><div class="value" id="skpiArea">0</div></div>
+                <div class="kpi"><div class="label">Panouri</div><div class="value" id="skpiPanels">0</div></div>
+                <div class="kpi"><div class="label">Greutate profil</div><div class="value" id="skpiWeight">0</div></div>
+                <div class="kpi"><div class="label">Total</div><div class="value" id="skpiTotal">0</div></div>
+            </div>
+            <div style="margin-top:12px; overflow:auto;">
+                <table>
+                    <thead><tr><th>Cod</th><th>Denumire</th><th>Cant.</th><th>UM</th><th class="right">Preț unit.</th><th class="right">Sumă</th></tr></thead>
+                    <tbody id="slidingQuoteLines"></tbody>
+                </table>
+            </div>
+            <div class="row" style="justify-content:space-between; margin-top:8px;">
+                <div>
+                    <button class="btn btn-alt" id="btnCuttingList" onclick="showCuttingList()">Fișă tăiere producție</button>
+                </div>
+                <div class="quote-total" id="slidingTotalText"></div>
+            </div>
+        </div>
+        <div id="cuttingListBlock" style="display:none; margin-top:12px; border-top:1px solid var(--line); padding-top:12px;">
+            <h3 style="font-size:14px; margin-bottom:8px;">Fișă tăiere producție</h3>
+            <table>
+                <thead><tr><th>Cod profil</th><th>Denumire</th><th>Panou</th><th>Buc.</th><th class="right">Lungime (cm)</th><th class="right">Lungime (mm)</th></tr></thead>
+                <tbody id="cuttingListLines"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card" id="verandaFormBlock">
+        <h2 id="sec1Title" style="font-size:16px; margin-bottom:10px;">1. Parametrii produsului</h2>
+        <div class="grid grid-3">
+            <div><label id="lblProjectType">Tip proiect</label><select id="projectType"></select></div>
+            <div><label id="lblSystemType">Tip sistem (sticlă)</label><select id="systemType"></select></div>
+            <div><label id="lblColor">Culoare</label><select id="color"></select></div>
+            <div><label id="lblWidth">Lățime, mm</label><input type="number" id="widthMm" value="4000" min="1000"></div>
+            <div><label id="lblProjection">Proiecție, mm</label><input type="number" id="projectionMm" value="3000" min="800"></div>
+            <div><label id="lblFrontHeight">Înălțime față, mm</label><input type="number" id="frontHeightMm" value="2500" min="1500"></div>
+            <div><label id="lblRearHeight">Înălțime spate, mm</label><input type="number" id="rearHeightMm" value="2900" min="1500"></div>
+            <div><label id="lblLed">LED / dimmer</label>
+                <select id="ledOption">
+                    <option value="none">Fără LED / Без LED</option>
+                    <option value="white_led">LED (white)</option>
+                    <option value="rgb_led_dimmer">RGB LED + dimmer</option>
+                </select>
+            </div>
+            <div><label id="lblProjectName">Denumire proiect (opț.)</label><input type="text" id="projectName" placeholder="Villa / Terrace / Showroom"></div>
+        </div>
+        <div class="row" style="margin-top:10px;">
+            <label class="checkbox"><input type="checkbox" id="includeDrainage" checked> <span id="txtDrainage">Drenaj</span></label>
+            <label class="checkbox"><input type="checkbox" id="includeTransport" checked> <span id="txtTransport">Transport</span></label>
+            <label class="checkbox"><input type="checkbox" id="includeInstallation" checked> <span id="txtInstall">Montaj</span></label>
+            <button class="btn btn-primary" id="btnCalc">Calculează</button>
+            <button class="btn btn-ghost" id="btnReset">Reset</button>
+        </div>
+        <div id="calcError" class="err" style="display:none;"></div>
+        <div id="quoteBlock" style="display:none; margin-top:12px;">
+            <div class="kpis">
+                <div class="kpi"><div class="label">Площадь</div><div class="value" id="kpiArea">0</div></div>
+                <div class="kpi"><div class="label">Периметр</div><div class="value" id="kpiPerimeter">0</div></div>
+                <div class="kpi"><div class="label">Уклон</div><div class="value" id="kpiSlope">0</div></div>
+                <div class="kpi"><div class="label">Итого</div><div class="value" id="kpiTotal">0</div></div>
+            </div>
+            <div style="margin-top:12px; overflow:auto;">
+                <table>
+                    <thead><tr><th>Img</th><th>Poziție / Позиция</th><th>Cant. / Кол-во</th><th>UM / Ед.</th><th class="right">Preț / Цена</th><th class="right">Sumă / Сумма</th></tr></thead>
+                    <tbody id="quoteLines"></tbody>
+                </table>
+            </div>
+            <div class="row" style="justify-content:space-between; margin-top:8px;">
+                <div class="muted" id="quoteMeta"></div>
+                <div class="quote-total" id="quoteTotalText"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2 id="sec2Title" style="font-size:16px; margin-bottom:10px;">2. Client și comandă</h2>
+        <div class="grid grid-2">
+            <div><label id="lblClientName">Nume client</label><input type="text" id="clientName" placeholder="Nume Prenume"></div>
+            <div><label id="lblPhone">Telefon</label><input type="tel" id="clientPhone" placeholder="+373 ..."></div>
+            <div><label id="lblEmail">Email</label><input type="email" id="clientEmail" placeholder="mail@example.com"></div>
+            <div><label id="lblLocation">Locație / adresă montaj</label><input type="text" id="location" placeholder="Chișinău / suburbie"></div>
+        </div>
+        <div style="margin-top:10px;"><label id="lblNotes">Notă</label><textarea id="notes" placeholder="Termen, măsurare, detalii fațadă"></textarea></div>
+        <div class="row" style="margin-top:10px;">
+            <button class="btn btn-primary" id="btnCreateOrder">Salvează comandă</button>
+            <button class="btn btn-alt" id="btnRecalc">Recalculează</button>
+        </div>
+        <div id="createResult" style="display:none; margin-top:12px;"></div>
+    </div>
+
+    <div class="card">
+        <h2 id="sec3Title" style="font-size:16px; margin-bottom:10px;">3. Căutare și comenzi recente</h2>
+        <div class="row" style="margin-bottom:10px;">
+            <input type="text" id="findNumber" placeholder="Număr comandă DEC-..." style="flex:1;">
+            <button class="btn btn-ghost" id="btnFind">Caută</button>
+            <button class="btn btn-alt" id="btnReloadHistory">Reîncarcă</button>
+        </div>
+        <div class="ai-box">
+            <div id="aiTitle" style="font-weight:700; font-size:13px;">AI batch add</div>
+            <div class="muted" style="margin-top:4px;">Вставьте список компонентов текстом (по строкам/через `;`), например: `M6521 x 2`, `PRG-0172 1`, `CF-03 EPDM 3`.</div>
+            <div class="grid grid-3" style="margin-top:8px;">
+                <div style="grid-column: span 2;"><textarea id="aiTextInput" placeholder="M6521 x 2&#10;EM07100091 4&#10;PRG-0172 1"></textarea></div>
+                <div>
+                    <label id="lblAiMode">AI mode</label>
+                    <select id="aiBackend">
+                        <option value="local">local</option>
+                        <option value="oracle">oracle (fallback local)</option>
+                    </select>
+                    <label style="margin-top:8px;">Threshold</label>
+                    <input type="number" id="aiThreshold" min="0" max="100" value="40">
+                    <div class="row" style="margin-top:8px;">
+                        <button class="btn btn-primary" id="btnAiParse" type="button">AI Parse</button>
+                        <button class="btn btn-alt" id="btnAiAddAll" type="button">Add all</button>
+                    </div>
+                </div>
+            </div>
+            <div id="aiStatus" class="muted" style="margin-top:8px;"></div>
+            <div id="aiResults" class="ai-results"></div>
+            <div id="aiBatchBox" class="ai-batch-list" style="display:none;">
+                <div style="font-weight:700; font-size:13px; margin-top:8px;">В смете добавлено AI-позиций: <span id="aiBatchCount">0</span></div>
+                <div id="aiBatchList"></div>
+            </div>
+        </div>
+        <div id="findResult" style="margin-bottom:8px;"></div>
+        <div id="historyList"></div>
+    </div>
+
+    <div class="card">
+        <h2 id="sec4Title" style="font-size:16px; margin-bottom:10px;">4. Catalog componente cu imagini</h2>
+        <div id="catalogSummary" class="muted" style="margin-bottom:10px;"></div>
+        <div id="catalogGallery" class="gallery"></div>
+    </div>
+
+    <script>
+        const API = '/api/decor-operator';
+        let catalog = { materials: [], settings: {}, statuses: [] };
+        let lastQuote = null;
+        let materialNameLang = 'ro';
+        let materialByCode = new Map();
+        let categoryImage = {};
+        let aiMatches = [];
+        let aiBatchItems = [];
+        let uiLang = 'ro';
+
+        const UI_TX = {
+            ro: {
+                titleMain: 'DECOR - Operator comenzi',
+                linkAdmin: 'Admin',
+                linkDocs: 'Documentație',
+                introText: 'Calcul și preluare comandă pentru acoperiș din sticlă / verandă / pergolă.',
+                sec1Title: '1. Parametrii produsului',
+                sec2Title: '2. Client și comandă',
+                sec3Title: '3. Căutare și comenzi recente',
+                sec4Title: '4. Catalog componente cu imagini',
+                btnCalc: 'Calculează',
+                btnReset: 'Reset',
+                btnCreateOrder: 'Salvează comandă',
+                btnRecalc: 'Recalculează',
+                btnFind: 'Caută',
+                btnReloadHistory: 'Reîncarcă',
+                actionOpen: 'Deschide',
+                actionPrint: 'Tipărire',
+                lblProjectType:'Tip proiect', lblSystemType:'Tip sistem (sticlă)', lblColor:'Culoare',
+                lblWidth:'Lățime, mm', lblProjection:'Proiecție, mm', lblFrontHeight:'Înălțime față, mm', lblRearHeight:'Înălțime spate, mm',
+                lblLed:'LED / dimmer', lblProjectName:'Denumire proiect (opț.)', txtDrainage:'Drenaj', txtTransport:'Transport', txtInstall:'Montaj',
+                lblClientName:'Nume client', lblPhone:'Telefon', lblEmail:'Email', lblLocation:'Locație / adresă montaj', lblNotes:'Notă',
+                aiTitle:'AI batch add', lblAiMode:'AI mode',
+            },
+            ru: {
+                titleMain: 'DECOR - Оператор приёма заказов',
+                linkAdmin: 'Админка',
+                linkDocs: 'ТЗ / материалы',
+                introText: 'Расчёт и оформление заявки по параметрам проекта.',
+                sec1Title: '1. Параметры изделия',
+                sec2Title: '2. Клиент и оформление заявки',
+                sec3Title: '3. Поиск и последние заказы',
+                sec4Title: '4. Каталог компонентов с изображениями',
+                btnCalc: 'Рассчитать',
+                btnReset: 'Сбросить',
+                btnCreateOrder: 'Сохранить заказ',
+                btnRecalc: 'Пересчитать',
+                btnFind: 'Найти',
+                btnReloadHistory: 'Обновить',
+                actionOpen: 'Открыть',
+                actionPrint: 'Печать',
+                lblProjectType:'Тип проекта', lblSystemType:'Тип системы (стекло)', lblColor:'Цвет',
+                lblWidth:'Ширина, мм', lblProjection:'Вылет, мм', lblFrontHeight:'Передняя высота, мм', lblRearHeight:'Задняя высота, мм',
+                lblLed:'LED / диммер', lblProjectName:'Название проекта (опц.)', txtDrainage:'Водоотвод', txtTransport:'Транспорт', txtInstall:'Монтаж',
+                lblClientName:'Имя клиента', lblPhone:'Телефон', lblEmail:'Email', lblLocation:'Локация / адрес монтажа', lblNotes:'Примечание',
+                aiTitle:'AI пакетное добавление позиций', lblAiMode:'AI режим',
+            },
+            en: {
+                titleMain: 'DECOR - Order Operator',
+                linkAdmin: 'Admin',
+                linkDocs: 'Docs / Spec',
+                introText: 'Quote and order intake for glass roof / veranda / pergola projects.',
+                sec1Title: '1. Product Parameters',
+                sec2Title: '2. Client and Order',
+                sec3Title: '3. Search and Recent Orders',
+                sec4Title: '4. Component Catalog with Images',
+                btnCalc: 'Calculate',
+                btnReset: 'Reset',
+                btnCreateOrder: 'Save Order',
+                btnRecalc: 'Recalculate',
+                btnFind: 'Find',
+                btnReloadHistory: 'Reload',
+                actionOpen: 'Open',
+                actionPrint: 'Print',
+                lblProjectType:'Project type', lblSystemType:'System type (glass)', lblColor:'Color',
+                lblWidth:'Width, mm', lblProjection:'Projection, mm', lblFrontHeight:'Front height, mm', lblRearHeight:'Rear height, mm',
+                lblLed:'LED / dimmer', lblProjectName:'Project name (optional)', txtDrainage:'Drainage', txtTransport:'Transport', txtInstall:'Installation',
+                lblClientName:'Client name', lblPhone:'Phone', lblEmail:'Email', lblLocation:'Location / install address', lblNotes:'Note',
+                aiTitle:'AI batch add', lblAiMode:'AI mode',
+            }
+        };
+        function actionLabel(kind) {
+            const lang = (uiLang === 'ru' || uiLang === 'en') ? uiLang : 'ro';
+            if (kind === 'open') return (lang === 'ru') ? 'Открыть' : (lang === 'en' ? 'Open' : 'Deschide');
+            if (kind === 'print') return (lang === 'ru') ? 'Печать' : (lang === 'en' ? 'Print' : 'Tipărire');
+            return kind;
+        }
+
+        const el = (id) => document.getElementById(id);
+        const num = (v) => Number(v || 0);
+        const money = (v, c='USD') => `${Number(v||0).toLocaleString('ru-RU', {minimumFractionDigits:2, maximumFractionDigits:2})} ${c}`;
+        const esc = (s) => String(s ?? '').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+        const langShort = (s) => ({ en:'EN', tr:'TR', ro:'RO' }[(s||'').toLowerCase()] || String(s||'').toUpperCase());
+        const matOrig = (m) => (m.name_original || m.name || '');
+        const matRo = (m) => (m.name_ro || m.name || m.name_original || '');
+        const matViewName = (m) => materialNameLang === 'orig' ? matOrig(m) : matRo(m);
+        const matImage = (m) => (m.image_url || '');
+        const optLabelMap = {
+            'Стеклянная крыша': 'Acoperiș din sticlă / Стеклянная крыша',
+            'Веранда': 'Verandă / Веранда',
+            'Пергола': 'Pergolă / Пергола',
+            'Козырек': 'Copertină / Козырек',
+            'Антрацит': 'Antracit / Антрацит',
+            'Белый': 'Alb / Белый',
+            'Черный': 'Negru / Черный',
+            'Под дерево': 'Imitație lemn / Под дерево',
+            'Индивидуальный RAL': 'RAL individual / Индивидуальный RAL',
+        };
+        const displayOption = (v) => optLabelMap[String(v ?? '')] || String(v ?? '');
+
+        async function api(path, opts={}) {
+            const res = await fetch(API + path, {
+                headers: { 'Content-Type': 'application/json' },
+                ...opts
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok || data.success === false) throw new Error(data.error || res.statusText);
+            return data;
+        }
+
+        function payloadFromForm() {
+            return {
+                project_type: el('projectType').value,
+                system_type: el('systemType').value,
+                color: el('color').value,
+                width_mm: num(el('widthMm').value),
+                projection_mm: num(el('projectionMm').value),
+                front_height_mm: num(el('frontHeightMm').value),
+                rear_height_mm: num(el('rearHeightMm').value),
+                led_option: el('ledOption').value,
+                include_drainage: el('includeDrainage').checked ? 'Y' : 'N',
+                include_transport: el('includeTransport').checked ? 'Y' : 'N',
+                include_installation: el('includeInstallation').checked ? 'Y' : 'N',
+                project_name: el('projectName').value.trim(),
+                client_name: el('clientName').value.trim(),
+                client_phone: el('clientPhone').value.trim(),
+                client_email: el('clientEmail').value.trim(),
+                location: el('location').value.trim(),
+                notes: el('notes').value.trim(),
+                extra_items: aiBatchItems.map(x => ({
+                    material_id: x.material_id,
+                    code: x.code,
+                    name: x.name || x.name_ro || x.name_original,
+                    name_ro: x.name_ro,
+                    name_original: x.name_original,
+                    category: x.category,
+                    unit: x.unit,
+                    unit_price: Number(x.unit_price || 0),
+                    qty: Number(x.qty || 0),
+                    image_url: x.image_url || ''
+                })),
+            };
+        }
+
+        function fillSelect(selectId, rows, fallback=[]) {
+            const sel = el(selectId);
+            const arr = (rows && rows.length ? rows : fallback);
+            sel.innerHTML = arr.map(v => `<option value="${esc(v)}">${esc(displayOption(v))}</option>`).join('');
+        }
+
+        async function loadCatalog() {
+            const r = await api('/catalog');
+            catalog = r.data || catalog;
+            const s = catalog.settings || {};
+            buildCatalogIndexes();
+            fillSelect('projectType', s.project_types || [], ['Стеклянная крыша']);
+            fillSelect('systemType', s.system_types || [], ['ISICAM','TEKCAM']);
+            fillSelect('color', s.colors || [], ['Антрацит']);
+            renderCatalogGallery();
+        }
+
+        function applyUiLang(lang) {
+            uiLang = (lang === 'ru' || lang === 'en') ? lang : 'ro';
+            const t = UI_TX[uiLang] || UI_TX.ro;
+            for (const [id, val] of Object.entries(t)) {
+                if (el(id)) el(id).textContent = val;
+            }
+            const ph = {
+              ro: { findNumber:'Număr comandă DEC-...', notes:'Termen, măsurare, detalii fațadă' },
+              ru: { findNumber:'Номер заказа DEC-...', notes:'Пожелания клиента, сроки, замер...' },
+              en: { findNumber:'Order number DEC-...', notes:'Timeline, measurement, facade details...' }
+            }[uiLang] || {};
+            if (el('findNumber') && ph.findNumber) el('findNumber').placeholder = ph.findNumber;
+            if (el('notes') && ph.notes) el('notes').placeholder = ph.notes;
+            document.documentElement.lang = uiLang;
+            ['btnUiRo', 'btnUiRu', 'btnUiEn'].forEach((id) => el(id).classList.remove('is-active'));
+            el(uiLang === 'ro' ? 'btnUiRo' : (uiLang === 'ru' ? 'btnUiRu' : 'btnUiEn')).classList.add('is-active');
+            try { localStorage.setItem('decor_ui_lang', uiLang); } catch (e) {}
+        }
+
+        function buildCatalogIndexes() {
+            materialByCode = new Map();
+            categoryImage = {};
+            for (const m of (catalog.materials || [])) {
+                const code = String(m.code || '').toUpperCase();
+                if (code) materialByCode.set(code, m);
+                const cat = String(m.category || '');
+                if (cat && !categoryImage[cat] && m.image_url) categoryImage[cat] = m.image_url;
+            }
+        }
+
+        function quoteLineImage(line) {
+            if (line?.image_url) return line.image_url;
+            const code = String(line?.code || '').toUpperCase();
+            const direct = materialByCode.get(code);
+            if (direct?.image_url) return direct.image_url;
+            const name = String(line?.name || '').toLowerCase();
+            const byCat = (c) => categoryImage[c] || '';
+            if (code.includes('PROFILE') || code === 'FRAME_LEN') return byCat('profile');
+            if (code.includes('GLASS') || name.includes('стекло') || name.includes('glass')) return byCat('glass');
+            if (code.includes('ACCESSORY') || name.includes('аксесс')) return byCat('accessory') || byCat('consumable');
+            if (code.includes('DRAIN')) return byCat('drainage');
+            if (code === 'LED' || code.includes('LED')) return byCat('option_led');
+            if (code.includes('INSTALL') || code.includes('TRANSPORT')) return byCat('service');
+            return '';
+        }
+
+        function renderCatalogGallery() {
+            const rows = (catalog.materials || []).slice().sort((a,b) => `${a.category||''}:${a.code||''}`.localeCompare(`${b.category||''}:${b.code||''}`));
+            el('catalogSummary').textContent = `RO activ / Основной интерфейс: Română. Componente: ${rows.length}. Nume original cu limbă producător disponibil pentru fiecare material.`;
+            el('catalogGallery').innerHTML = rows.map(m => {
+                const img = matImage(m);
+                return `
+                <div class="mat-card">
+                    <div class="mat-thumb ${img ? '' : 'empty'}">
+                        ${img ? `<img src="${esc(img)}" alt="${esc(matViewName(m))}">` : 'No image'}
+                    </div>
+                    <div class="mat-meta">
+                        <div class="code mono">${esc(m.code||'')} · ${esc(m.category||'')}</div>
+                        <div class="name">${esc(matViewName(m))}</div>
+                        <div class="sub">Original (${esc(langShort(m.original_lang||''))}): ${esc(matOrig(m))}</div>
+                        <div class="sub">RO: ${esc(matRo(m))}</div>
+                    </div>
+                </div>`;
+            }).join('') || `<div class="muted">Catalog gol / Каталог пуст</div>`;
+        }
+
+        function renderQuote(data) {
+            lastQuote = data;
+            const m = data.metrics || {};
+            const s = data.summary || {};
+            el('quoteBlock').style.display = '';
+            el('kpiArea').textContent = `${num(m.area_m2).toFixed(2)} m²`;
+            el('kpiPerimeter').textContent = `${num(m.perimeter_m).toFixed(2)} m`;
+            el('kpiSlope').textContent = `${num(m.slope_percent).toFixed(2)}%`;
+            el('kpiTotal').textContent = money(s.total, s.currency || 'USD');
+            el('quoteTotalText').textContent = money(s.total, s.currency || 'USD') + (s.total_mdl ? ` / ${money(s.total_mdl, 'MDL')}` : '');
+            el('quoteMeta').textContent = `Прямые затраты: ${money(s.direct_cost, s.currency || 'USD')} · Отходы: ${money(s.waste_amount, s.currency || 'USD')} · Маржа: ${money(s.margin_amount, s.currency || 'USD')}`;
+            el('quoteLines').innerHTML = (data.lines || []).map(line => `
+                <tr>
+                    <td>${quoteLineImage(line) ? `<img class="quote-thumb" src="${esc(quoteLineImage(line))}" alt="${esc(line.code || line.name || '')}">` : `<div class="quote-thumb-empty">n/a</div>`}</td>
+                    <td>${esc(line.name || line.code)}</td>
+                    <td>${num(line.qty).toLocaleString('ru-RU', {maximumFractionDigits:3})}</td>
+                    <td>${esc(line.unit || '')}</td>
+                    <td class="right">${money(line.unit_price || 0, s.currency || 'USD')}</td>
+                    <td class="right">${money(line.amount || 0, s.currency || 'USD')}</td>
+                </tr>
+            `).join('');
+        }
+
+        function renderAiResults() {
+            const wrap = el('aiResults');
+            if (!aiMatches.length) { wrap.innerHTML = ''; return; }
+            wrap.innerHTML = aiMatches.map((m, i) => {
+                const img = m.image_url || '';
+                const title = m.name_ro || m.name || m.name_original || m.token || '—';
+                const code = m.code || '—';
+                const ok = !!m.material_id;
+                return `
+                <div class="ai-item">
+                    <div class="thumb">${img ? `<img src="${esc(img)}" alt="${esc(code)}">` : `<div class="empty">n/a</div>`}</div>
+                    <div class="meta">
+                        <div class="title">${esc(title)}</div>
+                        <div class="sub mono">${esc(code)}${m.category ? ' · ' + esc(m.category) : ''}</div>
+                        <div class="sub">${esc(m.original || '')}</div>
+                        <div class="sub">${ok ? `Qty: ${num(m.qty).toLocaleString('ru-RU',{maximumFractionDigits:3})} · ${money(m.unit_price||0)} · conf ${num(m.confidence).toFixed(0)}%` : `No match · conf ${num(m.confidence).toFixed(0)}%`}</div>
+                    </div>
+                    <div class="act">
+                        <span class="ai-pill">${ok ? 'match' : 'skip'}</span>
+                        <button class="btn btn-ghost" type="button" data-aiadd="${i}" ${ok ? '' : 'disabled'}>+ add</button>
+                    </div>
+                </div>`;
+            }).join('');
+            [...wrap.querySelectorAll('[data-aiadd]')].forEach(btn => btn.onclick = () => addAiMatch(Number(btn.dataset.aiadd)));
+        }
+
+        function renderAiBatch() {
+            const box = el('aiBatchBox');
+            const list = el('aiBatchList');
+            if (!aiBatchItems.length) {
+                box.style.display = 'none';
+                list.innerHTML = '';
+                el('aiBatchCount').textContent = '0';
+                return;
+            }
+            box.style.display = '';
+            el('aiBatchCount').textContent = String(aiBatchItems.length);
+            list.innerHTML = aiBatchItems.map((m, i) => `
+                <div class="ai-batch-row">
+                    <div>
+                        <strong>${esc(m.name_ro || m.name || m.name_original || m.code)}</strong>
+                        <span class="muted mono"> · ${esc(m.code || '')}</span>
+                        <div class="muted">qty ${num(m.qty).toLocaleString('ru-RU',{maximumFractionDigits:3})} · ${money(m.unit_price||0)} · ${money((num(m.qty)*num(m.unit_price)), 'USD')}</div>
+                    </div>
+                    <button type="button" data-airm="${i}">remove</button>
+                </div>
+            `).join('');
+            [...list.querySelectorAll('[data-airm]')].forEach(btn => btn.onclick = async () => {
+                aiBatchItems.splice(Number(btn.dataset.airm), 1);
+                renderAiBatch();
+                if (lastQuote) await calculate();
+            });
+        }
+
+        function addAiMatch(idx) {
+            const m = aiMatches[idx];
+            if (!m || !m.material_id) return false;
+            const key = `${m.material_id}::${m.unit_price}`;
+            const existing = aiBatchItems.find(x => `${x.material_id}::${x.unit_price}` === key);
+            if (existing) {
+                existing.qty = round3(num(existing.qty) + num(m.qty || 1));
+            } else {
+                aiBatchItems.push({ ...m, qty: round3(num(m.qty || 1)) });
+            }
+            renderAiBatch();
+            return true;
+        }
+
+        function round3(v) { return Math.round(Number(v || 0) * 1000) / 1000; }
+
+        async function aiParseItems() {
+            const text = el('aiTextInput').value.trim();
+            if (!text) {
+                el('aiStatus').textContent = 'Введите текст для AI parse';
+                aiMatches = [];
+                renderAiResults();
+                return;
+            }
+            const backend = (el('aiBackend').value || 'local').toLowerCase();
+            const threshold = Math.max(0, Math.min(100, Number(el('aiThreshold').value || 40)));
+            el('btnAiParse').disabled = true;
+            el('aiStatus').textContent = 'AI analyzing...';
+            try {
+                const r = await api('/ai-parse-items', {
+                    method: 'POST',
+                    body: JSON.stringify({ text, backend, threshold })
+                });
+                aiMatches = r.matches || [];
+                renderAiResults();
+                const ok = aiMatches.filter(x => x.material_id).length;
+                el('aiStatus').textContent = `AI backend: ${r.backend || backend} · matched ${ok}/${aiMatches.length}`;
+            } catch (e) {
+                el('aiStatus').textContent = `AI error: ${e.message || String(e)}`;
+                aiMatches = [];
+                renderAiResults();
+            } finally {
+                el('btnAiParse').disabled = false;
+            }
+        }
+
+        async function aiAddAll() {
+            let added = 0;
+            for (let i = 0; i < aiMatches.length; i++) if (addAiMatch(i)) added++;
+            renderAiBatch();
+            el('aiStatus').textContent = `AI added: ${added}`;
+            if (aiBatchItems.length) await calculate();
+        }
+
+        async function calculate() {
+            el('calcError').style.display = 'none';
+            try {
+                const r = await api('/calculate', { method: 'POST', body: JSON.stringify(payloadFromForm()) });
+                renderQuote(r.data);
+            } catch (e) {
+                el('calcError').textContent = e.message || String(e);
+                el('calcError').style.display = '';
+            }
+        }
+
+        async function createOrder() {
+            el('createResult').style.display = 'none';
+            try {
+                let payload;
+                if (currentProductType === 'sliding') {
+                    if (!lastSlidingQuote) { el('createResult').innerHTML = '<div class="err">Calculați mai întâi devizul sliding</div>'; el('createResult').style.display = ''; return; }
+                    payload = {
+                        product_type: 'sliding',
+                        variant: el('slidingVariant').value,
+                        width_mm: parseFloat(el('slidingWidth').value) || 0,
+                        height_mm: parseFloat(el('slidingHeight').value) || 0,
+                        orientation: el('slidingOrientation').value,
+                        include_threshold: el('slidingThreshold').checked ? 'Y' : 'N',
+                        include_glass: el('slidingIncludeGlass').checked ? 'Y' : 'N',
+                        glass_system: el('slidingGlassSystem').value,
+                        glass_finish: el('slidingGlassFinish').value,
+                        glass_thickness: el('slidingGlassThickness').value,
+                        include_assembly: el('slidingAssembly').checked ? 'Y' : 'N',
+                        include_installation: el('slidingInstallation').checked ? 'Y' : 'N',
+                        color: el('slidingColor').value,
+                        project_name: el('slidingProjectName').value.trim(),
+                        client_name: el('clientName').value.trim(),
+                        client_phone: el('clientPhone').value.trim(),
+                        client_email: el('clientEmail').value.trim(),
+                        location: el('location').value.trim(),
+                        notes: el('notes').value.trim(),
+                    };
+                } else {
+                    payload = payloadFromForm();
+                    payload.product_type = 'veranda';
+                }
+                const r = await api('/order', { method: 'POST', body: JSON.stringify(payload) });
+                const o = r.data || {};
+                const total = (((o.quote||{}).summary||{}).total);
+                el('createResult').innerHTML = `
+                    <div class="okbox">
+                        <div style="font-weight:700; margin-bottom:6px;">Comanda salvată / Заказ сохранён</div>
+                        <div>Număr / Номер: <span class="mono">${esc(o.order_number || '')}</span></div>
+                        <div>Status / Статус: <span class="pill">${esc(o.status_name || '')}</span></div>
+                        <div>Sumă / Сумма: <strong>${money(total || o.total_amount || 0, o.currency || 'MDL')}</strong></div>
+                        <div style="margin-top:8px;">
+                            <a href="/UNA.md/orasldev/decor-operator/document/${Number(o.id||0)}" target="_blank">${esc(actionLabel('open'))}</a>
+                            ·
+                            <a href="/UNA.md/orasldev/decor-operator/document/${Number(o.id||0)}?print=1" target="_blank">${esc(actionLabel('print'))}</a>
+                        </div>
+                    </div>`;
+                el('createResult').style.display = '';
+                await reloadHistory();
+            } catch (e) {
+                el('createResult').innerHTML = `<div class="err">${esc(e.message || String(e))}</div>`;
+                el('createResult').style.display = '';
+            }
+        }
+
+        function renderOrderCard(o) {
+            const q = (o.quote || {});
+            const sum = (q.summary || {});
+            return `
+                <div class="history-item">
+                    <div class="row" style="justify-content:space-between;">
+                        <div>
+                            <div><strong>${esc(o.order_number || '')}</strong> <span class="pill">${esc(o.status_name || '')}</span></div>
+                            <div class="muted">${esc(o.client_name || '')} · ${esc(o.client_phone || '')}</div>
+                            <div class="muted">${esc(o.project_type || '')}${o.project_name ? ' · ' + esc(o.project_name) : ''}</div>
+                            <div class="muted">
+                                <a href="/UNA.md/orasldev/decor-operator/document/${Number(o.id||0)}" target="_blank">${esc(actionLabel('open'))}</a>
+                                ·
+                                <a href="/UNA.md/orasldev/decor-operator/document/${Number(o.id||0)}?print=1" target="_blank">${esc(actionLabel('print'))}</a>
+                            </div>
+                        </div>
+                        <div class="right">
+                            <div><strong>${money(sum.total || o.total_amount || 0, sum.currency || o.currency || 'USD')}</strong></div>
+                            <div class="muted mono">${esc((o.created_at || '').slice(0,16))}</div>
+                        </div>
+                    </div>
+                </div>`;
+        }
+
+        async function reloadHistory() {
+            try {
+                const r = await api('/recent-orders?limit=12');
+                const rows = r.data || [];
+            el('historyList').innerHTML = rows.length ? rows.map(renderOrderCard).join('') : `<div class="muted">Nu există comenzi încă / Пока нет заказов.</div>`;
+            } catch (e) {
+                el('historyList').innerHTML = `<div class="err">${esc(e.message || String(e))}</div>`;
+            }
+        }
+
+        async function findOrder() {
+            const v = el('findNumber').value.trim();
+            if (!v) return;
+            el('findResult').innerHTML = `<div class="muted">Căutare... / Поиск...</div>`;
+            try {
+                const r = await api('/order-by-number?number=' + encodeURIComponent(v));
+                const o = r.data || {};
+                el('findResult').innerHTML = `<div class="okbox">${renderOrderCard(o)}</div>`;
+            } catch (e) {
+                el('findResult').innerHTML = `<div class="err">${esc(e.message || String(e))}</div>`;
+            }
+        }
+
+        function resetForm() {
+            el('widthMm').value = 4000;
+            el('projectionMm').value = 3000;
+            el('frontHeightMm').value = 2500;
+            el('rearHeightMm').value = 2900;
+            el('projectName').value = '';
+            el('notes').value = '';
+            aiMatches = [];
+            aiBatchItems = [];
+            renderAiResults();
+            renderAiBatch();
+            el('quoteBlock').style.display = 'none';
+            el('calcError').style.display = 'none';
+            lastQuote = null;
+        }
+
+        el('btnCalc').addEventListener('click', calculate);
+        el('btnRecalc').addEventListener('click', calculate);
+        el('btnCreateOrder').addEventListener('click', createOrder);
+        el('btnFind').addEventListener('click', findOrder);
+        el('btnReloadHistory').addEventListener('click', reloadHistory);
+        el('btnReset').addEventListener('click', resetForm);
+        el('findNumber').addEventListener('keydown', (e) => { if (e.key === 'Enter') findOrder(); });
+        el('btnAiParse').addEventListener('click', aiParseItems);
+        el('btnAiAddAll').addEventListener('click', aiAddAll);
+        el('btnUiRo').addEventListener('click', () => applyUiLang('ro'));
+        el('btnUiRu').addEventListener('click', () => applyUiLang('ru'));
+        el('btnUiEn').addEventListener('click', () => applyUiLang('en'));
+        el('btnLangRo').addEventListener('click', () => {
+            materialNameLang = 'ro';
+            el('btnLangRo').classList.add('is-active');
+            el('btnLangOrig').classList.remove('is-active');
+            renderCatalogGallery();
+        });
+        el('btnLangOrig').addEventListener('click', () => {
+            materialNameLang = 'orig';
+            el('btnLangOrig').classList.add('is-active');
+            el('btnLangRo').classList.remove('is-active');
+            renderCatalogGallery();
+        });
+
+        // ── Sliding module ───────────────────────────────────
+        let currentProductType = 'veranda';
+        let slidingVariants = {};
+        let lastSlidingQuote = null;
+
+        function setProductType(type) {
+            currentProductType = type;
+            el('btnProductVeranda').className = type === 'veranda' ? 'btn btn-primary' : 'btn btn-ghost';
+            el('btnProductSliding').className = type === 'sliding' ? 'btn btn-primary' : 'btn btn-ghost';
+            el('verandaFormBlock').style.display = type === 'veranda' ? '' : 'none';
+            el('slidingFormBlock').style.display = type === 'sliding' ? '' : 'none';
+            if (type === 'sliding') loadSlidingVariants();
+        }
+
+        async function loadSlidingVariants() {
+            try {
+                const r = await fetch('/api/decor-admin/sliding-variants');
+                const j = await r.json();
+                if (j.success) slidingVariants = j.data;
+                onSlidingFamilyChange();
+                const sr = await fetch('/api/decor-admin/sliding-settings');
+                const sj = await sr.json();
+                if (sj.success) {
+                    const sel = el('slidingColor');
+                    sel.innerHTML = '';
+                    (sj.data.colors || ['Antracit', 'Alb', 'Negru', 'RAL individual']).forEach(c => {
+                        const o = document.createElement('option');
+                        o.value = c; o.textContent = c; sel.appendChild(o);
+                    });
+                }
+            } catch(e) { console.error('loadSlidingVariants', e); }
+        }
+
+        function onSlidingFamilyChange() {
+            const family = el('slidingFamily').value;
+            const sel = el('slidingVariant');
+            sel.innerHTML = '';
+            for (const [key, v] of Object.entries(slidingVariants)) {
+                if (v.family === family) {
+                    const o = document.createElement('option');
+                    o.value = key;
+                    o.textContent = v.label;
+                    sel.appendChild(o);
+                }
+            }
+        }
+
+        function toggleSlidingGlassOptions() {
+            el('slidingGlassOptions').style.display =
+                el('slidingIncludeGlass').checked ? '' : 'none';
+        }
+
+        async function calcSliding() {
+            const errEl = el('slidingCalcError');
+            const quoteBlock = el('slidingQuoteBlock');
+            errEl.style.display = 'none';
+            quoteBlock.style.display = 'none';
+            el('cuttingListBlock').style.display = 'none';
+
+            const payload = {
+                variant: el('slidingVariant').value,
+                width_mm: parseFloat(el('slidingWidth').value) || 0,
+                height_mm: parseFloat(el('slidingHeight').value) || 0,
+                orientation: el('slidingOrientation').value,
+                include_threshold: el('slidingThreshold').checked ? 'Y' : 'N',
+                include_glass: el('slidingIncludeGlass').checked ? 'Y' : 'N',
+                glass_system: el('slidingGlassSystem').value,
+                glass_finish: el('slidingGlassFinish').value,
+                glass_thickness: el('slidingGlassThickness').value,
+                include_assembly: el('slidingAssembly').checked ? 'Y' : 'N',
+                include_installation: el('slidingInstallation').checked ? 'Y' : 'N',
+            };
+
+            try {
+                const r = await fetch('/api/decor-operator/calculate-sliding', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+                });
+                const j = await r.json();
+                if (!j.success) { errEl.textContent = j.error || 'Eroare calcul'; errEl.style.display = ''; return; }
+                lastSlidingQuote = j.data;
+                renderSlidingQuote(j.data);
+            } catch(e) { errEl.textContent = 'Network error'; errEl.style.display = ''; }
+        }
+
+        function renderSlidingQuote(data) {
+            const m = data.metrics;
+            const s = data.summary;
+            el('skpiArea').textContent = m.area_m2 + ' m²';
+            el('skpiPanels').textContent = m.total_panels;
+            el('skpiWeight').textContent = m.profile_weight_kg + ' kg';
+            el('skpiTotal').textContent = s.total.toLocaleString() + ' ' + s.currency;
+
+            const tbody = el('slidingQuoteLines');
+            tbody.innerHTML = '';
+            (data.lines || []).forEach(l => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = '<td>' + esc(l.code||'') + '</td><td>' + esc(l.name||'') + '</td><td>' + (l.qty||0) +
+                    '</td><td>' + esc(l.unit||'') + '</td><td class="right">' + (l.unit_price||0).toLocaleString() +
+                    '</td><td class="right">' + (l.amount||0).toLocaleString() + '</td>';
+                tbody.appendChild(tr);
+            });
+            el('slidingTotalText').textContent = s.total.toLocaleString() + ' ' + s.currency + (s.total_usd ? ' (~$' + s.total_usd + ')' : '');
+            el('slidingQuoteBlock').style.display = '';
+        }
+
+        async function showCuttingList() {
+            if (!lastSlidingQuote) return;
+            const inp = lastSlidingQuote.inputs;
+            const payload = {
+                variant: inp.variant,
+                width_mm: inp.width_mm,
+                height_mm: inp.height_mm,
+                orientation: inp.orientation,
+                include_threshold: inp.include_threshold ? 'Y' : 'N',
+                include_glass: inp.include_glass ? 'Y' : 'N',
+                glass_system: inp.glass_system,
+                glass_finish: inp.glass_finish,
+                glass_thickness: inp.glass_thickness,
+                include_assembly: inp.include_assembly ? 'Y' : 'N',
+                include_installation: inp.include_installation ? 'Y' : 'N',
+            };
+            try {
+                const r = await fetch('/api/decor-operator/sliding-cutting-list', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload)
+                });
+                const j = await r.json();
+                if (!j.success) return;
+                const tbody = el('cuttingListLines');
+                tbody.innerHTML = '';
+                (j.data.cutting_lines || []).forEach(l => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = '<td>' + esc(l.code) + '</td><td>' + esc(l.name) + '</td><td>' + esc(l.panel_label) +
+                        '</td><td>' + l.pieces + '</td><td class="right">' + l.length_cm +
+                        '</td><td class="right">' + l.length_mm + '</td>';
+                    tbody.appendChild(tr);
+                });
+                el('cuttingListBlock').style.display = '';
+            } catch(e) { console.error(e); }
+        }
+
+        function resetSliding() {
+            el('slidingWidth').value = '3000';
+            el('slidingHeight').value = '2500';
+            el('slidingQuoteBlock').style.display = 'none';
+            el('cuttingListBlock').style.display = 'none';
+            el('slidingCalcError').style.display = 'none';
+            lastSlidingQuote = null;
+        }
+
+        (async function init() {
+            try {
+                applyUiLang((() => { try { return localStorage.getItem('decor_ui_lang') || 'ro'; } catch (e) { return 'ro'; } })());
+                await loadCatalog();
+                await calculate();
+                await reloadHistory();
+            } catch (e) {
+                el('calcError').textContent = e.message || String(e);
+                el('calcError').style.display = '';
+            }
+        })();
+    </script>
+</body>
+</html>

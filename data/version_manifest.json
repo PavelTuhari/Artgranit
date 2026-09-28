@@ -1,0 +1,69 @@
+{
+  "app": {
+    "name": "UNA orasldev",
+    "version": "0.4.0",
+    "updated_at": "2026-02-26T18:25:00+02:00",
+    "notes": "DECOR module, docs, image catalog, AI batch add, version widget"
+  },
+  "shell": {
+    "name": "UNA Shell",
+    "version": "0.2.0",
+    "updated_at": "2026-02-26T18:25:00+02:00",
+    "notes": "Project launcher + dashboard 09 DECOR"
+  },
+  "modules": {
+    "decor": {
+      "name": "DECOR",
+      "version": "0.4.0",
+      "updated_at": "2026-02-26T18:25:00+02:00",
+      "notes": "Admin/operator/docs, full catalog images, RO+Original, AI batch parse"
+    },
+    "nufarul": {
+      "name": "Nufarul",
+      "version": "0.1.0",
+      "updated_at": "2026-02-26T18:25:00+02:00",
+      "notes": "Operator/admin baseline"
+    },
+    "credit": {
+      "name": "Credits",
+      "version": "0.1.0",
+      "updated_at": "2026-02-26T18:25:00+02:00",
+      "notes": "Credit modules baseline"
+    },
+    "colass": {
+      "name": "Colass",
+      "version": "0.1.0",
+      "updated_at": "2026-02-26T18:25:00+02:00",
+      "notes": "Baseline"
+    },
+    "dashboard": {
+      "name": "Dashboard",
+      "version": "0.1.0",
+      "updated_at": "2026-02-26T18:25:00+02:00",
+      "notes": "MDI dashboards"
+    },
+    "docs": {
+      "name": "Docs",
+      "version": "0.2.0",
+      "updated_at": "2026-02-26T18:25:00+02:00",
+      "notes": "DECOR docs converted to HTML + index"
+    },
+    "digi_sm": {
+      "name": "DIGI SM",
+      "version": "0.1.0",
+      "updated_at": "2026-02-26T18:25:00+02:00",
+      "notes": "Baseline"
+    },
+    "auth": {
+      "name": "Auth/Login",
+      "version": "0.1.0",
+      "updated_at": "2026-02-26T18:25:00+02:00",
+      "notes": "Login/session"
+    }
+  },
+  "meta": {
+    "schema_version": 1,
+    "updated_at": "2026-02-26T18:25:00+02:00",
+    "managed_by": "version_registry.py"
+  }
+}

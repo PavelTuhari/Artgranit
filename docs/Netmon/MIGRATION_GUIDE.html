@@ -1,0 +1,492 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Инструкция по миграции Zabbix 3.4.15 → 8.0 LTS</title>
+<style>
+:root{--bg:#fff;--txt:#1b1b1f;--dim:#5f6570;--line:#dfe3ea;--head:#0f4c81;
+      --ok:#107c10;--warn:#c47b00;--danger:#c42b1c;--soft:#f6f8fb;--code:#1e2430}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--txt);
+     font:15px/1.6 "Segoe UI",-apple-system,BlinkMacSystemFont,system-ui,sans-serif}
+.wrap{max-width:1000px;margin:0 auto;padding:40px 26px 80px}
+header.cover{border-bottom:4px solid var(--head);padding-bottom:20px;margin-bottom:24px}
+.org{color:var(--head);font-weight:700;letter-spacing:.11em;font-size:12px;text-transform:uppercase}
+h1{font-size:28px;margin:9px 0 6px;font-weight:650;line-height:1.25}
+.lead{color:var(--dim);font-size:15px;max-width:80ch}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1px;
+       background:var(--line);border:1px solid var(--line);border-radius:8px;
+       overflow:hidden;margin:20px 0}
+.facts div{background:#fff;padding:10px 14px}
+.facts .k{color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.facts .v{font-weight:600;margin-top:2px;font-size:14px}
+.toc{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:14px 20px;margin:22px 0}
+.toc b{display:block;margin-bottom:6px}
+.toc a{color:var(--head);text-decoration:none;font-size:14px}
+.toc a:hover{text-decoration:underline}
+h2{font-size:20px;margin:34px 0 4px;padding-bottom:7px;border-bottom:2px solid var(--head)}
+.stage-note{color:var(--dim);font-size:13.5px;margin-bottom:14px}
+.step{border:1px solid var(--line);border-radius:10px;margin:14px 0;overflow:hidden}
+.step.irreversible{border-color:#f0b0a8}
+.step-head{display:flex;gap:12px;align-items:baseline;padding:13px 17px;background:var(--soft)}
+.step.irreversible .step-head{background:#fdf0ee}
+.num{font-family:ui-monospace,Consolas,monospace;font-weight:700;color:var(--head);
+     font-size:13px;white-space:nowrap}
+.step-head h3{margin:0;font-size:16px;font-weight:620;flex:1}
+.tag{font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;white-space:nowrap}
+.tag-irr{background:#fde8e6;color:var(--danger)}
+.step-body{padding:14px 17px}
+.why{color:var(--dim);font-size:14px;margin:0 0 12px}
+pre{background:var(--code);color:#e6edf3;border-radius:8px;padding:13px 15px;margin:0;
+    overflow-x:auto;font:13px/1.55 ui-monospace,Consolas,"SF Mono",monospace}
+pre .c{color:#8b98a9}
+.cmd{position:relative}
+.copy{position:absolute;top:8px;right:8px;background:#30363d;color:#e6edf3;border:0;
+      border-radius:6px;padding:4px 10px;font-size:11.5px;cursor:pointer;opacity:.85}
+.copy:hover{opacity:1;background:#3c444d}
+.check{margin-top:12px;padding:10px 14px;background:#eef7ee;border-left:4px solid var(--ok);
+       border-radius:0 7px 7px 0;font-size:14px}
+.check b{color:var(--ok)}
+.warnbox{margin:18px 0;padding:13px 17px;background:#fdf3e0;border-left:4px solid var(--warn);
+         border-radius:0 8px 8px 0}
+.dangerbox{margin:18px 0;padding:13px 17px;background:#fde8e6;border-left:4px solid var(--danger);
+           border-radius:0 8px 8px 0}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14px}
+th{background:var(--head);color:#fff;text-align:left;padding:8px 11px;font-size:12.5px}
+td{padding:8px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+tr:nth-child(even) td{background:#fafbfd}
+code{font-family:ui-monospace,Consolas,monospace;font-size:13px;background:var(--soft);
+     padding:1px 5px;border-radius:3px}
+ul{padding-left:22px}li{margin:5px 0}
+@media print{.copy{display:none}.step{break-inside:avoid}.wrap{padding:0}}
+</style></head><body><div class="wrap">
+
+<header class="cover">
+  <div class="org">Unisim-Soft &amp; Coninfo · эксплуатация</div>
+  <h1>Инструкция по миграции Zabbix 3.4.15 → 8.0 LTS</h1>
+  <p class="lead">Пошаговый порядок работ для исполнителя. Каждый шаг содержит команды
+  и проверку результата. <b>Простоя мониторинга нет:</b> старый сервер работает до
+  последнего шага, откат возможен на любом этапе.</p>
+  <div class="facts">
+    <div><div class="k">Откуда</div><div class="v">Zabbix 3.4.15, 192.168.0.110</div></div>
+    <div><div class="k">Куда</div><div class="v">Zabbix 8.0 LTS, 192.168.0.111</div></div>
+    <div><div class="k">Основание</div><div class="v">CentOS 7.9.2009, MariaDB 5.5.68, PHP 5.6.40 — сняты с поддержки</div></div>
+    <div><div class="k">Данные</div><div class="v">1 532,7 МБ, история сохраняется</div></div>
+    <div><div class="k">Объём</div><div class="v">77 хостов, 2 734 элементов</div></div>
+    <div><div class="k">Трудоёмкость</div><div class="v">≈ 22 часа + 2 недели наблюдения</div></div>
+  </div>
+</header>
+
+<div class="warnbox"><b>Перед началом прочитать план.</b> Здесь только порядок действий;
+обоснование решений, требования к машине и расчёты — в документе
+<code>ZABBIX_MIGRATION_PLAN.md</code>. Решение о сохранении истории принято владельцем
+12.09.2026: база переносится целиком.</div>
+
+<div class="toc"><b>Этапы</b>
+<a href="#s0">Подготовка</a> · <a href="#s1">Развёртывание</a> · <a href="#s2">Перенос базы</a> · <a href="#s3">Параллельная работа</a> · <a href="#s4">Переключение</a></div><h2 id="s0">Подготовка</h2><div class="stage-note">Ничего не меняется, простоя нет. Задача — получить страховку: дамп, файлы и независимую выгрузку конфигурации.</div><div class="step">
+  <div class="step-head"><span class="num">0.1</span>
+    <h3>Снять полный дамп базы</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Дамп — единственная страховка на весь проект. Снимается на работающей системе, простоя не требует.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="ssh root@192.168.0.110
+mysqldump -uroot --single-transaction --quick --default-character-set=utf8 \
+          --routines --triggers zabbix | gzip &gt; /root/zabbix34-$(date +%F).sql.gz
+ls -lh /root/zabbix34-*.sql.gz
+gunzip -t /root/zabbix34-*.sql.gz &amp;&amp; echo 'архив цел'">копировать</button><pre>ssh root@192.168.0.110
+mysqldump -uroot --single-transaction --quick --default-character-set=utf8 \
+          --routines --triggers zabbix | gzip &gt; /root/zabbix34-$(date +%F).sql.gz
+ls -lh /root/zabbix34-*.sql.gz
+gunzip -t /root/zabbix34-*.sql.gz &amp;&amp; echo &#x27;архив цел&#x27;</pre></div>
+    <div class="check"><b>Проверка:</b> Файл 300–400 МБ, проверка целостности без ошибок.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">0.2</span>
+    <h3>Сохранить скрипты и конфигурацию</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Внешние скрипты и alert-скрипт Telegram в базе не лежат — только файлами. Токен бота находится внутри telegram_bot.sh.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="ssh root@192.168.0.110
+tar czf /root/zabbix34-files-$(date +%F).tar.gz \
+    /etc/zabbix /usr/lib/zabbix/externalscripts /usr/lib/zabbix/alertscripts
+ls -lh /root/zabbix34-files-*.tar.gz">копировать</button><pre>ssh root@192.168.0.110
+tar czf /root/zabbix34-files-$(date +%F).tar.gz \
+    /etc/zabbix /usr/lib/zabbix/externalscripts /usr/lib/zabbix/alertscripts
+ls -lh /root/zabbix34-files-*.tar.gz</pre></div>
+    <div class="check"><b>Проверка:</b> Архив создан, внутри 8 внешних скриптов и telegram_bot.sh.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">0.3</span>
+    <h3>Выгрузить конфигурацию через API</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Вторая, независимая от дампа копия конфигурации — на случай, если апгрейд схемы не удастся и придётся собирать систему заново.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="cd /Users/pt/Projects.AI/Artgranit-netmon
+python modules/netmon/scripts/netmon_zabbix_export.py --out ~/zbx-export">копировать</button><pre>cd /Users/pt/Projects.AI/Artgranit-netmon
+python modules/netmon/scripts/netmon_zabbix_export.py --out ~/zbx-export</pre></div>
+    <div class="check"><b>Проверка:</b> 53 шаблона и 75 хостов в XML, файл inventory.json со списком.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">0.4</span>
+    <h3>Освободить память на гипервизоре</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Кэш ZFS занимает 78,7 ГБ из 157 ГБ. Он отдаёт память сам, но при старте новой ВМ возможна просадка ввода-вывода — лучше ограничить заранее.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="ssh root@192.168.0.149
+echo 68719476736 &gt; /sys/module/zfs/parameters/zfs_arc_max
+echo 'options zfs zfs_arc_max=68719476736' &gt;&gt; /etc/modprobe.d/zfs.conf
+update-initramfs -u">копировать</button><pre>ssh root@192.168.0.149
+echo 68719476736 &gt; /sys/module/zfs/parameters/zfs_arc_max
+echo &#x27;options zfs zfs_arc_max=68719476736&#x27; &gt;&gt; /etc/modprobe.d/zfs.conf
+update-initramfs -u</pre></div>
+    <div class="check"><b>Проверка:</b> cat /sys/module/zfs/parameters/zfs_arc_max → 68719476736</div>
+  </div></div><h2 id="s1">Развёртывание</h2><div class="stage-note">Создаётся новая машина рядом с работающей системой. Старый сервер не затрагивается.</div><div class="step">
+  <div class="step-head"><span class="num">1.1</span>
+    <h3>Создать виртуальную машину</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">KVM, а не контейнер: на Proxmox 4.4-1 ядро 4.4, и контейнер с Ubuntu 22.04 не запустится. У виртуальной машины собственное ядро.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="ssh root@192.168.0.149
+qm create 141 --name zabbix8 --memory 8192 --cores 4 --sockets 1 \
+  --net0 virtio,bridge=vmbr0 --ostype l26 --machine pc-i440fx-2.7 \
+  --scsihw virtio-scsi-pci --scsi0 local-zfs:100,discard=on \
+  --ide2 local:iso/ubuntu-22.04.3-live-server-amd64.iso,media=cdrom \
+  --boot order='ide2;scsi0' --onboot 1 --agent 1
+qm start 141">копировать</button><pre>ssh root@192.168.0.149
+qm create 141 --name zabbix8 --memory 8192 --cores 4 --sockets 1 \
+  --net0 virtio,bridge=vmbr0 --ostype l26 --machine pc-i440fx-2.7 \
+  --scsihw virtio-scsi-pci --scsi0 local-zfs:100,discard=on \
+  --ide2 local:iso/ubuntu-22.04.3-live-server-amd64.iso,media=cdrom \
+  --boot order=&#x27;ide2;scsi0&#x27; --onboot 1 --agent 1
+qm start 141</pre></div>
+    <div class="check"><b>Проверка:</b> qm status 141 → running; консоль открывается в веб-интерфейсе Proxmox.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">1.2</span>
+    <h3>Установить Ubuntu и задать сеть</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Адрес 192.168.0.111 свободен: он закреплён за контейнером 130 «zabbixt», который остановлен и помечен как неиспользуемый.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="# в установщике Ubuntu:
+#   IP       192.168.0.111/24
+#   шлюз     192.168.0.101
+#   DNS      192.168.0.103, 192.168.0.102
+#   имя      zabbix8
+# после установки:
+apt update &amp;&amp; apt -y upgrade &amp;&amp; apt -y install qemu-guest-agent
+systemctl enable --now qemu-guest-agent">копировать</button><pre><span class="c"># в установщике Ubuntu:</span>
+<span class="c">#   IP       192.168.0.111/24</span>
+<span class="c">#   шлюз     192.168.0.101</span>
+<span class="c">#   DNS      192.168.0.103, 192.168.0.102</span>
+<span class="c">#   имя      zabbix8</span>
+<span class="c"># после установки:</span>
+apt update &amp;&amp; apt -y upgrade &amp;&amp; apt -y install qemu-guest-agent
+systemctl enable --now qemu-guest-agent</pre></div>
+    <div class="check"><b>Проверка:</b> ping 192.168.0.111 проходит; в Proxmox у ВМ отображается IP.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">1.3</span>
+    <h3>Поставить СУБД и создать базу</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Кодировка сразу utf8mb4: Zabbix 8.0 LTS корректно работает только с ней, а старая база в utf8. Пароль — случайный, не «zabbix», как сейчас.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="apt -y install mariadb-server
+PW=$(openssl rand -base64 24)
+echo &quot;пароль БД: $PW&quot;   # записать в Keychain, в файлы не класть
+mysql -uroot &lt;&lt;SQL
+CREATE DATABASE zabbix CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+CREATE USER zabbix@localhost IDENTIFIED BY '$PW';
+GRANT ALL ON zabbix.* TO zabbix@localhost;
+SET GLOBAL log_bin_trust_function_creators = 1;
+SQL">копировать</button><pre>apt -y install mariadb-server
+PW=$(openssl rand -base64 24)
+echo &quot;пароль БД: $PW&quot;   # записать в Keychain, в файлы не класть
+mysql -uroot &lt;&lt;SQL
+CREATE DATABASE zabbix CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+CREATE USER zabbix@localhost IDENTIFIED BY &#x27;$PW&#x27;;
+GRANT ALL ON zabbix.* TO zabbix@localhost;
+SET GLOBAL log_bin_trust_function_creators = 1;
+SQL</pre></div>
+    <div class="check"><b>Проверка:</b> SHOW CREATE DATABASE zabbix содержит utf8mb4.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">1.4</span>
+    <h3>Поднять лимиты СУБД под импорт</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">На старом сервере max_allowed_packet = 1 МБ. С таким значением импорт истории оборвётся на первой же крупной строке.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="cat &gt;&gt; /etc/mysql/mariadb.conf.d/99-zabbix.cnf &lt;&lt;CNF
+[mysqld]
+max_allowed_packet = 64M
+innodb_buffer_pool_size = 4G
+innodb_file_per_table = ON
+CNF
+systemctl restart mariadb
+mysql -uroot -e &quot;SHOW VARIABLES LIKE 'max_allowed_packet'&quot;">копировать</button><pre>cat &gt;&gt; /etc/mysql/mariadb.conf.d/99-zabbix.cnf &lt;&lt;CNF
+[mysqld]
+max_allowed_packet = 64M
+innodb_buffer_pool_size = 4G
+innodb_file_per_table = ON
+CNF
+systemctl restart mariadb
+mysql -uroot -e &quot;SHOW VARIABLES LIKE &#x27;max_allowed_packet&#x27;&quot;</pre></div>
+    <div class="check"><b>Проверка:</b> max_allowed_packet = 67108864.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">1.5</span>
+    <h3>Установить Zabbix 8.0 LTS</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Ubuntu 22.04 входит в матрицу поддержки Zabbix 8.0 — проверено в репозитории.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="wget https://repo.zabbix.com/zabbix/8.0/release/ubuntu/pool/main/z/zabbix-release/\
+zabbix-release_8.0-0.2+ubuntu22.04_all.deb
+dpkg -i zabbix-release_8.0-*.deb &amp;&amp; apt update
+apt -y install zabbix-server-mysql zabbix-frontend-php zabbix-nginx-conf \
+               zabbix-sql-scripts zabbix-agent2 fping snmp unixodbc
+zabbix_server -V">копировать</button><pre>wget https://repo.zabbix.com/zabbix/8.0/release/ubuntu/pool/main/z/zabbix-release/\
+zabbix-release_8.0-0.2+ubuntu22.04_all.deb
+dpkg -i zabbix-release_8.0-*.deb &amp;&amp; apt update
+apt -y install zabbix-server-mysql zabbix-frontend-php zabbix-nginx-conf \
+               zabbix-sql-scripts zabbix-agent2 fping snmp unixodbc
+zabbix_server -V</pre></div>
+    <div class="check"><b>Проверка:</b> zabbix_server -V показывает 8.0.x.</div>
+  </div></div><h2 id="s2">Перенос базы</h2><div class="stage-note">Переносится вся база целиком, с историей за 90 дней и трендами за год. Шаг 2.4 необратим — перед ним снимок ВМ.</div><div class="step">
+  <div class="step-head"><span class="num">2.1</span>
+    <h3>Перенести дамп на новую машину</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Передаётся 300–400 МБ по локальной сети.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="scp root@192.168.0.110:/root/zabbix34-*.sql.gz /root/
+scp root@192.168.0.110:/root/zabbix34-files-*.tar.gz /root/
+ls -lh /root/zabbix34-*">копировать</button><pre>scp root@192.168.0.110:/root/zabbix34-*.sql.gz /root/
+scp root@192.168.0.110:/root/zabbix34-files-*.tar.gz /root/
+ls -lh /root/zabbix34-*</pre></div>
+    <div class="check"><b>Проверка:</b> Оба архива на месте, размеры совпадают с исходными.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">2.2</span>
+    <h3>Импортировать базу с конвертацией кодировки</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Дамп снят в utf8, а база создана в utf8mb4 — объявления кодировки заменяются на лету, иначе таблицы вернутся к старой кодировке.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="zcat /root/zabbix34-*.sql.gz \
+  | sed -e 's/CHARSET=utf8 /CHARSET=utf8mb4 /g' \
+        -e 's/CHARSET=utf8;/CHARSET=utf8mb4;/g' \
+        -e 's/COLLATE=utf8_bin/COLLATE=utf8mb4_bin/g' \
+  | mysql -uroot zabbix
+mysql -uroot zabbix -e &quot;SELECT COUNT(*) FROM history; SELECT COUNT(*) FROM hosts;&quot;">копировать</button><pre>zcat /root/zabbix34-*.sql.gz \
+  | sed -e &#x27;s/CHARSET=utf8 /CHARSET=utf8mb4 /g&#x27; \
+        -e &#x27;s/CHARSET=utf8;/CHARSET=utf8mb4;/g&#x27; \
+        -e &#x27;s/COLLATE=utf8_bin/COLLATE=utf8mb4_bin/g&#x27; \
+  | mysql -uroot zabbix
+mysql -uroot zabbix -e &quot;SELECT COUNT(*) FROM history; SELECT COUNT(*) FROM hosts;&quot;</pre></div>
+    <div class="check"><b>Проверка:</b> 140 таблиц; число строк history совпадает со старым сервером; SHOW TABLE STATUS показывает utf8mb4_bin.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">2.3</span>
+    <h3>Прописать базу в конфигурации сервера</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Переносим параметры, отличающиеся от стандартных: они подобраны под текущую нагрузку и на новом сервере нужны те же.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="cat &gt;&gt; /etc/zabbix/zabbix_server.conf &lt;&lt;CFG
+DBPassword=&lt;пароль из шага 1.3&gt;
+StartPollers=20
+StartPollersUnreachable=10
+StartPingers=5
+StartDiscoverers=5
+StartHTTPPollers=5
+CacheSize=256M
+Timeout=30
+CFG">копировать</button><pre>cat &gt;&gt; /etc/zabbix/zabbix_server.conf &lt;&lt;CFG
+DBPassword=&lt;пароль из шага 1.3&gt;
+StartPollers=20
+StartPollersUnreachable=10
+StartPingers=5
+StartDiscoverers=5
+StartHTTPPollers=5
+CacheSize=256M
+Timeout=30
+CFG</pre></div>
+    <div class="check"><b>Проверка:</b> Файл без опечаток; пароль совпадает с созданным.</div>
+  </div></div><div class="step irreversible">
+  <div class="step-head"><span class="num">2.4</span>
+    <h3>Запустить сервер — пойдёт апгрейд схемы 3.4 → 8.0</h3>
+    <span class="tag tag-irr">необратимо</span></div>
+  <div class="step-body">
+    <p class="why">Ключевой шаг. Zabbix 8.0 поддерживает прямой апгрейд начиная с версии 2.0, поэтому промежуточные версии не нужны. На 11 млн строк истории займёт от 30 до 90 минут. Старый сервер в это время продолжает работать.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="ssh root@192.168.0.149 'qm snapshot 141 before-db-upgrade'   # снимок ДО запуска
+systemctl start zabbix-server
+tail -f /var/log/zabbix/zabbix_server.log | grep -i 'database upgrade'">копировать</button><pre>ssh root@192.168.0.149 &#x27;qm snapshot 141 before-db-upgrade&#x27;   # снимок ДО запуска
+systemctl start zabbix-server
+tail -f /var/log/zabbix/zabbix_server.log | grep -i &#x27;database upgrade&#x27;</pre></div>
+    <div class="check"><b>Проверка:</b> В логе «database upgrade fully completed»; SELECT mandatory FROM dbversion показывает версию 8.0, а не 3040000.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">2.5</span>
+    <h3>Вернуть внешние скрипты</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Скрипты в базе не хранятся. Пять из восьми обращаются к Oracle через sqlplus или cx_Oracle, им нужен клиент либо переписывание.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="tar xzf /root/zabbix34-files-*.tar.gz -C /
+chown -R zabbix:zabbix /usr/lib/zabbix/externalscripts
+chmod 750 /usr/lib/zabbix/externalscripts/*
+ls -l /usr/lib/zabbix/externalscripts/">копировать</button><pre>tar xzf /root/zabbix34-files-*.tar.gz -C /
+chown -R zabbix:zabbix /usr/lib/zabbix/externalscripts
+chmod 750 /usr/lib/zabbix/externalscripts/*
+ls -l /usr/lib/zabbix/externalscripts/</pre></div>
+    <div class="check"><b>Проверка:</b> 8 скриптов на месте, владелец zabbix, права на запуск.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">2.6</span>
+    <h3>Портировать pyora.py на Python 3</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Единственная работа, требующая написания кода: скрипт написан на Python 2.7 с cx_Oracle, а в Ubuntu 22.04 интерпретатора python2 нет. Библиотека oracledb в тонком режиме не требует Oracle Instant Client.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="apt -y install python3-pip
+pip3 install oracledb
+# в скрипте: import cx_Oracle  →  import oracledb as cx_Oracle
+#            print &quot;x&quot;        →  print(&quot;x&quot;)
+#            cx_Oracle.connect(...) работает без клиента в тонком режиме
+sudo -u zabbix /usr/lib/zabbix/externalscripts/pyora.py --help">копировать</button><pre>apt -y install python3-pip
+pip3 install oracledb
+<span class="c"># в скрипте: import cx_Oracle  →  import oracledb as cx_Oracle</span>
+<span class="c">#            print &quot;x&quot;        →  print(&quot;x&quot;)</span>
+<span class="c">#            cx_Oracle.connect(...) работает без клиента в тонком режиме</span>
+sudo -u zabbix /usr/lib/zabbix/externalscripts/pyora.py --help</pre></div>
+    <div class="check"><b>Проверка:</b> Скрипт запускается и возвращает значение, а не трассировку.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">2.7</span>
+    <h3>Вернуть отправку в Telegram</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Alert-скрипт содержит токен бота. Канал и действие уже перенеслись вместе с базой — их создавать заново не нужно.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="chmod 750 /usr/lib/zabbix/alertscripts/telegram_bot.sh
+chown zabbix:zabbix /usr/lib/zabbix/alertscripts/telegram_bot.sh
+sudo -u zabbix /usr/lib/zabbix/alertscripts/telegram_bot.sh \
+     -1001544437696 'Проверка' 'Тест с нового сервера Zabbix 8.0'">копировать</button><pre>chmod 750 /usr/lib/zabbix/alertscripts/telegram_bot.sh
+chown zabbix:zabbix /usr/lib/zabbix/alertscripts/telegram_bot.sh
+sudo -u zabbix /usr/lib/zabbix/alertscripts/telegram_bot.sh \
+     -1001544437696 &#x27;Проверка&#x27; &#x27;Тест с нового сервера Zabbix 8.0&#x27;</pre></div>
+    <div class="check"><b>Проверка:</b> Сообщение появилось в канале «Zabbix Alert: Unisim-Soft&amp;Coninfo».</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">2.8</span>
+    <h3>Включить веб-интерфейс</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Фронтенд на nginx + PHP-FPM 8.1 из репозитория Ubuntu.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="sed -i 's/# listen 8080;/listen 80;/; s/# server_name example.com;/server_name 192.168.0.111;/' \
+    /etc/zabbix/nginx.conf
+systemctl restart nginx php8.1-fpm
+systemctl enable zabbix-server zabbix-agent2 nginx php8.1-fpm
+curl -I http://192.168.0.111/">копировать</button><pre>sed -i &#x27;s/# listen 8080;/listen 80;/; s/# server_name example.com;/server_name 192.168.0.111;/&#x27; \
+    /etc/zabbix/nginx.conf
+systemctl restart nginx php8.1-fpm
+systemctl enable zabbix-server zabbix-agent2 nginx php8.1-fpm
+curl -I http://192.168.0.111/</pre></div>
+    <div class="check"><b>Проверка:</b> Открывается веб-интерфейс; вход существующими учётными записями работает — пароли перенеслись вместе с базой.</div>
+  </div></div><h2 id="s3">Параллельная работа</h2><div class="stage-note">Две недели оба сервера работают одновременно. Это и проверка, и путь отката.</div><div class="step">
+  <div class="step-head"><span class="num">3.1</span>
+    <h3>Направить агенты на оба сервера</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Пассивные проверки заработают сразу, активным (282 элемента) нужен ServerActive. Пока указаны оба сервера, данные собирают обе системы.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="# на каждом наблюдаемом хосте, в /etc/zabbix/zabbix_agentd.conf:
+#   Server=192.168.0.110,192.168.0.111
+#   ServerActive=192.168.0.110,192.168.0.111
+systemctl restart zabbix-agent">копировать</button><pre><span class="c"># на каждом наблюдаемом хосте, в /etc/zabbix/zabbix_agentd.conf:</span>
+<span class="c">#   Server=192.168.0.110,192.168.0.111</span>
+<span class="c">#   ServerActive=192.168.0.110,192.168.0.111</span>
+systemctl restart zabbix-agent</pre></div>
+    <div class="check"><b>Проверка:</b> На новом сервере элементы получают значения; в «Последних данных» идут числа.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">3.2</span>
+    <h3>Сверить полноту сбора</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Расхождение больше 5 % означает, что часть проверок на новом сервере не работает — искать причину до переключения.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="# на обоих серверах:
+mysql -uroot zabbix -e &quot;SELECT COUNT(*) FROM items WHERE status=0 AND state=0&quot;
+# и сравнить значения">копировать</button><pre><span class="c"># на обоих серверах:</span>
+mysql -uroot zabbix -e &quot;SELECT COUNT(*) FROM items WHERE status=0 AND state=0&quot;
+<span class="c"># и сравнить значения</span></pre></div>
+    <div class="check"><b>Проверка:</b> Число работающих элементов отличается не более чем на 5 %.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">3.3</span>
+    <h3>Проверить приёмочными тестами</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Готовый прогон проверяет покрытие, доставку уведомлений и безопасность.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="cd /Users/pt/Projects.AI/Artgranit-netmon
+# в modules/netmon/sources.py заменить ZBX_URL на новый сервер
+python modules/netmon/scripts/netmon_selftest.py --json /tmp/after.json">копировать</button><pre>cd /Users/pt/Projects.AI/Artgranit-netmon
+<span class="c"># в modules/netmon/sources.py заменить ZBX_URL на новый сервер</span>
+python modules/netmon/scripts/netmon_selftest.py --json /tmp/after.json</pre></div>
+    <div class="check"><b>Проверка:</b> 0 отказов. Замечание SEC-07 про устаревшую версию должно исчезнуть.</div>
+  </div></div><h2 id="s4">Переключение</h2><div class="stage-note">Старый сервер выводится из работы, но не удаляется.</div><div class="step">
+  <div class="step-head"><span class="num">4.1</span>
+    <h3>Остановить отправку уведомлений со старого сервера</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">Иначе два сервера будут слать в один канал дубли.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="# на СТАРОМ сервере, в веб-интерфейсе:
+#   Administration → Actions → Telegram → Disabled
+# либо через API">копировать</button><pre><span class="c"># на СТАРОМ сервере, в веб-интерфейсе:</span>
+<span class="c">#   Administration → Actions → Telegram → Disabled</span>
+<span class="c"># либо через API</span></pre></div>
+    <div class="check"><b>Проверка:</b> В канал приходит по одному сообщению на событие, а не по два.</div>
+  </div></div><div class="step">
+  <div class="step-head"><span class="num">4.2</span>
+    <h3>Убрать старый сервер из агентов</h3>
+    </div>
+  <div class="step-body">
+    <p class="why">После этого мониторинг полностью работает на новом сервере.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="# в /etc/zabbix/zabbix_agentd.conf оставить только новый:
+#   Server=192.168.0.111
+#   ServerActive=192.168.0.111
+systemctl restart zabbix-agent">копировать</button><pre><span class="c"># в /etc/zabbix/zabbix_agentd.conf оставить только новый:</span>
+<span class="c">#   Server=192.168.0.111</span>
+<span class="c">#   ServerActive=192.168.0.111</span>
+systemctl restart zabbix-agent</pre></div>
+    <div class="check"><b>Проверка:</b> На новом сервере данные продолжают поступать, на старом — прекратились.</div>
+  </div></div><div class="step irreversible">
+  <div class="step-head"><span class="num">4.3</span>
+    <h3>Остановить старый сервер, контейнер не удалять</h3>
+    <span class="tag tag-irr">необратимо</span></div>
+  <div class="step-body">
+    <p class="why">Контейнер остаётся выключенным как страховка. Удалять — не раньше чем через 90 дней и только после архивации.</p>
+    <div class="cmd"><button class="copy" onclick="cp(this)" data-cmd="ssh root@192.168.0.110 'systemctl stop zabbix-server &amp;&amp; systemctl disable zabbix-server'
+ssh root@192.168.0.149 'pct stop 101'">копировать</button><pre>ssh root@192.168.0.110 &#x27;systemctl stop zabbix-server &amp;&amp; systemctl disable zabbix-server&#x27;
+ssh root@192.168.0.149 &#x27;pct stop 101&#x27;</pre></div>
+    <div class="check"><b>Проверка:</b> Новый сервер собирает данные, уведомления приходят, старый выключен.</div>
+  </div></div>
+<h2>Если что-то пошло не так</h2>
+<p>Старый сервер работает до шага 4.3, поэтому откат почти всегда бесплатный.</p>
+<table>
+  <tr><th style="width:36%">Ситуация</th><th>Что делать</th><th style="width:90px">Время</th></tr>
+  <tr><td>Новый сервер не собирает данные</td><td>Продолжаем на старом, разбираемся без спешки</td><td>0 мин</td></tr>
+  <tr><td>Импорт базы упал</td><td>Удалить базу, создать заново, повторить шаг 2.2 — дамп не пострадал</td><td>40 мин</td></tr>
+  <tr><td><b>Апгрейд схемы (2.4) прервался</b></td><td>Восстановить снимок <code>before-db-upgrade</code> и повторить; при повторной неудаче — собирать систему из выгрузки шага 0.3</td><td>20 мин</td></tr>
+  <tr><td>Уведомления не уходят</td><td>Включить обратно действие на старом сервере</td><td>5 мин</td></tr>
+  <tr><td>Нужно вернуть всё</td><td>Запустить <code>zabbix-server</code> на CT 101, вернуть агентам старый адрес</td><td>30 мин</td></tr>
+</table>
+
+<div class="dangerbox"><b>Чего не делать.</b> Не удалять контейнер 101 и его
+дамп раньше чем через 90 дней. Не запускать оба сервера с включённым действием
+«Telegram» дольше необходимого — пойдут дубли. Не копировать файлы базы напрямую:
+на старом сервере <code>innodb_file_per_table = OFF</code>, все данные в общем
+<code>ibdata1</code>, перенос возможен только логическим дампом.</div>
+
+<h2>После миграции</h2>
+<p>Работы, которые логично сделать сразу, пока система в фокусе:</p>
+<ul>
+  <li><b>Вычистить мусор.</b> Вместе с базой перенеслись 72 неработающих элемента,
+      87 неопрашиваемых JMX и 13 выключенных хостов. По каждому — решение: чиним или удаляем.</li>
+  <li><b>Настроить резервное копирование.</b> Регулярного бэкапа базы Zabbix сейчас нет;
+      достаточно ежедневного дампа конфигурации (21 МБ) с хранением 30 копий.</li>
+  <li><b>Java gateway.</b> Поставить и вернуть JMX-мониторинг либо осознанно отказаться.</li>
+  <li><b>Шифрование агентов.</b> Zabbix 8.0 поддерживает PSK; сейчас трафик открыт.</li>
+  <li><b>Вынести мониторинг с PROXMOX3.</b> Сейчас падение гипервизора лишает и сервисов,
+      и наблюдения за ними.</li>
+</ul>
+
+<p style="color:var(--dim);font-size:13px;margin-top:28px">
+Документ сформирован 12.09.2026 из данных обследования боевых систем.
+Пересобрать: <code>python modules/netmon/scripts/netmon_migration_guide.py</code></p>
+
+</div>
+<script>
+function cp(b){
+  navigator.clipboard.writeText(b.dataset.cmd).then(() => {
+    const t = b.textContent; b.textContent = "скопировано";
+    setTimeout(() => b.textContent = t, 1400);
+  });
+}
+</script>
+</body></html>

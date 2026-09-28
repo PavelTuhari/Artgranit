@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} · Arhive site</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;background:#f6f8fb;color:#1e293b;font-size:14px}
+.top{background:#0d0d1a;color:#e2e8f0;padding:12px 18px;font-weight:700}
+.top a{color:#93c5fd;text-decoration:none;font-weight:400;margin-left:14px;font-size:13px}
+.wrap{max-width:1100px;margin:18px auto;padding:0 14px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px 18px;margin-bottom:16px}
+h3{margin:0 0 10px}
+.hint{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:8px 12px;font-size:12.5px;margin-bottom:10px}
+.btn{background:#1d4ed8;color:#fff;border:none;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-block}
+.btn.gray{background:#e2e8f0;color:#334155}
+.btn.green{background:#15803d}
+.btn-sm{border:1px solid #cbd5e1;background:#fff;border-radius:6px;padding:4px 8px;font-size:12px;cursor:pointer}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+th,td{padding:6px 7px;border-bottom:1px solid #f1f5f9;text-align:left;vertical-align:middle}
+th{color:#64748b;font-weight:600}
+td input,td select{padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font:inherit;font-size:12.5px;width:100%}
+.muted{color:#64748b}
+.toast{position:fixed;bottom:20px;right:16px;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;z-index:200;font-size:13px}
+.toast.err{background:#dc2626}
+.st-OK{color:#15803d;font-weight:700}.st-ERROR,.st-UPLOAD_ERR{color:#dc2626;font-weight:700}
+.st-UPLOAD_OK{color:#1d4ed8;font-weight:700}
+</style>
+</head>
+<body>
+
+<div class="top">{{ app_name }} · Arhive site (backup săptămânal)
+  <a href="/UNA.md/orasldev/biro26-backoffice">← Backoffice</a>
+  <a href="/UNA.md/orasldev/biro26-notify-settings">Setări</a>
+</div>
+
+<div class="wrap">
+  <div class="hint" style="margin-top:14px">
+    Arhivarea rulează <b>automat, săptămânal, noaptea</b> (duminică 03:30):
+    sursele Flask (prod + shop1), fișierele + bazele WordPress (officeplus / shop1 / shop2),
+    configurile nginx și systemd — <b>DOAR site-ul</b>, fără marfa din ERP Oracle și fără
+    imaginile produselor. Retenție: <b>strict ultimele 7 arhive + câte 1 pe fiecare lună</b>.
+    После создания архив копируется автоматически на местах FTP/SFTP из списка de mai jos.
+  </div>
+
+  <div class="card">
+    <h3>📦 Arhive disponibile
+      <button class="btn green" style="float:right" onclick="runNow()">▶ Rulează acum · Запустить сейчас</button>
+      <button class="btn-sm" style="float:right;margin-right:8px" onclick="loadArch()">↻</button></h3>
+    <table>
+      <thead><tr><th>Fișier</th><th style="width:110px">Mărime</th>
+        <th style="width:150px">Creat</th><th style="width:130px"></th></tr></thead>
+      <tbody id="arch"><tr><td colspan="4" class="muted">…</td></tr></tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>🌐 Destinații FTP / SFTP (copii externe automate)</h3>
+    <div class="hint">Fiecare arhivă nouă se încarcă automat pe TOATE destinațiile «Activ».
+      Parola se salvează doar la completare (câmp gol = rămâne cea veche).
+      Testați cu «▶ Rulează acum» și verificați jurnalul.</div>
+    <table>
+      <thead><tr><th style="width:36px">ID</th><th>Nume</th><th style="width:70px">Proto</th>
+        <th>Host</th><th style="width:64px">Port</th><th>User</th><th>Parolă</th>
+        <th>Dir remote</th><th style="width:64px">Activ</th><th style="width:88px"></th></tr></thead>
+      <tbody id="dest"></tbody>
+    </table>
+    <button class="btn gray" style="margin-top:8px" onclick="addDest()">➕ Adaugă destinație</button>
+  </div>
+
+  <div class="card">
+    <h3>🧾 Jurnal <button class="btn-sm" style="float:right" onclick="loadLog()">↻</button></h3>
+    <table>
+      <thead><tr><th style="width:130px">Data</th><th>Fișier</th><th style="width:80px">MB</th>
+        <th style="width:110px">Status</th><th>Notă</th></tr></thead>
+      <tbody id="log"><tr><td colspan="5" class="muted">…</td></tr></tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+function toast(m, err) { const d = document.createElement('div');
+  d.className = 'toast' + (err ? ' err' : ''); d.textContent = m;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 5000); }
+async function j(url, opts) { opts = opts || {};
+  opts.headers = {'Content-Type': 'application/json'}; opts.credentials = 'include';
+  const r = await fetch(url, opts); const b = await r.json().catch(() => ({}));
+  if (!b.success && b.error) toast(b.error, true); return b; }
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function loadArch() {
+  const r = await j('/api/biro26/backup/archives');
+  document.getElementById('arch').innerHTML = (r.data || []).map(a =>
+    '<tr><td>' + esc(a.name) + '</td><td>' + a.size_mb + ' MB</td>' +
+    '<td>' + esc(a.created) + '</td>' +
+    '<td><a class="btn" style="padding:4px 10px" href="/api/biro26/backup/download/' +
+    encodeURIComponent(a.name) + '">⬇ Descarcă</a></td></tr>').join('') ||
+    '<tr><td colspan="4" class="muted">Încă nu există arhive — porniți prima cu «Rulează acum»</td></tr>';
+}
+async function runNow() {
+  const r = await j('/api/biro26/backup/run', {method: 'POST', body: '{}'});
+  if (r.success) { toast('Arhivarea a pornit în fundal (1–3 min) · Архивация запущена');
+    setTimeout(() => { loadArch(); loadLog(); }, 90000); }
+}
+
+let DEST = [];
+function destRow(d, i) {
+  return '<tr data-i="' + i + '">' +
+    '<td class="muted">' + (d.id || 'nou') + '</td>' +
+    '<td><input value="' + esc(d.name || '') + '" data-f="name"></td>' +
+    '<td><select data-f="proto"><option value="sftp"' + (d.proto !== 'ftp' ? ' selected' : '') + '>sftp</option>' +
+      '<option value="ftp"' + (d.proto === 'ftp' ? ' selected' : '') + '>ftp</option></select></td>' +
+    '<td><input value="' + esc(d.host || '') + '" data-f="host"></td>' +
+    '<td><input value="' + esc(d.port || '') + '" data-f="port" placeholder="22"></td>' +
+    '<td><input value="' + esc(d.username || '') + '" data-f="username"></td>' +
+    '<td><input type="password" value="" data-f="passwd" placeholder="' + (d.id ? '(neschimbată)' : '') + '"></td>' +
+    '<td><input value="' + esc(d.remote_dir || '/') + '" data-f="remote_dir"></td>' +
+    '<td><select data-f="enabled"><option value="1"' + (d.enabled !== '0' ? ' selected' : '') + '>Da</option>' +
+      '<option value="0"' + (d.enabled === '0' ? ' selected' : '') + '>Nu</option></select></td>' +
+    '<td><button class="btn-sm" onclick="saveDest(' + i + ')">💾</button> ' +
+    (d.id ? '<button class="btn-sm" onclick="delDest(' + d.id + ')">🗑</button>' : '') + '</td></tr>';
+}
+function renderDest() { document.getElementById('dest').innerHTML = DEST.map(destRow).join(''); }
+function addDest() { DEST.push({proto: 'sftp', enabled: '1', remote_dir: '/'}); renderDest(); }
+async function saveDest(i) {
+  const tr = document.querySelector('#dest tr[data-i="' + i + '"]');
+  const d = DEST[i];
+  tr.querySelectorAll('[data-f]').forEach(el => d[el.dataset.f] = el.value);
+  if (!d.passwd) delete d.passwd;
+  const r = await j('/api/biro26/backup/dest', {method: 'POST', body: JSON.stringify(d)});
+  if (r.success) { toast('Salvat ✓'); loadDest(); }
+}
+async function delDest(id) {
+  if (!confirm('Ștergeți destinația?')) return;
+  const r = await j('/api/biro26/backup/dest/' + id, {method: 'DELETE'});
+  if (r.success) { toast('Șters'); loadDest(); }
+}
+async function loadDest() { const r = await j('/api/biro26/backup/dest');
+  DEST = r.data || []; renderDest(); }
+
+async function loadLog() {
+  const r = await j('/api/biro26/backup/log');
+  document.getElementById('log').innerHTML = (r.data || []).map(g =>
+    '<tr><td>' + esc(g.ts) + '</td><td>' + esc(g.file_name) + '</td>' +
+    '<td>' + (g.size_mb || '') + '</td>' +
+    '<td class="st-' + esc(g.status) + '">' + esc(g.status) + '</td>' +
+    '<td style="font-size:11.5px">' + esc(g.note) + '</td></tr>').join('') ||
+    '<tr><td colspan="5" class="muted">—</td></tr>';
+}
+
+loadArch(); loadDest(); loadLog();
+</script>
+</body>
+</html>

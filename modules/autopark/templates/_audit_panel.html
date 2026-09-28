@@ -1,0 +1,226 @@
+{# Autopark -- панель аудита контура.
+
+   Отдельный файл, подключается одной строкой. Наружу -- одна функция
+   loadAuditPanel().
+
+   Панель не дублирует книгу Excel: здесь заключение, матрица контролей
+   и реестр находок, то есть то, ради чего отчёт открывают. Расшифровка
+   каждого отклонения -- в книге, её выгружают кнопкой. #}
+
+<style>
+.aud-verdict { border-radius: 12px; padding: 20px 24px; margin-bottom: 18px;
+  border: 1px solid #e2e8f0; border-left: 6px solid #94a3b8; background: #fff; }
+.aud-verdict.lvl0, .aud-verdict.lvl1 { border-left-color: #16a34a; }
+.aud-verdict.lvl2 { border-left-color: #f59e0b; }
+.aud-verdict.lvl3 { border-left-color: #dc2626; }
+.aud-verdict h2 { font-size: 22px; margin: 0 0 8px; letter-spacing: -.02em; }
+.aud-verdict.lvl0 h2, .aud-verdict.lvl1 h2 { color: #15803d; }
+.aud-verdict.lvl2 h2 { color: #b45309; }
+.aud-verdict.lvl3 h2 { color: #b91c1c; }
+.aud-verdict p { color: #475569; font-size: 14.5px; line-height: 1.55; margin: 0; }
+.aud-label { display: inline-block; font-size: 11px; font-weight: 700;
+  letter-spacing: .5px; text-transform: uppercase; padding: 3px 9px;
+  border-radius: 999px; background: #fee2e2; color: #b91c1c; margin-bottom: 10px; }
+.aud-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 14px; margin-bottom: 18px; }
+.aud-kpi { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+  padding: 14px 16px; }
+.aud-kpi .cap { font-size: 11px; text-transform: uppercase; letter-spacing: .5px;
+  color: #64748b; font-weight: 600; }
+.aud-kpi .val { font-size: 27px; font-weight: 700; color: #0f172a; margin-top: 4px;
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em; }
+.aud-kpi .note { font-size: 11.5px; color: #94a3b8; margin-top: 3px; }
+.aud-kpi.bad .val { color: #b91c1c; }
+.aud-kpi.warn .val { color: #b45309; }
+.aud-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;
+  align-items: center; }
+.aud-actions label { font-size: 13px; color: #475569; }
+.aud-actions input[type=date] { padding: 6px 9px; border: 1px solid #cbd5e1;
+  border-radius: 7px; font-size: 13px; }
+.aud-sev { display: inline-block; font-size: 11.5px; font-weight: 700;
+  padding: 2px 9px; border-radius: 999px; }
+.sev-Высокий { background: #fee2e2; color: #b91c1c; }
+.sev-Средний { background: #fef3c7; color: #b45309; }
+.sev-Низкий  { background: #dcfce7; color: #15803d; }
+.rate-ok   { background: #dcfce7; color: #15803d; }
+.rate-warn { background: #fef3c7; color: #b45309; }
+.rate-bad  { background: #fee2e2; color: #b91c1c; }
+.rate-na   { background: #e2e8f0; color: #475569; }
+.aud-find { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+  padding: 16px 18px; margin-bottom: 12px; border-left: 4px solid #94a3b8; }
+.aud-find.Высокий { border-left-color: #dc2626; }
+.aud-find.Средний { border-left-color: #f59e0b; }
+.aud-find.Низкий  { border-left-color: #16a34a; }
+.aud-find h4 { margin: 0 0 8px; font-size: 15.5px; color: #0f172a; }
+.aud-find .meta { font-size: 11.5px; color: #94a3b8; margin-bottom: 8px; }
+.aud-find dl { margin: 0; font-size: 13.5px; line-height: 1.5; }
+.aud-find dt { font-weight: 600; color: #334155; margin-top: 6px; }
+.aud-find dd { margin: 2px 0 0; color: #475569; }
+.aud-lim { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;
+  padding: 14px 18px; font-size: 13px; color: #475569; line-height: 1.6; }
+.aud-lim h3 { font-size: 14px; color: #0f172a; margin: 0 0 8px; }
+.aud-lim li { margin-left: 18px; margin-bottom: 5px; }
+</style>
+
+<section class="panel" id="panel-audit">
+  <h1>Аудит контура</h1>
+  <div class="crumbs">
+    Независимый пересчёт по всей популяции документов: можно ли доверять
+    числу, которое контур выдал бухгалтерии и руководству
+  </div>
+
+  <div class="aud-actions">
+    <label>Период с <input type="date" id="audFrom"></label>
+    <label>по <input type="date" id="audTo"></label>
+    <button class="btn" onclick="loadAuditPanel()">Проверить</button>
+    <button class="btn" onclick="downloadAudit()">Выгрузить книгу Excel</button>
+    <a class="btn" href="{{ url_for('autopark.audit_demo_xlsx') }}">Пример на сгенерированном наборе</a>
+    <a class="btn" href="{{ url_for('autopark.doc', slug='audit') }}">Методика</a>
+  </div>
+
+  <div id="audBody">Нажмите «Проверить» — контур будет пересчитан за выбранный период.</div>
+</section>
+
+<script>
+function audNum(v, digits) {
+  if (v === null || v === undefined) return '—';
+  return Number(v).toLocaleString('ru-RU', {
+    minimumFractionDigits: digits || 0, maximumFractionDigits: digits || 0 });
+}
+
+function audRateClass(rating) {
+  if (rating === 'Эффективен') return 'rate-ok';
+  if (rating === 'Требует улучшения') return 'rate-warn';
+  if (rating === 'Неэффективен') return 'rate-bad';
+  return 'rate-na';
+}
+
+/* Склонение: «3 рейсов» на экране, который читает совет директоров,
+   обесценивает всё остальное в отчёте. */
+function audPlural(n, one, few, many) {
+  var a = Math.abs(n) % 100, b = a % 10;
+  if (a > 10 && a < 20) return many;
+  if (b > 1 && b < 5) return few;
+  if (b === 1) return one;
+  return many;
+}
+
+function downloadAudit() {
+  var q = [];
+  var f = document.getElementById('audFrom').value;
+  var t = document.getElementById('audTo').value;
+  if (f) q.push('date_from=' + f);
+  if (t) q.push('date_to=' + t);
+  window.location = '{{ url_for("autopark.audit_workbook") }}' +
+    (q.length ? '?' + q.join('&') : '');
+}
+
+function loadAuditPanel() {
+  var body = document.getElementById('audBody');
+  body.innerHTML = '<div class="muted">Пересчитываю популяцию документов…</div>';
+  var q = [];
+  var f = document.getElementById('audFrom').value;
+  var t = document.getElementById('audTo').value;
+  if (f) q.push('date_from=' + f);
+  if (t) q.push('date_to=' + t);
+
+  fetch('{{ url_for("autopark.api_audit") }}' + (q.length ? '?' + q.join('&') : ''))
+    .then(function (r) { return r.json(); })
+    .then(function (res) {
+      if (!res.success) {
+        body.innerHTML = '<div class="aud-verdict lvl3"><h2>Проверка не выполнена</h2>' +
+          '<p>' + (res.message || '') + '</p></div>';
+        return;
+      }
+      var d = res.data, op = d.opinion, fa = d.facts;
+      var html = '';
+
+      if (d.data_label && d.data_label.indexOf('БОЕВ') === -1) {
+        html += '<div class="aud-label">' + d.data_label + '</div>';
+      }
+
+      html += '<div class="aud-verdict lvl' + op.level + '">' +
+        '<h2>' + op.title + '</h2><p>' + op.text + '</p></div>';
+
+      html += '<div class="aud-kpis">' +
+        audKpi('Проверено объектов', audNum(fa.total_tested),
+               'полная популяция, не выборка', '') +
+        audKpi('Выявлено отклонений', audNum(fa.total_exceptions),
+               'каждое расшифровано в книге', 'bad') +
+        audKpi('Доля отклонений', fa.exception_rate_pct.toFixed(2) + ' %',
+               'к проверенным объектам', 'warn') +
+        audKpi('Денежная оценка', audNum(fa.impact_lei, 2) + ' лей',
+               'лишний пробег, перерасход, потери', 'bad') +
+        audKpi('Находки', op.high + ' / ' + op.medium + ' / ' + op.low,
+               'высокой / средней / низкой значимости', '') +
+        audKpi('Контроли', op.controls_ok + ' из ' + op.controls_total,
+               'признаны эффективными', '') +
+        '</div>';
+
+      html += '<h2>Матрица контролей</h2><div class="table-wrap"><table>' +
+        '<thead><tr><th>Код</th><th>Контроль</th><th>Дизайн</th>' +
+        '<th>Эффективность</th><th>Итог</th><th>Проверено</th>' +
+        '<th>Отклонений</th></tr></thead><tbody>';
+      d.controls.forEach(function (c) {
+        html += '<tr><td>' + c.id + '</td><td>' + c.title + '</td>' +
+          '<td>' + c.design + '</td>' +
+          '<td><span class="aud-sev ' + audRateClass(c.operating) + '">' +
+            c.operating + '</span></td>' +
+          '<td><span class="aud-sev ' + audRateClass(c.rating) + '">' +
+            c.rating + '</span></td>' +
+          '<td>' + audNum(c.tested) + '</td>' +
+          '<td>' + audNum(c.exceptions) + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+
+      if (d.findings.length) {
+        html += '<h2>Находки — ' + d.findings.length + ' ' +
+          audPlural(d.findings.length, 'находка', 'находки', 'находок') +
+          '</h2>';
+        d.findings.forEach(function (fnd) {
+          html += '<div class="aud-find ' + fnd.severity + '">' +
+            '<h4>' + fnd.id + ' · ' + fnd.title +
+            ' <span class="aud-sev sev-' + fnd.severity + '">' +
+            fnd.severity + '</span></h4>' +
+            '<div class="meta">контроль ' + fnd.control_id +
+            ', процедура ' + fnd.test_id + '</div><dl>' +
+            '<dt>Наблюдение</dt><dd>' + fnd.observation + '</dd>' +
+            '<dt>Риск</dt><dd>' + fnd.risk + '</dd>' +
+            '<dt>Рекомендация</dt><dd>' + fnd.recommendation + '</dd>' +
+            '</dl></div>';
+        });
+      } else {
+        html += '<div class="aud-verdict lvl0"><h2>Отклонений не выявлено</h2>' +
+          '<p>Все процедуры прошли без отклонений на всей популяции ' +
+          'документов периода.</p></div>';
+      }
+
+      html += '<div class="aud-lim"><h3>Что проверка не подтверждает</h3><ul>';
+      d.limitations.forEach(function (l) { html += '<li>' + l + '</li>'; });
+      html += '</ul></div>';
+
+      body.innerHTML = html;
+    })
+    .catch(function (e) {
+      body.innerHTML = '<div class="aud-verdict lvl3"><h2>Проверка не выполнена</h2>' +
+        '<p>' + e + '</p></div>';
+    });
+}
+
+function audKpi(cap, val, note, cls) {
+  return '<div class="aud-kpi ' + (cls || '') + '"><div class="cap">' + cap +
+    '</div><div class="val">' + val + '</div><div class="note">' + note +
+    '</div></div>';
+}
+
+(function () {
+  var to = new Date();
+  var from = new Date(to.getTime() - 90 * 864e5);
+  var iso = function (d) { return d.toISOString().slice(0, 10); };
+  document.addEventListener('DOMContentLoaded', function () {
+    var f = document.getElementById('audFrom'), t = document.getElementById('audTo');
+    if (f && !f.value) f.value = iso(from);
+    if (t && !t.value) t.value = iso(to);
+  });
+})();
+</script>

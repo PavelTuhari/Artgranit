@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">
+  <defs>
+    <radialGradient id="wg" cx="42%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#d4a574"/>
+      <stop offset="60%" stop-color="#a0744a"/>
+      <stop offset="100%" stop-color="#7a5530"/>
+    </radialGradient>
+    <radialGradient id="wh" cx="38%" cy="32%" r="22%">
+      <stop offset="0%" stop-color="rgba(255,255,255,.2)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+    </radialGradient>
+  </defs>
+  <!-- Walnut shell -->
+  <ellipse cx="60" cy="60" rx="32" ry="28" fill="url(#wg)"/>
+  <!-- Shell texture lines -->
+  <path d="M60 32 Q55 46 60 60 Q65 74 60 88" stroke="rgba(0,0,0,.15)" stroke-width="1.5" fill="none"/>
+  <path d="M38 48 Q50 55 60 52 Q70 49 82 48" stroke="rgba(0,0,0,.12)" stroke-width="1.2" fill="none"/>
+  <path d="M36 65 Q48 70 60 68 Q72 66 84 65" stroke="rgba(0,0,0,.12)" stroke-width="1.2" fill="none"/>
+  <!-- Brain-like surface detail -->
+  <path d="M45 42 Q52 38 55 45" stroke="rgba(0,0,0,.1)" stroke-width="1" fill="none"/>
+  <path d="M65 42 Q68 38 75 44" stroke="rgba(0,0,0,.1)" stroke-width="1" fill="none"/>
+  <path d="M42 72 Q50 76 58 72" stroke="rgba(0,0,0,.1)" stroke-width="1" fill="none"/>
+  <path d="M62 74 Q70 78 78 72" stroke="rgba(0,0,0,.1)" stroke-width="1" fill="none"/>
+  <!-- Highlight -->
+  <ellipse cx="48" cy="48" rx="10" ry="12" fill="url(#wh)"/>
+  <!-- Seam -->
+  <path d="M60 32 L60 88" stroke="rgba(90,60,30,.3)" stroke-width="2" stroke-dasharray="3 2"/>
+</svg>

@@ -1,0 +1,55 @@
+-- ============================================================
+-- Nufarul: представления для оператора и отчётов
+-- ============================================================
+
+CREATE OR REPLACE VIEW V_NUF_ORDERS AS
+SELECT
+  o.ID,
+  o.ORDER_NUMBER,
+  o.BARCODE,
+  o.CLIENT_NAME,
+  o.CLIENT_PHONE,
+  o.STATUS_ID,
+  s.CODE AS STATUS_CODE,
+  s.NAME_RO AS STATUS_NAME_RO,
+  s.NAME_RU AS STATUS_NAME_RU,
+  o.TOTAL_AMOUNT,
+  o.NOTES,
+  o.CREATED_AT,
+  o.UPDATED_AT,
+  o.CREATED_BY
+FROM NUF_ORDERS o
+JOIN NUF_ORDER_STATUSES s ON s.ID = o.STATUS_ID;
+
+CREATE OR REPLACE VIEW V_NUF_ORDER_ITEMS AS
+SELECT
+  i.ID,
+  i.ORDER_ID,
+  i.SERVICE_ID,
+  sv.NAME AS SERVICE_NAME,
+  sv.UNIT AS SERVICE_UNIT,
+  i.QTY,
+  i.PRICE,
+  i.AMOUNT,
+  i.NOTES
+FROM NUF_ORDER_ITEMS i
+JOIN NUF_SERVICES sv ON sv.ID = i.SERVICE_ID;
+
+-- Последние заказы для оператора (по дате создания)
+CREATE OR REPLACE VIEW V_NUF_ORDERS_RECENT AS
+SELECT * FROM (
+  SELECT
+    o.ID,
+    o.ORDER_NUMBER,
+    o.BARCODE,
+    o.CLIENT_NAME,
+    o.CLIENT_PHONE,
+    s.CODE AS STATUS_CODE,
+    s.NAME_RO AS STATUS_NAME,
+    o.TOTAL_AMOUNT,
+    o.CREATED_AT,
+    TO_CHAR(o.CREATED_AT, 'YYYY-MM-DD HH24:MI') AS CREATED_TIME
+  FROM NUF_ORDERS o
+  JOIN NUF_ORDER_STATUSES s ON s.ID = o.STATUS_ID
+  ORDER BY o.CREATED_AT DESC
+) WHERE ROWNUM <= 100;

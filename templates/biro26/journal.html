@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ app_name }} — Jurnal universal de documente</title>
+<!-- RO: FORMA UNIVERSALA (model aprobat, LightAccounting docs/UI_CONCEPT.md §3):
+     banda de filtre + 4 butoane, antet cu ACTIUNI si FORME DE TIPAR, grila
+     master, PATRU file de detaliu si jurnalul de executie jos.
+     Datele vin DOAR din tabelele Oracle existente (TMDB_DOCS, VMDB_ST201D/M,
+     VMDB_DOCS_OLE, XLOG, TMS_UNIVERS, YBIRO_CLIENT). -->
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    color:#1e293b;background:#f1f5f9}
+  header{background:#194681;color:#fff;padding:10px 18px;display:flex;
+    align-items:center;gap:16px;flex-wrap:wrap}
+  header b{font-size:16px}
+  header a{color:#cfe0ff;text-decoration:none;font-size:13px}
+  .wrap{padding:14px 18px 22px}
+  .card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;
+    padding:12px 14px;margin-bottom:12px}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  input,select{padding:7px 9px;border:1px solid #cbd5e1;border-radius:7px;font-size:13.5px}
+  button{padding:7px 14px;border:1px solid #cbd5e1;border-radius:7px;background:#fff;
+    cursor:pointer;font-size:13.5px;font-weight:600}
+  button:hover{border-color:#194681;color:#194681}
+  button.pri{background:#194681;border-color:#194681;color:#fff}
+  button.pri:hover{filter:brightness(1.1);color:#fff}
+  button:disabled{opacity:.45;cursor:default}
+  .sp{flex:1}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{border-bottom:1px solid #eef2f7;padding:6px 8px;text-align:left;white-space:nowrap}
+  th{background:#f8fafc;font-weight:700;position:sticky;top:0}
+  tbody tr{cursor:pointer}
+  tbody tr:hover{background:#f8fafc}
+  tbody tr.on{background:#e8f0ff}
+  .num{text-align:right}
+  .grid-box{max-height:340px;overflow:auto;border:1px solid #e2e8f0;border-radius:8px}
+  .tabs{display:flex;gap:4px;margin-bottom:-1px}
+  .tab{padding:7px 16px;border:1px solid #e2e8f0;border-bottom:none;
+    border-radius:8px 8px 0 0;background:#f8fafc;cursor:pointer;font-size:13.5px;font-weight:600}
+  .tab.on{background:#fff;color:#194681}
+  .tabbody{border:1px solid #e2e8f0;border-radius:0 8px 8px 8px;background:#fff;
+    padding:10px;min-height:150px;max-height:300px;overflow:auto}
+  .muted{color:#64748b}
+  .logbox{background:#0f172a;color:#e2e8f0;border-radius:8px;padding:10px 12px;
+    font:12.5px/1.55 ui-monospace,Menlo,monospace;max-height:180px;overflow:auto}
+  .logbox .t{color:#7dd3fc}
+  .logbox .e{color:#fca5a5}
+  .logbox .o{color:#86efac}
+  dialog{border:none;border-radius:12px;padding:0;max-width:560px;width:94%}
+  dialog::backdrop{background:rgba(15,23,42,.5)}
+  .dlg-h{background:#194681;color:#fff;padding:11px 16px;font-weight:700}
+  .dlg-b{padding:14px 16px}
+  .fld{margin-bottom:10px}
+  .fld label{display:block;font-size:12.5px;font-weight:600;margin-bottom:3px}
+  .fld input,.fld select{width:100%}
+  .pick{border:1px solid #e2e8f0;border-radius:8px;max-height:180px;overflow:auto}
+  .pick div{padding:6px 9px;cursor:pointer;font-size:13px;border-bottom:1px solid #f1f5f9}
+  .pick div:hover{background:#eef4ff}
+  .badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:11.5px;font-weight:700}
+  .b-ok{background:#dcfce7;color:#15803d}
+  .b-no{background:#fee2e2;color:#b91c1c}
+</style>
+</head>
+<body>
+<header>
+  <b>{{ app_name }} · Jurnal universal de documente</b>
+  <a href="/UNA.md/orasldev/biro26">← Biro26</a>
+  <a href="/UNA.md/orasldev/biro26-backoffice">Back Office</a>
+  <a href="/UNA.md/orasldev/biro26-clients">Clienți</a>
+  <span class="sp"></span>
+  <span style="font-size:12.5px;opacity:.85">Cont de plată (web) · SYSFID 12280</span>
+</header>
+
+<div class="wrap">
+  <!-- ── banda de filtre + cele 4 butoane ── -->
+  <div class="card">
+    <div class="row">
+      <span class="muted">Perioada</span>
+      <input type="date" id="f-from"> — <input type="date" id="f-to">
+      <input id="f-q" placeholder="caută: număr, COD, client…" style="min-width:230px">
+      <button class="pri" onclick="loadDocs()">🔄 Actualizează</button>
+      <span class="sp"></span>
+      <button class="pri" onclick="openOrder()">＋ Creează comandă</button>
+      <button onclick="openClient()">👤 Client nou</button>
+      <button id="b-open" disabled onclick="openDocPdf()">👁 Deschide</button>
+    </div>
+  </div>
+
+  <!-- ── antetul documentului: ACTIUNI si FORME DE TIPAR ── -->
+  <div class="card">
+    <div class="row">
+      <b style="font-size:13.5px">Document:</b>
+      <span id="d-title" class="muted">— nu este selectat —</span>
+      <span class="sp"></span>
+      <span class="muted">Acțiuni</span>
+      <select id="act">
+        <option value="gen">Generează formularele (PDF) și atașează</option>
+        <option value="genall">Generează PDF + HTML + Excel</option>
+        <option value="assign">Atribuie numărul documentului (NRMANUAL)</option>
+      </select>
+      <button id="b-act" disabled onclick="runAction()">Execută</button>
+      <span class="muted">Forme de tipar</span>
+      <select id="prn">
+        <option value="pdf">Cont de plată — PDF</option>
+        <option value="html">Cont de plată — HTML</option>
+        <option value="xlsx">Cont de plată — Excel</option>
+        <option value="order">Comanda cumpărătorului — PDF</option>
+      </select>
+      <button id="b-prn" disabled onclick="printForm()">Tipărește</button>
+    </div>
+  </div>
+
+  <!-- ── grila master ── -->
+  <div class="card">
+    <div class="grid-box">
+      <table id="grid">
+        <thead><tr>
+          <th>COD</th><th>Data</th><th>Număr</th><th>Client</th>
+          <th class="num">Sumă</th><th>Rânduri</th><th>Fișiere</th><th>Contări</th>
+        </tr></thead>
+        <tbody id="grid-b"><tr><td colspan="8" class="muted">…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="muted" id="grid-sum" style="margin-top:6px">—</div>
+  </div>
+
+  <!-- ── PATRU file de detaliu ── -->
+  <div class="card" style="padding-top:10px">
+    <div class="tabs">
+      <div class="tab on" data-t="postings" onclick="setTab('postings')">Contări</div>
+      <div class="tab" data-t="items" onclick="setTab('items')">Mărfuri</div>
+      <div class="tab" data-t="files" onclick="setTab('files')">Fișiere</div>
+      <div class="tab" data-t="log" onclick="setTab('log')">LOG</div>
+    </div>
+    <div class="tabbody" id="tabbody"><span class="muted">Selectați un document.</span></div>
+  </div>
+
+  <!-- ── jurnalul de executie ── -->
+  <div class="card" style="padding-bottom:8px">
+    <div class="row" style="margin-bottom:6px">
+      <b style="font-size:13.5px">Jurnal de execuție</b>
+      <span class="sp"></span>
+      <button onclick="document.getElementById('jlog').innerHTML=''">Curăță</button>
+    </div>
+    <div class="logbox" id="jlog"></div>
+  </div>
+</div>
+
+<!-- ── dialog: client nou (minim = denumirea + tipul) ── -->
+<dialog id="dlg-client">
+  <div class="dlg-h">Client nou (înregistrare rapidă)</div>
+  <div class="dlg-b">
+    <div class="fld"><label>Denumirea / Nume Prenume *</label>
+      <input id="c-name" placeholder="ex. SRL Exemplu  sau  Ion Popescu"></div>
+    <div class="fld"><label>Tipul clientului</label>
+      <select id="c-type" onchange="cTypeUI()">
+        <option value="0">Persoană fizică</option>
+        <option value="1">Persoană juridică</option>
+      </select></div>
+    <div class="fld" id="c-idno-box" style="display:none"><label>IDNO (13 cifre)</label>
+      <input id="c-idno" maxlength="13"></div>
+    <div class="fld"><label>Telefon</label><input id="c-phone" placeholder="+373 …"></div>
+    <div class="fld"><label>E-mail (opțional — pentru accesul în cabinet)</label>
+      <input id="c-email" type="email"></div>
+    <div class="fld"><label>Adresa</label><input id="c-addr"></div>
+    <p class="muted" style="font-size:12px;margin:0 0 12px">
+      Minimul necesar este denumirea și tipul. Înregistrarea intră în aceleași
+      tabele ca înscrierile din cabinetul clientului de pe site.</p>
+    <div class="row">
+      <button class="pri" onclick="saveClient()">💾 Înregistrează</button>
+      <button onclick="document.getElementById('dlg-client').close()">Renunță</button>
+      <span class="sp"></span><span id="c-msg" class="muted"></span>
+    </div>
+  </div>
+</dialog>
+
+<!-- ── dialog: comanda noua (cumparator + marfuri) ── -->
+<dialog id="dlg-order">
+  <div class="dlg-h">Comandă nouă → cont de plată</div>
+  <div class="dlg-b">
+    <div class="fld"><label>Cumpărătorul *</label>
+      <input id="o-cq" placeholder="caută client: nume, telefon, IDNO, COD…"
+             oninput="searchClients()"></div>
+    <div class="pick" id="o-picks" style="display:none"></div>
+    <p id="o-sel" class="muted" style="margin:6px 0 10px">Client neales.
+      <a href="javascript:void(0)" onclick="openClient()">Înregistrează unul nou</a></p>
+
+    <div class="fld"><label>Produs (cod / denumire) *</label>
+      <input id="o-pq" placeholder="caută marfa în catalog…" oninput="searchProducts()"></div>
+    <div class="pick" id="o-picksp" style="display:none"></div>
+    <div class="row" style="margin:6px 0">
+      <input id="o-qty" type="number" min="0.001" step="1" value="1" style="width:90px">
+      <button onclick="addLine()">＋ Adaugă rândul</button>
+      <span class="sp"></span><span id="o-pnm" class="muted"></span>
+    </div>
+    <div class="grid-box" style="max-height:150px">
+      <table><thead><tr><th>Cod</th><th>Denumire</th><th class="num">Cant.</th>
+        <th class="num">Preț</th><th class="num">Sumă</th><th></th></tr></thead>
+        <tbody id="o-lines"><tr><td colspan="6" class="muted">fără rânduri</td></tr></tbody></table>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <span class="muted">TVA</span>
+      <select id="o-tva"><option value="inclus">TVA 20% inclus</option>
+        <option value="0">TVA 0%</option><option value="fara">Fără TVA</option></select>
+      <span class="sp"></span><b id="o-total">0.00 lei</b>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="pri" onclick="createOrder()">🧾 Creează contul de plată</button>
+      <button onclick="document.getElementById('dlg-order').close()">Renunță</button>
+      <span class="sp"></span><span id="o-msg" class="muted"></span>
+    </div>
+  </div>
+</dialog>
+
+<script>
+/* RO: forma universala — un singur set de rutine pentru orice document.
+   Totul trece prin API-urile Biro26 existente; nicio baza noua. */
+const API = '/api/biro26';
+let DOCS = [], SEL = null, DETAIL = null, TAB = 'postings';
+let ORD = {client: null, lines: [], prod: null};
+
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const lei = n => (Number(n) || 0).toFixed(2) + ' lei';
+async function j(u, o) { o = o || {};
+  if (o.body) o.headers = {'Content-Type': 'application/json'};
+  const r = await fetch(u, o); return r.json().catch(() => ({})); }
+
+/* jurnalul de executie: fiecare actiune isi scrie pasii aici */
+function jlog(msg, kind) {
+  const t = new Date().toTimeString().slice(0, 8);
+  const cls = kind === 'err' ? 'e' : kind === 'ok' ? 'o' : '';
+  document.getElementById('jlog').insertAdjacentHTML('afterbegin',
+    '<div><span class="t">' + t + '</span> <span class="' + cls + '">' + esc(msg) + '</span></div>');
+}
+
+/* ── grila master ── */
+async function loadDocs() {
+  const p = new URLSearchParams({
+    from: document.getElementById('f-from').value,
+    to: document.getElementById('f-to').value,
+    q: document.getElementById('f-q').value, limit: 200});
+  jlog('Actualizez lista documentelor…');
+  const r = await j(API + '/journal/docs?' + p);
+  DOCS = (r.success && r.data) || [];
+  const tb = document.getElementById('grid-b');
+  tb.innerHTML = DOCS.map(d =>
+    '<tr onclick="selectDoc(' + d.cod + ')" id="r' + d.cod + '">' +
+    '<td>' + d.cod + '</td><td>' + esc(d.ddate || '') + '</td>' +
+    '<td><b>' + esc(d.nr) + '</b></td><td>' + esc(d.client_name || ('COD ' + (d.client_cod || '—'))) + '</td>' +
+    '<td class="num"><b>' + lei(d.total) + '</b></td>' +
+    '<td>' + (d.lines || 0) + '</td>' +
+    '<td>' + (d.files ? '<span class="badge b-ok">' + d.files + '</span>' : '<span class="muted">—</span>') + '</td>' +
+    '<td>' + (d.posted ? '<span class="badge b-ok">есть</span>' : '<span class="badge b-no">—</span>') + '</td></tr>'
+  ).join('') || '<tr><td colspan="8" class="muted">nimic găsit</td></tr>';
+  const sum = DOCS.reduce((s, d) => s + (Number(d.total) || 0), 0);
+  document.getElementById('grid-sum').textContent =
+    'Documente: ' + DOCS.length + ' · Sumă: ' + lei(sum);
+  jlog('Documente: ' + DOCS.length, 'ok');
+}
+
+async function selectDoc(cod) {
+  SEL = DOCS.find(d => d.cod === cod) || null;
+  document.querySelectorAll('#grid-b tr').forEach(t => t.classList.remove('on'));
+  const tr = document.getElementById('r' + cod); if (tr) tr.classList.add('on');
+  document.getElementById('d-title').textContent =
+    SEL ? (SEL.nr + ' · ' + (SEL.client_name || '') + ' · ' + lei(SEL.total)) : '—';
+  ['b-act', 'b-prn', 'b-open'].forEach(i => document.getElementById(i).disabled = !SEL);
+  const r = await j(API + '/journal/doc/' + cod);
+  DETAIL = (r.success && r.data) || null;
+  renderTab();
+}
+
+/* ── cele patru file ── */
+function setTab(t) { TAB = t;
+  document.querySelectorAll('.tab').forEach(e =>
+    e.classList.toggle('on', e.dataset.t === t));
+  renderTab(); }
+
+function renderTab() {
+  const box = document.getElementById('tabbody');
+  if (!DETAIL) { box.innerHTML = '<span class="muted">Selectați un document.</span>'; return; }
+  const T = {
+    postings: () => tbl(['Debit', 'Credit', 'Analitica Dt', 'Analitica Ct', 'Suma'],
+      DETAIL.postings.map(p => [p.dt, p.ct, p.dt_name || p.dtsc || '', p.ct_name || p.ctsc || '',
+        {n: p.suma}])),
+    items: () => tbl(['Cod', 'Articol', 'Denumire', 'UM', 'Cant.', 'Preț', 'Sumă'],
+      DETAIL.items.map(i => [i.cod, i.codvechi || '', i.denumirea || '', i.um || '',
+        {n: i.cant}, {n: i.pret}, {n: i.suma}])),
+    files: () => tbl(['Formular', 'Fișier', 'Mărime'],
+      DETAIL.files.map(f => [f.txtcomment || '', f.pfile || '',
+        {n: ((f.bytes || 0) / 1024).toFixed(1) + ' KB', raw: 1}])),
+    log: () => tbl(['Timp', 'Eveniment', 'Utilizator', 'Stație', 'Comentariu'],
+      DETAIL.log.map(l => [l.t || '', l.ievent, l.userid, l.machine || '', l.coment || ''])),
+  };
+  box.innerHTML = T[TAB]();
+}
+function tbl(head, rows) {
+  if (!rows.length) return '<span class="muted">— gol —</span>';
+  return '<table><thead><tr>' + head.map(h => '<th>' + h + '</th>').join('') +
+    '</tr></thead><tbody>' + rows.map(r => '<tr>' + r.map(c =>
+      (c && typeof c === 'object')
+        ? '<td class="num">' + esc(c.raw ? c.n : (Number(c.n) || 0).toFixed(2)) + '</td>'
+        : '<td>' + esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody></table>';
+}
+
+/* ── actiuni si forme de tipar ── */
+function docUrl(kind, fmt) {
+  const base = API + '/shop/report' + (fmt === 'html' ? '-html' : fmt === 'xlsx' ? '-xlsx' : '');
+  return fmt === 'xlsx' ? base + '/invoice/' + SEL.cod : base + '/' + kind + '/' + SEL.cod;
+}
+function openDocPdf() { if (SEL) window.open(docUrl('invoice', 'pdf'), '_blank'); }
+function printForm() {
+  if (!SEL) return;
+  const v = document.getElementById('prn').value;
+  const url = v === 'order' ? docUrl('order', 'pdf') : docUrl('invoice', v);
+  jlog('Formular: ' + v + ' → ' + url);
+  window.open(url, '_blank');
+}
+async function runAction() {
+  if (!SEL) return;
+  const a = document.getElementById('act').value;
+  const fmts = a === 'genall' ? 'pdf,html,xlsx' : 'pdf';
+  const nr = (SEL.nrmanual || '').trim() || SEL.cod;
+  document.getElementById('b-act').disabled = true;
+  jlog('▶ ' + (a === 'assign' ? 'Atribui numărul' : 'Generez formularele') +
+       ' pentru COD ' + SEL.cod + '…');
+  // RO: acelasi endpoint pe care il apeleaza si Oracle (y_ai_BIRO26.gen_conturi_pr)
+  const url = API + '/gen-docs-by-nr/' + encodeURIComponent(nr) +
+              '?cod=' + SEL.cod + '&formats=' + fmts;
+  const r = await j(url, {method: 'POST'});
+  if (r.success) {
+    jlog('✓ gata: ' + JSON.stringify(r).slice(0, 220), 'ok');
+    await loadDocs(); await selectDoc(SEL.cod); setTab('files');
+  } else {
+    jlog('✗ ' + (r.error || JSON.stringify(r)).slice(0, 260), 'err');
+  }
+  document.getElementById('b-act').disabled = false;
+}
+
+/* ── client nou ── */
+function openClient() { document.getElementById('dlg-client').showModal(); }
+function cTypeUI() {
+  document.getElementById('c-idno-box').style.display =
+    document.getElementById('c-type').value === '1' ? '' : 'none';
+}
+async function saveClient() {
+  const body = JSON.stringify({
+    name: document.getElementById('c-name').value.trim(),
+    is_company: document.getElementById('c-type').value === '1',
+    idno: document.getElementById('c-idno').value.trim(),
+    phone: document.getElementById('c-phone').value.trim(),
+    email: document.getElementById('c-email').value.trim(),
+    address: document.getElementById('c-addr').value.trim()});
+  const r = await j(API + '/journal/client', {method: 'POST', body});
+  const m = document.getElementById('c-msg');
+  if (!r.success) { m.textContent = r.error || 'eroare'; jlog('✗ client: ' + r.error, 'err'); return; }
+  m.textContent = '';
+  jlog('✓ Client înregistrat: COD ' + r.data.univers_cod + ' · ' + r.data.name, 'ok');
+  document.getElementById('dlg-client').close();
+  // RO: clientul proaspat devine automat cumparatorul comenzii curente
+  ORD.client = {cod: r.data.univers_cod, name: r.data.name};
+  paintClient();
+  document.getElementById('c-name').value = '';
+}
+
+/* ── comanda noua ── */
+function openOrder() {
+  ORD = {client: ORD.client, lines: [], prod: null};
+  paintClient(); paintLines();
+  document.getElementById('dlg-order').showModal();
+}
+function paintClient() {
+  const el = document.getElementById('o-sel');
+  if (!el) return;
+  el.innerHTML = ORD.client
+    ? '<b>Cumpărător:</b> ' + esc(ORD.client.name) + ' (COD ' + ORD.client.cod + ')'
+    : 'Client neales. <a href="javascript:void(0)" onclick="openClient()">Înregistrează unul nou</a>';
+}
+let tmr = null;
+function searchClients() {
+  clearTimeout(tmr);
+  const q = document.getElementById('o-cq').value.trim();
+  if (q.length < 2) { document.getElementById('o-picks').style.display = 'none'; return; }
+  tmr = setTimeout(async () => {
+    const r = await j(API + '/journal/clients?q=' + encodeURIComponent(q));
+    const box = document.getElementById('o-picks');
+    const rows = (r.success && r.data) || [];
+    box.innerHTML = rows.map(c =>
+      '<div onclick="pickClient(' + c.cod + ',\'' + esc(c.name).replace(/'/g, '&#39;') + '\')">' +
+      '<b>' + esc(c.name) + '</b> <span class="muted">COD ' + c.cod +
+      (c.is_company ? ' · juridică' : '') + (c.phone ? ' · ' + esc(c.phone) : '') + '</span></div>'
+    ).join('') || '<div class="muted">nimic găsit</div>';
+    box.style.display = '';
+  }, 300);
+}
+function pickClient(cod, name) {
+  ORD.client = {cod: cod, name: name};
+  document.getElementById('o-picks').style.display = 'none';
+  document.getElementById('o-cq').value = '';
+  paintClient();
+}
+function searchProducts() {
+  clearTimeout(tmr);
+  const q = document.getElementById('o-pq').value.trim();
+  if (q.length < 3) { document.getElementById('o-picksp').style.display = 'none'; return; }
+  tmr = setTimeout(async () => {
+    const r = await j('/api/biro26/shop/products?limit=15&q=' + encodeURIComponent(q));
+    const box = document.getElementById('o-picksp');
+    const rows = (r.data) || [];
+    box.innerHTML = rows.map(p =>
+      '<div onclick="pickProd(' + p.cod + ',\'' + esc(p.denumirea).replace(/'/g, '&#39;') +
+      '\',' + (p.retail1 || 0) + ')"><b>' + esc(p.denumirea).slice(0, 60) + '</b> ' +
+      '<span class="muted">' + esc(p.codvechi || '') + ' · ' + lei(p.retail1) + '</span></div>'
+    ).join('') || '<div class="muted">nimic găsit</div>';
+    box.style.display = '';
+  }, 350);
+}
+function pickProd(cod, name, price) {
+  ORD.prod = {cod: cod, name: name, price: price};
+  document.getElementById('o-picksp').style.display = 'none';
+  document.getElementById('o-pq').value = '';
+  document.getElementById('o-pnm').textContent = name + ' · ' + lei(price);
+}
+function addLine() {
+  if (!ORD.prod) { document.getElementById('o-msg').textContent = 'alegeți produsul'; return; }
+  const q = parseFloat(document.getElementById('o-qty').value) || 0;
+  if (q <= 0) return;
+  ORD.lines.push({cod: ORD.prod.cod, name: ORD.prod.name, qty: q, price: ORD.prod.price});
+  ORD.prod = null; document.getElementById('o-pnm').textContent = '';
+  paintLines();
+}
+function delLine(i) { ORD.lines.splice(i, 1); paintLines(); }
+function paintLines() {
+  const tb = document.getElementById('o-lines');
+  tb.innerHTML = ORD.lines.map((l, i) =>
+    '<tr><td>' + l.cod + '</td><td>' + esc(l.name).slice(0, 40) + '</td>' +
+    '<td class="num">' + l.qty + '</td><td class="num">' + l.price.toFixed(2) + '</td>' +
+    '<td class="num"><b>' + (l.qty * l.price).toFixed(2) + '</b></td>' +
+    '<td><button onclick="delLine(' + i + ')">×</button></td></tr>').join('')
+    || '<tr><td colspan="6" class="muted">fără rânduri</td></tr>';
+  document.getElementById('o-total').textContent =
+    lei(ORD.lines.reduce((s, l) => s + l.qty * l.price, 0));
+}
+async function createOrder() {
+  const m = document.getElementById('o-msg');
+  if (!ORD.client) { m.textContent = 'alegeți cumpărătorul'; return; }
+  if (!ORD.lines.length) { m.textContent = 'adăugați cel puțin un rând'; return; }
+  m.textContent = 'se creează…';
+  jlog('▶ Creez contul de plată pentru ' + ORD.client.name + '…');
+  // RO: ACELASI endpoint ca la comenzile de pe site; operatorul indica clientul
+  const r = await j(API + '/shop/invoice', {method: 'POST', body: JSON.stringify({
+    client_cod: ORD.client.cod,
+    items: ORD.lines.map(l => ({cod: l.cod, qty: l.qty, price: l.price, name: l.name})),
+    tva_mode: document.getElementById('o-tva').value})});
+  if (!r.success) { m.textContent = r.error || 'eroare';
+    jlog('✗ ' + (r.error || ''), 'err'); return; }
+  m.textContent = '';
+  jlog('✓ Cont de plată creat: ' + (r.data.nrmanual || r.data.nrset) +
+       ' (COD ' + r.data.cod + ')', 'ok');
+  document.getElementById('dlg-order').close();
+  await loadDocs();
+  await selectDoc(r.data.cod);
+}
+
+/* start: ultimele 30 de zile */
+(function init() {
+  const d = new Date(), p = n => String(n).padStart(2, '0');
+  const iso = x => x.getFullYear() + '-' + p(x.getMonth() + 1) + '-' + p(x.getDate());
+  const from = new Date(d.getTime() - 30 * 864e5);
+  document.getElementById('f-from').value = iso(from);
+  document.getElementById('f-to').value = iso(d);
+  document.getElementById('f-q').addEventListener('keydown',
+    e => { if (e.key === 'Enter') loadDocs(); });
+  jlog('Jurnal universal pornit — tabele Oracle: TMDB_DOCS, VMDB_ST201D/M, VMDB_DOCS_OLE, XLOG');
+  loadDocs();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+{
+  "title": {"ru": "Соцсети — автопостинг", "ro": "Retele sociale", "en": "Social autoposting"},
+  "icon": "📣",
+  "order": 117,
+  "url": "/UNA.md/orasldev/social",
+  "descr": "Ежедневная публикация разделов и бестселлеров в Telegram, Facebook, Instagram, VK и OK",
+  "pages": {"social": "Автопостинг"},
+  "docs": "SEOForge"
+}

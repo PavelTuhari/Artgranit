@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ro"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Import: foile Excel = grupe de marfă</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#5b6b7c;--line:#e3e8ee;--accent:#1d4ed8;
+      --warn-bg:#fff7ed;--warn-br:#f59e0b;--ok-bg:#f0fdf4;--ok-br:#16a34a;--card:#f8fafc}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1419;--fg:#e6edf3;--mut:#9aa7b4;
+  --line:#243040;--accent:#7aa2f7;--warn-bg:#2a1f10;--warn-br:#d97706;
+  --ok-bg:#0f2417;--ok-br:#22c55e;--card:#161c24}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.65 -apple-system,BlinkMacSystemFont,
+     "Segoe UI",Roboto,Helvetica,Arial,sans-serif;padding:28px 20px 70px}
+main{max-width:860px;margin:0 auto}
+h1{font-size:1.72rem;line-height:1.25;margin:0 0 6px}
+h2{font-size:1.22rem;margin:34px 0 10px;padding-top:14px;border-top:1px solid var(--line)}
+h3{font-size:1.02rem;margin:20px 0 6px}
+.lead{color:var(--mut);margin:0 0 22px}
+table{width:100%;border-collapse:collapse;margin:14px 0;font-size:.93rem}
+.tw{overflow-x:auto}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--card);font-weight:600}
+code{background:var(--card);padding:1px 5px;border-radius:4px;font-size:.88em;
+     font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+pre{background:var(--card);border:1px solid var(--line);border-radius:8px;
+    padding:12px 14px;overflow-x:auto;font-size:.86rem}
+.box{border-left:4px solid var(--accent);background:var(--card);padding:12px 16px;
+     border-radius:0 8px 8px 0;margin:16px 0}
+.warn{border-left-color:var(--warn-br);background:var(--warn-bg)}
+.ok{border-left-color:var(--ok-br);background:var(--ok-bg)}
+ol,ul{padding-left:22px}ol>li,ul>li{margin:7px 0}
+.step{counter-reset:none}
+.no{display:inline-block;min-width:26px;height:26px;line-height:26px;text-align:center;
+    background:var(--accent);color:#fff;border-radius:50%;font-size:.83rem;font-weight:700;
+    margin-right:8px}
+.bad{color:#dc2626;font-weight:600}.good{color:#16a34a;font-weight:600}
+</style></head><body><main>
+
+<h1>Import: foile Excel = grupe de marfă</h1>
+<p class="lead">Cum se încarcă un fișier în care marfa e împărțită pe tab-uri, fiecare tab
+fiind o grupă. Și ce se face când antetul fișierului e stricat.</p>
+
+<h2>1. Cum arată un asemenea fișier</h2>
+<p>Furnizorii trimit des un singur Excel cu marfa pe mai multe foi:</p>
+<pre>PRINTERRA.xlsx
+ ├── Imprimante                        612 rânduri
+ ├── Hirtie si baza pentru imprimare   278
+ ├── Cerneala pentru imprimante        427
+ ├── Cartuse pentru imprimante       1 887
+ ├── Sublimare                         261
+ └── Accesorii si piese IMPRIMANTE   1 682</pre>
+<p>Tab-urile <b>sunt</b> grupele de marfă. Dacă nu spuneți asta sistemului, toată marfa
+intră în grupa implicită și structura furnizorului se pierde.</p>
+
+<h2>2. Cei 5 pași</h2>
+<ol class="step" style="list-style:none;padding-left:0">
+<li><span class="no">1</span><b>Încărcați fișierul</b> în <i>Back-office → Import (asistent)</i>.
+    Fiecare foaie devine o încărcare separată — le veți vedea listate.</li>
+<li><span class="no">2</span><b>Alegeți algoritmul</b> «<b>Foi = grupe de marfă</b>» din lista
+    <i>Algoritm de încărcare</i>. Sub listă apare explicația a ce va face.</li>
+<li><span class="no">3</span><b>Apăsați «Analizează»</b>. Nu se scrie nimic în bază — vedeți
+    cum au fost înțelese coloanele și câte produse sunt noi.</li>
+<li><span class="no">4</span><b>Verificați coloanele de preț.</b> Dacă lipsesc — vezi §3.</li>
+<li><span class="no">5</span><b>Apăsați «Importă în DB».</b></li>
+</ol>
+
+<div class="box ok">
+<b>Regula grupelor:</b> numele foii devine grupa. Dacă fișierul are <b>și</b> o coloană
+<code>GRUPA</code>, coloana are prioritate — un fișier corect nu e stricat de acest algoritm.
+Coloana <code>CATEGORIE</code>, dacă există, rămâne subgrupă: iese <code>Grupă › Categorie</code>.
+</div>
+
+<h2>3. Când coloanele de preț nu apar: maparea manuală</h2>
+<p>Sistemul recunoaște coloanele după antet. Dacă antetul e stricat, coloana nu se găsește,
+iar importul <b>reușește tăcut</b> — produsele intră <b>fără preț</b>, fără nicio eroare.</p>
+
+<p>Caz real, fișierul PRINTERRA. Pe 4 din 6 foi cineva suprascrisese antetul coloanelor de
+preț cu valori din primul rând:</p>
+
+<div class="tw"><table>
+<tr><th>Foaie</th><th>Coloanele 12–13</th><th>Rezultat</th></tr>
+<tr><td>Imprimante</td><td><code>Price Online</code>, <code>Розничная цена с НДС</code></td><td class="good">detectate</td></tr>
+<tr><td>Cerneala pentru imprimante</td><td><code>Price Online</code>, <code>Розничная цена с НДС</code></td><td class="good">detectate</td></tr>
+<tr><td>Hirtie si baza</td><td><code>43,50</code>, <code>43.5</code></td><td class="bad">fără preț</td></tr>
+<tr><td>Cartuse pentru imprimante</td><td><code>109,50</code>, <code>109.5</code></td><td class="bad">fără preț</td></tr>
+<tr><td>Sublimare</td><td><code>189,00</code>, <code>189</code></td><td class="bad">fără preț</td></tr>
+<tr><td>Accesorii si piese</td><td><code>526,50</code>, <code>526.5</code></td><td class="bad">fără preț</td></tr>
+</table></div>
+
+<div class="box warn">
+<b>Fără mapare manuală, 4 108 din 5 147 de produse ar fi intrat fără niciun preț</b> — și
+nimic nu ar fi semnalat problema. De aceea pasul 4 nu se sare.
+</div>
+
+<h3>Cum se face maparea</h3>
+<p>După «Analizează», sub rezultat e tabelul de mapare: fiecare câmp (<code>ARTICOL</code>,
+<code>DENUMIRE</code>, <code>RETAIL</code>, <code>ANGRO</code>…) cu o listă de coloane din
+fișier. Alegeți coloana corectă din listă — analiza se reface automat.</p>
+
+<p>În raport veți vedea ce a pus omul și ce a găsit sistemul:</p>
+<pre>c10 -> ANGRO     [HEADER]  "Цена закупки с НДС"
+c11 -> ONLINE    [MANUAL]  "43,50"     ← ales de dvs.
+c12 -> RETAIL    [MANUAL]  "43.5"      ← ales de dvs.</pre>
+
+<div class="box ok">
+<b>Maparea manuală nu se pierde.</b> Puteți reanaliza de câte ori vreți — detectarea automată
+nu suprascrie ce ați fixat manual.
+</div>
+
+<h2>4. Ce se întâmplă cu grupele</h2>
+<p>Grupele nu se creează printr-un pas separat — apar odată cu marfa, dar se
+<b>înregistrează separat</b>, ca să se știe de unde au venit:</p>
+<div class="tw"><table>
+<tr><th>Marcaj</th><th>Ce înseamnă</th><th>Se poate anula?</th></tr>
+<tr><td><code>CREATED</code></td><td>grupa a apărut la <b>acest</b> import</td><td class="good">da</td></tr>
+<tr><td><code>EXISTING</code></td><td>grupa exista deja, o folosesc și alte importuri</td><td class="bad">nu</td></tr>
+</table></div>
+
+<p>După fiecare import se generează două fișiere în <code>grupe_import/</code>: un CSV cu toate
+grupele (câte produse a pus acest import și câte are grupa acum) și un script SQL de anulare,
+integral comentat — se citește, se verifică, se decomentează doar ce vreți să anulați.</p>
+
+<h2>5. Verificare după import</h2>
+<ul>
+<li><b>Marfă / Stoc</b> → căutați un articol din fișier; verificați grupa, categoria, prețul.</li>
+<li><b>Grupe de marfă</b> (panoul din stânga) → grupele noi apar cu numărul de produse.</li>
+<li>Dacă un preț lipsește pe o foaie întreagă — aproape sigur e coloana nemapată (§3).</li>
+</ul>
+
+<div class="box">
+<b>Rezultatul pe PRINTERRA:</b> 5 147 produse, 98 grupe, toate cu cod de bare real din fișier,
+prețuri verificate față de fișier — <b>0 diferențe</b>.
+</div>
+
+<p style="color:var(--mut);font-size:.87rem;margin-top:34px">
+Detalii tehnice: <code>IMPORT_FOI_CA_GRUPE.md</code> ·
+Ghidul complet al importului: <code>GHID_IMPORT_ALTE_SCHEME.md</code> §9.28 ·
+Lista surselor: <code>IMPORT_SURSE.md</code></p>
+
+</main></body></html>

@@ -1,0 +1,1363 @@
+"""Testele modulului e-Factura: izolarea + logica pura (fara wallet Oracle)."""
+import os
+import re
+import unittest
+
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+class TestEfacturaIsolation(unittest.TestCase):
+    """RO: modulul nu lasa nimic in codul comun (regula nr. 1)."""
+
+    def test_app_py_not_touched(self):
+        src = open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
+        self.assertNotIn("modules.efactura", src)
+        self.assertNotIn("EFA_", src)
+
+    def test_common_installer_not_touched(self):
+        src = open(os.path.join(ROOT, "deploy_oracle_objects.py"),
+                   encoding="utf-8").read()
+        self.assertNotIn("EFA_", src)
+        self.assertNotIn("modules/efactura", src)
+        self.assertNotIn("efa_core", src)
+
+
+class TestInvoiceXml(unittest.TestCase):
+    """RO: XML-ul urmeaza XSD-ul OFICIAL (docs/Partner/sfs/TaxInvoiceSchema.xsd).
+    Prima proba reala (02.09.2026) a fost respinsa: «The 'Invoices' element is
+    not declared» — radacina noastra era inventata."""
+
+    DOC = {"nrmanual": "A-86", "client_idno": "1003600050218",
+           "client_name": 'SRL "Test & Co"', "client_address": "Chisinau",
+           "total": 20159.0, "total_fara_tva": 16799.17, "tva": 3359.83,
+           "tva_rate": 20, "issue_date": "2026-09-02",
+           "items": [{"cod": "GA82543", "name": "Toner <HP>", "qty": 2,
+                      "price": 95.5, "sum": 191.0},
+                     {"cod": "X1", "name": "Hirtie", "qty": 1,
+                      "price": 19968.0, "sum": 19968.0}]}
+    SELLER = {"idno": "1003600116460", "name": '"UNISIM-SOFT" S.R.L.',
+              "address": "Alba Iulia 75/b", "iban": "MD22ML000000222442000432",
+              "bank_code": "MOLDMD2X303", "bank_name": "Moldindconbank"}
+
+    def _xml(self):
+        from modules.efactura import sfs
+        return sfs.build_invoice_xml(self.DOC, self.SELLER, seria="AA", number="A-86")
+
+    def test_structure_follows_the_official_schema(self):
+        from xml.etree import ElementTree as ET
+        root = ET.fromstring(self._xml())
+        self.assertEqual(root.tag, "Documents")
+        inf = root.find("Document/SupplierInfo")
+        self.assertIsNotNone(inf)
+        # RO: ordinea din xs:sequence — Seria, Number, IssuedDate, DeliveryDate,
+        #     Supplier, Buyer, Total, TotalTVA, Merchandises, CreationMotiv
+        tags = [c.tag for c in inf]
+        self.assertEqual(tags, ["Seria", "Number", "IssuedDate", "DeliveryDate",
+                                "Supplier", "Buyer", "VehicleLogbook",
+                                "Redirections", "Total", "TotalTVA",
+                                "Merchandises", "CreationMotiv"])
+        self.assertEqual(inf.findtext("Number"), "A-86")
+        self.assertTrue(inf.findtext("DeliveryDate").startswith("2026-09-02T"))
+        sup = inf.find("Supplier")
+        self.assertEqual(sup.get("IDNO"), "1003600116460")
+        self.assertEqual(sup.get("TaxpayerType"), "1")
+        self.assertEqual(sup.find("BankAccount").get("Account"),
+                         "MD22ML000000222442000432")
+        buy = inf.find("Buyer")
+        self.assertEqual(buy.get("IDNO"), "1003600050218")
+        self.assertEqual(buy.get("Title"), 'SRL "Test & Co"')     # ghilimele in atribut
+        rows = inf.findall("Merchandises/Row")
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[0].get("Name"), "Toner <HP>")
+        self.assertEqual(rows[0].get("TotalPrice"), "191.00")
+        self.assertEqual(rows[0].get("TotalPriceWithoutTVA"), "159.17")
+        self.assertEqual(rows[0].get("TotalTVA"), "31.83")
+        self.assertEqual(rows[0].get("TVA"), "20")
+        self.assertEqual(inf.findtext("Total"), "20159.00")
+        self.assertEqual(inf.findtext("CreationMotiv"), "4")   # Livrare
+
+    def test_validates_against_the_official_xsd(self):
+        """RO: validare cu xmllint fata de XSD-ul descarcat de la SFS — proba
+        locala a ceea ce mediul lor de proba ar respinge."""
+        import shutil
+        import subprocess
+        xsd = os.path.join(ROOT, "docs", "Partner", "sfs", "TaxInvoiceSchema.xsd")
+        if not shutil.which("xmllint") or not os.path.exists(xsd):
+            self.skipTest("xmllint sau XSD-ul lipsesc")
+        r = subprocess.run(["xmllint", "--noout", "--schema", xsd, "-"],
+                           input=self._xml().encode("utf-8"),
+                           capture_output=True)
+        self.assertEqual(r.returncode, 0, r.stderr.decode("utf-8", "replace")[:800])
+
+    def test_missing_numbers_do_not_break(self):
+        from modules.efactura import sfs
+        xml = sfs.build_invoice_xml({"items": [{"name": "x"}]}, {"idno": "1"})
+        self.assertIn("<Documents>", xml)
+        self.assertIn("<Seria></Seria><Number></Number>", xml)   # mereu prezente
+        self.assertIn('TotalPrice="0.00"', xml)
+
+class TestSfsClientGuards(unittest.TestCase):
+
+    def test_not_configured_returns_message_not_exception(self):
+        from modules.efactura.sfs import SfsClient
+        c = SfsClient("", "", "")
+        self.assertFalse(c.configured())
+        r = c.call("PostInvoices", "<request/>")
+        self.assertFalse(r["success"])
+        self.assertIn("nu e configurata", r["error"])
+
+    def test_envelope_has_ws_security(self):
+        from modules.efactura.sfs import SfsClient
+        c = SfsClient("https://x/y.svc", "user", "p&ss")
+        env = c._envelope("PostInvoices", "<request/>")
+        self.assertIn("wsse:UsernameToken", env)
+        self.assertIn("<wsse:Username>user</wsse:Username>", env)
+        self.assertIn("p&amp;ss", env)          # parola escapata
+        from xml.etree import ElementTree as ET
+        ET.fromstring(env)                      # plicul e XML valid
+
+    def test_fault_message_extracted(self):
+        from modules.efactura.sfs import SfsClient
+        raw = ('<s:Envelope xmlns:s="x"><s:Body><s:Fault>'
+               '<faultstring>Invalid credentials</faultstring>'
+               '</s:Fault></s:Body></s:Envelope>')
+        self.assertEqual(SfsClient._fault(raw), "Invalid credentials")
+
+
+if __name__ == "__main__":
+    unittest.main()
+
+
+class TestTestInvoice(unittest.TestCase):
+    """RO: plafonul probei se verifica pe SERVER — formularul poate fi ocolit."""
+
+    BASE = {"seller": {"idno": "1026602001837", "name": "Firma mea"},
+            "buyer": {"idno": "1003600050218", "name": "Client test"},
+            "tva_rate": 20}
+
+    def _p(self, qty, price, **kw):
+        d = dict(self.BASE)
+        d["lines"] = [{"name": "Serviciu de test", "um": "buc.",
+                       "qty": qty, "price": price}]
+        d.update(kw)
+        return d
+
+    def test_amount_limits(self):
+        from modules.efactura import testff
+        self.assertEqual(testff.validate(self._p(1, 1.00)), {})      # 1 leu
+        self.assertEqual(testff.validate(self._p(1, 0.01)), {})      # un ban
+        self.assertEqual(testff.validate(self._p(1, 10.00)), {})     # pragul
+        self.assertIn("total", testff.validate(self._p(1, 10.01)))   # peste
+        self.assertIn("total", testff.validate(self._p(1, 0)))       # zero
+        self.assertIn("total", testff.validate(self._p(3, 4.00)))    # 12 lei
+
+    def test_required_fields(self):
+        from modules.efactura import testff
+        d = self._p(1, 1.00)
+        d["seller"] = {"name": "x"}
+        self.assertIn("seller.idno", testff.validate(d))
+        d = self._p(1, 1.00)
+        d["lines"] = [{"name": "", "qty": 1, "price": 1}]
+        self.assertIn("lines.0.name", testff.validate(d))
+        d = self._p(1, 1.00)
+        d["lines"] = []
+        self.assertIn("lines", testff.validate(d))
+
+    def test_build_and_xml(self):
+        from xml.etree import ElementTree as ET
+        from modules.efactura import testff
+        p = self._p(2, 1.50, seria="TT", number="TEST-1")   # 3.00 lei
+        doc = testff.build(p)
+        self.assertEqual(doc["total"], 3.00)
+        self.assertEqual(doc["tva"], 0.50)                  # 20% inclus
+        self.assertEqual(doc["total_fara_tva"], 2.50)
+        r = testff.preview(p)
+        self.assertTrue(r["success"])
+        inf = ET.fromstring(r["data"]["xml"]).find("Document/SupplierInfo")
+        self.assertEqual(inf.findtext("Number"), "TEST-1")
+        self.assertEqual(inf.findtext("Seria"), "TT")
+        self.assertEqual(inf.find("Supplier").get("IDNO"), "1026602001837")
+        self.assertEqual(inf.findtext("Total"), "3.00")
+        self.assertEqual(inf.findtext("TotalTVA"), "0.50")
+        row = inf.find("Merchandises/Row")
+        self.assertEqual(row.get("TotalPriceWithoutTVA"), "2.50")
+
+    def test_preview_works_without_credentials(self):
+        """RO: XML-ul se vede si cind integrarea nu e configurata."""
+        from modules.efactura import testff
+        r = testff.preview(self._p(1, 0.05))
+        self.assertTrue(r["success"])
+        self.assertIn("<Documents>", r["data"]["xml"])
+
+
+class TestSfsProtocolValues(unittest.TestCase):
+    """RO: valorile din ghidul SFS — roluri si statut sint NUMERE."""
+
+    def test_post_body_uses_integers(self):
+        from modules.efactura import sfs
+        c = sfs.SfsClient("https://x/y.svc", "u", "p")
+        env = c._envelope("PostInvoices",
+                          "<request><ActorRole>1</ActorRole>"
+                          "<InvoicesXmlStatus>0</InvoicesXmlStatus></request>")
+        self.assertIn("<ActorRole>1</ActorRole>", env)
+        self.assertIn("<InvoicesXmlStatus>0</InvoicesXmlStatus>", env)
+        self.assertEqual(sfs.ROLE_SUPPLIER, 1)
+        self.assertEqual(sfs.XML_UNSIGNED, 0)
+        self.assertEqual(sfs.SIGN_FIRST, 1)
+        self.assertEqual(sfs.SIGN_SECOND, 2)
+
+
+class TestTemplateJs(unittest.TestCase):
+    """RO: JS-ul din sabloane trebuie sa se parseze — o ghilimea gresit
+    escapata opreste TOT scriptul si pagina ramane moarta (31.08.2026)."""
+
+    TPL = os.path.join(ROOT, "modules", "efactura", "templates")
+
+    def _blocks(self, name):
+        import re
+        src = open(os.path.join(self.TPL, name), encoding="utf-8").read()
+        for blk in re.findall(r"<script(?![^>]*\bsrc=)[^>]*>(.*?)</script>",
+                              src, re.S):
+            js = re.sub(r"\{\{[^}]*\}\}", "1", blk)
+            yield re.sub(r"\{%.*?%\}", "", js, flags=re.S)
+
+    def test_inline_js_parses(self):
+        import shutil
+        import subprocess
+        import tempfile
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node lipseste")
+        for name in ("efactura_test.html", "efactura_admin.html"):
+            for js in self._blocks(name):
+                with tempfile.NamedTemporaryFile("w", suffix=".js",
+                                                 delete=False) as fh:
+                    fh.write(js)
+                    path = fh.name
+                try:
+                    r = subprocess.run([node, "--check", path],
+                                       capture_output=True, text=True)
+                finally:
+                    os.unlink(path)
+                self.assertEqual(r.returncode, 0,
+                                 "%s: %s" % (name, r.stderr[:300]))
+
+
+class TestAdHocApiAccount(unittest.TestCase):
+    """RO: pagina probei merge NUMAI pe contul scris in formular — nu se
+    leaga de setarile vreunui magazin (31.08.2026)."""
+
+    SAVED = {"endpoint": "https://sfs-salvat/svc", "namespace": "http://x/",
+             "username": "salvat1", "password": "p-salvat1",
+             "username2": "salvat2", "password2": "p-salvat2", "seria": "FT"}
+
+    def _p(self, api):
+        return {"seller": {"idno": "1003600116460", "name": "Test SRL"},
+                "buyer": {"idno": "1012600013725", "name": "Client SRL"},
+                "lines": [{"name": "Serviciu", "qty": 1, "price": 1.0}],
+                "api": api}
+
+    def test_form_account_is_used(self):
+        from modules.efactura import sfs
+        c = sfs.SfsClient.from_api({"username": "director", "password": "p1"})
+        self.assertEqual((c.username, c.password), ("director", "p1"))
+
+    def test_default_endpoint_is_sfs_test_env(self):
+        """RO: implicit — mediul de PROBA al SFS (adresele din ghidul de
+        integrare, verificate 31.08.2026), nu adresa din setari."""
+        from modules.efactura import sfs
+        c = sfs.SfsClient.from_api({"username": "u", "password": "p"})
+        self.assertEqual(c.endpoint, sfs.TEST_ENDPOINT)
+        self.assertEqual(sfs.ENDPOINT_TEST,
+                         "https://apiefactura-pre.sfs.md/Service.svc")
+        self.assertEqual(sfs.ENDPOINT_PROD,
+                         "https://efactura-api.sfs.md/Service.svc")
+
+    def test_second_signer_falls_back_to_first_of_the_form(self):
+        """RO: un singur cont in formular = ambele cozi pe el; niciodata pe
+        contul salvat al firmei (altfel s-ar amesteca doi oameni)."""
+        from modules.efactura import sfs
+        c = sfs.SfsClient.from_api({"username": "director", "password": "p1"},
+                                   signer=2)
+        self.assertEqual(c.username, "director")
+
+    def test_second_signer_own_account(self):
+        from modules.efactura import sfs
+        c = sfs.SfsClient.from_api({"username": "u1", "password": "p1",
+                                    "username2": "u2", "password2": "p2"},
+                                   signer=2)
+        self.assertEqual((c.username, c.password), ("u2", "p2"))
+
+    def test_send_refuses_without_account(self):
+        """RO: fara utilizator/parola — refuz clar, fara apel in retea."""
+        from unittest import mock
+        from modules.efactura import testff
+        with mock.patch("modules.efactura.sfs.SfsClient.post_invoices") as post:
+            r = testff.send(self._p({"username": "fara-parola"}))
+        self.assertFalse(r["success"])
+        self.assertIn("contul API", r["error"])
+        post.assert_not_called()
+
+    def test_test_page_never_reads_shop_settings(self):
+        """RO: garantia decuplarii — daca EFA_SETTING ar exploda, proba
+        trebuie sa mearga oricum: preview-ul si trimiterea nu-l citesc."""
+        from unittest import mock
+        from modules.efactura import testff
+
+        def boom(*a, **k):
+            raise AssertionError("pagina probei a citit setarile magazinului")
+
+        with mock.patch("modules.efactura.store.EfaStore.settings",
+                        side_effect=boom), \
+             mock.patch("modules.efactura.store.EfaStore.log"), \
+             mock.patch("modules.efactura.sfs.SfsClient.post_invoices",
+                        return_value={"success": True, "parsed": {}}):
+            self.assertTrue(testff.preview(self._p(None))["success"])
+            self.assertTrue(testff.send(
+                self._p({"username": "u", "password": "p"}))["success"])
+
+    def test_page_template_has_no_shop_coupling(self):
+        """RO: sablonul probei nu are voie sa citeasca setarile magazinului,
+        datele din ERP-ul lui, nici adresa portalului scrisa cu mina."""
+        src = open(os.path.join(ROOT, "modules", "efactura", "templates",
+                                "efactura_test.html"), encoding="utf-8").read()
+        for token in ("settings.", "firm.", "/UNA.md/orasldev/"):
+            self.assertNotIn(token, src, "cuplare interzisa: %s" % token)
+
+    def test_ping_separates_address_from_account(self):
+        """RO: gazda inexistenta = problema de ADRESA, spusa asa, nu «cont
+        gresit» de trei ori (31.08.2026: api-test.fisc.md nu se rezolva)."""
+        from modules.efactura import testff
+        r = testff.ping({"username": "u", "password": "p",
+                         "endpoint": "https://nu-exista.invalid/Service.svc"})
+        a = r["data"]["adresa"]
+        self.assertFalse(a["ok"])
+        self.assertIn("DNS", a["reply"])
+        self.assertNotIn("prima_semnatura", r["data"])
+
+
+class TestSoapMatchesWsdl(unittest.TestCase):
+    """RO: plicul trebuie sa respecte contractul VIU al serviciului
+    (`?wsdl` / `?xsd=xsd2`, citit 31.08.2026). Greselile de aici nu se vad
+    la testare locala — se vad abia cind SFS refuza apelul."""
+
+    def _c(self):
+        from modules.efactura import sfs
+        return sfs.SfsClient(sfs.ENDPOINT_PROD, "u", "p")
+
+    def test_request_children_are_in_datacontract_namespace(self):
+        """RO: copiii lui <request> in tempuri = WCF ii citeste ca null."""
+        from modules.efactura import sfs
+        body = sfs._request([("RequestId", "x"), ("ActorRole", 1)])
+        self.assertIn('xmlns:a="%s"' % sfs.NS_DC, body)
+        self.assertIn("<a:RequestId>x</a:RequestId>", body)
+        self.assertIn("<a:ActorRole>1</a:ActorRole>", body)
+
+    def test_post_invoices_field_order(self):
+        """RO: DataContractSerializer cere intii membrii clasei de baza:
+        RequestId, ActorRole, apoi InvoicesXml, InvoicesXmlStatus."""
+        from unittest import mock
+        c = self._c()
+        with mock.patch.object(c, "call",
+                               return_value={"success": True}) as call:
+            c.post_invoices("<Invoice/>")
+        body = call.call_args[0][1]
+        pos = [body.index("<a:%s>" % f) for f in
+               ("RequestId", "ActorRole", "InvoicesXml", "InvoicesXmlStatus")]
+        self.assertEqual(pos, sorted(pos))
+
+    def test_soap_action_includes_contract_name(self):
+        """RO: SOAPAction e {ns}/IService/{metoda} — fara `IService` WCF
+        raspunde «action not recognized»."""
+        from modules.efactura import sfs
+        self.assertEqual(sfs.CONTRACT, "IService")
+
+    def test_seria_number_uses_the_array_contract(self):
+        from unittest import mock
+        c = self._c()
+        with mock.patch.object(c, "call",
+                               return_value={"success": True}) as call:
+            c.get_by_seria_number("FT", "123")
+        body = call.call_args[0][1]
+        self.assertIn("<a:SeriaAndNumbers>", body)
+        self.assertIn("<a:InvoiceIndentificator>", body)
+        self.assertIn("<a:Number>123</a:Number>", body)
+        self.assertIn("<a:Seria>FT</a:Seria>", body)
+
+    def test_connection_check_uses_the_test_operation(self):
+        """RO: `GetLogs` cerea `<Top>1</Top>`, cimp inexistent in contract."""
+        from unittest import mock
+        c = self._c()
+        with mock.patch.object(c, "call",
+                               return_value={"success": True}) as call:
+            c.test()
+        self.assertEqual(call.call_args[0][0], "Test")
+
+
+class TestEgressIp(unittest.TestCase):
+    """RO: SFS deschide accesul pe IP, iar apelul il face SERVERUL — deci
+    verificarea trebuie sa arate adresa serverului, nu a statiei."""
+
+    def test_ping_shows_server_ip(self):
+        from unittest import mock
+        from modules.efactura import testff
+        testff._EGRESS.clear()
+        with mock.patch("modules.efactura.testff._egress_ip",
+                        return_value="203.0.113.7"), \
+             mock.patch("modules.efactura.testff._reach",
+                        return_value={"configured": True, "ok": False,
+                                      "reply": "test"}):
+            r = testff.ping({"username": "u", "password": "p"})
+        self.assertEqual(r["data"]["ip_server"]["reply"][:11], "203.0.113.7")
+        self.assertIn("asistenta@sfs.md", r["data"]["ip_server"]["reply"])
+
+
+class TestMaskedFault(unittest.TestCase):
+    """RO: portalul SFS inlocuieste orice raspuns 500 (fault SOAP) cu o pagina
+    HTML, iar 403 e filtrul de IP — mesajul trebuie sa le deosebeasca
+    (masurat 02.09.2026: POST gol -> 400, SOAP 1.2 -> 415, fault -> 500 HTML)."""
+
+    def _call(self, code):
+        import io
+        import urllib.error
+        from unittest import mock
+        from modules.efactura import sfs
+        c = sfs.SfsClient(sfs.ENDPOINT_TEST, "u", "p")
+        err = urllib.error.HTTPError(c.endpoint, code, "x", {},
+                                     io.BytesIO(b"<!DOCTYPE html><html>500</html>"))
+        # RO: apelul simulat NU are voie sa scrie in jurnalul REAL (EFA_CALL)
+        #     — 02.09.2026 testele lasau rinduri «u / html» in productie.
+        with mock.patch("urllib.request.urlopen", side_effect=err), \
+             mock.patch("modules.efactura.journal.record"):
+            return c.call("Test", "<message>ping</message>")
+
+    def test_403_means_ip(self):
+        r = self._call(403)
+        self.assertFalse(r["success"])
+        self.assertIn("IP", r["error"])
+
+    def test_500_means_masked_soap_fault(self):
+        r = self._call(500)
+        self.assertFalse(r["success"])
+        self.assertIn("parola", r["error"])
+        self.assertNotIn("IP-ul", r["error"])
+
+
+class TestQueueParsing(unittest.TestCase):
+    """RO: raspunsul REAL al cozii de semnare (02.09.2026) -> lista lizibila."""
+
+    RAW = ('<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"><s:Body>'
+           '<GetInvoicesForSigningResponse xmlns="http://tempuri.org/">'
+           '<GetInvoicesForSigningResult xmlns:a="http://schemas.datacontract.org/2004/07/AX.EFactura.Model.ApiModel"'
+           ' xmlns:i="http://www.w3.org/2001/XMLSchema-instance"><a:Status>2</a:Status><a:Results>'
+           '<a:XmlInvoice><a:Number/><a:Seria/><a:Status>2</a:Status><a:InvoiceStatus>0</a:InvoiceStatus>'
+           '<a:Xml>&lt;Document&gt;&lt;SupplierInfo&gt;&lt;Seria /&gt;&lt;Buyer IDNO="1" Title="&amp;quot;UNISIM-SOFT&amp;quot; S.R.L."/&gt;'
+           '&lt;Total&gt;1.00&lt;/Total&gt;&lt;Merchandises&gt;&lt;Row Name="Serviciu de test" TotalPrice="1.00" /&gt;'
+           '&lt;/Merchandises&gt;&lt;/SupplierInfo&gt;&lt;/Document&gt;</a:Xml></a:XmlInvoice>'
+           '</a:Results></GetInvoicesForSigningResult></GetInvoicesForSigningResponse></s:Body></s:Envelope>')
+
+    def test_parses_real_reply(self):
+        from modules.efactura import testff
+        inv = testff.queue_invoices(self.RAW)
+        self.assertEqual(len(inv), 1)
+        self.assertEqual(inv[0]["total"], "1.00")
+        self.assertEqual(inv[0]["invoice_status"], "0")           # nesemnata
+        self.assertEqual(inv[0]["first_row"], "Serviciu de test")
+        self.assertIn("UNISIM-SOFT", inv[0]["buyer"])
+
+    def test_empty_or_broken_reply(self):
+        from modules.efactura import testff
+        self.assertEqual(testff.queue_invoices(""), [])
+        self.assertEqual(testff.queue_invoices("<x/>"), [])
+
+
+class TestBackofficeMapping(unittest.TestCase):
+    """RO: lectiile contului real A-88 (02.09.2026)."""
+
+    def test_taxpayer_type_inferred_from_idnp(self):
+        from xml.etree import ElementTree as ET
+        from modules.efactura import sfs
+        xml = sfs.build_invoice_xml(
+            {"items": [{"name": "x", "qty": 1, "price": 1, "sum": 1}],
+             "client_idno": "2003004025284", "client_name": "Persoana"},
+            {"idno": "1026602001837", "name": "Firma"})
+        inf = ET.fromstring(xml).find("Document/SupplierInfo")
+        self.assertEqual(inf.find("Supplier").get("TaxpayerType"), "1")
+        self.assertEqual(inf.find("Buyer").get("TaxpayerType"), "2")
+        self.assertIsNotNone(inf.find("Buyer/BankAccount"))   # mereu prezent
+
+    def test_tva_rate_from_document(self):
+        from modules.efactura.controller import EfaController as C
+        self.assertEqual(C._tva_rate(1200.0, 200.0, {}), 20.0)
+        self.assertEqual(C._tva_rate(1080.0, 80.0, {}), 8.0)
+        self.assertEqual(C._tva_rate(20149.0, 0.0, {"tva_rate": "20"}), 20.0)
+        self.assertEqual(C._tva_rate(100.0, 0.0, {"tva_rate": "0"}), 0.0)
+
+
+class TestDateWindow(unittest.TestCase):
+    """RO: regula SFS (raspuns real 02.09.2026): IssuedDate intre azi si
+    azi+10 zile; documentele vechi se refuza INAINTE de apel, in romana."""
+
+    def test_window(self):
+        import datetime
+        from modules.efactura.controller import EfaController as C
+        today = datetime.date.today()
+        self.assertIsNone(C.date_window_error(today.isoformat()))
+        self.assertIsNone(C.date_window_error((today + datetime.timedelta(days=10)).isoformat()))
+        self.assertIn("în trecut", C.date_window_error((today - datetime.timedelta(days=1)).isoformat()))
+        self.assertIn("viitor", C.date_window_error((today + datetime.timedelta(days=11)).isoformat()))
+        self.assertIn("invalid", C.date_window_error(""))
+
+    def test_override_wins(self):
+        import datetime
+        from modules.efactura.controller import EfaController as C
+        self.assertIsNone(C.date_window_error("2026-08-19", override_date=datetime.date.today().isoformat()))
+
+
+class TestNativeApiMount(unittest.TestCase):
+    """RO: API-ul pentru una.md sta la radacina (/api/biro26/efactura/…) prin
+    root_blueprint — singurul prefix care trece pe HTTP simplu de intrarea
+    officeplus.md (Oracle 11g nu are wallet TLS). Manifestul si blueprint-ul
+    trebuie sa spuna acelasi lucru, altfel nucleul refuza montarea."""
+
+    def test_manifest_matches_blueprint(self):
+        import json
+        from modules import efactura
+        from modules.efactura import native_api
+        self.assertTrue(hasattr(efactura, "root_blueprint"))
+        man = json.load(open(os.path.join(ROOT, "modules", "efactura", "module.json"),
+                             encoding="utf-8"))
+        self.assertEqual(sorted(man.get("root_paths") or []),
+                         sorted(native_api.ROOT_PATHS))
+        for p in native_api.ROOT_PATHS:
+            self.assertTrue(p.startswith("/api/biro26/efactura/"), p)
+
+    def test_no_shared_file_touched(self):
+        src = open(os.path.join(ROOT, "app.py"), encoding="utf-8").read()
+        self.assertNotIn("efactura", src)
+
+
+class TestIdnoCheckDigit(unittest.TestCase):
+    """RO: cifra de control IDNO — clientii fictivi pica local, nu la SFS."""
+
+    def test_real_and_fake(self):
+        from modules.efactura.rules import idno_valid, idno_error
+        for good in ("1003600116460", "1012600013725", "1008602003648", "1007601010378"):
+            self.assertTrue(idno_valid(good), good)
+        self.assertFalse(idno_valid("1026602001999"))      # «SRL TEST Casa Operator»
+        self.assertFalse(idno_valid("1234567890123"))
+        self.assertFalse(idno_valid(""))
+        self.assertIn("cifra de control", idno_error("1026602001999"))
+        self.assertIsNone(idno_error("1003600116460"))
+
+    def test_probe_rejects_bad_buyer_idno(self):
+        from modules.efactura import testff
+        e = testff.validate({"seller": {"idno": "1003600116460", "name": "x"},
+                             "buyer": {"idno": "1026602001999", "name": "y"},
+                             "lines": [{"name": "s", "qty": 1, "price": 1}]})
+        self.assertIn("buyer.idno", e)
+
+
+class TestNativeReply(unittest.TestCase):
+    """RO: raspunsul pentru aplicatia nativa — fara diacritice (CP1251)."""
+
+    def test_diacritics_folded(self):
+        from modules.efactura.native_api import ascii_ro, _fold
+        self.assertEqual(ascii_ro("Data eliberării e în trecut, așteptați"),
+                         "Data eliberarii e in trecut, asteptati")
+        self.assertEqual(_fold({"error": "Ținut", "data": {"x": ["ș"]}}),
+                         {"error": "Tinut", "data": {"x": ["s"]}})
+        self.assertEqual(ascii_ro("Выгрузить"), "Выгрузить")   # chirilicele ramin
+        self.assertEqual(ascii_ro("a — «b»…"), 'a - "b"...')
+
+
+class TestFiscalDateIsSendDay(unittest.TestCase):
+    """RO: contul poate fi de ieri; factura fiscala se emite AZI (03.09.2026)."""
+
+    def test_issue_date_is_today(self):
+        import datetime
+        from unittest import mock
+        from modules.efactura.controller import EfaController as C
+        payload = {"success": True, "settings": {"only_companies": "1", "seria": "TST"},
+                   "client_cod": 1, "raw": {},
+                   "seller": {"idno": "1003600116460", "name": "F"},
+                   "doc": {"nrmanual": "A-89", "issue_date": "2026-09-02",
+                           "client_idno": "1003600116460", "client_name": "C",
+                           "items": [{"name": "x", "qty": 1, "price": 1, "sum": 1}],
+                           "total": 1.0, "tva": 0.17, "tva_rate": 20}}
+        seen = {}
+        def fake_post(self, xml, **kw):
+            seen["xml"] = xml
+            return {"success": True, "parsed": {"Status": "2", "TotalInvoicesPosted": "1"},
+                    "request_id": "r"}
+        with mock.patch.object(C, "build_payload", return_value=payload), \
+             mock.patch("modules.efactura.store.EfaStore.doc_upsert"), \
+             mock.patch("modules.efactura.store.EfaStore.log"), \
+             mock.patch("modules.efactura.store.EfaStore.settings", return_value=payload["settings"]), \
+             mock.patch("modules.efactura.sfs.SfsClient.post_invoices", fake_post), \
+             mock.patch("modules.efactura.sfs.SfsClient.configured", return_value=True), \
+             mock.patch("models.biro26_db.Biro26DB.execute_dml", return_value={"success": True}):
+            r = C.send(7, src="native")
+        self.assertTrue(r.get("success"), r)
+        today = datetime.date.today().isoformat()
+        self.assertIn("<IssuedDate>%sT" % today, seen["xml"])
+        self.assertIn("<DeliveryDate>%sT" % today, seen["xml"])
+
+
+class TestNoDuplicateSend(unittest.TestCase):
+    """RO: un document deja SENT nu se retrimite fara `resend` explicit
+    (03.09.2026: 4 apasari = 4 facturi in SFS)."""
+
+    def test_second_send_is_refused(self):
+        from unittest import mock
+        from modules.efactura.controller import EfaController as C
+        with mock.patch("modules.efactura.store.EfaStore.doc_state",
+                        return_value={"status": "SENT", "request_id": "abc", "sent_at": "03.09.2026 08:53"}), \
+             mock.patch("modules.efactura.store.EfaStore.log"), \
+             mock.patch.object(C, "build_payload") as bp:
+            r = C.send(425, src="native")
+        self.assertFalse(r["success"])
+        self.assertTrue(r.get("already_sent"))
+        self.assertIn("deja trimis", r["error"])
+        bp.assert_not_called()                    # nici macar nu construieste XML
+
+
+# ── «Testează conexiunea»: verdict pe semnatari + indiciu de mediu (03.09.2026)
+def _fake_client_factory(good_on):
+    """RO: client fals — `Test` reuseste doar pe adresa `good_on`."""
+    class Fake:
+        def __init__(self, signer, endpoint):
+            self.username = "u%d" % signer
+            self.endpoint = endpoint
+        def configured(self):
+            return True
+        def test(self):
+            if self.endpoint == good_on:
+                return {"success": True, "message": "ok"}
+            return {"success": False, "status": 500, "error": "HTML 500"}
+    return Fake
+
+
+def test_conncheck_hints_other_environment(monkeypatch):
+    from modules.efactura import conncheck, sfs
+    settings = {"endpoint": sfs.ENDPOINT_TEST, "username": "u1",
+                "password": "x", "username2": "u2", "password2": "y"}
+    Fake = _fake_client_factory(sfs.ENDPOINT_PROD)
+    monkeypatch.setattr(sfs.SfsClient, "from_settings",
+                        classmethod(lambda cls, signer=1, api=None, src="":
+                                    Fake(signer, (api or {}).get("endpoint")
+                                         or settings["endpoint"])))
+    import modules.efactura.store as store
+    monkeypatch.setattr(store.EfaStore, "settings", staticmethod(lambda: settings))
+    r = conncheck.check()
+    assert r["success"] is False
+    assert r["cross_endpoint"] == sfs.ENDPOINT_PROD
+    assert "REAL" in r["hint"] and sfs.ENDPOINT_PROD in r["hint"]
+    assert r["signers"]["prima_semnatura"]["success"] is False
+    assert "u1" in r["error"] and "u2" in r["error"]
+
+
+def test_conncheck_success_both_signers(monkeypatch):
+    from modules.efactura import conncheck, sfs
+    settings = {"endpoint": sfs.ENDPOINT_PROD, "username": "u1",
+                "password": "x", "username2": "", "password2": ""}
+    Fake = _fake_client_factory(sfs.ENDPOINT_PROD)
+    monkeypatch.setattr(sfs.SfsClient, "from_settings",
+                        classmethod(lambda cls, signer=1, api=None, src="":
+                                    Fake(signer, settings["endpoint"])))
+    import modules.efactura.store as store
+    monkeypatch.setattr(store.EfaStore, "settings", staticmethod(lambda: settings))
+    r = conncheck.check()
+    assert r["success"] is True
+    assert r["signers"]["a_doua_semnatura"]["skipped"] is True
+    assert "REAL" in r["message"]
+
+
+def test_admin_template_keeps_test_result_out_of_s_info():
+    """RO: rezultatul testului nu mai trece prin s-info, pe care load() il rescrie."""
+    src = open(os.path.join(ROOT, "modules/efactura/templates/efactura_admin.html"),
+               encoding="utf-8").read()
+    body = src[src.index("async function testConn"):]
+    body = body[:body.index("\n}")]
+    assert "s-test" in body and "s-info" not in body and "load()" not in body
+
+
+def test_admin_template_has_endpoint_picker():
+    """RO: lista REAL / PROBA / alt text, cu valoarea salvata tot in s-endpoint."""
+    src = open(os.path.join(ROOT, "modules/efactura/templates/efactura_admin.html"),
+               encoding="utf-8").read()
+    assert 'id="s-endpoint-pick"' in src and '{{ endpoint_prod }}' in src \
+        and '{{ endpoint_test }}' in src and '__custom__' in src
+    assert 'id="s-endpoint"' in src and "syncEndpointPick()" in src
+    routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
+    assert "endpoint_prod=sfs.ENDPOINT_PROD" in routes
+
+
+def test_journal_reads_clobs_in_4000_chunks(monkeypatch):
+    """RO: pe 11g DBMS_LOB.SUBSTR in SQL da cel mult 4000 — jurnalul se citeste
+    pe bucati si le lipeste; un rind lung apare intreg, nu gol."""
+    from modules.efactura import journal
+    captured = {}
+    class FakeDB:
+        def execute_query(self, sql, params):
+            captured["sql"] = sql
+            return {"success": True, "columns": [], "data": []}
+    monkeypatch.setattr("models.biro26_db.Biro26DB", lambda: FakeDB())
+    monkeypatch.setattr("models.biro26_oracle_store._rows", lambda res: [
+        {"id": 1, "ts": "x", "src": "backoffice", "req_len": 8000, "resp_len": 10,
+         "rq_0": "a" * 4000, "rq_1": "b" * 4000, "rs_0": "ok", "rs_1": None}])
+    rows = journal.recent(5, chunks=2)
+    assert "DBMS_LOB.SUBSTR(REQUEST_XML, 4000, 4001) RQ_1" in captured["sql"]
+    assert "32000" not in captured["sql"]
+    assert rows[0]["request_xml"] == "a" * 4000 + "b" * 4000
+    assert rows[0]["response_xml"] == "ok" and rows[0]["request_truncated"] is False
+    assert "rq_0" not in rows[0]
+
+
+def test_admin_page_shows_all_sfs_calls():
+    src = open(os.path.join(ROOT, "modules/efactura/templates/efactura_admin.html"),
+               encoding="utf-8").read()
+    assert "admin/calls" in src and "loadCalls()" in src and 'id="ctab"' in src
+    routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
+    assert '"/admin/calls"' in routes and '"/admin/calls/<int:call_id>"' in routes
+
+
+def test_creation_motiv_from_settings():
+    """RO: 03.09.2026, mediul real: «Motivul Crearii … trebue sa fie 1 sau 2»
+    pentru un neplatitor de TVA — valoarea vine din setari, nu e fixa 4."""
+    from modules.efactura.controller import EfaController
+    from modules.efactura import sfs
+    assert EfaController._creation_motiv({"creation_motiv": "1"}) == 1
+    assert EfaController._creation_motiv({"creation_motiv": ""}) == 4
+    assert EfaController._creation_motiv({"creation_motiv": "9"}) == 4
+    doc = {"number": "A-90", "issue_date": "2026-09-03", "client_idno": "1012600013725",
+           "client_name": "C", "client_address": "a", "items": [
+               {"code": "1", "name": "x", "qty": 1, "price": 10, "unit": "buc"}],
+           "total": 10, "tva": 0, "total_fara_tva": 10, "tva_rate": 0,
+           "creation_motiv": 1}
+    xml = sfs.build_invoice_xml(doc, {"idno": "1026602001837", "name": "G",
+                                      "address": "B"}, seria="AA", number="A-90")
+    assert "<CreationMotiv>1</CreationMotiv>" in xml
+    tpl = open(os.path.join(ROOT, "modules/efactura/templates/efactura_admin.html"),
+               encoding="utf-8").read()
+    assert 'id="s-creation_motiv"' in tpl and 'id="s-tva_rate"' in tpl \
+        and "'creation_motiv','tva_rate'" in tpl
+
+
+def test_non_vat_payer_forces_zero_tva(monkeypatch):
+    """RO: motiv 1/2/3 = neplatitor -> tva 0 si cota 0, oricare ar fi raportul ERP
+    (A-90, 03.09.2026: raportul dadea 413,49 lei TVA la o firma neplatitoare)."""
+    import modules.efactura.controller as ctl
+    import modules.efactura.store as store
+    monkeypatch.setattr(store.EfaStore, "settings", staticmethod(lambda: {
+        "creation_motiv": "1", "tva_rate": "20", "seria": "AA"}))
+    raw = {"firm": {"fiscal_code": "1026602001837", "name": "G", "address": "B"},
+           "client": {"name": "C", "fiscal_code": "1012600013725"},
+           "items": [], "total": 2481.0, "tva": 413.49, "date_short": "03.09.2026",
+           "nrmanual": "A-90"}
+    monkeypatch.setattr(ctl.Biro26Report, "doc_data", staticmethod(
+        lambda cod: {"success": True, "data": raw, "client_cod": 1}))
+    d = ctl.EfaController.build_payload(426)["doc"]
+    assert d["creation_motiv"] == 1 and d["tva"] == 0 and d["tva_rate"] == 0
+    assert d["total_fara_tva"] == 2481.0
+    monkeypatch.setattr(store.EfaStore, "settings", staticmethod(lambda: {
+        "creation_motiv": "4", "tva_rate": "20", "seria": "AA"}))
+    d = ctl.EfaController.build_payload(426)["doc"]
+    assert d["creation_motiv"] == 4 and d["tva"] == 413.49 and d["tva_rate"] == 20
+
+
+def test_vat_payer_option_drives_motiv_and_tva(monkeypatch):
+    """RO: optiunea «Firma este platitoare de TVA» (03.09.2026): Nu -> motiv 1
+    chiar daca era 4, TVA 0; Da -> motivul ramine."""
+    import modules.efactura.controller as ctl
+    import modules.efactura.store as store
+    assert ctl.EfaController._creation_motiv({"vat_payer": "0", "creation_motiv": "4"}) == 1
+    assert ctl.EfaController._creation_motiv({"vat_payer": "0", "creation_motiv": "2"}) == 2
+    assert ctl.EfaController._creation_motiv({"vat_payer": "1", "creation_motiv": "5"}) == 5
+    assert ctl.EfaController._creation_motiv({"creation_motiv": "1"}) == 1
+    monkeypatch.setattr(store.EfaStore, "settings", staticmethod(lambda: {
+        "vat_payer": "0", "creation_motiv": "4", "tva_rate": "20", "seria": "AA"}))
+    raw = {"firm": {"fiscal_code": "1026602001837"}, "client": {"fiscal_code": "1012600013725"},
+           "items": [], "total": 100.0, "tva": 16.67, "date_short": "03.09.2026", "nrmanual": "X"}
+    monkeypatch.setattr(ctl.Biro26Report, "doc_data", staticmethod(
+        lambda cod: {"success": True, "data": raw, "client_cod": 1}))
+    d = ctl.EfaController.build_payload(1)["doc"]
+    assert d["creation_motiv"] == 1 and d["tva"] == 0 and d["tva_rate"] == 0
+    tpl = open(os.path.join(ROOT, "modules/efactura/templates/efactura_admin.html"),
+               encoding="utf-8").read()
+    assert 'id="s-vat_payer"' in tpl and "'vat_payer'" in tpl
+
+
+# ── raportul «facturi transmise» — pachetul EFA_REPORT + web/Excel/PDF (03.09.2026)
+def _report_sample():
+    return {"filters": {"from": "2026-09-01", "to": "2026-09-03", "status": None, "client": None},
+            "header": {"filter_from": "01.09.2026", "filter_to": "03.09.2026", "docs_cnt": 1,
+                       "sent_cnt": 1, "accepted_cnt": 0, "error_cnt": 0, "total_sum": 2481.0,
+                       "generated_at": "03.09.2026 22:00", "endpoint": "https://efactura-api.sfs.md/Service.svc"},
+            "master": [{"efa_id": 121, "doc_cod": 426, "nrmanual": "A-90", "doc_date": "03.09.2026",
+                        "client_name": "IURILEN-FLOR SRL — Bălți", "client_idno": "1014607001158",
+                        "status": "SENT", "sfs_seria": None, "sfs_number": None,
+                        "request_id": "08df0b1a", "sent_at": "03.09.2026 21:34", "err_msg": None,
+                        "total": 2481.0, "rows_cnt": 2, "qty_sum": 53.0}],
+            "detail": [{"efa_id": 121, "doc_cod": 426, "row_no": 1, "goods_cod": 165051,
+                        "code": "C12E5C5", "name": "Caiet A5, 12 file, pătrățele", "um": "buc",
+                        "qty": 50.0, "price": 1.75, "suma": 87.5, "nrmanual": "A-90"},
+                       {"efa_id": 121, "doc_cod": 426, "row_no": 2, "goods_cod": 182556,
+                        "code": "H.3662", "name": "Coperte HELLO clasa 1-a, română", "um": "buc",
+                        "qty": 3.0, "price": 25.0, "suma": 75.0, "nrmanual": "A-90"}]}
+
+
+def test_report_sql_has_slash_around_every_plsql_block():
+    """RO: lectia SDA (CLAUDE.md §2.5): '/' si INAINTE si DUPA fiecare bloc PL/SQL."""
+    src = open(os.path.join(ROOT, "modules/efactura/sql/04_efa_report.sql"), encoding="utf-8").read()
+    blocks = [b.strip() for b in src.split("\n/\n") if b.strip()]
+    heads = [" ".join(b.split()[:4]) for b in blocks if not b.lstrip().startswith("--") or "CREATE" in b]
+    assert any("PACKAGE BODY EFA_REPORT" in b for b in blocks)
+    for b in blocks:
+        body = "\n".join(l for l in b.splitlines() if not l.strip().startswith("--")).strip()
+        if body:
+            assert body.startswith("CREATE OR REPLACE"), body[:60]
+    assert "PIPELINED" in src and "OUT SYS_REFCURSOR" in src
+    assert all(x in src for x in ("FUNCTION header", "FUNCTION master", "FUNCTION detail", "PROCEDURE sent"))
+    assert "ă" not in src and "î" not in src, "diacritice in DDL — baza e CL8MSWIN1251"
+
+
+def test_report_filters_defaults_and_validation():
+    from modules.efactura import report
+    f = report.parse_filters({})
+    assert f["from"].endswith("-01") and f["status"] is None and f["client"] is None
+    f = report.parse_filters({"from": "01.09.2026", "to": "2026-09-03", "status": "sent", "client": "471738"})
+    assert f == {"from": "2026-09-01", "to": "2026-09-03", "status": "SENT", "client": 471738}
+    import pytest
+    with pytest.raises(ValueError):
+        report.parse_filters({"status": "WHATEVER"})
+    with pytest.raises(ValueError):
+        report.parse_filters({"from": "2026/09/01"})
+
+
+def test_report_xlsx_has_three_sheets_linked_by_efa_id():
+    from openpyxl import load_workbook
+    import io
+    from modules.efactura import report
+    wb = load_workbook(io.BytesIO(report.to_xlsx(_report_sample())))
+    assert wb.sheetnames == ["Header", "Master", "Detail"]
+    m = wb["Master"]; d = wb["Detail"]
+    assert m["A1"].value == "EFA_ID" and m["A2"].value == 121 and m["C2"].value == "A-90"
+    assert d["A2"].value == 121 and d["A3"].value == 121 and d["C2"].value == "A-90"
+    assert wb["Header"]["A1"].value.startswith("Raport")
+
+
+def test_report_pdf_renders_master_and_detail():
+    from modules.efactura import report
+    pdf = report.to_pdf(_report_sample())
+    assert pdf[:5] == b"%PDF-" and len(pdf) > 1500
+
+
+def test_report_routes_and_page():
+    routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
+    for r in ('"/report"', '"/admin/report"', '"/admin/report.xlsx"', '"/admin/report.pdf"'):
+        assert r in routes
+    tpl = open(os.path.join(ROOT, "modules/efactura/templates/efactura_report.html"), encoding="utf-8").read()
+    assert "admin/report.xlsx" in tpl and "admin/report.pdf" in tpl and "EFA_REPORT" in tpl
+    assert 'url_for("efactura.admin_page")' in tpl and "/UNA.md/orasldev/efactura" not in tpl.split("<script>")[1]
+    import json
+    m = json.load(open(os.path.join(ROOT, "modules/efactura/module.json"), encoding="utf-8"))
+    assert "efactura.report_page" in m["pages"]
+
+
+# ── refuzurile SFS explicate operatorului (11.09.2026, documentul 431) ───
+def test_sfs_transient_error_is_named_as_theirs_and_marked_repeatable():
+    """RO: SFS a raspuns «A aparut o eroare la incarcarea atasamentului. Va
+    rugam sa incercati mai tarziu» cu TotalInvoicesPosted=0 — nimic nu a
+    intrat la ei, deci actiunea se poate repeta, iar vina nu e a documentului."""
+    from modules.efactura.rules import explain_sfs_error, sfs_transient
+    p = {"TotalInvoices": "1", "TotalInvoicesPosted": "0"}
+    msg = explain_sfs_error("A aparut o eroare la incarcarea atasamentului. "
+                            "Va rugam sa incercati mai tarziu.", p)
+    assert "eroare la SFS, nu in document" in msg and "se poate repeta" in msg
+    assert sfs_transient("...ataşamentului...") and sfs_transient("try again later")
+    # un refuz al documentului nostru nu se da drept eroare a lor
+    ours = explain_sfs_error("Motivul Crearii este indicat incorect trebue sa fie 1 sau 2", p)
+    assert "eroare la SFS" not in ours and "se poate repeta" in ours
+    assert not sfs_transient("Motivul Crearii este indicat incorect")
+
+
+def test_partially_posted_batch_warns_against_repeating():
+    """RO: daca ceva a INTRAT deja, repetarea face dubluri (03.09.2026: patru
+    apasari = patru facturi in SFS)."""
+    from modules.efactura.rules import explain_sfs_error
+    msg = explain_sfs_error("eroare", {"TotalInvoices": "2", "TotalInvoicesPosted": "1"})
+    assert "nu repetati" in msg and "se poate repeta" not in msg
+    assert explain_sfs_error("", {"TotalInvoices": "1"}) == ""
+
+
+def test_controller_shows_the_explained_error_in_the_native_window():
+    src = open(os.path.join(ROOT, "modules/efactura/controller.py"), encoding="utf-8").read()
+    assert "explain_sfs_error(parsed.get(\"ErrorMessage\"), parsed)" in src
+
+
+# ── facturile PRIMITE (partea de cumparator), 13.09.2026 ─────────────────
+def _inbound_xml():
+    return open(os.path.join(ROOT, "docs/Partner/sfs/ModelFacturaPrimita.xml"), encoding="utf-8").read()
+
+
+def test_inbox_parses_real_received_invoice():
+    from modules.efactura import inbox
+    inv = inbox.parse_invoice(_inbound_xml())
+    assert inv["seria"] == "EAA" and inv["number"] == "002514972" and inv["issued_date"] == "2020-06-11"
+    assert inv["supplier"]["idno"] == "1014600011116" and inv["supplier"]["title"].startswith("POSEIDONGRUP")
+    assert inv["buyer"]["idno"] == "1003600116460" and inv["total"] == 3500.0 and inv["total_tva"] == 583.33
+    assert len(inv["rows"]) == 1 and inv["rows"][0]["name"].startswith("Mariflex") and inv["rows"][0]["qty"] == 35
+    assert inv["rows"][0]["barcode"] == "" and inv["rows"][0]["tva_pct"] == 20
+    import pytest as _pt
+    with _pt.raises(ValueError):
+        inbox.parse_invoice("<html/>")
+
+
+def test_inbox_wraps_for_pkg_edi_xml_and_strips_signature():
+    from modules.efactura import inbox
+    xml = "<Document><SupplierInfo><Seria>A</Seria></SupplierInfo><Signatures><x>1</x></Signatures></Document>"
+    w = inbox.wrap_documents(xml)
+    assert w.startswith("<Documents><Document>") and "Signatures" not in w and w.endswith("</Documents>")
+    assert inbox.wrap_documents("<Documents><Document/></Documents>") == "<Documents><Document/></Documents>"
+
+
+def test_inbox_rules_like_oracle():
+    """RO: TMS_IMPORT_EFACTURA.TEXT1 e un LIKE Oracle (%, _), pe denumire, dupa PRIORITET."""
+    from modules.efactura import inbox
+    rules = [{"idn": 2, "dt": 5442, "dtsc": None, "text1": "%SERVICII%BROKER%", "text2": "Brokeraj", "prioritet": 20},
+             {"idn": 1, "dt": 5442, "dtsc": None, "text1": "%SERVICII%BROKER%VAMAL%", "text2": "Brokeraj vamal", "prioritet": 10}]
+    rules.sort(key=lambda r: (r["prioritet"], r["idn"]))
+    assert inbox.match_rule("Servicii de broker vamal", rules)["idn"] == 1
+    assert inbox.match_rule("SERVICII BROKER", rules)["idn"] == 2
+    assert inbox.match_rule("Mariflex PU 30 Grey 600 ML", rules) is None
+    assert inbox.like_to_regex("A_C%").match("ABCDEF") and not inbox.like_to_regex("A_C%").match("ABDC")
+    assert inbox.fold("Servicii de curățenie") == "SERVICII DE CURATENIE"
+
+
+def test_inbox_soap_requests_follow_xsd_order():
+    from modules.efactura import sfs
+    calls = []
+    c = sfs.SfsClient("https://x/Service.svc", "u", "p")
+    c.call = lambda method, body="": calls.append((method, body)) or {"success": True, "raw": ""}
+    c.search_invoices(sfs.ROLE_BUYER, buyer_idno="1003600116460", issued_from="2026-01-01", issued_to="2026-09-13", seria="EAA")
+    m, b = calls[-1]
+    assert m == "SearchInvoices" and b.index("<a:ActorRole>2") < b.index("<a:Parameters>")
+    assert b.index("<a:BuyerIDNO>") < b.index("<a:IssuedOn>") < b.index("<a:Seria>") and b.index("<a:EndDate>") < b.index("<a:StartDate>")
+    c.post_rejected([("EAA", "002514972", "marfa <lipsa>")])
+    m, b = calls[-1]
+    assert m == "PostRejectedInvoices" and b.index("<a:Number>") < b.index("<a:Seria>") < b.index("<a:Comment>") and "&lt;lipsa&gt;" in b
+    c.post_accepted([("EAA", "002514972")]); assert calls[-1][0] == "PostAcceptedInvoices" and "<a:SeriaAndNumbers>" in calls[-1][1]
+    c.get_content_for_print([("EAA", "1")], sfs.ROLE_BUYER); b = calls[-1][1]
+    assert b.index("<a:SeriaAndNumbers>") < b.index("<a:ActorRole>") < b.index("<a:Orientation>")
+
+
+def test_inbox_sfs_entries_and_env():
+    from modules.efactura import inbox
+    raw = ('<s:Envelope xmlns:s="x"><s:Body><R xmlns:a="y"><a:Results><a:XmlInvoice><a:Message/><a:Number>1</a:Number>'
+           '<a:Seria>EAA</a:Seria><a:Status>2</a:Status><a:InvoiceStatus>7</a:InvoiceStatus><a:Xml>&lt;Document/&gt;</a:Xml>'
+           '</a:XmlInvoice></a:Results></R></s:Body></s:Envelope>')
+    e = inbox.sfs_entries(raw)
+    assert e == [{"seria": "EAA", "number": "1", "status": "2", "invoice_status": "7", "message": "", "xml": "<Document/>"}]
+    dec = ('<R xmlns:a="y"><a:Results><a:InvoiceResult><a:Number>1</a:Number><a:Seria>EAA</a:Seria><a:Message/>'
+           '<a:Status>2</a:Status></a:InvoiceResult></a:Results></R>')
+    assert inbox.sfs_entries(dec)[0]["status"] == "2"      # DecisionResponse (PostAccepted/Rejected)
+    assert inbox.env_of("https://efactura-api.sfs.md/Service.svc") == "prod" and inbox.env_of("https://apiefactura-pre.sfs.md/Service.svc") == "test"
+
+
+def test_inbox_ddl_and_page():
+    src = open(os.path.join(ROOT, "modules/efactura/sql/05_efa_inbox.sql"), encoding="utf-8").read()
+    for b in [b for b in src.split("\n/\n") if b.strip()]:
+        body = "\n".join(l for l in b.splitlines() if not l.strip().startswith("--")).strip()
+        assert body.startswith("CREATE ") and body.count("\nCREATE ") == 0, body[:60]
+    assert src.isascii() and "PACKAGE BODY EFA_INBOX" in src and "//Documents/Document/SupplierInfo/" in src
+    for line in src.splitlines():
+        s = line.strip()
+        if s.startswith("--"):
+            assert ";" not in s and "'" not in s and '"' not in s, s
+    tpl = open(os.path.join(ROOT, "modules/efactura/templates/efactura_test.html"), encoding="utf-8").read()
+    assert 'id="inbox-card"' in tpl and "inbox/sync" in tpl and "/land" in tpl and "/decision" in tpl
+    routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
+    for r in ('"/test/inbox"', '"/test/inbox/sync"', '"/test/inbox/<int:in_id>/land"', '"/test/inbox/<int:in_id>/decision"'):
+        assert r in routes
+
+
+# ── importul ca in celelalte baze una.md: pachet 12103 -> 1209 (13.09.2026) ──
+def test_package_xml_wraps_many_documents():
+    from modules.efactura import inbox
+    a = '<?xml version="1.0"?><Document><SupplierInfo><Seria>A</Seria></SupplierInfo><Signatures><s/></Signatures></Document>'
+    b = "<Document><SupplierInfo><Seria>B</Seria></SupplierInfo></Document>"
+    p = inbox.package_xml([a, b, ""])
+    assert p.startswith('<?xml version="1.0" encoding="UTF-8"?><Documents><Document>') and p.count("<Document>") == 2
+    assert "Signatures" not in p and p.endswith("</Documents>") and p.count("<?xml") == 1
+    assert inbox.PKG_STATUS[1] == "valida" and inbox.PKG_STATUS[7].startswith("furnizorul")
+
+
+def test_package_flow_sql_and_form_script():
+    src = open(os.path.join(ROOT, "modules/efactura/sql/06_efa_inbox_pkg.sql"), encoding="utf-8").read()
+    assert src.isascii()
+    for must in ("pkg_edi_xml.import_xml_package_object", "PROCEDURE create_docs_1209", "SYSFID 12103" if False else "12103",
+                 "INSERT INTO VMDB_ST201M", "INSERT INTO VMDB01M_VINZ", "INSERT INTO VMDB_ST201D", "VMS_IMPORT_EFACTURA",
+                 "VMS_MPT_BARCODE", "inbox/package/", "ALTER TABLE EFA_IN ADD"):
+        assert must in src, must
+    for line in src.splitlines():
+        s = line.strip()
+        if s.startswith("--"):
+            assert ";" not in s and "'" not in s and '"' not in s, s
+    f = open(os.path.join(ROOT, "modules/efactura/scripts/efactura_native_form12103.py"), encoding="utf-8").read()
+    assert '"DB ID": ("I", 12103)' in f and "EFA_INBOX.fetch_api_pr(:nrdoc)" in f and "EFA_INBOX.create_docs_1209(:nrdoc)" in f
+    assert "pkg_edi_xml.import_xml_package_object(:nrdoc)" in f and "PARENT = 2453" in f
+    routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
+    assert '"/test/inbox/import"' in routes and '"/test/inbox/package/<int:nrdoc>"' in routes
+    nat = open(os.path.join(ROOT, "modules/efactura/native_api.py"), encoding="utf-8").read()
+    assert '"/api/biro26/efactura/inbox/package/<int:nrdoc>"' in nat
+    import json
+    m = json.load(open(os.path.join(ROOT, "modules/efactura/module.json"), encoding="utf-8"))
+    assert "/api/biro26/efactura/inbox/package/<int:nrdoc>" in m["root_paths"]
+    tpl = open(os.path.join(ROOT, "modules/efactura/templates/efactura_test.html"), encoding="utf-8").read()
+    assert "inbox/import" in tpl and "pachet 12103" in tpl
+
+
+# ── importul SIMPLU dintr-un fisier XML (cerinta din 14.09.2026) ─────────────
+_PKG_2 = (
+    '<?xml version="1.0" encoding="utf-8"?><Documents>'
+    '<Document><SupplierInfo><Seria>EBH</Seria><Number>000141537</Number>'
+    '<IssuedDate>2026-04-07T20:06:39.9077801+03:00</IssuedDate>'
+    '<Supplier IDNO="1026602001837" Title="S.R.L. &quot;GRECU OFFICE GROUP&quot;" Address="MUN.BALTI"/>'
+    '<Buyer IDNO="1004602003374" Title="&quot;IVANOV V.N.&quot; I.I." Address="MUN.BALTI"/>'
+    '<Total>325</Total><TotalTVA>0.00</TotalTVA><Merchandises>'
+    '<Row Code="1" Name="Pix Delta 0,7mm, albastru" UnitOfMeasure="buc" Quantity="5" '
+    'UnitPriceWithoutTVA="65.00" TotalPriceWithoutTVA="325.00" TVA="-" TotalTVA="0" TotalPrice="325"/>'
+    '</Merchandises><CreationMotiv>1</CreationMotiv></SupplierInfo>'
+    '<Signatures><SignatureContent>xxx</SignatureContent></Signatures></Document>'
+    '<Document><SupplierInfo><Seria>EBL</Seria><Number>000435006</Number>'
+    '<IssuedDate>2026-08-24T07:09:43.6678563+03:00</IssuedDate>'
+    '<Supplier IDNO="1008602007200" Title="S.R.L. &quot;TOTAL COMPUTER&quot;" Address="MUN.BALTI"/>'
+    '<Buyer IDNO="1026602001837" Title="S.R.L. &quot;GRECU OFFICE GROUP&quot;" Address="MUN.BALTI"/>'
+    '<Total>101</Total><TotalTVA>16.84</TotalTVA><Merchandises>'
+    '<Row Code="1" Name="Power Cord PC-220V" UnitOfMeasure="buc." Quantity="1" '
+    'UnitPriceWithoutTVA="38.33" TotalPriceWithoutTVA="38.33" TVA="20" TotalTVA="7.67" TotalPrice="46.00"/>'
+    '</Merchandises><CreationMotiv>4</CreationMotiv></SupplierInfo></Document>'
+    '</Documents>')
+
+
+def test_simple_split_and_parse_package():
+    from modules.efactura.simple import parse_package, split_documents
+    assert len(split_documents(_PKG_2)) == 2
+    # o singura factura, fara invelisul <Documents>, merge la fel
+    one = split_documents(_PKG_2)[0]
+    assert len(split_documents(one)) == 1
+    assert split_documents("<altceva/>") == []
+    docs = parse_package(_PKG_2)
+    assert [d["seria"] for d in docs] == ["EBH", "EBL"]
+    assert [d["nr_in_file"] for d in docs] == [1, 2]
+    assert docs[0]["number"] == "000141537" and docs[0]["total"] == 325.0
+    assert docs[0]["supplier"]["idno"] == "1026602001837"
+    assert docs[1]["buyer"]["idno"] == "1026602001837" and docs[1]["rows"][0]["total"] == 46.0
+    # semnatura nu ajunge in XML-ul pastrat pentru document
+    assert "Signatures" not in docs[0]["xml"]
+
+
+def test_simple_direction_and_reuse(monkeypatch):
+    """RO: directia se ia din IDNO-ul nostru, iar cardurile gasite se REFOLOSESC."""
+    from modules.efactura import simple
+    monkeypatch.setattr(simple.EfaSimple, "goods_by_names", staticmethod(lambda names: {
+        "Pix Delta 0,7mm, albastru": {"cod": 174355, "denumirea": "Pix Delta 0,7mm, albastru",
+                                      "um": "buc.", "how": "denumire", "has_group": True},
+        "Power Cord PC-220V": {"cod": 999001, "denumirea": "Power Cord PC-220V",
+                               "um": "buc.", "how": "denumire", "has_group": False}}))
+    monkeypatch.setattr(simple.EfaSimple, "org_by_idno", staticmethod(
+        lambda idno: {"cod": 479135, "denumirea": "GRECU OFFICE GROUP SRL", "how": "codvechi"}
+        if idno == "1026602001837" else None))
+    an = simple.EfaSimple.analyze(_PKG_2, seller_idno="1026602001837")
+    assert an["success"]
+    d_out, d_in = an["docs"]
+    assert d_out["direction"] == "out" and d_in["direction"] == "in"
+    assert d_out["rows"][0]["card_cod"] == 174355 and d_out["rows"][0]["how"] == "denumire"
+    assert d_out["rows"][0]["card_no_group"] is False
+    # cardul exista, dar nu e legat de o grupa -> nu poate intra in documentul de intrare
+    assert d_in["rows"][0]["card_cod"] == 999001 and d_in["rows"][0]["card_no_group"] is True
+    assert d_in["supplier"]["match"] is None and d_in["buyer"]["match"]["cod"] == 479135
+    s = an["summary"]
+    assert s["documents"] == 2 and s["incoming"] == 1 and s["outgoing"] == 1
+    assert s["rows"] == 2 and s["rows_reused"] == 2 and s["rows_new"] == 0 and s["rows_no_group"] == 1
+    assert s["orgs"] == 3 and s["orgs_found"] == 1 and s["orgs_new"] == 2
+
+
+def test_simple_db_text_for_cl8mswin1251():
+    from modules.efactura.simple import db_text
+    assert db_text('S.R.L. "ECONOM ȘOP"') == "S.R.L. ECONOM SOP"
+    assert db_text("Acuarelă 12 culori Luch") == "Acuarela 12 culori Luch"
+    assert db_text("  doua   spatii  ") == "doua spatii"
+    assert db_text(None) == ""
+
+
+def test_simple_wiring_sql_routes_and_page():
+    src = open(os.path.join(ROOT, "modules/efactura/sql/06_efa_inbox_pkg.sql"), encoding="utf-8").read()
+    assert "PROCEDURE create_doc_from_in" in src and "FUNCTION  card_ok" in src
+    # rind cu rind: un INSERT ... SELECT in VMDB_ST201D strica DTSC si SUMA
+    assert "FOR x IN (SELECT ROWN, MATCH_COD" in src and "SAVEPOINT efa_doc_from_in" in src
+    assert "card_ok(x.MATCH_COD) = 1" in src and "card_ok(x.SC) = 1" in src
+    assert src.count("INSERT INTO VMDB_ST201D") == 2
+    routes = open(os.path.join(ROOT, "modules/efactura/routes.py"), encoding="utf-8").read()
+    assert '"/test/simple/analyze"' in routes and '"/test/simple/import"' in routes
+    tpl = open(os.path.join(ROOT, "modules/efactura/templates/efactura_test.html"), encoding="utf-8").read()
+    assert "simple-card" in tpl and "simple/analyze" in tpl and "simple/import" in tpl
+    mod = open(os.path.join(ROOT, "modules/efactura/simple.py"), encoding="utf-8").read()
+    assert "TMS_ORG" in mod and "CODVECHI" in mod and "TMS_SYSGRP" in mod
+
+
+def test_simple_db_failure_is_not_zero_matches(monkeypatch):
+    """RO: o cadere de retea (DPY-4011 / ORA-12537) NU trebuie sa arate «zero potriviri» —
+    altfel operatorul ar crea duplicate peste tot nomenclatorul (14.09.2026)."""
+    from modules.efactura import simple
+
+    class DeadDb:
+        def execute_query(self, sql, binds=None):
+            return {"success": False, "data": [], "message": "ORA-12537: TNS:connection closed"}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(lambda: (DeadDb(), lambda r: [])))
+    an = simple.EfaSimple.analyze(_PKG_2, seller_idno="1026602001837")
+    assert an["success"] is False and "ORA-12537" in an["error"]
+    # importul se opreste in acelasi punct, deci nu creeaza nimic
+    r = simple.EfaSimple.import_file(_PKG_2, create_goods=True, create_orgs=True, seller_idno="1026602001837")
+    assert r["success"] is False and "created" not in r
+
+
+def test_simple_creates_one_card_per_name_not_per_row(monkeypatch):
+    """RO: aceeasi denumire pe mai multe rinduri/facturi => UN singur card.
+    Pe 14.09.2026 lipsa acestei verificari a creat 237 de carduri in loc de 168."""
+    from modules.efactura import simple
+    pkg = _PKG_2.replace(
+        '<Row Code="1" Name="Power Cord PC-220V" UnitOfMeasure="buc." Quantity="1" '
+        'UnitPriceWithoutTVA="38.33" TotalPriceWithoutTVA="38.33" TVA="20" TotalTVA="7.67" TotalPrice="46.00"/>',
+        '<Row Code="1" Name="Power Cord PC-220V" UnitOfMeasure="buc." Quantity="1" '
+        'UnitPriceWithoutTVA="38.33" TotalPriceWithoutTVA="38.33" TVA="20" TotalTVA="7.67" TotalPrice="46.00"/>'
+        '<Row Code="2" Name="power cord pc-220v" UnitOfMeasure="шт" Quantity="1" '
+        'UnitPriceWithoutTVA="38.33" TotalPriceWithoutTVA="38.33" TVA="20" TotalTVA="7.67" TotalPrice="46.00"/>')
+    monkeypatch.setattr(simple.EfaSimple, "goods_by_names", staticmethod(lambda names: {}))
+    monkeypatch.setattr(simple.EfaSimple, "org_by_idno", staticmethod(lambda idno: None))
+    monkeypatch.setattr(simple.EfaInbox, "upsert", staticmethod(
+        lambda env, entry, queue, cards=None: {"success": True, "id": 1, "result": "added"}))
+    seq = iter(range(900001, 900100))
+    made = []
+
+    def fake_create(name, um="buc.", barcode=None, supplier_cod=None):
+        cod = next(seq)
+        made.append((cod, name, um))
+        return {"success": True, "cod": cod, "denumirea": name}
+
+    monkeypatch.setattr(simple.EfaSimple, "create_goods", staticmethod(fake_create))
+    monkeypatch.setattr(simple.EfaSimple, "create_org", staticmethod(
+        lambda idno, name, address="": {"success": True, "cod": 800001, "denumirea": name}))
+
+    class Db:
+        def execute_dml(self, sql, binds=None):
+            return {"success": True}
+
+        def call_proc(self, sql, binds=None):
+            return {"success": True}
+
+        def execute_query(self, sql, binds=None):
+            return {"success": True, "data": []}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(lambda: (Db(), lambda r: [])))
+    r = simple.EfaSimple.import_file(pkg, create_goods=True, seller_idno="1026602001837")
+    assert r["success"] and r["summary"]["goods_created"] == 2, made
+    names = [m[1] for m in made]
+    assert "Pix Delta 0,7mm, albastru" in names and len(set(n.lower() for n in names)) == 2
+
+
+def test_no_translate_with_diacritics_in_sql():
+    """RO: un literal cu diacritice ajunge in baza CL8MSWIN1251 ca «aai?s?t», iar
+    TRANSLATE cu el strica denumirile («Agrafe» -> « grafe»). In SQL nu transliteram."""
+    for f in ("modules/efactura/simple.py", "modules/efactura/inbox.py"):
+        src = open(os.path.join(ROOT, f), encoding="utf-8").read()
+        for m in re.finditer(r"TRANSLATE\(", src):
+            line = src[src.rfind("\n", 0, m.start()) + 1: src.find("\n", m.start())]
+            assert "ă" not in line and "ș" not in line, "%s: %s" % (f, line.strip())
+
+
+def test_simple_matches_card_created_from_same_name(monkeypatch):
+    """RO: cardul se scrie prin db_text (spatii strinse, fara diacritice/ghilimele);
+    potrivirea trebuie sa foloseasca aceeasi normalizare, altfel factura nu-si
+    gaseste propriul card (14.09.2026: 31 de denumiri)."""
+    from modules.efactura import simple
+    cerut = ["Acuarela   6 cul. ZOO", 'Set "ABC"', "Pensula veveriţa № 1"]
+    vazute = {}
+
+    class Db:
+        def execute_query(self, sql, binds=None):
+            vazute.setdefault("pasi", []).append(sorted(binds.values()))
+            # baza contine denumirile deja normalizate, ca la creare
+            have = {"ACUARELA 6 CUL. ZOO": (1, "Acuarela 6 cul. ZOO"),
+                    "SET ABC": (2, "Set ABC"),
+                    "PENSULA VEVERITA № 1": (3, "Pensula veverita № 1")}
+            out = [{"cod": c, "denumirea": d, "um": "buc.", "key_": k, "grp": 1}
+                   for k, (c, d) in have.items() if k in (binds or {}).values()]
+            return {"success": True, "data": out}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(
+        lambda: (Db(), lambda r: r.get("data") or [])))
+    got = simple.EfaSimple.goods_by_names(cerut)
+    assert set(got) == set(cerut), got
+    # cele cu spatii duble / ghilimele se gasesc DOAR prin normalizarea de la scriere
+    assert got["Acuarela   6 cul. ZOO"] == {"cod": 1, "denumirea": "Acuarela 6 cul. ZOO",
+                                            "um": "buc.", "has_group": True, "how": "denumire-normalizata"}
+    assert got['Set "ABC"']["how"] == "denumire-normalizata" and got['Set "ABC"']["cod"] == 2
+
+
+def test_simple_writes_match_by_row_number(monkeypatch):
+    """RO: MATCH_COD se scrie dupa ROWN. Denumirea din EFA_IN_ROW e pastrata in baza cu
+    «?» in locul diacriticelor, deci o potrivire dupa nume ar rata cardul (14.09.2026)."""
+    from modules.efactura import simple
+    monkeypatch.setattr(simple.EfaSimple, "goods_by_names", staticmethod(lambda names: {
+        n: {"cod": 700 + i, "denumirea": n, "um": "buc.", "how": "denumire", "has_group": True}
+        for i, n in enumerate(dict.fromkeys(x.strip() for x in names if x))}))
+    monkeypatch.setattr(simple.EfaSimple, "org_by_idno", staticmethod(lambda idno: {"cod": 5, "how": "codvechi"}))
+    monkeypatch.setattr(simple.EfaInbox, "upsert", staticmethod(
+        lambda env, entry, queue, cards=None: {"success": True, "id": 77, "result": "added"}))
+    scrise = []
+
+    class Db:
+        def execute_dml(self, sql, binds=None):
+            if "EFA_IN_ROW" in sql:
+                scrise.append((binds["i"], binds["r"], binds["c"]))
+            return {"success": True}
+
+        def call_proc(self, sql, binds=None):
+            return {"success": True}
+
+        def execute_query(self, sql, binds=None):
+            return {"success": True, "data": []}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(lambda: (Db(), lambda r: r.get("data") or [])))
+    simple.EfaSimple.import_file(_PKG_2, seller_idno="1026602001837")
+    assert scrise and all(in_id == 77 and rown == 1 for in_id, rown, _ in scrise)
+    assert len(scrise) == 2  # cite un rind pe fiecare factura din pachet
+
+
+def test_match_kind_column_fits_all_kinds():
+    """RO: MATCH_KIND trebuie sa incapa cel mai lung fel de potrivire.
+    Cu 10 caractere, «denumire-normalizata» pica cu ORA-12899 — TACUT (14.09.2026)."""
+    ddl = open(os.path.join(ROOT, "modules/efactura/sql/06_efa_inbox_pkg.sql"), encoding="utf-8").read()
+    assert "MODIFY (MATCH_KIND VARCHAR2(30))" in ddl
+    src = open(os.path.join(ROOT, "modules/efactura/simple.py"), encoding="utf-8").read()
+    for kind in re.findall(r'"(denumire[-\w]*|creat|barcode|rule|none)"', src):
+        assert len(kind) <= 30, kind
+    assert '(r0.get("how") or "denumire")[:30]' in src
+
+
+def test_create_goods_writes_tms_mpt_and_barcode(monkeypatch):
+    from modules.efactura import simple
+    """RO: cardul nou primeste si rindul-parinte TMS_MPT (MATGR1=1, furnizorul) si un
+    cod de bare prin EFA_INBOX.ensure_barcode. Pina pe 22.09.2026 lipseau amindoua:
+    170 de carduri din facturile primite stateau in 1209 cu coloana «Barcode» goala,
+    iar TMS_MPT_BARCODE nici nu accepta rindul (FK spre TMS_MPT)."""
+    sqls = []
+
+    class Db:
+        def execute_dml(self, sql, binds=None):
+            sqls.append((sql, binds))
+            return {"success": True}
+
+        def execute_query(self, sql, binds=None):
+            sqls.append((sql, binds))
+            if "NEXTVAL" in sql:
+                return {"success": True, "data": [{"n": 540999}]}
+            if "ensure_barcode" in sql:
+                assert binds == {"c": 540999, "b": "4840070001172"}
+                return {"success": True, "data": [{"bc": "4840070001172"}]}
+            return {"success": True, "data": []}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(
+        lambda: (Db(), lambda r: r.get("data") or [])))
+    g = simple.EfaSimple.create_goods("Pix Delta", "buc", barcode="4840070001172", supplier_cod=161245)
+    assert g == {"success": True, "cod": 540999, "denumirea": "Pix Delta", "barcode": "4840070001172"}
+    mpt = [b for sql, b in sqls if "INSERT INTO TMS_MPT (" in sql]
+    assert mpt == [{"c": 540999, "s": 161245}]
+    assert any("INSERT INTO TMS_MPT_TVR" in sql for sql, _ in sqls)
+    assert any("EFA_INBOX.ensure_barcode" in sql for sql, _ in sqls)
+
+
+def test_import_file_passes_invoice_barcode_and_supplier_to_create_goods(monkeypatch):
+    from modules.efactura import simple
+    """RO: codul de bare din factura si furnizorul ajung la crearea cardului — altfel
+    s-ar genera un EAN «2000…» chiar daca marfa are deja EAN-ul producatorului."""
+    pkg = _PKG_2.replace("<Barcode></Barcode>", "<Barcode>4840070001172</Barcode>", 1) \
+        if "<Barcode></Barcode>" in _PKG_2 else _PKG_2
+    monkeypatch.setattr(simple.EfaSimple, "analyze", staticmethod(lambda xml, seller=None: {
+        "success": True, "seller_idno": "1026602001837", "summary": {}, "docs": [{
+            "seria": "EBL", "number": "1", "nr_in_file": 1, "direction": "in", "issued_date": "2026-09-01",
+            "supplier": {"idno": "1002600000001", "title": "F SRL", "match": {"cod": 161245, "denumirea": "F SRL"}},
+            "buyer": {"idno": "1026602001837", "match": {"cod": 1}}, "duplicate_in_file": False,
+            "rows": [{"rown": 1, "name": "Pix Delta", "um": "buc", "barcode": "4840070001172", "qty": 1}]}]}))
+    monkeypatch.setattr(simple, "parse_package", lambda xml: [{"nr_in_file": 1, "xml": ""}])
+    monkeypatch.setattr(simple.EfaInbox, "upsert", staticmethod(
+        lambda env, entry, queue, cards=None: {"success": True, "id": 1, "result": "added"}))
+    got = {}
+
+    def fake_create(name, um="buc.", barcode=None, supplier_cod=None):
+        got.update(name=name, barcode=barcode, supplier_cod=supplier_cod)
+        return {"success": True, "cod": 540999, "denumirea": name, "barcode": barcode}
+
+    monkeypatch.setattr(simple.EfaSimple, "create_goods", staticmethod(fake_create))
+
+    class Db:
+        def execute_dml(self, sql, binds=None):
+            return {"success": True}
+
+        def execute_query(self, sql, binds=None):
+            return {"success": True, "data": []}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(lambda: (Db(), lambda r: [])))
+    r = simple.EfaSimple.import_file(pkg, create_goods=True, seller_idno="1026602001837")
+    assert r["success"], r
+    assert got == {"name": "Pix Delta", "barcode": "4840070001172", "supplier_cod": 161245}
+
+
+def test_import_file_sets_prices_after_creating_document(monkeypatch):
+    """RO: dupa create_doc_from_in se cheama EFA_INBOX.ensure_prices(nrdoc) — regula
+    proprietarului (22.09.2026): pretul de lista e cu 10% sub pretul de vinzare.
+    Fara asta documentul arata «Продажная цена» goala si «Разница» = -PRET."""
+    from modules.efactura import simple
+    monkeypatch.setattr(simple.EfaSimple, "analyze", staticmethod(lambda xml, seller=None: {
+        "success": True, "seller_idno": "1026602001837", "summary": {}, "docs": [{
+            "seria": "EBL", "number": "1", "nr_in_file": 1, "direction": "in", "issued_date": "2026-09-01",
+            "supplier": {"idno": "1002600000001", "title": "F SRL", "match": {"cod": 161245, "denumirea": "F SRL"}},
+            "buyer": {"idno": "1026602001837", "match": {"cod": 1}}, "duplicate_in_file": False,
+            "rows": [{"rown": 1, "name": "Pix Delta", "um": "buc", "qty": 1, "card_cod": 162456, "how": "exact"}]}]}))
+    monkeypatch.setattr(simple, "parse_package", lambda xml: [{"nr_in_file": 1, "xml": ""}])
+    monkeypatch.setattr(simple.EfaInbox, "upsert", staticmethod(
+        lambda env, entry, queue, cards=None: {"success": True, "id": 7, "result": "added"}))
+    procs = []
+
+    class Db:
+        def execute_dml(self, sql, binds=None):
+            return {"success": True}
+
+        def call_proc(self, sql, binds=None):
+            procs.append((sql, binds))
+            return {"success": True}
+
+        def execute_query(self, sql, binds=None):
+            if "DEST_NRDOC" in sql:
+                return {"success": True, "data": [{"n": 478}]}
+            return {"success": True, "data": []}
+
+    monkeypatch.setattr(simple.EfaInbox, "_db", staticmethod(
+        lambda: (Db(), lambda r: r.get("data") or [])))
+    r = simple.EfaSimple.import_file("<x/>", create_docs=True, seller_idno="1026602001837")
+    assert r["success"] and r["summary"]["docs_created"] == 1, r
+    assert procs[0][0].startswith("BEGIN EFA_INBOX.create_doc_from_in") and procs[0][1] == {"i": 7}
+    assert procs[1] == ("BEGIN EFA_INBOX.ensure_prices(:n); END;", {"n": 478})
+
+
+def test_ensure_prices_rule_is_in_package_and_setting_seeded():
+    """RO: regula PRETV4 = PRETV2/(1-pct/100) sta in pachet, procentul in YBIRO_SETTINGS
+    (nu constanta in cod — regula nr. 2 din CLAUDE.md), iar seed-ul e idempotent."""
+    pkg = open(os.path.join(ROOT, "modules/efactura/sql/06_efa_inbox_pkg.sql"), encoding="utf-8").read()
+    assert "PROCEDURE ensure_prices(p_nrdoc IN NUMBER, p_pct IN NUMBER DEFAULT NULL)" in pkg
+    assert "EFA_PRICE_BELOW_SALE_PCT" in pkg and "ROUND(c.pret / (1 - v_pct / 100), 2)" in pkg
+    seed = open(os.path.join(ROOT, "modules/efactura/sql/07_efa_syss_seed.sql"), encoding="utf-8").read()
+    assert "MERGE INTO YBIRO_SETTINGS" in seed and "'EFA_PRICE_BELOW_SALE_PCT', '10'" in seed

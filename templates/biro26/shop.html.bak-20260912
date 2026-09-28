@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} — Magazin</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;background:#f8fafc;color:#1e293b}
+.top{position:sticky;top:0;z-index:50;background:{{ topbar_bg }};color:{{ topbar_fg }};display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}
+.top .logo{font-weight:700;color:{{ '#1d4ed8' if topbar_light else '#4f8ef7' }}}
+.top .sp{flex:1}
+.top .nav{color:{{ topbar_fg }};text-decoration:none;font-size:13.5px;font-weight:600;padding:4px 8px;border-radius:6px}
+.top .nav:hover{background:rgba({{ '0,0,0,.08' if topbar_light else '255,255,255,.10' }})}
+.top .nav-on{background:rgba({{ '0,0,0,.10' if topbar_light else '255,255,255,.14' }})}
+/* RO: comutator de limbi RO·RU·EN in bara de sus / EN: topbar language switch */
+.top .langs{display:flex;gap:2px;align-items:center;font-size:12px}
+.top .lang{color:{{ topbar_fg }};cursor:pointer;padding:3px 7px;border-radius:6px;font-weight:600;opacity:.75}
+.top .lang:hover{background:rgba({{ '0,0,0,.08' if topbar_light else '255,255,255,.10' }});opacity:1}
+.top .lang.on{background:rgba({{ '0,0,0,.14' if topbar_light else '255,255,255,.18' }});opacity:1;text-decoration:underline}
+.info-page{background:#fff;border:1px solid #e2e8f0;border-radius:10px;max-width:860px;margin:14px auto;padding:26px 32px;font-size:15px;line-height:1.65;color:#1e293b}
+.info-page h1{font-size:24px;margin:0 0 14px}
+.info-body h2,.info-body h3{margin:18px 0 8px}
+.info-body p{margin:8px 0}
+.info-body ul,.info-body ol{margin:8px 0;padding-left:22px}
+.info-body img{max-width:100%;height:auto;border-radius:8px}
+.info-body a{color:#1d4ed8}
+/* RO: fereastra mare de produs / EN: large product window */
+.prodlay{display:flex;gap:18px;flex-wrap:wrap}
+.prodlay .pimg{flex:0 0 280px;max-width:280px}
+.prodlay .pimg img{width:100%;max-height:300px;object-fit:contain;border-radius:8px;background:#f1f5f9;cursor:zoom-in}
+.prodlay .pinf{flex:1;min-width:260px}
+.prodlay h2{margin:0 0 6px;font-size:19px;line-height:1.3}
+.pdesc{margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0;font-size:14px;line-height:1.55;white-space:pre-wrap}
+.pcom{margin-top:14px;padding-top:10px;border-top:1px solid #e2e8f0}
+.pcom h4{margin:0 0 8px}
+.pcom .cm{background:#f8fafc;border:1px solid #eef2f7;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:13px}
+.pcom .cm .a{font-weight:600;font-size:12px;color:#334155}
+.pcom .cm .d{color:#94a3b8;font-size:11px;margin-left:6px}
+.pcom textarea{width:100%;min-height:64px;padding:8px;border:1px solid #e2e8f0;border-radius:8px;font:inherit;font-size:13px}
+/* RO: oferte credit/rate in fereastra produsului (stil bomba.md) —
+   «Oferta in rate» separata de oferta de credit, cum a cerut EasyCredit
+   EN: bomba.md-style credit/installment offer tables + request modal */
+.croffer{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap}
+.cr-col{flex:1;min-width:140px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px}
+.cr-col .lbl{font-size:12px;color:#64748b;display:flex;gap:6px;align-items:center}
+.cr-col b{font-size:15px}
+.cr-btn{display:block;width:100%;margin-top:8px;background:#111827;color:#fff;border:none;border-radius:10px;padding:12px;font-size:14.5px;font-weight:700;cursor:pointer}
+.cr-btn:hover{background:#1f2937}
+.crtiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin:10px 0}
+.crtile{border:1px solid #e2e8f0;border-radius:10px;padding:10px;cursor:pointer;text-align:left;background:#fff;position:relative}
+.crtile:hover{border-color:#93c5fd}
+.crtile.on{border-color:#111827;box-shadow:0 0 0 2px #111827}
+.crtile .b0{position:absolute;top:-9px;left:8px;background:#fbbf24;color:#111827;border-radius:6px;padding:1px 7px;font-size:10.5px;font-weight:700}
+.crtile .n{font-size:15px;font-weight:700}
+.crtile .s{font-size:12px;color:#64748b}
+.crlunar{font-size:26px;font-weight:800;color:#dc2626;margin:6px 0}
+/* RO: comutator online/manual pentru cererea de credit (cind providerul e
+   configurat) — stil consistent cu .crtile.on de mai sus.
+   EN: online/manual switcher for the credit request flow — visually
+   consistent with the .crtile.on selection style above. */
+.ecmode{display:flex;gap:8px;margin:6px 0}
+.ecmode button{flex:1;padding:9px;border:1.5px solid #e2e8f0;border-radius:10px;background:#fff;font-weight:700;font-size:12.5px;cursor:pointer}
+.ecmode button.on{border-color:#111827;background:#eef2ff;color:#111827}
+.crform input[type=text],.crform input[type=tel]{padding:9px 10px;border:1px solid #cbd5e1;border-radius:8px;font:inherit;width:100%}
+.crform label.ck{display:flex;gap:6px;align-items:flex-start;font-size:12px;margin-top:6px;color:#334155}
+.crform a{color:#dc2626}
+/* RO: paginare numerotata / EN: numbered pagination */
+.pager{display:flex;gap:6px;align-items:center;justify-content:center;flex-wrap:wrap;margin:16px 0}
+.pager .pg{min-width:34px;padding:7px 10px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;cursor:pointer;font-size:13.5px}
+.pager .pg:hover:not(:disabled){border-color:#93c5fd;background:#eff6ff}
+.pager .pg.on{background:#1d4ed8;color:#fff;border-color:#1d4ed8;font-weight:700}
+.pager .pg:disabled{opacity:.4;cursor:default}
+.pager .pg-dots{color:#94a3b8;padding:0 2px}
+.pager .pg-info{color:#64748b;font-size:12px;margin-left:8px}
+.top button,.top .who{background:rgba({{ '0,0,0,.08' if topbar_light else '255,255,255,.08' }});border:none;color:{{ topbar_fg }};padding:6px 12px;border-radius:6px;cursor:pointer;font-size:13px}
+.badge{background:#22c55e;color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:700}
+/* RO: aproape toata latimea ecranului — margini laterale minime
+   EN: near full-width layout — minimal side gutters */
+.wrap{max-width:1780px;margin:12px auto;padding:0 12px}
+.shoplay{display:grid;grid-template-columns:250px 1fr;gap:18px;align-items:start}
+.side{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;font-size:13px;position:sticky;top:60px;max-height:calc(100vh - 76px);overflow-y:auto}
+/* RO: buton "Filtre" + sertar lateral pe mobil (pattern Amazon: catalogul/
+   arborele se ascunde si se deschide peste continut, se inchide la aplicare)
+   EN: mobile "Filters" button + off-canvas drawer (Amazon-like show/hide) */
+.filter-toggle{display:none;border:1px solid #cbd5e1;background:#fff;border-radius:8px;padding:9px 12px;font-size:13.5px;font-weight:600;color:#334155;cursor:pointer;white-space:nowrap}
+.side-close{display:none;position:sticky;top:0;background:#fff;z-index:2;padding:4px 0 8px;margin:-4px 0 6px;border-bottom:1px solid #e2e8f0;justify-content:space-between;align-items:center;font-weight:700}
+.side-close button{border:none;background:#f1f5f9;border-radius:8px;padding:6px 12px;font-size:15px;cursor:pointer}
+.side-backdrop{display:none;position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:110}
+@media(max-width:820px){
+  .shoplay{grid-template-columns:1fr;gap:10px}
+  .filter-toggle{display:inline-flex;align-items:center;gap:6px}
+  .side{display:none;position:fixed;top:0;left:0;bottom:0;width:min(320px,86vw);max-height:none;height:100%;z-index:120;border-radius:0;box-shadow:4px 0 24px rgba(0,0,0,.25);padding-bottom:40px;overflow-y:auto}
+  .side.open{display:block}
+  .side-backdrop.open{display:block}
+  .side-close{display:flex}
+  .shoplay .grid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+  .shoplay .cardp img{height:110px}
+  .top{padding:8px 10px;gap:6px}
+  .top .logo{font-size:14px}
+  .wrap{margin:8px auto;padding:0 8px}
+  .modal{width:95vw !important}
+  .prodlay .pimg{flex:1 1 100%;max-width:none}
+}
+.side h4{font-size:13px;margin:12px 0 6px;color:#0f172a}
+.side h4:first-child{margin-top:0}
+.side .fac{display:block;padding:3px 4px;border-radius:5px;color:#334155;cursor:pointer;text-decoration:none}
+.side .fac:hover{background:#f1f5f9}
+.side .fac.on{color:#1d4ed8;font-weight:700}
+.side .fac .cnt{color:#94a3b8;font-size:11.5px}
+.side .sub{margin-left:14px}
+.side label.fac{display:flex;align-items:center;gap:6px}
+.side .plink{display:block;padding:2px 4px;color:#334155;cursor:pointer;border-radius:5px}
+.side .plink:hover{background:#f1f5f9}
+.side .plink.on{color:#1d4ed8;font-weight:700}
+.side .prow{display:flex;gap:6px;margin-top:6px;align-items:center}
+.side .prow input{width:70px;padding:5px 7px;border:1px solid #e2e8f0;border-radius:6px;font-size:12.5px}
+.side .clr{color:#1d4ed8;cursor:pointer;font-size:12px;display:inline-block;margin-top:4px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+.chip{background:#e0e7ff;color:#3730a3;border-radius:14px;padding:3px 10px;font-size:12px;cursor:pointer}
+.chip:hover{background:#c7d2fe}
+.bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.bar input{flex:1;min-width:220px;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:14px;outline:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
+.cardp{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.cardp img{width:100%;height:130px;object-fit:contain;border-radius:6px;background:#f1f5f9}
+.cardp .nm{font-size:12.5px;line-height:1.35;min-height:34px}
+.cardp .pr{font-weight:700;font-size:15px}
+.cardp .row{display:flex;gap:6px;align-items:center}
+.cardp input{width:64px;padding:6px;border:1px solid #e2e8f0;border-radius:6px}
+.cardp .varsel{width:100%;padding:6px;border:1px solid #c7d2fe;border-radius:6px;background:#eef2ff;font-size:12px;color:#3730a3}
+.btn{background:#1d4ed8;color:#fff;border:none;padding:7px 12px;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600}
+.btn.gray{background:#e2e8f0;color:#1e293b}
+.btn.green{background:#15803d}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.more{display:block;margin:16px auto;padding:9px 22px}
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:100;align-items:center;justify-content:center}
+.modal-bg.open{display:flex}
+.modal{background:#fff;border-radius:12px;width:460px;max-width:94vw;max-height:92vh;overflow:auto;padding:18px}
+.modal h3{margin-bottom:12px}
+.modal label{display:block;font-size:12px;color:#475569;margin:8px 0 3px}
+.modal input{width:100%;padding:8px 10px;border:1px solid #e2e8f0;border-radius:6px}
+.modal .acts{display:flex;gap:8px;margin-top:14px;justify-content:flex-end}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 8px;border-bottom:1px solid #f1f5f9;text-align:left}
+td.num,th.num{text-align:right}
+.muted{color:#64748b}
+.toast{position:fixed;bottom:20px;right:16px;background:#1e293b;color:#fff;padding:10px 16px;border-radius:8px;z-index:200;font-size:13px}
+.toast.err{background:#dc2626}
+.ok-box{background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:12px;margin-top:10px;font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="top">
+  <span class="logo">{{ app_name }} · Magazin</span>
+  {% for label, url in shop_nav %}
+    {%- if url.startswith('info:') -%}
+      <a class="nav{{ ' nav-on' if info_slug == url[5:] else '' }}" href="?info={{ url[5:] }}">{{ label }}</a>
+    {%- elif url == '?' -%}
+      <a class="nav{{ '' if info_html else ' nav-on' }}" href="?">{{ label }}</a>
+    {%- else -%}
+      <a class="nav" target="_top" href="{{ url }}">{{ label }}</a>
+    {%- endif -%}
+  {% endfor %}
+  <span class="sp"></span>
+  <!-- RO: comutator de limbi: paginile WP au variante -ru/-en, meniul se
+       traduce; alegerea se retine in browser.
+       EN: language switch: WP pages have -ru/-en variants, the menu labels
+       translate; the choice is remembered in the browser. -->
+  <span class="langs">
+    <a class="lang" data-lang="ro" onclick="setLang('ro')">RO</a>
+    <a class="lang" data-lang="ru" onclick="setLang('ru')">RU</a>
+    <a class="lang" data-lang="en" onclick="setLang('en')">EN</a>
+  </span>
+  <span class="who" id="who" style="display:none"></span>
+  <button id="btn-auth" onclick="openAuth()">Intrare / Înregistrare</button>
+  <button onclick="openCart()">🛒 Coș <span class="badge" id="cart-n">0</span></button>
+</div>
+
+<div class="wrap">
+  {% if info_html %}
+  <!-- RO: pagina informativa WP redata in interiorul magazinului (meniul ramane).
+       EN: WP info page rendered inside the shop (the menu stays visible). -->
+  <article class="info-page">
+    <h1>{{ info_title }}</h1>
+    <div class="info-body">{{ info_html|safe }}</div>
+    <a class="btn gray" href="?" style="display:inline-block;margin-top:16px;text-decoration:none">← Înapoi la catalog · Назад в каталог</a>
+  </article>
+  {% endif %}
+  <div class="shoplay"{% if info_html %} style="display:none"{% endif %}>
+    <div class="side-backdrop" id="side-backdrop" onclick="closeFilters()"></div>
+    <aside class="side" id="side">
+      <div class="side-close"><span>Filtre · Фильтры</span>
+        <button onclick="closeFilters()" aria-label="Închide">✕</button></div>
+      <a class="fac" id="f-new" onclick="toggleNew()" style="font-weight:600">🆕 Produse noi · Новинки</a>
+      <h4 style="margin-top:10px">Categorii · Категории</h4>
+      <div id="f-tree"><span class="muted">…</span></div>
+      <h4>Preț (LEI) · Цена</h4>
+      <div id="f-price"></div>
+      <div class="prow">
+        <input id="f-pmin" type="number" min="0" placeholder="Min">
+        <span>–</span>
+        <input id="f-pmax" type="number" min="0" placeholder="Max">
+        <button class="btn gray" style="padding:5px 10px" onclick="applyPriceInputs()">OK</button>
+      </div>
+      <span class="clr" onclick="resetFilters()">✕ Resetează filtrele · Сбросить фильтры</span>
+    </aside>
+    <main>
+      <div class="bar" style="display:flex;gap:8px">
+        <button class="filter-toggle" onclick="openFilters()">☰ Filtre · Фильтры</button>
+        <input id="q" style="flex:1" placeholder="Căutare: denumire / articol / cod de bare · Поиск: название / артикул / штрихкод"
+               oninput="debSearch()">
+        <!-- RO: sortare alfabetic / dupa pret · EN: sort by name / price -->
+        <select id="sort" onchange="load(true)"
+                style="padding:9px 10px;border:1px solid #e2e8f0;border-radius:8px;font-size:13px;background:#fff">
+          <option value="name">Alfabetic A–Z · По алфавиту</option>
+          <option value="name_desc">Alfabetic Z–A</option>
+          <option value="price_asc">Preț crescător · Цена ↑</option>
+          <option value="price_desc">Preț descrescător · Цена ↓</option>
+        </select>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div class="grid" id="grid"></div>
+      <div class="pager" id="pager"></div>
+    </main>
+  </div>
+</div>
+
+<!-- RO: fereastra mare de produs: descriere + comentarii
+     EN: large product window: description + comments -->
+<div class="modal-bg" id="m-prod" onclick="this.classList.remove('open')">
+  <div class="modal" style="width:780px;max-width:95vw;max-height:88vh;overflow:auto" onclick="event.stopPropagation()">
+    <div id="prod-body"><span class="muted">…</span></div>
+  </div>
+</div>
+
+<!-- RO: modalul «Solicitati un imprumut» (credit/rate, stil bomba.md)
+     EN: the loan request modal -->
+<div class="modal-bg" id="m-credit" onclick="this.classList.remove('open')">
+  <div class="modal" style="width:820px;max-width:95vw;max-height:90vh;overflow:auto" onclick="event.stopPropagation()">
+    <div id="credit-body"></div>
+  </div>
+</div>
+
+<!-- auth modal -->
+<div class="modal-bg" id="m-auth" onclick="this.classList.remove('open')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3 id="auth-title">Intrare · Вход</h3>
+    <div id="reg-extra" style="display:none">
+      <label>Nume Prenume · Фамилия Имя <b style="color:#dc2626">*</b></label><input id="a-name">
+      <label>Adresa de livrare · Адрес доставки <b style="color:#dc2626">*</b></label><input id="a-address">
+      <label>Telefon · Телефон <b style="color:#dc2626">*</b></label><input id="a-phone" placeholder="+373...">
+      <label class="sw" style="display:flex;gap:6px;align-items:center;margin:8px 0 4px;font-size:13px">
+        <input type="checkbox" id="a-juridic" onchange="document.getElementById('a-idno-box').style.display=this.checked?'':'none'">
+        Persoană juridică · Юридическое лицо
+      </label>
+      <div id="a-idno-box" style="display:none">
+        <label>IDNO <b style="color:#dc2626">*</b> (13 cifre)</label><input id="a-idno" maxlength="13" placeholder="1002600000000">
+      </div>
+    </div>
+    <label>Email <b id="a-email-req" style="color:#dc2626;display:none">*</b></label><input id="a-email" type="email">
+    <label>Parola · Пароль (min 6)</label><input id="a-pwd" type="password">
+    <div class="acts">
+      <button class="btn gray" id="a-toggle" onclick="toggleReg()">Înregistrare nouă · Регистрация</button>
+      <button class="btn" onclick="doAuth()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- cart modal -->
+<div class="modal-bg" id="m-cart" onclick="this.classList.remove('open');ecStop()">
+  <div class="modal" style="width:640px" onclick="event.stopPropagation()">
+    <h3>🛒 Coș · Корзина</h3>
+    <table>
+      <thead><tr><th>Produs</th><th class="num">Preț</th><th class="num">Cant.</th>
+        <th class="num">Suma</th><th></th></tr></thead>
+      <tbody id="cart-body"></tbody>
+      <tfoot><tr><th colspan="3" class="num">Total:</th>
+        <th class="num" id="cart-total">0</th><th></th></tr></tfoot>
+    </table>
+    <div id="cart-transport" style="margin-top:10px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:10px">
+      <div style="font-weight:600;margin-bottom:4px">🚚 Transport tur-retur din centrul logistic (obligatoriu) · Транспорт туда-обратно от логистического центра (обязательно)</div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <label style="font-size:12.5px;margin:0">Centrul logistic:</label>
+        <span id="tr-center" style="font-size:12.5px;font-weight:600"></span>
+        <label style="font-size:12.5px;margin:0">Distanța de la centru · Расстояние от центра (km):</label>
+        <input type="number" id="tr-km" min="1" step="1" style="width:88px;padding:6px;border:1px solid #fed7aa;border-radius:6px"
+               oninput="renderTransport()">
+        <span id="tr-calc" class="muted" style="font-size:12.5px"></span>
+      </div>
+      <details style="margin-top:6px"><summary style="font-size:11.5px;color:#9a3412;cursor:pointer">Grila de tarife · Тарифная сетка</summary>
+        <div id="tr-grid" style="font-size:11.5px;margin-top:4px"></div>
+      </details>
+    </div>
+    <div id="cart-services" style="margin-top:10px"></div>
+    <!-- RO: metoda de achitare: standard sau CREDIT (rate) — la credit
+         preturile se majoreaza cu comisionul pachetului ales.
+         EN: payment method: standard or CREDIT — credit mode marks the
+         prices up with the chosen plan's store commission. -->
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:12.5px;margin:0;font-weight:600">Metodă de achitare · Способ оплаты:</label>
+      <select id="paym-sel" onchange="creditUI()" style="padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12.5px">
+        <option value="standard">Achitare standard · Обычная оплата</option>
+        <option value="credit">💳 Credit / rate · Кредит / рассрочка</option>
+      </select>
+    </div>
+    <!-- RO: tabel de oferte cu placi, ca la bomba.md (nu dropdown)
+         EN: bomba.md-style tile table instead of a dropdown -->
+    <div id="credit-box" style="display:none;margin-top:8px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:10px">
+      <div style="font-size:13px;font-weight:600;margin-bottom:2px">Alege oferta potrivită · Выберите вариант</div>
+      <div class="crtiles" id="cart-crtiles"></div>
+      <div style="font-size:11.5px;color:#64748b;margin:2px 0 8px">La achitarea în rate/credit transportul nu se prestează — costul e deja inclus în preț · При оплате в рассрочку/кредит доставка не осуществляется — её стоимость уже включена в цену</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:12.5px">Avans · Аванс (lei):
+          <input id="credit-avans" type="number" value="0" min="0" style="width:90px;padding:5px;border:1px solid #c7d2fe;border-radius:6px" onchange="creditUI()"></span>
+        <div id="credit-sim" style="font-size:13px;flex:1;min-width:240px"></div>
+      </div>
+      <div class="muted" style="font-size:11.5px;margin-top:4px">* Datele sunt de natură informativă și nu constituie o ofertă. Rata lunară va fi stabilită în momentul depunerii cererii de credit și poate diferi ușor. · Данные носят информационный характер и не являются офертой; ежемесячный платёж будет установлен при подаче кредитной заявки.</div>
+      <div id="ec-mode-box" style="display:none;margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px">
+        <div style="font-size:12.5px;font-weight:600;margin-bottom:6px">Modul de solicitare · Способ оформления</div>
+        <div class="ecmode">
+          <button id="ec-mode-online" class="on" onclick="ecSetMode('online')">Cerere online · Онлайн-заявка</button>
+          <button id="ec-mode-manual" onclick="ecSetMode('manual')">Vă sunăm noi · Перезвонит менеджер</button>
+        </div>
+        <div id="ec-mode-hint" style="font-size:11.5px;color:#64748b;margin-top:6px"></div>
+      </div>
+      <div id="ec-flow" style="display:none;margin-top:10px;border-top:1px solid #e2e8f0;padding-top:10px">
+        <div style="font-weight:700;font-size:13px;margin-bottom:6px">
+          <span id="ec-org-label"></span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <input id="ec-fio" placeholder="Nume Prenume · ФИО"
+                 style="flex:1;min-width:170px;padding:6px;border:1px solid #cbd5e1;border-radius:6px">
+          <input id="ec-phone" placeholder="+373 …"
+                 style="width:150px;padding:6px;border:1px solid #cbd5e1;border-radius:6px">
+          <input id="ec-idnp" placeholder="IDNP" maxlength="13"
+                 style="width:150px;padding:6px;border:1px solid #cbd5e1;border-radius:6px">
+        </div>
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <button id="ec-pre" onclick="ecPreapproved()"
+                  style="flex:1;padding:8px;border:1px solid #cbd5e1;border-radius:6px;background:#fff;cursor:pointer">
+            🔍 Verifică preaprobarea · Проверить предодобрение
+          </button>
+          <button id="ec-sub" onclick="ecSubmit()"
+                  style="flex:1;padding:8px;border:0;border-radius:6px;background:#111827;color:#fff;cursor:pointer">
+            📨 Trimite cererea · Отправить заявку
+          </button>
+        </div>
+        <div id="ec-note" style="display:none;font-size:11.5px;color:#64748b;margin-top:6px">
+          Decizia se ia după depunerea cererii · Решение принимается после подачи заявки
+        </div>
+        <div id="ec-out" style="font-size:12.5px;margin-top:8px"></div>
+      </div>
+    </div>
+    <!-- RO: modul TVA al contului de plata (se aplica pe formularul PDF)
+         EN: the invoice VAT mode (applied on the PDF form) -->
+    <div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <label style="font-size:12.5px;margin:0;font-weight:600">TVA în cont · НДС в счёте:</label>
+      <select id="tva-mode" style="padding:6px;border:1px solid #e2e8f0;border-radius:6px;font-size:12.5px">
+        <option value="inclus">Preț cu TVA 20% inclus · Цена с НДС 20% (implicit)</option>
+        <option value="0">Preț cu TVA 0% · Цена с НДС 0%</option>
+        <option value="fara">Fără TVA · Без НДС</option>
+      </select>
+      <!-- RO: formatele alternative (HTML/XLS) se activeaza DOAR in
+           cabinetul clientului; implicit totul iese in PDF. Butonasele
+           mici apar in caseta de succes doar pentru formatele activate. -->
+    </div>
+    <div id="inv-result"></div>
+    <!-- RO: cerinta obligatorie maib — bifa cu link ACTIV la Termeni si conditii,
+         marcata INAINTE de plata (docs.maibmerchants.md/main/ro/integration/requirements).
+         EN: mandatory maib requirement — terms checkbox with an active link. -->
+    <label id="agree-box" style="display:flex;gap:8px;align-items:flex-start;margin:10px 0;
+           font-size:12.5px;line-height:1.4;cursor:pointer">
+      <input type="checkbox" id="agree-terms" style="width:auto;margin-top:2px;flex:none"
+             onchange="this.closest('#agree-box').style.outline='none'">
+      <span>Sunt de acord cu
+        <a href="/termeni-si-conditii" target="_blank" rel="noopener">Termenii și condițiile</a>
+        · Согласен с
+        <a href="/termeni-si-conditii" target="_blank" rel="noopener">Условиями и положениями</a>
+      </span>
+    </label>
+    <div class="acts">
+      <button class="btn gray" onclick="clearCart()">Golește · Очистить</button>
+      <button class="btn green" onclick="makeInvoice()">Creează cont de plată · Создать счёт на оплату</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = '/api/biro26/shop';
+const CART_KEY = 'biro26_shop_cart';
+/* RO: coloana de pret dupa tipul clientului (setarea din cabinet) */
+window.PRICE_FIELD = '{{ price_field|default("retail1") }}';
+function priceOf(p) {
+  const f = window.PRICE_FIELD || 'retail1';
+  const v = parseFloat(String(p[f] != null ? p[f] : '').replace(',', '.'));
+  return (v > 0 ? v : parseFloat(String(p.retail1 || '').replace(',', '.'))) || 0;
+}
+/* RO: marimea paginii vine din setarea SHOP_PAGE_SIZE (admin — Setări)
+   EN: page size comes from the SHOP_PAGE_SIZE setting (admin page) */
+let limit = {{ page_size|default(24) }}, curPage = 1, total = null, needCount = true;
+let busy = false, qTimer = null, me = null;
+
+function toast(m, err) {
+  const d = document.createElement('div');
+  d.className = 'toast' + (err ? ' err' : ''); d.textContent = m;
+  document.body.appendChild(d); setTimeout(() => d.remove(), 3500);
+}
+async function j(url, opts) {
+  opts = opts || {}; opts.headers = {'Content-Type': 'application/json'}; opts.credentials = 'include';
+  const r = await fetch(url, opts); const b = await r.json();
+  if (!b.success && b.error) toast(b.error, true);
+  return b;
+}
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+/* RO: "Pret oferta in rate" (Liber Card MAIB) — afisat sub pretul
+   standard la produsele de la LIBER_MIN lei; +LIBER_PCT% aplicat
+   silentios (fara mentiuni de adaos). EN: silent installment-offer price
+   shown under the standard price. */
+const LIBER_PCT = {{ liber_pct|default(5) }};
+const LIBER_MIN = {{ liber_min|default(100) }};
+// RO: pachetele FARA dobinda + limitele lor de suma — aceeasi sursa ca pe
+// noul site (rateBest din site.js); vezi _biro26_rate_plans() in app.py.
+const RATE_PLANS = {{ rate_plans|default([])|tojson }};
+function rateBest(price) {
+  if (!(price > 0)) return 0;
+  let best = 0;
+  RATE_PLANS.forEach(pl => {
+    const cp = price * (1 + (pl.p || 0) / 100);
+    if (cp < (pl.mn || 0) || cp > (pl.mx || 1e12)) return;
+    if (!best || cp < best) best = cp;
+  });
+  if (!best && LIBER_PCT > 0 && price >= LIBER_MIN) {
+    best = price * (1 + LIBER_PCT / 100);
+  }
+  return best;
+}
+function liberLine(price, small) {
+  if (!price || price < LIBER_MIN) return '';
+  const b = rateBest(price);
+  if (!b) return '';
+  const v = b.toFixed(2);
+  return '<div style="font-size:' + (small ? '11px' : '13px') + ';color:#0369a1;margin-top:2px">' +
+    'Preț ofertă în rate · Цена в рассрочку: <b>' + v + ' LEI</b></div>';
+}
+
+/* RO: interfata e bilingva RO+RU peste tot; la produse a doua limba vine
+   din TMS_UNIVERS: DENUMIREA = RO, NAMERUS = RU (cind difera).
+   EN: the UI is bilingual RO+RU everywhere; the product's second language
+   comes from TMS_UNIVERS (DENUMIREA=RO, NAMERUS=RU) when it differs. */
+function ruName(p) {
+  const ro = (p.denumirea || '').trim(), ru = (p.namerus || '').trim();
+  if (!ru || !ro || ru.toUpperCase() === ro.toUpperCase()) return '';
+  return '<span style="display:block;color:#64748b;font-size:11.5px;margin-top:2px">' + esc(ru) + '</span>';
+}
+
+/* ── facets (Amazon-style sidebar): grupa->categorie, price ──
+   NB: fara fatetare pe BRAND — coloana contine furnizori, nu marci */
+const F = { grupa: null, categorie: null, brand: null, pmin: null, pmax: null, onlyNew: false };
+const PRICE_PRESETS = [[null,50,'Până la 50 · До 50'],[50,100,'50 – 100'],
+  [100,200,'100 – 200'],[200,500,'200 – 500'],
+  [500,1000,'500 – 1 000'],[1000,2500,'1 000 – 2 500'],
+  [2500,5000,'2 500 – 5 000'],[5000,7500,'5 000 – 7 500'],
+  [7500,10000,'7 500 – 10 000'],[10000,20000,'10 000 – 20 000'],
+  [20000,30000,'20 000 – 30 000'],[30000,40000,'30 000 – 40 000'],
+  [40000,null,'Peste 40 000 · От 40 000']];
+let treeData = [];
+
+async function loadFacets() {
+  const tr = await j(API + '/tree');
+  treeData = tr.success ? (tr.data || []) : [];
+  renderTree(); renderPricePresets();
+}
+
+function renderTree() {
+  const box = document.getElementById('f-tree');
+  const groups = {};
+  treeData.forEach(r => {
+    if (!groups[r.grupa]) groups[r.grupa] = {n: 0, cats: []};
+    groups[r.grupa].n += r.cnt || 0;
+    groups[r.grupa].cats.push(r);
+  });
+  /* RO: eticheta grupei/categoriei in limba curenta — traducerile vin ca
+     DATE din dictionarul YBIRO_GRP_I18N (fallback pe romana; principiul
+     una-shops-translations-guide). Cheile de filtrare ramin cele RO.
+     EN: grouping labels per current language from the editable dictionary. */
+  const gl = (ro, ru, en) => {
+    const l = curLang();
+    return (l === 'ru' && ru) ? ru : (l === 'en' && en) ? en : ro;
+  };
+  let h = '<a class="fac' + (!F.grupa ? ' on' : '') + '" onclick="setGroup(null,null)">Toate · Все</a>';
+  Object.keys(groups).sort().forEach(g => {
+    const on = F.grupa === g;
+    const g0 = groups[g].cats[0] || {};
+    h += '<a class="fac' + (on && !F.categorie ? ' on' : '') + '" onclick="setGroup(' + qarg(g) + ',null)">' +
+         (on ? '▾ ' : '▸ ') + esc(gl(g, g0.grupa_ru, g0.grupa_en)) + ' <span class="cnt">(' + groups[g].n + ')</span></a>';
+    if (on) groups[g].cats.forEach(c => {
+      h += '<a class="fac sub' + (F.categorie === c.categorie ? ' on' : '') + '" ' +
+           'onclick="setGroup(' + qarg(g) + ',' + qarg(c.categorie) + ')">' +
+           esc(gl(c.categorie || '—', c.cat_ru, c.cat_en)) + ' <span class="cnt">(' + (c.cnt || 0) + ')</span></a>';
+    });
+  });
+  box.innerHTML = h;
+}
+
+function renderPricePresets() {
+  document.getElementById('f-price').innerHTML = PRICE_PRESETS.map((p, i) =>
+    '<span class="plink' + (F.pmin === p[0] && F.pmax === p[1] ? ' on' : '') +
+    '" onclick="setPrice(' + (p[0] ?? 'null') + ',' + (p[1] ?? 'null') + ')">' + p[2] + '</span>').join('');
+}
+
+/* safe string arg for inline onclick */
+function qarg(s){ return s == null ? 'null' : "'" + String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/"/g,'&quot;') + "'"; }
+
+function setGroup(g, c) { F.grupa = g; F.categorie = c; renderTree(); apply(); }
+function toggleNew() {
+  F.onlyNew = !F.onlyNew;
+  document.getElementById('f-new').classList.toggle('on', F.onlyNew);
+  apply();
+}
+function setPrice(mn, mx) {
+  F.pmin = mn; F.pmax = mx;
+  document.getElementById('f-pmin').value = mn ?? '';
+  document.getElementById('f-pmax').value = mx ?? '';
+  renderPricePresets(); apply();
+}
+function applyPriceInputs() {
+  const mn = parseFloat(document.getElementById('f-pmin').value);
+  const mx = parseFloat(document.getElementById('f-pmax').value);
+  F.pmin = isNaN(mn) ? null : mn; F.pmax = isNaN(mx) ? null : mx;
+  renderPricePresets(); apply();
+}
+function resetFilters() {
+  F.grupa = F.categorie = F.pmin = F.pmax = null; F.onlyNew = false;
+  document.getElementById('f-new').classList.remove('on');
+  document.getElementById('f-pmin').value = ''; document.getElementById('f-pmax').value = '';
+  renderTree(); renderPricePresets(); apply();
+}
+function apply(){ renderChips(); load(true); }
+
+function renderChips() {
+  const chips = [];
+  if (F.grupa) chips.push(['📁 ' + F.grupa + (F.categorie ? ' › ' + F.categorie : ''), "setGroup(null,null)"]);
+  if (F.pmin != null || F.pmax != null)
+    chips.push([(F.pmin ?? 0) + ' – ' + (F.pmax ?? '∞') + ' LEI', 'setPrice(null,null)']);
+  if (F.onlyNew) chips.push(['🆕 Produse noi', 'toggleNew()']);
+  document.getElementById('chips').innerHTML = chips.map(c =>
+    '<span class="chip" onclick="' + c[1] + '">' + esc(c[0]) + ' ✕</span>').join('');
+}
+
+/* ── catalog ─────────────────────────────────────────────── */
+function debSearch(){ clearTimeout(qTimer); qTimer = setTimeout(() => load(true), 400); }
+/* RO: sertarul de filtre pe mobil (pattern Amazon): buton "Filtre" ->
+   arborele apare peste continut; aplicarea unui filtru il inchide.
+   EN: mobile filters drawer (Amazon-like): opens over the content,
+   applying any filter closes it. */
+function openFilters() {
+  document.getElementById('side').classList.add('open');
+  document.getElementById('side-backdrop').classList.add('open');
+}
+function closeFilters() {
+  document.getElementById('side').classList.remove('open');
+  document.getElementById('side-backdrop').classList.remove('open');
+}
+
+let loadSeq = 0;   // rapid facet clicks: the LATEST request wins, stale responses are dropped
+async function load(reset) {
+  const my = ++loadSeq;
+  busy = true;
+  // RO: reset = filtrele s-au schimbat -> pagina 1 + renumarare totala;
+  //     pe mobil inchide si sertarul de filtre (ca pe Amazon)
+  // EN: reset = filters changed -> page 1 + recount; on mobile this also
+  //     closes the filters drawer (Amazon behavior)
+  if (reset) { curPage = 1; needCount = true; closeFilters(); }
+  document.getElementById('grid').innerHTML = '';
+  const qs = new URLSearchParams({limit, offset: (curPage - 1) * limit});
+  const q = document.getElementById('q').value.trim();
+  if (q) qs.set('search', q);
+  if (F.grupa) qs.set('grupa', F.grupa);
+  if (F.categorie) qs.set('categorie', F.categorie);
+  if (F.brand) qs.set('brand', F.brand);
+  if (F.pmin != null) qs.set('price_min', F.pmin);
+  if (F.pmax != null) qs.set('price_max', F.pmax);
+  if (F.onlyNew) qs.set('only_new', '1');
+  const srt = (document.getElementById('sort') || {}).value;
+  if (srt && srt !== 'name') qs.set('sort', srt);
+  if (needCount) qs.set('with_count', '1');
+  const r = await j(API + '/products?' + qs);
+  if (my !== loadSeq) return;              // superseded by a newer filter click
+  busy = false;
+  if (!r.success) return;
+  const rows = r.data || [];
+  if (r.total != null) { total = r.total; needCount = false; }
+  renderPager();
+  rows.forEach(p => { prodCache[p.cod] = p; });
+  document.getElementById('grid').insertAdjacentHTML('beforeend', rows.map(p => {
+    const price = priceOf(p);
+    // RO/EN: familii de variante — selector de caracteristică (culoare/material)
+    const varSel = (p.var_cnt || 1) > 1
+      ? '<select class="varsel" id="v-' + p.cod + '" onfocus="loadVariants(' + p.cod + ')">' +
+        '<option value="' + p.cod + '">' + esc(p.variant || '—') + ' (' + p.var_cnt + ' variante · варианты ▾)</option></select>'
+      : '';
+    return '<div class="cardp">' +
+      (p.image ? '<img loading="lazy" referrerpolicy="no-referrer" src="' + esc(p.image) + '" style="cursor:pointer" onclick="openProd(' + p.cod + ')" onerror="this.style.visibility=\'hidden\'">' : '<div style="height:130px;cursor:pointer" onclick="openProd(' + p.cod + ')"></div>') +
+      '<div class="nm" style="cursor:pointer" onclick="openProd(' + p.cod + ')">' + (p.matgr1 == 1 ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 6px;font-size:10px;font-weight:700;margin-right:4px">NOU</span>' : '') + esc(p.denumirea || p.namerus || '') + ruName(p) + '</div>' +
+      '<div class="muted" style="font-size:11px">' + esc(p.codvechi || '') + (p.barcode ? ' · ' + esc(p.barcode) : '') + '</div>' +
+      varSel +
+      '<div class="row"><span class="pr">' + price.toFixed(2) + ' LEI</span><span style="flex:1"></span>' +
+      '<input type="number" min="1" value="1" id="q-' + p.cod + '">' +
+      '<button class="btn" onclick="addCart(' + p.cod + ',\'' + esc(p.denumirea || '').replace(/'/g, '&#39;') + '\',' + price + ')">+🛒</button></div>' +
+      liberLine(price, true) +
+      '</div>';
+  }).join(''));
+}
+/* ── RO: paginare numerotata (« 1 2 3 … N ») in loc de "Mai multe"
+   ── EN: numbered pagination instead of the "load more" button ── */
+function gotoPage(n) {
+  const pages = Math.max(1, Math.ceil((total || 0) / limit));
+  n = Math.min(Math.max(1, n), pages);
+  if (n === curPage) return;
+  curPage = n;
+  load(false);
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+function renderPager() {
+  const box = document.getElementById('pager');
+  if (!box) return;
+  const pages = Math.max(1, Math.ceil((total || 0) / limit));
+  if (pages <= 1) { box.innerHTML = ''; return; }
+  // RO: fereastra de pagini: 1 … c-2 c-1 [c] c+1 c+2 … N
+  const want = new Set([1, 2, pages - 1, pages]);
+  for (let i = curPage - 2; i <= curPage + 2; i++) want.add(i);
+  const list = [...want].filter(x => x >= 1 && x <= pages).sort((a, b) => a - b);
+  let h = '<button class="pg" ' + (curPage === 1 ? 'disabled' : 'onclick="gotoPage(' + (curPage - 1) + ')"') + '>‹</button>';
+  let prev = 0;
+  for (const p of list) {
+    if (p - prev > 1) h += '<span class="pg-dots">…</span>';
+    h += '<button class="pg' + (p === curPage ? ' on' : '') + '" onclick="gotoPage(' + p + ')">' + p + '</button>';
+    prev = p;
+  }
+  h += '<button class="pg" ' + (curPage === pages ? 'disabled' : 'onclick="gotoPage(' + (curPage + 1) + ')"') + '>›</button>';
+  h += '<span class="pg-info">' + total + ' produse · товаров — pag. · стр. ' + curPage + '/' + pages + '</span>';
+  box.innerHTML = h;
+}
+
+/* ── cart (localStorage) ─────────────────────────────────── */
+function cart(){ try { return JSON.parse(localStorage.getItem(CART_KEY) || '[]'); } catch(e){ return []; } }
+function saveCart(c){ localStorage.setItem(CART_KEY, JSON.stringify(c));
+  document.getElementById('cart-n').textContent = c.length; }
+/* ── RO: fereastra mare de produs (descriere + comentarii) ──
+   ── EN: large product window (description + comments) ────── */
+const prodCache = {};
+let prodOpen = null;
+async function openProd(cod) {
+  prodOpen = cod;
+  const p = prodCache[cod] || {};
+  const price = priceOf(p);
+  const body = document.getElementById('prod-body');
+  document.getElementById('m-prod').classList.add('open');
+  body.innerHTML =
+    '<div class="prodlay">' +
+      '<div class="pimg">' + (p.image ? '<img referrerpolicy="no-referrer" src="' + esc(p.image) + '" onclick="window.open(this.src)" onerror="this.style.display=\'none\'">' : '') + '</div>' +
+      '<div class="pinf">' +
+        '<h2>' + (p.matgr1 == 1 ? '<span style="background:#dcfce7;color:#166534;border-radius:8px;padding:1px 8px;font-size:11px;font-weight:700;margin-right:6px;vertical-align:middle">NOU</span>' : '') + esc(p.denumirea || p.namerus || ('COD ' + cod)) + ruName(p) + '</h2>' +
+        '<div class="muted" style="font-size:12px;margin-bottom:8px">' + esc(p.codvechi || '') + (p.barcode ? ' · ' + esc(p.barcode) : '') + '</div>' +
+        ((p.var_cnt || 1) > 1 ? '<select class="varsel" id="mv-' + cod + '" style="margin-bottom:8px"><option value="' + cod + '">' + esc(p.variant || '—') + '</option></select>' : '') +
+        '<div class="row" style="display:flex;gap:8px;align-items:center;margin-top:6px">' +
+          '<span class="pr" style="font-size:20px;font-weight:700">' + price.toFixed(2) + ' LEI</span><span style="flex:1"></span>' +
+          '<input type="number" min="1" value="1" id="mq-' + cod + '" style="width:70px;padding:7px;border:1px solid #e2e8f0;border-radius:6px">' +
+          '<button class="btn" onclick="addCartModal(' + cod + ')">+🛒 Adaugă în coș · В корзину</button>' +
+        '</div>' +
+        liberLine(price, false) +
+        creditBadge(price, cod) +
+        '<div class="pdesc" id="p-desc"><span class="muted">…</span></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="pcom">' +
+      '<h4>💬 Comentarii · Комментарии</h4>' +
+      '<div id="p-comments"><span class="muted">…</span></div>' +
+      '<div id="p-comment-add" style="margin-top:8px"></div>' +
+    '</div>';
+  // variantele familiei (daca exista)
+  if ((p.var_cnt || 1) > 1) {
+    const rv = varCache[cod] || await j(API + '/variants?cod=' + cod);
+    varCache[cod] = rv;
+    const sel = document.getElementById('mv-' + cod);
+    if (sel && rv.success && (rv.data || []).length) {
+      sel.innerHTML = rv.data.map(v =>
+        '<option value="' + v.cod_univers + '" data-name="' + esc(v.full_name || v.base_name || '') + '"' +
+        (String(v.cod_univers) === String(cod) ? ' selected' : '') + '>' +
+        esc(v.variant || v.full_name || ('#' + v.cod_univers)) + '</option>').join('');
+    }
+  }
+  // RO: descriere + comentarii — descrierea vine din TMS_MPT_WEBATTR
+  //     (BLOB, cu diacritice) in limba aleasa, cu intoarcere pe RO
+  const r = await j(API + '/product/' + cod + '?lang=' + curLang());
+  if (prodOpen !== cod) return;                 // a newer window superseded us
+  const d = (r.success && r.data) || {};
+  document.getElementById('p-desc').innerHTML =
+    (d.denum_full ? '<div style="font-weight:700;margin-bottom:6px">' +
+      esc(d.denum_full) + '</div>' : '') +
+    (d.descriere ? esc(d.descriere)
+                 : '<span class="muted">Fără descriere · Без описания</span>');
+  renderComments(d.comments || []);
+  document.getElementById('p-comment-add').innerHTML = me
+    ? '<textarea id="p-cm-txt" placeholder="Comentariul dvs. · Ваш комментарий"></textarea>' +
+      '<div style="text-align:right;margin-top:6px"><button class="btn" onclick="sendComment(' + cod + ')">Trimite · Отправить</button></div>'
+    : '<span class="muted" style="font-size:12.5px">Pentru a lăsa un comentariu, <a href="#" onclick="document.getElementById(\'m-prod\').classList.remove(\'open\');openAuth();return false">intrați în cont</a>. · Чтобы оставить комментарий, войдите.</span>';
+}
+function renderComments(list) {
+  document.getElementById('p-comments').innerHTML = list.length
+    ? list.map(c => '<div class="cm"><span class="a">' + esc(c.autor || '—') + '</span>' +
+        '<span class="d">' + esc(c.created || '') + '</span><div>' + esc(c.txt || '') + '</div></div>').join('')
+    : '<span class="muted" style="font-size:12.5px">Încă nu sunt comentarii · Пока нет комментариев</span>';
+}
+async function sendComment(cod) {
+  const ta = document.getElementById('p-cm-txt');
+  const txt = (ta.value || '').trim();
+  if (!txt) return;
+  const r = await j(API + '/product/' + cod + '/comment', {method: 'POST', body: JSON.stringify({txt})});
+  if (r.success) {
+    ta.value = '';
+    const r2 = await j(API + '/product/' + cod);
+    if (r2.success) renderComments((r2.data || {}).comments || []);
+    toast('Comentariu adăugat ✓ · Комментарий добавлен');
+  }
+}
+function addCartModal(cod) {
+  const p = prodCache[cod] || {};
+  const price = priceOf(p);
+  const q = parseFloat((document.getElementById('mq-' + cod) || {}).value) || 1;
+  const sel = document.getElementById('mv-' + cod);
+  let realCod = cod, realName = p.denumirea || '';
+  if (sel) {
+    realCod = parseInt(sel.value, 10) || cod;
+    const opt = sel.options[sel.selectedIndex];
+    if (opt) realName = opt.dataset.name || realName;
+  }
+  const c = cart(); const ex = c.find(i => i.cod === realCod);
+  if (ex) ex.qty += q; else c.push({cod: realCod, name: realName, price, qty: q});
+  saveCart(c); toast('Adăugat · Добавлено: ' + q);
+}
+
+/* variant families: load the characteristic list on first focus */
+const varCache = {};
+async function loadVariants(cod) {
+  const sel = document.getElementById('v-' + cod);
+  if (!sel || sel.dataset.loaded) return;
+  sel.dataset.loaded = '1';
+  const r = varCache[cod] || await j(API + '/variants?cod=' + cod);
+  varCache[cod] = r;
+  if (!r.success || !(r.data || []).length) return;
+  const cur = sel.value;
+  sel.innerHTML = r.data.map(v =>
+    '<option value="' + v.cod_univers + '" data-name="' + esc(v.full_name || v.base_name || '') + '"' +
+    (String(v.cod_univers) === String(cur) ? ' selected' : '') + '>' +
+    esc(v.variant || v.full_name || ('#' + v.cod_univers)) + '</option>').join('');
+}
+
+function addCart(cod, name, price) {
+  const q = parseFloat((document.getElementById('q-' + cod) || {}).value) || 1;
+  // RO/EN: daca produsul are variante, in cos intra COD-ul variantei alese
+  const sel = document.getElementById('v-' + cod);
+  let realCod = cod, realName = name;
+  if (sel && sel.dataset.loaded) {
+    realCod = parseInt(sel.value, 10) || cod;
+    const opt = sel.options[sel.selectedIndex];
+    if (opt) realName = (opt.dataset.name || name) ||
+                        (name + ' · ' + opt.textContent.trim());
+  }
+  const c = cart(); const ex = c.find(i => i.cod === realCod);
+  if (ex) ex.qty += q; else c.push({cod: realCod, name: realName, price, qty: q});
+  saveCart(c); toast('Adăugat · Добавлено: ' + q);
+}
+function renderCart() {
+  const c = cart(); let total = 0;
+  document.getElementById('cart-body').innerHTML = c.map(i => {
+    const s = i.qty * i.price; total += s;
+    return '<tr><td>' + esc(i.name) + '</td><td class="num">' + i.price.toFixed(2) + '</td>' +
+      '<td class="num"><input type="number" min="0" style="width:64px" value="' + i.qty + '" ' +
+      'onchange="setQty(' + i.cod + ', this.value)"></td>' +
+      '<td class="num">' + s.toFixed(2) + '</td>' +
+      '<td><button class="btn gray" onclick="delItem(' + i.cod + ')">×</button></td></tr>';
+  }).join('') || '<tr><td colspan="5" class="muted">Coșul este gol · Корзина пуста</td></tr>';
+  document.getElementById('cart-total').textContent = total.toFixed(2) + ' LEI';
+}
+function setQty(cod, v){ const c = cart(); const i = c.find(x => x.cod === cod);
+  if (i) { i.qty = parseFloat(v) || 0; saveCart(c); renderCart(); creditUI(); } }
+function delItem(cod){ saveCart(cart().filter(x => x.cod !== cod)); renderCart(); creditUI(); }
+function clearCart(){ saveCart([]); renderCart(); creditUI(); }
+function openCart(){ document.getElementById('inv-result').innerHTML = ''; renderCart();
+  loadCartServices(); loadTransport();
+  document.getElementById('m-cart').classList.add('open'); }
+
+/* ── MANDATORY round-trip transport (TMS_MPT_DISTANTE tariff grid) ──
+   RO: tariful se alege automat dupa distanta; serverul il adauga in cont
+   EN: the tariff is auto-picked by distance; the server adds the line   */
+let transportGrid = null, logCenters = null;
+async function loadTransport() {
+  if (transportGrid === null) {
+    const [r, lc] = await Promise.all([j(API + '/transport'), j(API + '/logistics')]);
+    transportGrid = r.success ? (r.data || []) : [];
+    logCenters = lc.success ? (lc.data || []) : [];
+  }
+  // RO: un singur centru activ -> eticheta fixa; mai multe -> select
+  // EN: one active center -> fixed label; several -> a select
+  const box = document.getElementById('tr-center');
+  if (logCenters.length <= 1) {
+    box.textContent = logCenters.length ? logCenters[0].denumire : '—';
+  } else {
+    box.innerHTML = '<select id="tr-center-sel" style="padding:5px;border:1px solid #fed7aa;border-radius:6px;font-size:12.5px">' +
+      logCenters.map(c => '<option value="' + c.id + '">' + esc(c.denumire) + '</option>').join('') + '</select>';
+  }
+  document.getElementById('tr-grid').innerHTML =
+    '<table style="width:100%">' + transportGrid.map(t =>
+      '<tr><td>' + (t.km_max ? t.km_min + '–' + t.km_max + ' km' : 'peste ' + (t.km_min - 1) + ' km') + '</td>' +
+      '<td style="text-align:right">' + (Number(t.price) || 0).toFixed(2) +
+      (t.tarif_mode === 'KM' ? ' MDL/km' : ' MDL') + '</td></tr>').join('') + '</table>';
+  renderTransport();
+}
+function transportFor(km) {
+  return (transportGrid || []).find(t => km >= t.km_min && (t.km_max == null || km <= t.km_max));
+}
+function renderTransport() {
+  const el = document.getElementById('tr-calc');
+  const km = parseFloat(document.getElementById('tr-km').value);
+  if (!km || km <= 0) { el.textContent = '← introduceți distanța · укажите расстояние'; el.style.color = '#b45309'; return; }
+  const t = transportFor(km);
+  if (!t) { el.textContent = '—'; return; }
+  const price = Number(t.price) || 0;
+  const total = t.tarif_mode === 'KM' ? price * km : price;
+  el.style.color = '#166534';
+  el.textContent = '→ ' + t.denumirea + ': ' +
+    (t.tarif_mode === 'KM' ? price.toFixed(2) + ' MDL/km × ' + km + ' km = ' : '') +
+    total.toFixed(2) + ' MDL';
+}
+
+/* ── optional services in the cart (group from YBIRO_SETTINGS) ──────
+   RO: serviciile bifate se adauga in contul de plata ca pozitii normale
+   EN: checked services are appended to the invoice as ordinary lines  */
+let servicesList = null;
+async function loadCartServices() {
+  const box = document.getElementById('cart-services');
+  if (servicesList === null) {
+    const r = await j(API + '/services');
+    servicesList = r.success ? (r.data || []) : [];
+  }
+  if (!servicesList.length) { box.innerHTML = ''; return; }
+  box.innerHTML =
+    '<div style="font-weight:600;margin-bottom:4px">Servicii opționale · Дополнительные услуги</div>' +
+    servicesList.map(s =>
+      '<label style="display:flex;align-items:center;gap:8px;padding:3px 0;font-size:13px">' +
+      '<input type="checkbox" class="svc-check" value="' + s.cod + '" data-name="' + esc(s.denumirea) + '" data-price="' + (s.price || 0) + '">' +
+      esc(s.denumirea) + ' <span class="muted">— ' + (Number(s.price) || 0).toFixed(2) + ' LEI</span></label>').join('');
+}
+function checkedServices() {
+  return Array.from(document.querySelectorAll('.svc-check:checked')).map(c =>
+    ({cod: parseInt(c.value, 10), qty: 1, name: c.dataset.name, price: parseFloat(c.dataset.price) || 0}));
+}
+
+/* ── auth ────────────────────────────────────────────────── */
+let regMode = false;
+function openAuth(){ document.getElementById('m-auth').classList.add('open'); }
+function toggleReg(){ regMode = !regMode;
+  document.getElementById('reg-extra').style.display = regMode ? '' : 'none';
+  document.getElementById('a-email-req').style.display = regMode ? '' : 'none';
+  document.getElementById('auth-title').textContent = regMode ? 'Înregistrare · Регистрация' : 'Intrare · Вход';
+  document.getElementById('a-toggle').textContent = regMode ? '← Intrare · Вход' : 'Înregistrare nouă · Регистрация'; }
+async function doAuth() {
+  const email = document.getElementById('a-email').value.trim();
+  const pwd = document.getElementById('a-pwd').value;
+  let r;
+  if (regMode) {
+    // RO: cimpuri OBLIGATORII la inregistrare / EN: mandatory sign-up fields
+    const name = document.getElementById('a-name').value.trim();
+    const address = document.getElementById('a-address').value.trim();
+    const phone = document.getElementById('a-phone').value.trim();
+    const juridic = document.getElementById('a-juridic').checked;
+    const idno = document.getElementById('a-idno').value.trim();
+    if (!name) { toast('Introduceți Nume Prenume · Укажите ФИО', true); return; }
+    if (!address) { toast('Introduceți adresa de livrare · Укажите адрес доставки', true); return; }
+    if (!email || email.indexOf('@') < 0) { toast('Introduceți un e-mail valid · Укажите e-mail', true); return; }
+    if (!phone) { toast('Introduceți numărul de telefon · Укажите телефон', true); return; }
+    if (juridic && !/^\d{13}$/.test(idno)) { toast('IDNO: 13 cifre, obligatoriu pentru persoane juridice', true); return; }
+    if ((pwd || '').length < 6) { toast('Parola: minim 6 caractere · Пароль: мин. 6 символов', true); return; }
+    r = await j(API + '/register', {method: 'POST', body: JSON.stringify({
+      email, password: pwd, full_name: name, phone,
+      address, is_company: juridic, idno: juridic ? idno : ''})});
+  } else {
+    r = await j(API + '/login', {method: 'POST', body: JSON.stringify({email, password: pwd})});
+  }
+  if (r.success) { document.getElementById('m-auth').classList.remove('open'); refreshMe(); }
+}
+async function refreshMe() {
+  const r = await j(API + '/me');
+  me = r.data;
+  document.getElementById('who').style.display = me ? '' : 'none';
+  document.getElementById('btn-auth').textContent = me ? 'Ieșire · Выход' : 'Intrare / Înregistrare';
+  if (me) { document.getElementById('who').textContent = '👤 ' + me.name;
+    document.getElementById('btn-auth').onclick = async () => { await j(API + '/logout', {method:'POST'}); location.reload(); };
+  } else document.getElementById('btn-auth').onclick = openAuth;
+}
+
+/* ── invoice ("cont de plata") ───────────────────────────── */
+/* RO: IMPLICIT totul in PDF; formatele alternative (HTML/XLS) se activeaza
+   DOAR in cabinetul clientului (constanta invoice_fmt) — aici doar apar
+   butonase mici de descarcare pentru cele activate. */
+const ALLOW_HTML = {{ 'true' if fmt_html == '1' else 'false' }};
+const ALLOW_XLSX = {{ 'true' if fmt_xlsx == '1' else 'false' }};
+function fmtExtras() {
+  const pref = String((me && me.invoice_fmt) ||
+    localStorage.getItem('biro26_fmt') || 'pdf');
+  return pref.split(',').map(s => s.trim())
+    .filter(f => (f === 'html' && ALLOW_HTML) || (f === 'xlsx' && ALLOW_XLSX));
+}
+function fmtExtraBtns(cod) {
+  const urls = {html: '/api/biro26/shop/report-html/invoice/' + cod,
+                xlsx: '/api/biro26/shop/report-xlsx/invoice/' + cod};
+  const lbl = {html: '🌐 HTML', xlsx: '📊 XLS'};
+  return fmtExtras().map(f =>
+    '<a target="_blank" href="' + urls[f] + '" style="font-size:11px;' +
+    'padding:4px 8px;border-radius:6px;background:#eef4fb;color:#1a5fb4;' +
+    'border:1px solid #bfd6f2;text-decoration:none">' + lbl[f] + '</a>').join('');
+}
+
+async function makeInvoice() {
+  const c = cart().filter(i => i.qty > 0);
+  if (!c.length) { toast('Coșul este gol · Корзина пуста', true); return; }
+  if (!me) { document.getElementById('m-cart').classList.remove('open'); ecStop(); openAuth(); return; }
+  // RO/EN: cerinta maib — fara bifa la Termeni si conditii nu se plaseaza comanda
+  const agree = document.getElementById('agree-terms');
+  if (agree && !agree.checked) {
+    toast('Confirmați Termenii și condițiile · Подтвердите Условия и положения', true);
+    const box = document.getElementById('agree-box');
+    if (box) { box.style.outline = '2px solid #dc2626'; box.style.outlineOffset = '4px'; }
+    agree.focus();
+    return;
+  }
+  const isCredit = (document.getElementById('paym-sel') || {}).value === 'credit';
+  // RO: distanta e OBLIGATORIE doar la achitarea standard — la credit
+  //     transportul nu se mai presteaza (vezi transport-markup-brief.md),
+  //     serverul sare peste blocul de transport cind vine credit_plan_id.
+  // EN: distance is MANDATORY only for standard payment — on credit,
+  //     transport isn't delivered; the server skips the transport block
+  //     whenever credit_plan_id is present.
+  let km = null, centerId = null;
+  if (!isCredit) {
+    km = parseFloat(document.getElementById('tr-km').value);
+    if (!km || km <= 0) {
+      toast('Introduceți distanța comenzii (km) — transportul este obligatoriu · Укажите расстояние, транспорт обязателен', true);
+      document.getElementById('tr-km').focus();
+      return;
+    }
+    const centerSel = document.getElementById('tr-center-sel');
+    centerId = centerSel ? parseInt(centerSel.value, 10)
+                         : ((logCenters && logCenters[0]) ? logCenters[0].id : null);
+  }
+  // RO/EN: serviciile optionale bifate intra in acelasi document
+  const items = c.map(i => ({cod: i.cod, qty: i.qty, name: i.name}))
+                 .concat(checkedServices().map(s => ({cod: s.cod, qty: s.qty, name: s.name})));
+  const tvaSel = document.getElementById('tva-mode');
+  // RO: achitare prin credit — trimitem pachetul ales; serverul majoreaza
+  //     preturile cu naceta ACTIVA si retine planul/lunile/avansul pe document
+  // EN: credit payment — the server reprices the lines with the EFFECTIVE
+  //     markup and stores the plan/months/advance on the document
+  const body = {items, tva_mode: tvaSel ? tvaSel.value : 'inclus'};
+  if (!isCredit) { body.distance_km = km; body.center_id = centerId; }
+  if (isCredit) {
+    // RO: pachetul/termenul vin din placa aleasa in tabelul de oferte
+    // EN: the plan/term come from the selected offer tile
+    const tiles = crTiles(cartTotalForCredit());
+    const t = tiles[cartCR.tile];
+    // RO: fara placa aleasa nu avem pachet de credit, iar blocul de transport
+    //     e ascuns — comanda ar pica pe server cu «distance_km is required»
+    //     despre un cimp invizibil. Oprim aici cu un mesaj clar (la fel ca in cos).
+    // EN: no tile => no plan, and the transport block is hidden, so the order
+    //     would fail server-side complaining about a field the client can't see.
+    if (!t) {
+      toast('Alegeți termenul de rate · Выберите срок рассрочки', true);
+      return;
+    }
+    body.credit_plan_id = t.plan.id;
+    body.credit_months = t.m;
+    body.credit_avans = parseFloat(document.getElementById('credit-avans').value) || 0;
+  }
+  const r = await j(API + '/invoice', {method: 'POST', body: JSON.stringify(body)});
+  if (r.success) {
+    // RO/EN: link-uri PDF (jsReport) pentru documentul creat
+    const pdf = k => '/api/biro26/shop/report/' + k + '/' + r.data.cod;
+    // RO: implicit PDF; butonase MICI pentru formatele activate in cabinet
+    const xlsxBtn = fmtExtraBtns(r.data.cod);
+    setTimeout(() => window.open(pdf('invoice'), '_blank'), 600);
+    // RO: butoane de plata online (MAIB card / MIA QR) — dupa metodele active
+    // EN: online pay buttons (MAIB card / MIA QR) — per the enabled methods
+    let payBtns = '';
+    if (PAY.enabled) {
+      if (PAY.methods.includes('mia'))
+        payBtns += '<button class="btn green" onclick="payMia(' + r.data.cod + ')">📱 Achită acum (MIA QR) · Оплатить</button>';
+      if (PAY.methods.includes('maib'))
+        payBtns += '<button class="btn" onclick="payMaib(' + r.data.cod + ')">💳 Achită cu cardul (MAIB) · Картой</button>';
+      if (PAY.methods.includes('miap2p'))
+        payBtns += '<button class="btn gray" onclick="payMiaP2P(' + r.data.cod + ')">📲 Transfer MIA la telefon · Перевод MIA</button>';
+    }
+    // RO: la PROCURAREA IN CREDIT — doua butoane dedicate: (1) cererea de
+    //     credit EasyCredit (notificare cu cererea + contul de plata) si
+    //     (2) achitarea in rate cu Liber Card MAIB (notificare la plata).
+    // EN: credit purchases get the EasyCredit request button and the
+    //     Liber Card MAIB payment button, both with store notifications.
+    if (body.credit_plan_id) {
+      cartCreditCtx = {plan_id: body.credit_plan_id, months: body.credit_months,
+                       amount: cartTotalForCredit(),
+                       nrset: (r.data.nrmanual != null ? r.data.nrmanual : r.data.nrset),
+                       cod: r.data.cod};
+      // RO: calculam AICI, inainte de saveCart([]) mai jos, la fel ca ecOrg —
+      // ecMode e o variabila globala, dar o capturam pentru aceeasi ordine
+      // predictibila ca la ecOrg.
+      // EN: computed HERE, before saveCart([]) below, same as ecOrg — ecMode
+      // is a plain global, snapshotted for the same predictable ordering.
+      const modeAtSubmit = ecMode;
+      if (!ecOrgOf(currentTile()) || modeAtSubmit === 'manual') {
+        payBtns += '<button class="btn" style="background:#111827" onclick="sendCartCreditReq()">📝 Cerere de credit EasyCredit · Кредитная заявка</button>';
+      }
+      if (PAY.methods.includes('maib'))
+        payBtns += '<button class="btn" style="background:#f59e0b;color:#111827" onclick="payMaib(' + r.data.cod + ')">💳 Liber Card (MAIB) în rate · Рассрочка Liber</button>';
+    }
+    document.getElementById('inv-result').innerHTML =
+      '<div class="ok-box">✅ Cont de plată creat · Счёт на оплату создан:<br>' +
+      '<b>Nr. ' + (r.data.nrmanual != null ? r.data.nrmanual : r.data.nrset) +
+      '</b> (document COD ' + r.data.cod + ')<br>' +
+      '<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">' + payBtns +
+      '<a class="btn" style="text-decoration:none" target="_blank" href="' + pdf('invoice') + '">⬇ Cont de plată · Счёт (PDF)</a>' +
+      '<a class="btn gray" style="text-decoration:none" target="_blank" href="' + pdf('order') + '">⬇ Comandă · Заказ (PDF)</a>' +
+      xlsxBtn +
+      '</div><div id="pay-box" style="margin-top:8px"></div></div>';
+    saveCart([]); renderCart();
+    // RO: cosul e gol dupa comanda — sincronizam blocul de credit
+    // (#credit-box/#ec-flow), altfel raman active cu currentTile()==null
+    // si butoanele de acolo nu mai fac nimic.
+    creditUI();
+  }
+}
+
+/* ── RO: ACHITARE PRIN CREDIT (rate) — organizatii dinamice + simulare;
+   la credit preturile se majoreaza cu comisionul pachetului (server-side).
+   ── EN: CREDIT payment — dynamic organizations + live simulation. ── */
+let CREDIT_OFFERS = [];
+/* ── RO: ofertele credit/rate in fereastra produsului (stil bomba.md,
+   la cererea EasyCredit): «Oferta in rate 0%» in tabelul ei, oferta de
+   CREDIT in alt tabel, sub pretul de baza + butonul negru «Solicita».
+   ── EN: separate installment (0%) and credit offer tables + button. */
+// RO: naceta ACTIVA = comisionul pachetului + majorarea organizatiei care
+//     inlocuieste transportul neprestat la credit (transport-markup-brief.md).
+//     p.transport_markup_pct e adaugat de creditPlans() din datele organizatiei.
+// EN: EFFECTIVE markup = plan commission + the org's markup replacing the
+//     undelivered transport on credit payments; p.transport_markup_pct is
+//     stitched in by creditPlans() from the org data.
+function crEffMarkup(p) { return (p.markup_pct || 0) + (p.transport_markup_pct || 0); }
+function crMonthly(p, price, m) {
+  const f = price * (1 + crEffMarkup(p) / 100);
+  return f / m + f * (p.annual_pct || 0) / 12 / 100 + f * (p.monthly_fee_pct || 0) / 100;
+}
+/* RO: beja «0% dobinda» doar pe pachetele de RATE 0% (dupa nume) — nu pe
+   pachetele de credit cu majorare (formulele bancii 8/10/12/24/36 luni).
+   EN: the 0% badge only marks the true 0% installment plans (by name). */
+function crIs0(p) { return /0\s*%/.test(p.name || ''); }
+function crFits(p, price) {
+  const f = price * (1 + crEffMarkup(p) / 100);
+  return f >= (p.amount_min || 0) && f <= (p.amount_max || 1e12);
+}
+function creditBadge(price, cod) {
+  let rate = null, credit = null;      // best 0% installment / best credit
+  creditPlans().forEach(p => {
+    if (!crFits(p, price)) return;
+    const m = p.months_max, v = crMonthly(p, price, m);
+    if (crIs0(p)) { if (!rate || v < rate.v) rate = {v, m}; }
+    else { if (!credit || v < credit.v) credit = {v, m}; }
+  });
+  if (!rate && !credit) return '';
+  let h = '<div class="croffer">';
+  if (credit) h += '<div class="cr-col"><div class="lbl">💳 Credit</div><b>' +
+    Math.ceil(credit.v) + ' lei × ' + credit.m + ' luni</b></div>';
+  if (rate) h += '<div class="cr-col"><div class="lbl">⏱ Oferta în rate · Рассрочка <span class="b0" style="position:static">0%</span></div><b>' +
+    Math.ceil(rate.v) + ' lei × ' + rate.m + ' luni</b></div>';
+  h += '</div><button class="cr-btn" onclick="openCreditModal(' + cod + ')">Solicită în rate sau credit · Оформить рассрочку или кредит</button>';
+  return h;
+}
+
+/* ── modalul «Solicitati un imprumut» (tiles + formular) ── */
+let CR = {cod: null, qty: 1, tile: null};
+function crTiles(price) {
+  const tiles = [];
+  creditPlans().forEach(p => {
+    if (!crFits(p, price)) return;
+    const terms = p.months_min === p.months_max ? [p.months_min]
+      : [6, 12, 24, 36].filter(m => m >= p.months_min && m <= p.months_max);
+    terms.forEach(m => tiles.push({plan: p, m, monthly: crMonthly(p, price, m)}));
+  });
+  tiles.sort((a, b) => a.m - b.m);
+  return tiles;
+}
+function openCreditModal(cod) {
+  document.getElementById('m-prod').classList.remove('open');
+  CR = {cod, qty: 1, tile: 0};
+  renderCreditModal();
+  document.getElementById('m-credit').classList.add('open');
+}
+function renderCreditModal() {
+  const p = prodCache[CR.cod] || {};
+  const base = priceOf(p);
+  const price = Math.round(base * CR.qty * 100) / 100;
+  const tiles = crTiles(price);
+  if (CR.tile >= tiles.length) CR.tile = 0;
+  const t = tiles[CR.tile];
+  const body = document.getElementById('credit-body');
+  body.innerHTML =
+    '<div style="display:flex;gap:16px;flex-wrap:wrap">' +
+    '<div style="flex:0 0 220px;min-width:200px">' +
+      '<h3 style="margin:0 0 8px">Solicitați un împrumut · Заявка на кредит</h3>' +
+      (p.image ? '<img src="' + esc(p.image) + '" referrerpolicy="no-referrer" style="width:100%;max-height:150px;object-fit:contain;background:#f1f5f9;border-radius:8px">' : '') +
+      '<div style="font-size:13px;margin:6px 0">' + esc(p.denumirea || '') + '</div>' +
+      '<div style="font-size:12.5px;color:#64748b">Preț · Цена: <b style="color:#111827">' + base.toFixed(2) + ' lei</b></div>' +
+      // RO: pretul in RATE — acelasi calcul ca eticheta de sub pret (rateBest)
+      '<div style="font-size:17px;color:#1d4ed8;font-weight:800;margin:2px 0">Preț în rate · Цена в рассрочку: ' +
+        (rateBest(base) || base * (1 + LIBER_PCT / 100)).toFixed(2) + ' lei</div>' +
+      '<div style="display:flex;gap:8px;align-items:center;margin:8px 0">' +
+        '<button class="btn gray" onclick="crQty(-1)">−</button><b>' + CR.qty + '</b>' +
+        '<button class="btn gray" onclick="crQty(1)">+</button>' +
+        '<span class="muted" style="font-size:12px">Total: ' + price.toFixed(2) + ' lei</span></div>' +
+    '</div>' +
+    '<div style="flex:1;min-width:280px">' +
+      '<div style="font-size:13px;font-weight:600;margin-bottom:4px">Alege oferta potrivită · Выберите вариант</div>' +
+      '<div class="crtiles">' + tiles.map((x, i) =>
+        '<div class="crtile' + (i === CR.tile ? ' on' : '') + '" onclick="crPick(' + i + ')">' +
+        (crIs0(x.plan) ? '<span class="b0">0% dobândă</span>' : '') +
+        '<div class="n">' + x.m + ' rate</div>' +
+        '<div class="s">' + Math.ceil(x.monthly) + ' lei</div></div>').join('') + '</div>' +
+      (t ? '<div class="crlunar">' + Math.ceil(t.monthly) + ' lei <span style="font-size:14px;color:#111827;font-weight:600">lunar · в месяц</span></div>' +
+        '<div class="muted" style="font-size:12px">' + esc(t.plan.org + ' — ' + t.plan.name) +
+        // RO: 0% -> «Pret in rate»; credit -> pretul standard (fara majorare afisata)
+        (crIs0(t.plan)
+          ? ' · Preț în rate: <b>' + (price * (1 + crEffMarkup(t.plan) / 100)).toFixed(2) + ' lei</b>'
+          : ' · Preț standard: <b>' + price.toFixed(2) + ' lei</b>') +
+        (t.plan.issue_fee > 0 ? ' · taxă emitere ' + t.plan.issue_fee + ' lei' : '') + '</div>' : '') +
+      '<div class="muted" style="font-size:11.5px;margin:6px 0">* Datele sunt de natură informativă și nu constituie o ofertă. Rata lunară va fi stabilită la depunerea cererii de credit și poate diferi ușor. · Данные носят информационный характер.</div>' +
+      '<div class="crform">' +
+        '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
+          '<input type="text" id="cr-prenume" placeholder="Prenume · Имя *" style="flex:1;min-width:130px">' +
+          '<input type="text" id="cr-nume" placeholder="Nume · Фамилия *" style="flex:1;min-width:130px">' +
+          '<input type="tel" id="cr-tel" placeholder="+(373) Telefon *" style="flex:1;min-width:130px"></div>' +
+        '<label class="ck"><input type="checkbox" id="cr-ck1"> Accept <a href="/termeni-si-conditii/" target="_blank">Termeni și condiții</a></label>' +
+        '<label class="ck"><input type="checkbox" id="cr-ck2"> Accept <a href="/politica-de-confidentialitate/" target="_blank">Condițiile pentru stocarea și prelucrarea datelor cu caracter personal</a></label>' +
+        '<button class="cr-btn" style="max-width:220px" onclick="crSubmit()">Cumpără în credit · Купить в кредит</button>' +
+      '</div>' +
+    '</div></div>';
+}
+function crQty(d) { CR.qty = Math.max(1, CR.qty + d); renderCreditModal(); }
+function crPick(i) { CR.tile = i; renderCreditModal(); }
+async function crSubmit() {
+  const pren = document.getElementById('cr-prenume').value.trim();
+  const nume = document.getElementById('cr-nume').value.trim();
+  const tel = document.getElementById('cr-tel').value.trim();
+  if (!pren || !nume) { toast('Introduceți numele și prenumele · Укажите имя и фамилию', true); return; }
+  if (tel.replace(/\D/g, '').length < 8) { toast('Introduceți telefonul · Укажите телефон', true); return; }
+  if (!document.getElementById('cr-ck1').checked || !document.getElementById('cr-ck2').checked) {
+    toast('Bifați acordurile · Отметьте согласия', true); return; }
+  const p = prodCache[CR.cod] || {};
+  const base = priceOf(p);
+  const t = crTiles(Math.round(base * CR.qty * 100) / 100)[CR.tile];
+  const r = await j(API + '/credit/request', {method: 'POST', body: JSON.stringify({
+    plan_id: t.plan.id, months: t.m, qty: CR.qty,
+    amount: Math.round(base * CR.qty * 100) / 100,
+    product_cod: CR.cod, product_name: p.denumirea || '',
+    client_name: pren + ' ' + nume, phone: tel})});
+  if (r.success) {
+    document.getElementById('credit-body').innerHTML =
+      '<div class="ok-box" style="font-size:15px">✅ Cererea a fost înregistrată! ' +
+      'Un manager vă va contacta în scurt timp la telefonul indicat.<br>' +
+      'Заявка зарегистрирована — менеджер свяжется с вами.' +
+      '<div class="muted" style="font-size:12.5px;margin-top:6px">Rata estimativă: ' +
+      r.data.monthly.toFixed(2) + ' lei/lună × ' + r.data.months + ' luni (' + esc(r.data.org || '') + ')</div></div>';
+  }
+}
+async function loadCreditOffers() {
+  const r = await j(API + '/credit/offers');
+  if (r.success) CREDIT_OFFERS = r.data || [];
+  const sel = document.getElementById('paym-sel');
+  if (sel && !CREDIT_OFFERS.length) sel.options[1].disabled = true;
+}
+function creditPlans() {
+  const out = [];
+  CREDIT_OFFERS.forEach(o => (o.plans || []).forEach(p =>
+    out.push({...p, org: o.name, transport_markup_pct: o.transport_markup_pct || 0})));
+  return out;
+}
+function cartTotalForCredit() {
+  let s = cart().reduce((a, i) => a + i.qty * i.price, 0);
+  try { checkedServices().forEach(x => s += (x.price || 0) * (x.qty || 1)); } catch (e) {}
+  // RO: la achitarea in credit transportul nu se presteaza — nu intra in
+  //     suma supusa nacetei (vezi transport-markup-brief.md).
+  // EN: on credit, transport isn't delivered — it's excluded from the
+  //     amount subject to the markup.
+  if ((document.getElementById('paym-sel') || {}).value !== 'credit') {
+    const km = parseFloat((document.getElementById('tr-km') || {}).value);
+    if (km > 0) { try { const t = transportFor(km);
+      if (t) { const p = Number(t.price) || 0; s += t.tarif_mode === 'KM' ? p * km : p; } } catch (e) {} }
+  }
+  return Math.round(s * 100) / 100;
+}
+/* RO: in cos — TABEL cu placi (ca la bomba.md): fiecare placa = pachet+
+   termen, cu beja «0% dobanda»; placa aleasa alimenteaza calculul live.
+   EN: bomba.md-style tile table in the cart. */
+let cartCR = {tile: 0};
+/* RO: cosul e "gol" pentru credit daca nu are nicio pozitie cu qty > 0 —
+   NU dupa cartTotalForCredit(), care dupa saveCart([]) (post-comanda) mai
+   include transportul/serviciile bifate ramase in formular si ar calcula
+   credit pentru o suma fantoma.
+   EN: "empty" for credit purposes means no cart line with qty > 0 — NOT
+   cartTotalForCredit(), which still counts leftover transport/services
+   after saveCart([]) (post-checkout) and would price a phantom amount. */
+function cartHasItems() { return cart().some(i => i.qty > 0); }
+async function creditUI() {
+  const on = (document.getElementById('paym-sel') || {}).value === 'credit';
+  const box = document.getElementById('credit-box');
+  const applicable = on && cartHasItems();
+  box.style.display = applicable ? '' : 'none';
+  // RO: la credit transportul nu se presteaza — blocul devine ascuns si
+  //     neobligatoriu (vezi makeInvoice()); la standard revine obligatoriu.
+  // EN: on credit, transport isn't delivered — the block is hidden and no
+  //     longer required (see makeInvoice()); back on standard it's required.
+  const trBox = document.getElementById('cart-transport');
+  if (trBox) trBox.style.display = on ? 'none' : '';
+  try {
+    if (!applicable) return;
+    const amount = cartTotalForCredit();
+    const simEl = document.getElementById('credit-sim');
+    if (amount <= 0) {
+      document.getElementById('cart-crtiles').innerHTML = '';
+      simEl.textContent = 'Coșul este gol · Корзина пуста'; return;
+    }
+    const tiles = crTiles(amount);
+    if (!tiles.length) {
+      document.getElementById('cart-crtiles').innerHTML = '';
+      simEl.innerHTML = '<span style="color:#b91c1c">Suma nu se încadrează în ofertele de credit (1 000 – 100 000 lei) · Сумма вне кредитных лимитов</span>';
+      return;
+    }
+    if (cartCR.tile >= tiles.length) cartCR.tile = 0;
+    document.getElementById('cart-crtiles').innerHTML = tiles.map((x, i) =>
+      '<div class="crtile' + (i === cartCR.tile ? ' on' : '') + '" onclick="cartCrPick(' + i + ')">' +
+      (crIs0(x.plan) ? '<span class="b0">0% dobândă</span>' : '') +
+      '<div class="n">' + x.m + ' rate</div>' +
+      '<div class="s">' + Math.ceil(x.monthly) + ' lei</div></div>').join('');
+    const t = tiles[cartCR.tile];
+    const r = await j(API + '/credit/calc', {method: 'POST', body: JSON.stringify({
+      amount, plan_id: t.plan.id, months: t.m,
+      avans: parseFloat(document.getElementById('credit-avans').value) || 0})});
+    if (!r.success) { simEl.innerHTML = '<span style="color:#b91c1c">' + esc(r.error || '') + '</span>'; return; }
+    const d = r.data;
+    // RO: regulile EasyCredit de afisare: la RATE 0% pretul devine automat
+    //     «Pret in rate»; la CREDIT ramine afisat pretul standard —
+    //     fara mentionarea majorarii/comisionului.
+    // EN: display rules: 0% tiles show the installment price; credit tiles
+    //     keep the standard price; no markup disclosure.
+    const is0 = crIs0(t.plan);
+    simEl.innerHTML =
+      '<span class="muted" style="font-size:12px">' + esc(d.org + ' — ' + d.plan) + '</span><br>' +
+      (is0 ? 'Preț în rate · Цена в рассрочку: <b>' + d.credit_price.toFixed(2) + ' lei</b>'
+           : 'Preț standard · Обычная цена: <b>' + d.price.toFixed(2) + ' lei</b>') +
+      (d.avans ? ' · avans <b>' + d.avans.toFixed(2) + '</b> lei' : '') +
+      (d.issue_fee ? ' · taxă emitere ' + d.issue_fee.toFixed(2) : '') + '<br>' +
+      '<span style="font-size:17px;color:#dc2626;font-weight:800">' + Math.ceil(d.monthly) + ' lei</span> <b>lunar · в месяц</b> × ' + d.months;
+  } finally {
+    ecUI();
+  }
+}
+function cartCrPick(i) { cartCR.tile = i; creditUI(); }
+
+/* RO: fluxul API al organizatiei de creditare (preapproved -> submit -> status),
+   in cosul din shop.html — foloseste aceleasi id-uri ca site_cart.html.
+   Se afiseaza doar daca organizatia are provider API configurat in back-office.
+   EN: credit-provider API flow inside the shop cart modal — same ids as
+   site_cart.html, shown only when the org has a configured provider. */
+var ecCtx = {org: null, reqId: null, ref: null, poll: null, gen: 0, selKey: null, polling: false};
+// RO: modul ales de client cind providerul e configurat — 'online' (cerere
+// automata prin API, implicit) sau 'manual' (butonul vechi de cerere ramine
+// vizibil si managerul suna clientul). Persista intre schimbari de placa/
+// organizatie; se ignora automat cind organizatia nu are provider configurat
+// (atunci comportamentul e oricum manual, vezi ecOrgOf()/makeInvoice()).
+// EN: client-chosen mode when a provider is configured — 'online' (API
+// request flow, default) or 'manual' (legacy request button + callback).
+// Persists across tile/org changes; irrelevant when the org has no provider.
+var ecMode = 'online';
+
+function ecSetMode(m) {
+  if (m !== 'online' && m !== 'manual') return;
+  if (ecMode === m) return;
+  ecMode = m;
+  if (m === 'manual') {
+    // RO: trecerea pe manual opreste opro-sul de status si sterge rezultatul
+    // de preaprobare afisat — altfel raman vizibile pe ecran dupa ce clientul
+    // a ales explicit calea manuala.
+    // EN: switching to manual stops the status poll and clears any displayed
+    // preapproval result — otherwise stale state would linger on screen.
+    ecStop();
+    ecCtx.reqId = null; ecCtx.ref = null; ecCtx.selKey = null;
+    var out = document.getElementById('ec-out');
+    if (out) out.innerHTML = '';
+    var btn = document.getElementById('ec-sub');
+    if (btn) { btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed'; }
+  }
+  ecUI();
+}
+
+function currentTile() {
+  if ((document.getElementById('paym-sel') || {}).value !== 'credit') return null;
+  if (!cartHasItems()) return null;
+  const amount = cartTotalForCredit();
+  if (amount <= 0) return null;
+  const tiles = crTiles(amount);
+  if (!tiles.length) return null;
+  // RO: NU scriem inapoi in cartCR.tile de aici — e un getter, nu trebuie sa
+  // aiba efecte secundare; creditUI() isi face propria clama la afisare.
+  const idx = cartCR.tile < tiles.length ? cartCR.tile : 0;
+  const t = tiles[idx];
+  if (!t) return null;
+  const cp = amount * (1 + crEffMarkup(t.plan) / 100);
+  return {plan: t.plan, m: t.m, monthly: t.monthly, credit_price: cp};
+}
+
+function ecOrgOf(tile) {
+  if (!tile) return null;
+  const o = CREDIT_OFFERS.find(function (x) {
+    return (x.plans || []).some(function (p) { return p.id === tile.plan.id; });
+  });
+  return (o && o.provider && o.provider.configured) ? o : null;
+}
+
+function ecStop() {
+  ecCtx.gen++;
+  ecCtx.polling = false;
+  if (ecCtx.poll) { clearTimeout(ecCtx.poll); ecCtx.poll = null; }
+}
+
+function ecUI() {
+  var box = document.getElementById('ec-flow');
+  if (!box) return;
+  var t = currentTile();
+  var org = ecOrgOf(t);
+  if (!org) ecStop();
+  // RO: la schimbarea placii/organizatiei SAU a sumei (credit_price), rezultatul
+  // de preaprobare vechi devine invalid — il stergem, DAR nu si cit timp opro-
+  // sul de status e activ (ecCtx.polling), ca sa nu se piarda referinta ext_ref
+  // din vedere in timp ce raspunsul e asteptat.
+  // EN: reset the stale preapproval result on selection/amount change, but not
+  // while a status poll is actively in flight (keep the ext_ref reference
+  // visible until it finishes).
+  // RO: preaprobarea e o operatie optionala — o afisam doar daca providerul
+  // organizatiei o suporta cu adevarat (nu toti gateway-urile o au, ex. Iute).
+  // EN: preapproval is optional — only show it when the org's provider
+  // actually implements it (not every gateway does, e.g. Iute).
+  var hasPre = !!(org && org.provider && org.provider.capabilities &&
+                  org.provider.capabilities.indexOf('preapproved') !== -1);
+  var selKey = org ? (org.id + ':' + t.plan.id + ':' + t.m + ':' + Math.round(t.credit_price)) : null;
+  if (selKey !== ecCtx.selKey && !ecCtx.polling) {
+    var out = document.getElementById('ec-out');
+    if (out) out.innerHTML = '';
+    var btn = document.getElementById('ec-sub');
+    if (btn) {
+      // RO: preaprobarea e OPTIONALA — butonul de trimitere ramine activ,
+      //     altfel clientul nu intelege de ce e gri. Datele se valideaza la
+      //     trimitere (IDNP 13 cifre, nume, telefon).
+      // EN: preapproval is optional; the submit button stays enabled.
+      btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
+    }
+    // RO: cererea veche nu mai e relevanta pentru noua selectie/suma — o uitam,
+    // ca sa nu se amestece intr-un poll viitor pornit pentru alta cerere.
+    // EN: the old request no longer matches the new selection/amount — forget
+    // it so it can't bleed into a future poll for a different request.
+    ecCtx.reqId = null;
+    ecCtx.ref = null;
+  }
+  ecCtx.selKey = selKey;
+  ecCtx.org = org;
+  // RO: comutatorul online/manual apare doar cind organizatia are provider
+  // configurat; formularul #ec-flow se afiseaza doar in modul 'online'.
+  // EN: the online/manual switcher only shows when the org has a configured
+  // provider; the #ec-flow form only renders in 'online' mode.
+  var modeBox = document.getElementById('ec-mode-box');
+  if (modeBox) modeBox.style.display = org ? '' : 'none';
+  var btnOn = document.getElementById('ec-mode-online');
+  var btnMan = document.getElementById('ec-mode-manual');
+  if (btnOn) btnOn.classList.toggle('on', ecMode === 'online');
+  if (btnMan) btnMan.classList.toggle('on', ecMode === 'manual');
+  var hint = document.getElementById('ec-mode-hint');
+  if (hint) hint.textContent = ecMode === 'online'
+    ? 'Online: decizie în cîteva minute · Онлайн: решение за несколько минут'
+    : 'Manual: vă contactează un manager · Вручную: с вами свяжется менеджер';
+  box.style.display = (org && ecMode === 'online') ? '' : 'none';
+  var preBtn = document.getElementById('ec-pre');
+  if (preBtn) preBtn.style.display = hasPre ? '' : 'none';
+  var note = document.getElementById('ec-note');
+  if (note) note.style.display = (org && !hasPre) ? '' : 'none';
+  if (org) {
+    document.getElementById('ec-org-label').textContent =
+      (org.provider.icon || '') + ' ' + org.provider.name +
+      ' — cerere online · онлайн-заявка';
+  }
+}
+
+function ecOut(html, color) {
+  var el = document.getElementById('ec-out');
+  el.innerHTML = html;
+  el.style.color = color || '#334155';
+}
+
+async function ecPreapproved() {
+  var t = currentTile();
+  if (!ecCtx.org || !t) return;
+  var idnp = document.getElementById('ec-idnp').value.trim();
+  if (!/^\d{13}$/.test(idnp)) {
+    ecOut('IDNP trebuie să conțină 13 cifre · IDNP должен содержать 13 цифр', '#b91c1c'); return;
+  }
+  ecOut('…');
+  var r = await j(API + '/credit/api/preapproved', {method: 'POST', body: JSON.stringify({
+    org_id: ecCtx.org.id, idnp: idnp, amount: Math.round(t.credit_price),
+    phone: document.getElementById('ec-phone').value.trim()})});
+  if (r.auth_required) {
+    document.getElementById('m-cart').classList.remove('open'); ecStop(); openAuth(); return;
+  }
+  var btn = document.getElementById('ec-sub');
+  if (!r.success) {
+    ecOut('❌ ' + esc(r.error || 'eroare'), '#b91c1c');
+    btn.disabled = true; btn.style.background = '#94a3b8'; btn.style.cursor = 'not-allowed';
+    return;
+  }
+  var d = r.data || {};
+  if (d.preapproved) {
+    ecOut('✅ Preaprobat pînă la <b>' + Math.round(d.max_amount) +
+      ' lei</b> · Предодобрено до ' + Math.round(d.max_amount) + ' лей', '#059669');
+    btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
+  } else {
+    ecOut('⚠️ ' + esc(d.message || 'Fără preaprobare · Без предодобрения') +
+      '<br>Puteți trimite cererea — decizia o ia creditorul.', '#b45309');
+    btn.disabled = false; btn.style.background = '#111827'; btn.style.cursor = 'pointer';
+  }
+}
+
+async function ecSubmit() {
+  var t = currentTile();
+  if (!ecCtx.org || !t) return;
+  var fio = document.getElementById('ec-fio').value.trim();
+  var phone = document.getElementById('ec-phone').value.trim();
+  var idnp = document.getElementById('ec-idnp').value.trim();
+  if (!fio || !phone) { ecOut('Numele și telefonul sunt obligatorii', '#b91c1c'); return; }
+  if (!/^\d{13}$/.test(idnp)) {
+    ecOut('IDNP trebuie să conțină 13 cifre · IDNP должен содержать 13 цифр', '#b91c1c'); return;
+  }
+  ecOut('…');
+  var r = await j(API + '/credit/api/submit', {method: 'POST', body: JSON.stringify({
+    org_id: ecCtx.org.id, plan_id: t.plan.id, months: t.m,
+    amount: t.credit_price / (1 + crEffMarkup(t.plan) / 100),
+    qty: 1, client_name: fio, phone: phone, idnp: idnp,
+    product_name: 'Coș OfficePlus'})});
+  if (r.auth_required) {
+    document.getElementById('m-cart').classList.remove('open'); ecStop(); openAuth(); return;
+  }
+  if (!r.success) { ecOut('❌ ' + esc(r.error || 'eroare'), '#b91c1c'); return; }
+  ecCtx.reqId = r.data.req_id;
+  ecCtx.ref = r.data.ext_ref || null;
+  if (!ecCtx.ref) {
+    ecOut('📨 Cerere trimisă · Заявка отправлена<br>Un manager vă va contacta în scurt timp · Менеджер свяжется с вами.', '#0f766e');
+    return;
+  }
+  ecOut('📨 Cerere trimisă · Заявка отправлена<br>Referință: <b>' +
+    esc(ecCtx.ref) + '</b><br><span id="ec-st">Se verifică statusul…</span>', '#0f766e');
+  ecPoll(0);
+}
+
+function ecPoll(n) {
+  ecStop();                                          // opreste (si polling=false) orice poll anterior
+  if (n > 24 || !ecCtx.reqId || !ecCtx.ref) {                       // 24 × 5 c = 2 минуты
+    var el0 = document.getElementById('ec-st');
+    if (el0) el0.textContent = 'Verificați statusul mai tîrziu — managerul vă va contacta.';
+    return;                                          // polling ramine false (epuizat)
+  }
+  ecCtx.polling = true;                              // opreste in mod real
+  var myGen = ecCtx.gen;   // RO: fereastra de generatie — daca ecStop() a mai
+                            // fost apelat intre timp, raspunsul intirziat e ignorat.
+  ecCtx.poll = setTimeout(async function () {
+    var r = await j(API + '/credit/api/status?req_id=' + ecCtx.reqId +
+                    '&ref=' + encodeURIComponent(ecCtx.ref || ''));
+    if (ecCtx.gen !== myGen) return;   // poll anulat/inlocuit in timpul await
+    var el = document.getElementById('ec-st');
+    var st = (r.data || {}).status || '';
+    if (el) el.textContent = 'Status: ' + (st || '—');
+    var done = /APPROV|REJECT|APROB|RESPINS|DECLIN|CANCEL/i.test(st);
+    if (done) { ecCtx.polling = false; }             // status final — se poate reseta la urmatoarea selectie
+    else ecPoll(n + 1);
+  }, 5000);
+}
+window.addEventListener('pagehide', ecStop);
+
+/* RO: cererea de credit EasyCredit din cos (dupa crearea contului in
+   credit) — pleaca cu numarul contului; magazinul primeste notificarea
+   cu cererea + contul de plata. EN: cart-side EasyCredit credit request. */
+let cartCreditCtx = null;
+async function sendCartCreditReq() {
+  if (!cartCreditCtx) return;
+  const c = cartCreditCtx;
+  let phone = (me && me.phone) || '';
+  if (!phone) phone = prompt('Telefon de contact · Контактный телефон:') || '';
+  if (!phone.trim()) { toast('Telefonul este obligatoriu · Телефон обязателен', true); return; }
+  const r = await j(API + '/credit/request', {method: 'POST', body: JSON.stringify({
+    plan_id: c.plan_id, months: c.months, qty: 1, amount: c.amount,
+    product_cod: c.cod,
+    product_name: 'Cont de plată Nr. ' + c.nrset + ' (COD ' + c.cod + ')',
+    client_name: (me && me.name) || 'client', phone: phone.trim()})});
+  if (r.success) toast('📝 Cererea de credit a fost trimisă — veți fi contactat · Кредитная заявка отправлена');
+}
+
+/* ── RO: plata online — MIA (QR instant) si MAIB (card, redirect) ──
+   ── EN: online payment — MIA (instant QR) and MAIB (card redirect) ── */
+let PAY = {enabled: false, methods: []};
+let miaTimer = null;
+async function loadPayMethods() {
+  const r = await j(API + '/pay/methods');
+  if (r.success && r.data) PAY = r.data;
+}
+async function payMaib(cod) {
+  const box = document.getElementById('pay-box');
+  box.innerHTML = '<span class="muted">Se inițiază plata MAIB… · Инициируем оплату MAIB…</span>';
+  const r = await j(API + '/pay/maib', {method: 'POST', body: JSON.stringify({cod})});
+  if (!r.success) { box.innerHTML = ''; return; }
+  box.innerHTML = '<span class="muted">Redirecționare către pagina MAIB… · Перенаправление на страницу MAIB…</span>';
+  window.open(r.data.pay_url, '_blank');
+}
+async function payMia(cod) {
+  const box = document.getElementById('pay-box');
+  box.innerHTML = '<span class="muted">Se generează codul QR MIA… · Генерируем QR-код MIA…</span>';
+  const r = await j(API + '/pay/mia', {method: 'POST', body: JSON.stringify({cod})});
+  if (!r.success) { box.innerHTML = ''; return; }
+  const d = r.data;
+  box.innerHTML =
+    '<div style="text-align:center;border:1px solid #86efac;border-radius:8px;padding:10px;background:#fff">' +
+    '<b>Scanați QR-ul cu aplicația bancară (MIA) · Отсканируйте QR банковским приложением</b><br>' +
+    '<img src="data:image/png;base64,' + d.qr_image + '" style="max-width:240px;margin:8px 0"><br>' +
+    '<a target="_blank" href="' + esc(d.qr_link) + '">Deschide linkul de plată · Открыть ссылку оплаты</a><br>' +
+    '<span class="muted" id="mia-status" style="font-size:12px">Valabil ' + Math.round(d.valid_seconds / 60) +
+    ' min · așteptăm confirmarea plății… · Действителен ' + Math.round(d.valid_seconds / 60) +
+    ' мин, ждём подтверждения…</span></div>';
+  if (miaTimer) clearInterval(miaTimer);
+  miaTimer = setInterval(async () => {
+    const st = await j(API + '/pay/mia-status?order=' + encodeURIComponent(d.order_id));
+    if (st.success && st.paid) {
+      clearInterval(miaTimer);
+      document.getElementById('pay-box').innerHTML =
+        '<div class="ok-box">✅ Plata a fost primită! Mulțumim. · Оплата получена!</div>';
+      toast('Plată confirmată ✓');
+    } else if (st.success && st.final) {
+      clearInterval(miaTimer);
+      const el = document.getElementById('mia-status');
+      if (el) el.textContent = 'QR expirat — generați unul nou. · QR истёк.';
+    }
+  }, 5000);
+}
+
+/* RO: transfer MIA catre persoana fizica (numar de telefon) — instructiuni;
+   plata se confirma manual de operator. Functioneaza in paralel cu QR/MAIB.
+   EN: MIA transfer to a phone number — instructions box; confirmed manually. */
+async function payMiaP2P(cod) {
+  const box = document.getElementById('pay-box');
+  box.innerHTML = '<span class="muted">…</span>';
+  const r = await j(API + '/pay/miap2p', {method: 'POST', body: JSON.stringify({cod})});
+  if (!r.success) { box.innerHTML = ''; return; }
+  const d = r.data;
+  box.innerHTML =
+    '<div style="border:1px solid #86efac;border-radius:8px;padding:12px;background:#fff;font-size:14px;line-height:1.6">' +
+    '<b>📲 Transfer prin MIA (aplicația băncii dvs.)</b><br>' +
+    '1️⃣ Deschideți aplicația băncii → <b>MIA / Plăți instant</b> → transfer după <b>numărul de telefon</b> · Откройте приложение банка → MIA → перевод по номеру телефона<br>' +
+    '2️⃣ Numărul · Номер: <b style="font-size:17px">' + esc(d.phone) + '</b> (' + esc(d.merchant) + ')<br>' +
+    '3️⃣ Suma · Сумма: <b style="font-size:17px">' + d.amount.toFixed(2) + ' LEI</b><br>' +
+    '4️⃣ La destinația/comentariul plății indicați · В комментарии платежа укажите: <b>' + esc(d.order_id) + '</b><br>' +
+    '<span class="muted" style="font-size:12px">Plata se confirmă manual de operator după recepționarea transferului. · Платёж подтверждается оператором после получения перевода.</span></div>';
+}
+
+/* ── RO: comutatorul de limbi RO·RU·EN — traduce etichetele meniului si
+   incarca paginile informative WP in varianta -ru/-en (fallback RO).
+   ── EN: RO·RU·EN language switch — translates the nav labels and loads
+   the -ru/-en WP page variants (RO fallback). ─────────────────────── */
+const NAV_TR = {
+  'Catalog':       {ru: 'Каталог',         en: 'Catalog'},
+  'Despre noi':    {ru: 'О нас',           en: 'About us'},
+  'Contacte':      {ru: 'Контакты',        en: 'Contacts'},
+  'Livrare':       {ru: 'Доставка',        en: 'Delivery'},
+  'Retur produse': {ru: 'Возврат товаров', en: 'Product returns'},
+};
+function curLang() {
+  const l = localStorage.getItem('biro26_lang') || '{{ cur_lang|default("ro") }}';
+  return ['ro', 'ru', 'en'].includes(l) ? l : 'ro';
+}
+function setLang(l) {
+  localStorage.setItem('biro26_lang', l);
+  applyLang();
+  // RO: daca e deschisa o pagina informativa — o reincarcam in limba aleasa
+  const p = new URLSearchParams(location.search);
+  if (p.get('info')) {
+    if (l === 'ro') p.delete('lang'); else p.set('lang', l);
+    location.search = p.toString();
+  }
+}
+function applyLang() {
+  const l = curLang();
+  document.querySelectorAll('.top .lang').forEach(a =>
+    a.classList.toggle('on', a.dataset.lang === l));
+  document.querySelectorAll('.top .nav').forEach(a => {
+    if (!a.dataset.label) a.dataset.label = a.textContent.trim();
+    const tr = NAV_TR[a.dataset.label];
+    a.textContent = (l !== 'ro' && tr && tr[l]) ? tr[l] : a.dataset.label;
+    const href = a.getAttribute('href') || '';
+    if (href.startsWith('?')) {
+      const u = new URLSearchParams(href.slice(1));
+      if (l === 'ro') u.delete('lang'); else u.set('lang', l);
+      a.setAttribute('href', '?' + u.toString());
+    }
+  });
+  // RO: gruparea (arborele de categorii) se redeseneaza in limba aleasa
+  // EN: re-render the category tree in the chosen language
+  try { if (typeof treeData !== 'undefined' && treeData.length) renderTree(); } catch (e) {}
+}
+/* RO: limba din URL (?lang=) are prioritate si se retine
+   EN: the URL language wins and is remembered */
+(function () {
+  const ul = new URLSearchParams(location.search).get('lang');
+  if (ul === 'ru' || ul === 'en') localStorage.setItem('biro26_lang', ul);
+})();
+applyLang();
+
+/* RO: la intoarcerea de pe pagina bancii (successUrl/failUrl -> ?pay=ok|fail)
+   aratam clar rezultatul. EN: show the payment outcome after the bank redirect. */
+(function payReturnNotice() {
+  const p = new URLSearchParams(location.search).get('pay');
+  if (p === 'ok') toast('✅ Plata a fost efectuată cu succes! · Оплата прошла успешно!');
+  else if (p === 'fail') toast('❌ Plata NU a fost efectuată (refuzată sau anulată) · Оплата НЕ прошла', true);
+})();
+
+/* RO: deep-link din pagina principala Figma (biro26-site):
+   ?q= cautare, ?grupa=/&categorie=/&brand= filtre, ?sort=, ?cart=1 deschide
+   cosul. EN: deep-link support for the Figma homepage. */
+(function deepLink() {
+  const p = new URLSearchParams(location.search);
+  if (p.get('q')) document.getElementById('q').value = p.get('q');
+  if (p.get('grupa')) F.grupa = p.get('grupa');
+  if (p.get('categorie')) F.categorie = p.get('categorie');
+  if (p.get('brand')) F.brand = p.get('brand');
+  const s = p.get('sort'), sel = document.getElementById('sort');
+  if (s && sel && [...sel.options].some(o => o.value === s)) sel.value = s;
+  if (p.get('cart') === '1') setTimeout(openCart, 300);
+})();
+saveCart(cart()); refreshMe(); load(true); loadFacets(); loadPayMethods(); loadCreditOffers();
+</script>
+</body>
+</html>

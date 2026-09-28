@@ -1,0 +1,8 @@
+{
+  "DOCUMENT_DEVELOPMENT.md": {
+    "slug": "document-development", "public": false, "icon": "📐", "cls": "c", "order": 10,
+    "title": "Разработка документа в UNA.md",
+    "audience": "для разработчиков учётных модулей",
+    "descr": "Полный пример: шапка в TMDB_DOCS, строки в семействе CST3, вьюшки с расшифровками CLC, узел документа и журнала в конфигураторе uniConf, дизайны гридов в A$LOB и то, как SmartQuery грида отвечает на вопрос, где лежат строки."
+  }
+}

@@ -1,0 +1,142 @@
+"""RO: Proxy de imagini pentru sursele fara HTTPS.
+    EN: Image proxy for sources that have no HTTPS.
+
+RO: De ce exista. impreso.md serveste imaginile DOAR prin http (https esueaza
+    complet, nu e o eroare de certificat — nu exista serviciu pe 443). Magazinul
+    ruleaza pe https, iar browserul blocheaza continutul mixt, deci imaginile nu
+    se afiseaza desi URL-urile din baza sint corecte. Proxy-ul aduce imaginea pe
+    server prin http si o serveste mai departe pe https.
+EN: Why this exists. impreso.md serves images over http only (https fails outright
+    — nothing listens on 443). The shop runs on https and browsers block mixed
+    content, so the images never render even though the stored URLs are valid.
+    The proxy fetches over http server-side and re-serves over https.
+
+RO: SECURITATE — un proxy care descarca orice URL primit e o gaura SSRF: cineva
+    l-ar putea folosi ca sa ceara adrese interne prin serverul nostru. De aceea:
+      * doar gazdele din ALLOWED_HOSTS;
+      * fara urmarirea redirectarilor (o redirectare ar putea duce in afara listei);
+      * doar raspunsuri image/*;
+      * limita de marime.
+EN: SECURITY — a proxy that fetches arbitrary URLs is an SSRF hole, so: allowlisted
+    hosts only, no redirect following, image/* responses only, size cap.
+"""
+from __future__ import annotations
+
+import urllib.parse
+import urllib.request
+from typing import Optional
+
+# RO: gazdele pentru care avem voie sa aducem imagini / EN: hosts we may fetch from
+ALLOWED_HOSTS = frozenset({
+    "impreso.md", "www.impreso.md",
+})
+
+# RO: stub-urile "fara imagine" ale site-urilor sursa — JPEG-uri reale care spun
+#     "no photo" (impreso: noimage_b.jpg, 57 KB, la 319 produse). Mai rau decit
+#     lipsa pozei: interfata crede ca poza exista si nu mai arata placeholder-ul,
+#     iar filtrul "produse fara foto" nu le gaseste. Aproape fiecare sursa are
+#     un asemenea stub, cu nume diferite.
+# EN: source-site "no image" stubs — real JPEGs meaning "no photo"; worse than
+#     a missing image because the UI thinks a photo exists.
+STUB_MARKERS = ("noimage", "no-image", "no_image", "placeholder",
+                "img/default.jpg", "/default.jpg")
+
+
+def has_no_file(url) -> bool:
+    """RO: True cind adresa se opreste la FOLDER, fara nume de fisier
+    («https://papirus.md/upload/products/detail/»). Sursa a dat calea, dar nu si
+    poza: browserul arata o imagine rupta, mai rau decit placeholder-ul propriu.
+    Pe 22.09.2026 erau 1601 produse in catalog cu asemenea adresa.
+    EN: True when the URL ends at a directory — no file name, so nothing to show."""
+    if not url or not isinstance(url, str):
+        return False
+    try:
+        path = urllib.parse.urlsplit(url.strip()).path
+    except ValueError:
+        return True
+    return not path.rsplit("/", 1)[-1].strip()
+
+
+def is_stub(url) -> bool:
+    """RO: True daca URL-ul e stub-ul 'fara imagine' al unei surse SAU daca adresa
+    nu duce la un fisier. In ambele cazuri interfata trebuie sa-si arate placeholder-ul.
+    EN: True when the URL is a source-site no-image stub or points at no file."""
+    if not url or not isinstance(url, str):
+        return False
+    if has_no_file(url):
+        return True
+    low = url.lower()
+    return any(m in low for m in STUB_MARKERS)
+
+PROXY_PATH = "/api/biro26/img"
+MAX_BYTES = 8 * 1024 * 1024          # RO: 8 MB — o poza de produs e sub 1 MB
+TIMEOUT_S = 15
+
+
+def _host_of(url: str) -> str:
+    try:
+        return (urllib.parse.urlsplit(url).hostname or "").lower()
+    except ValueError:
+        return ""
+
+
+def needs_proxy(url: Optional[str]) -> bool:
+    """RO: doar URL-urile http:// de pe gazdele permise trec prin proxy.
+    EN: only http:// URLs on allowlisted hosts go through the proxy."""
+    if not url or not isinstance(url, str):
+        return False
+    return url.startswith("http://") and _host_of(url) in ALLOWED_HOSTS
+
+
+def proxy_url(url: Optional[str]) -> Optional[str]:
+    """RO: intoarce URL-ul de afisat: prin proxy daca e nevoie, altfel neschimbat;
+    stub-urile 'fara imagine' devin None (UI-ul isi arata placeholder-ul propriu).
+    EN: the URL to render: proxied when needed, unchanged otherwise; no-image
+    stubs collapse to None so the UI shows its own placeholder."""
+    if is_stub(url):
+        return None
+    if not needs_proxy(url):
+        return url
+    return PROXY_PATH + "?u=" + urllib.parse.quote(url, safe="")
+
+
+def rewrite_rows(rows, *fields):
+    """RO: aplica proxy_url peste cimpurile date, in lista de dictionare a unui
+    rezultat SQL. Numele coloanelor pot veni cu litera mica sau mare.
+    EN: apply proxy_url over the given fields of a list of result dicts."""
+    if not rows:
+        return rows
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        for f in fields:
+            for key in (f, f.lower(), f.upper()):
+                if key in row:
+                    row[key] = proxy_url(row[key])
+                    break
+    return rows
+
+
+def fetch(url: str):
+    """RO: aduce imaginea. Intoarce (octeti, content_type) sau ridica ValueError
+    cu un motiv lizibil. NU urmareste redirectari — o redirectare ar putea scoate
+    cererea din lista alba.
+    EN: fetch the image; returns (bytes, content_type) or raises ValueError.
+    Redirects are NOT followed — one could lead outside the allowlist."""
+    if not needs_proxy(url):
+        raise ValueError("RO: adresa nu e permisa / EN: url not allowed")
+
+    class _NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, *a, **kw):     # noqa: D401
+            return None
+
+    opener = urllib.request.build_opener(_NoRedirect)
+    req = urllib.request.Request(url, headers={"User-Agent": "BIRO26-img/1.0"})
+    with opener.open(req, timeout=TIMEOUT_S) as resp:
+        ctype = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+        if not ctype.startswith("image/"):
+            raise ValueError("RO: raspunsul nu e imagine / EN: not an image: " + ctype)
+        data = resp.read(MAX_BYTES + 1)
+    if len(data) > MAX_BYTES:
+        raise ValueError("RO: imagine prea mare / EN: image too large")
+    return data, ctype

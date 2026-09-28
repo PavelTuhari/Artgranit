@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{ app_name }} — Clienți magazin</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    font-size:13px;background:#f8fafc;color:#1e293b;padding:18px}
+  h1{font-size:19px;margin-bottom:4px}
+  .hint{color:#64748b;font-size:12.5px;margin-bottom:14px;line-height:1.55;max-width:900px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .bar a,.bar button,.bar input,.bar select{padding:7px 12px;border:1px solid #cbd5e1;
+    border-radius:8px;background:#fff;font-size:12.5px;color:#1e293b;text-decoration:none}
+  .bar button{cursor:pointer}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
+  th,td{padding:8px 10px;border-bottom:1px solid #e2e8f0;text-align:left}
+  th{background:#f1f5f9;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;color:#475569}
+  select.mark{padding:5px 8px;border:1px solid #cbd5e1;border-radius:7px;font-size:12.5px}
+  .tag{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700}
+  .tag.admin{background:#fee2e2;color:#b91c1c}
+  .tag.test{background:#fef3c7;color:#b45309}
+  .tag.trusted{background:#dcfce7;color:#15803d}
+  .muted{color:#94a3b8}
+  .toast{position:fixed;bottom:20px;right:20px;background:#111827;color:#fff;padding:10px 16px;
+    border-radius:8px;font-size:12.5px;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.on{opacity:1}
+  .toast.err{background:#b91c1c}
+</style>
+</head>
+<body>
+<div class="bar"><a href="/UNA.md/orasldev/biro26">← Biro26</a>
+  <a href="/UNA.md/orasldev/biro26-integration-log">Jurnal integrări</a></div>
+
+<h1>👥 Clienți magazin · Клиенты магазина</h1>
+<p class="hint">
+  Toți clienții înregistrați pe site. Marcajul se salvează imediat la schimbarea
+  selectorului. <b>admin</b> — cont de serviciu (vede detaliile tehnice ale erorilor pe
+  vitrină); <b>test</b> — cont de testare, comenzile lui nu se iau în calcul;
+  <b>trusted</b> — client de încredere. ·
+  Все зарегистрированные клиенты. Метка сохраняется сразу: <b>admin</b> — служебный
+  (видит технические детали ошибок на витрине), <b>test</b> — тестовый,
+  <b>trusted</b> — доверенный.
+</p>
+
+<div class="bar">
+  <input id="q" placeholder="Caută: nume, IDNO, email, telefon, COD — în bază, apoi automat pe date.gov.md · Поиск" style="width:420px"
+         onkeydown="if(event.key==='Enter')load()">
+  <button onclick="load()">🔍 Caută · Найти</button>
+  <button onclick="document.getElementById('q').value='';load()">Reset</button>
+  <button onclick="govAuto(document.getElementById('q').value.trim())" title="Caută direct în registrul de stat (utilitarul local Contragenti)">🏛 date.gov.md</button>
+  <span id="cnt" class="muted"></span>
+</div>
+
+<!-- RO: CLIENT NOU — inregistrare rapida de catre operator (casier).
+     Minimul: denumirea + tipul. Datele pot fi PRELUATE din utilitarul local
+     «Contragenti» (date.gov.md), care ruleaza pe calculatorul operatorului
+     (http://127.0.0.1:9393) — integrare OPTIONALA: daca utilitarul nu ruleaza,
+     formularul se completeaza manual, nimic nu se blocheaza.
+     EN: operator-side new-client form with OPTIONAL lookup from the local
+     «Contragenti» utility (state registry date.gov.md). -->
+<div class="wrap" style="margin-bottom:14px">
+  <div style="padding:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+    <div><label class="muted" style="display:block;font-size:12px">Denumire / NNP *</label>
+      <input class="f-input" id="nc-name" style="width:260px" placeholder="SRL Exemplu sau Ion Popescu"></div>
+    <div><label class="muted" style="display:block;font-size:12px">Tip</label>
+      <select class="f-input" id="nc-type" style="width:130px">
+        <option value="0">fizică</option><option value="1">juridică</option></select></div>
+    <div><label class="muted" style="display:block;font-size:12px">IDNO / IDNP</label>
+      <input class="f-input" id="nc-idno" style="width:150px" maxlength="13"></div>
+    <div><label class="muted" style="display:block;font-size:12px">Telefon</label>
+      <input class="f-input" id="nc-phone" style="width:140px"></div>
+    <div><label class="muted" style="display:block;font-size:12px">E-mail</label>
+      <input class="f-input" id="nc-email" style="width:190px" placeholder="opțional"></div>
+    <div style="flex:1;min-width:220px"><label class="muted" style="display:block;font-size:12px">Adresa</label>
+      <input class="f-input" id="nc-addr" style="width:100%"></div>
+    <button class="btn" id="nc-gov" onclick="pickFromGov()"
+            title="Preia datele din registrul de stat (utilitarul local Contragenti)">
+      🏛 Date.gov.md</button>
+    <button class="btn primary" onclick="addClient()">➕ Adaugă client · Добавить</button>
+  </div>
+  <div class="muted" id="nc-msg" style="padding:0 12px 10px"></div>
+</div>
+
+<table data-export="shop-clients">
+  <thead><tr>
+    <th style="width:80px">COD</th><th>Email</th><th>Nume</th>
+    <th style="width:130px">Telefon</th><th style="width:70px">Tip</th>
+    <th style="width:120px">IDNO</th><th style="width:140px">Înregistrat</th>
+    <th style="width:150px">Marcaj · Метка</th>
+    <th style="width:110px">Acte · Документы</th>
+  </tr></thead>
+  <tbody id="rows"><tr><td colspan="9" class="muted">…</td></tr></tbody>
+</table>
+
+<div class="toast" id="toast"></div>
+
+<script src="/static/biro26/clients-gov.js?v=20260905"></script>
+<script>
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+function toast(m,err){const t=document.getElementById('toast');t.textContent=m;
+  t.className='toast on'+(err?' err':'');setTimeout(()=>t.className='toast',2600);}
+const MARKS=[['','— fără marcaj —'],['admin','admin'],['test','test'],['trusted','trusted']];
+async function load(){
+  const q=encodeURIComponent(document.getElementById('q').value.trim());
+  const r=await fetch('/api/biro26/shop-clients?limit=300&search='+q).then(x=>x.json()).catch(()=>({}));
+  const rows=(r&&r.success)?r.data:[];
+  document.getElementById('cnt').textContent=rows.length+' clienți';
+  // RO: cautarea unica — nimic in baza OfficePlus -> automat date.gov.md (static/biro26/clients-gov.js)
+  if(!rows.length && q && window.govAuto) govAuto(decodeURIComponent(q));
+  document.getElementById('rows').innerHTML = rows.length ? rows.map(c => {
+    const mk=(c.client_mark||'');
+    return '<tr><td>'+esc(c.univers_cod)+'</td>'+
+      '<td>'+esc(c.email)+'</td>'+
+      '<td>'+esc(c.full_name||'')+'</td>'+
+      '<td>'+esc(c.phone||'')+'</td>'+
+      '<td>'+(c.is_company==='1'?'juridic':'fizic')+'</td>'+
+      '<td>'+esc(c.idno||'')+'</td>'+
+      '<td class="muted">'+esc(c.created_at||'')+'</td>'+
+      '<td>'+(mk?'<span class="tag '+esc(mk)+'">'+esc(mk)+'</span> ':'')+
+        '<select class="mark" onchange="setMark('+Number(c.univers_cod)+',this.value,this)">'+
+        MARKS.map(([v,l])=>'<option value="'+v+'"'+(v===mk?' selected':'')+'>'+esc(l)+'</option>').join('')+
+        '</select></td>'+
+      // RO: dosarul clientului (buletin fata/verso) — de aici operatorul il
+      //     transmite creditorului (Microinvest nu are API). Fiecare
+      //     deschidere se scrie in TMS_MUNC_ADDFILES_LOG.
+      '<td><button class="mark" onclick="docs('+Number(c.univers_cod)+')">📎 acte</button></td></tr>';
+  }).join('') : '<tr><td colspan="9" class="muted">Niciun client · Нет клиентов</td></tr>';
+}
+/* RO: actele personale ale clientului (TMS_MUNC_ADDFILES) — vizibile
+   operatorului pentru a le transmite creditorului. Date PERSONALE:
+   accesul se jurnalizeaza, nu se pastreaza copii pe disc. */
+async function docs(cod){
+  const r=await fetch('/api/biro26/shop/my-files?cod='+cod).then(x=>x.json()).catch(()=>({}));
+  const rows=(r&&r.success)?r.data:[];
+  const w=window.open('','_blank','width=760,height=620');
+  if(!w){toast('Permiteți ferestrele pop-up',true);return;}
+  const li=rows.length?rows.map(f=>
+    '<li><b>'+esc(f.kind_label||f.doc_kind)+'</b> — '+esc(f.file_name)+
+    ' ('+Math.round((f.file_size||0)/1024)+' KB, '+esc(f.created||'')+') '+
+    '<a target="_blank" href="/api/biro26/shop/my-files/'+f.id+'?cod='+cod+'">deschide</a></li>').join('')
+    : '<li>Clientul nu a încărcat documente · Клиент не загрузил документы</li>';
+  w.document.write('<meta charset="utf-8"><title>Acte client '+cod+'</title>'+
+    '<body style="font:14px system-ui;padding:18px"><h3>Acte client COD '+cod+'</h3><ul>'+li+'</ul>'+
+    '<p style="color:#64748b;font-size:12.5px">Date cu caracter personal (Legea 133/2011): '+
+    'folosiți-le doar pentru dosarul de credit; fiecare deschidere este jurnalizată.</p></body>');
+  w.document.close();
+}
+/* ── CLIENT NOU + integrarea OPTIONALA cu utilitarul «Contragenti» ──────
+   RO: utilitarul ruleaza LOCAL la operator (http://127.0.0.1:9393) si permite
+   CORS, deci il apeleaza chiar browserul: /pick deschide fereastra utilitarului,
+   operatorul alege compania, iar noi primim XML-ul cartelei si completam
+   formularul. Daca utilitarul nu ruleaza, butonul spune asta si munca continua
+   manual — integrarea nu este obligatorie nicaieri.
+   EN: the Contragenti helper runs on the operator's own machine; the browser
+   calls it directly and fills the form from the returned XML card. */
+const GOV_BASE = localStorage.getItem('contragenti_base') || 'http://127.0.0.1:9393';
+
+async function govHealth(){
+  try{
+    const c = new AbortController(); setTimeout(()=>c.abort(), 1500);
+    const r = await fetch(GOV_BASE + '/health', {signal:c.signal});
+    return r.ok ? await r.json() : null;
+  }catch(e){ return null; }
+}
+async function govReady(){
+  const el = document.getElementById('nc-gov'); if(!el) return;
+  const h = await govHealth();
+  const msg = document.getElementById('nc-msg');
+  el.disabled = false;
+  el.title = h
+    ? 'Contragenti activ (' + (h.db_count||0) + ' înregistrări în bază locală)'
+    : 'Utilitarul Contragenti nu rulează pe acest calculator';
+  el.style.opacity = h ? '1' : '.6';
+  // RO: daca utilitarul nu raspunde — dam operatorului LINKUL DE DESCARCARE
+  //     (copia utilitarului este pastrata in proiect: tools/contragenti).
+  // EN: when the helper is down, offer the download link right away.
+  // RO: «Contragenti (127.0.0.1:9393) nu este disponibil» + scriptul de pornire
+  //     Mac / Windows / Linux — static/biro26/clients-gov.js
+  if(!h && msg && !msg.dataset.dl && window.govOffline) govOffline(msg);
+}
+function govText(x, tag){
+  const n = x.getElementsByTagName(tag)[0];
+  return n && n.textContent ? n.textContent.trim() : '';
+}
+async function pickFromGov(qArg){
+  const msg = document.getElementById('nc-msg');
+  const q = (typeof qArg === 'string' && qArg) ? qArg :
+            (document.getElementById('nc-idno').value.trim() ||
+             document.getElementById('nc-name').value.trim() ||
+             document.getElementById('q').value.trim());
+  if(!q){ msg.textContent = 'Introduceți denumirea sau IDNO pentru căutare'; return; }
+  if(!(await govHealth())){ govOffline(msg); return; }
+  msg.textContent = 'Se deschide utilitarul Contragenti… alegeți compania și apăsați «Vernuti contragentul».';
+  const url = GOV_BASE + '/pick?q=' + encodeURIComponent(q) + '&lang=ro&timeout=300&format=xml';
+  if(window.govLog) govLog('pick_start', 'ok', q, 'fetch ' + GOV_BASE + '/pick');
+  try{
+    const r = await fetch(url, {headers:{'Accept':'application/xml'}});
+    if(r.status === 204){ msg.textContent = 'Selecție anulată de operator.'; if(window.govLog) govLog('pick_cancel', 'warn', q); return; }
+    if(r.status === 504){ msg.textContent = 'A expirat timpul de selecție.'; if(window.govLog) govLog('pick_timeout', 'warn', q); return; }
+    if(!r.ok){ msg.textContent = 'Utilitarul a răspuns cu codul ' + r.status; if(window.govLog) govLog('pick_error', 'error', q, 'HTTP ' + r.status); return; }
+    const raw = await r.text();
+    const xml = new DOMParser().parseFromString(raw, 'application/xml');
+    const set = (id,v)=>{ if(v) document.getElementById(id).value = v; };
+    set('nc-name', govText(xml,'denumire'));
+    set('nc-idno', govText(xml,'idno'));
+    set('nc-addr', govText(xml,'adresa'));
+    document.getElementById('nc-type').value = '1';   // registrul = persoane juridice
+    const lich = govText(xml,'lichidata');
+    msg.textContent = 'Preluat din date.gov.md: ' + (govText(xml,'denumire') || '—') +
+      (govText(xml,'inregistrare') ? ' · înregistrată ' + govText(xml,'inregistrare') : '') +
+      (lich && lich.toLowerCase() !== 'nu' ? ' · ⚠ LICHIDATĂ' : '');
+    // RO: scrierea in una.md (TMS_UNIVERS.CODVECHI, TMS_ORG.CODFISCAL) cu dedup — modules/contragenti
+    if(window.govUpsertXml) await govUpsertXml(raw, q);
+  }catch(e){
+    // RO: pagina e pe HTTPS, utilitarul pe http://127.0.0.1 — unele browsere
+    //     blocheaza apelul din pagina. Atunci deschidem utilitarul intr-o
+    //     fereastra cu `return_to`: dupa alegere el ne trimite datele INAPOI
+    //     (302 -> pagina noastra de intoarcere -> postMessage), deci fluxul NU
+    //     se mai opreste pe pagina utilitarului.
+    // EN: fall back to a popup with return_to so the data comes BACK to us.
+    // RO: dar daca utilitarul chiar nu mai raspunde (inchis intre timp) —
+    //     panoul «nu este disponibil» cu scriptul de pornire, nu un popup mort.
+    if(!(await govHealth())){ govOffline(msg); return; }
+    govPopup(q);
+  }
+}
+
+/* RO: intoarcerea datelor prin fereastra + postMessage (vezi gov_return.html).
+   EN: popup round-trip; the utility redirects back to our return page. */
+let GOV_WIN = null, GOV_STATE = '';
+function govPopup(q){
+  const msg = document.getElementById('nc-msg');
+  GOV_STATE = 'g' + Date.now();
+  const back = location.origin + '/UNA.md/orasldev/biro26-gov-return';
+  const url = GOV_BASE + '/pick?q=' + encodeURIComponent(q) +
+    '&lang=ro&timeout=300&state=' + GOV_STATE +
+    '&return_to=' + encodeURIComponent(back);
+  GOV_WIN = window.open(url, 'contragenti', 'width=1100,height=720');
+  msg.textContent = GOV_WIN
+    ? 'Alegeți compania în fereastra Contragenti — datele revin automat aici.'
+    : 'Permiteți ferestrele pop-up pentru acest site.';
+}
+window.addEventListener('message', function(ev){
+  if(ev.origin !== location.origin) return;
+  const p = ev.data || {};
+  if(p.source !== 'contragenti' || !p.data) return;
+  const d = p.data, msg = document.getElementById('nc-msg');
+  if(GOV_STATE && d.state && d.state !== GOV_STATE) return;
+  if(d.status === 'cancelled'){ msg.textContent = 'Selecție anulată de operator.'; return; }
+  if(d.status === 'timeout'){ msg.textContent = 'A expirat timpul de selecție.'; return; }
+  const set = (id,v)=>{ if(v) document.getElementById(id).value = v; };
+  set('nc-name', d.denumire); set('nc-idno', d.idno); set('nc-addr', d.adresa);
+  if(d.idno) document.getElementById('nc-type').value = '1';
+  msg.textContent = 'Preluat din date.gov.md: ' + (d.denumire || '—') +
+    (d.inregistrare ? ' · înregistrată ' + d.inregistrare : '') +
+    (d.lichidata && d.lichidata.toLowerCase() !== 'nu' ? ' · ⚠ LICHIDATĂ' : '');
+  if(GOV_WIN && !GOV_WIN.closed) GOV_WIN.close();
+  if(window.govUpsertFields) govUpsertFields(d);
+});
+async function addClient(){
+  const msg = document.getElementById('nc-msg');
+  const body = {
+    name: document.getElementById('nc-name').value.trim(),
+    is_company: document.getElementById('nc-type').value === '1',
+    idno: document.getElementById('nc-idno').value.trim(),
+    phone: document.getElementById('nc-phone').value.trim(),
+    email: document.getElementById('nc-email').value.trim(),
+    address: document.getElementById('nc-addr').value.trim()};
+  if(body.name.length < 3){ msg.textContent = 'Denumirea este obligatorie'; return; }
+  const r = await fetch('/api/biro26/shop-clients',{method:'POST',
+    headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})
+    .then(x=>x.json()).catch(()=>({}));
+  if(r && r.success){
+    msg.textContent = 'Client înregistrat: COD ' + r.data.univers_cod + ' · ' + r.data.email;
+    ['nc-name','nc-idno','nc-phone','nc-email','nc-addr'].forEach(i=>document.getElementById(i).value='');
+    toast('Client adăugat ✓ · Клиент добавлен'); load();
+  } else {
+    msg.textContent = (r && r.error) || 'Eroare la înregistrare';
+  }
+}
+
+async function setMark(cod,mark,el){
+  el.disabled=true;
+  const r=await fetch('/api/biro26/shop-clients/mark',{method:'PUT',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({univers_cod:cod,mark:mark})}).then(x=>x.json()).catch(()=>({}));
+  el.disabled=false;
+  if(r&&r.success){toast('Salvat ✓ · Сохранено');load();}
+  else toast((r&&r.error)||'Eroare',true);
+}
+load();
+govReady();   // RO/EN: verifica daca utilitarul Contragenti ruleaza local
+</script>
+<script src="/static/biro26/grid-export.js"></script>
+</body>
+</html>

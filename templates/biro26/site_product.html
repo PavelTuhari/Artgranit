@@ -1,0 +1,388 @@
+{% extends "biro26/site_base.html" %}
+{% block title %}{{ app_name }} — Produs{% endblock %}
+{% block content %}
+{# RO: marcajul schema.org (Product + Offer) construit pe server din ACELASI
+   rind pe care il afiseaza pagina — asa marcajul nu poate sa contrazica
+   ecranul. JSON-LD este valid oriunde in document.
+   EN: server-built schema.org markup from the SAME row the page shows. #}
+{{ product_ld|safe }}
+        <section class="section">
+          <p class="breadcrumbs" id="crumbs"><a href="/" data-t="home">Pagina principală</a> › <a href="/catalog" data-t="catalog">Catalog</a></p>
+          <div class="pdp" id="pdp">
+            <div class="pdp-img" id="p-img"><span style="font-size:64px">🛍️</span></div>
+            <div class="pdp-info">
+              <h1 class="pdp-name" id="p-name">…</h1>
+              <div class="pdp-code" id="p-code"></div>
+              <span class="stock in" id="p-stock"></span>
+              <div id="p-vars"></div>
+
+              <!-- RO: pretul si «Rate și credit» stau pe ACEEASI linie
+                   orizontala (creditul in dreapta pretului) -->
+              <div class="pdp-cols">
+              <div class="pdp-buy">
+              <div class="pdp-price" id="p-price"></div>
+              <div id="p-liber"></div>
+              <div class="pdp-qty">
+                <span data-t="qty">Cantitate</span>
+                <input id="p-qty" type="number" min="1" value="1">
+                <button class="btn-big" id="p-add" data-t="addCart">Adaugă în coș</button>
+              </div>
+              <div style="display:flex;gap:8px;margin:-6px 0 6px">
+                <span class="fchip" id="p-fav" onclick="pdpFav()">♡ Favorite</span>
+                <span class="fchip" id="p-cmp" onclick="pdpCmp()" data-t="cmpBtn">⚖ Compară</span>
+              </div>
+              </div>
+
+              <!-- RO: ca in COS — butoane de alegere a modalitatii de achitare
+                   (cate unul pe organizatia de creditare + Standard); apasarea
+                   pune produsul in cos si deschide /cos cu modala respectiva. -->
+              <div class="pdp-sec pdp-credit" id="p-credit" style="display:none">
+                <h3 data-t="creditH">Rate și credit</h3>
+                <div id="p-rate-price" style="font-size:17px;color:#1d4ed8;font-weight:800;margin-bottom:6px"></div>
+                <p style="font-size:12.5px;color:#64748b;margin:0 0 10px" data-bi>Alege tipul de credit / rate sau plata standard · Выберите тип кредита / рассрочки или обычную оплату</p>
+                <div class="pm-entry" id="p-paybtns"></div>
+                <div style="margin-top:12px">{% include "biro26/_maib_liber.html" %}</div>
+                <p style="font-size:11.5px;color:#808080;margin:10px 0 0" data-bi>* Datele sunt de natură informativă și nu constituie o ofertă. Rata lunară va fi stabilită în momentul depunerii cererii de credit. · * Данные носят информативный характер и не являются офертой. Ежемесячный платёж будет установлен при подаче кредитной заявки.</p>
+              </div>
+              <style>
+                .pm-entry{display:flex;flex-direction:column;gap:10px}
+                .pm-btn{display:flex;align-items:center;justify-content:center;gap:10px;
+                  padding:14px 16px;border:none;border-radius:10px;font-size:14.5px;
+                  font-weight:700;cursor:pointer;color:#fff;min-height:52px;
+                  transition:transform .15s ease,box-shadow .15s ease}
+                .pm-btn:hover{transform:translateY(-1px)}
+                .pm-btn-easy{background:linear-gradient(135deg,#ff6b00,#ff8c00)}
+                .pm-btn-easy:hover{box-shadow:0 6px 16px rgba(255,107,0,.35)}
+                .pm-btn-maib{background:linear-gradient(135deg,#0055a5,#0077cc)}
+                .pm-btn-maib:hover{box-shadow:0 6px 16px rgba(0,85,165,.35)}
+                .pm-btn-generic{background:linear-gradient(135deg,#334155,#475569)}
+                .pm-btn-generic:hover{box-shadow:0 6px 16px rgba(51,65,85,.35)}
+                .pm-btn-standard{background:linear-gradient(135deg,#059669,#10b981)}
+                .pm-btn-standard:hover{box-shadow:0 6px 16px rgba(5,150,105,.35)}
+              </style>
+              </div><!-- /.pdp-cols -->
+
+              <!-- RO: calculator de credit MAIB Espresso — DOAR la produsele
+                   de la 5.000 lei (cerinta owner 03.08.2026, macheta
+                   calculator-credit.html). Calcul ORIENTATIV. -->
+              <div class="pdp-sec" id="p-calc-box" style="display:none">
+                <h3 data-bi>Calculator credit (MAIB Espresso) · Кредитный калькулятор (MAIB Espresso)</h3>
+                <div class="cc-grid">
+                  <div>
+                    <label class="cc-lb" data-bi>Suma credit (MDL) · Сумма кредита (MDL)</label>
+                    <input type="range" id="cc-amount" min="5000" max="400000" step="1000" style="width:100%">
+                    <div class="cc-val"><span id="cc-amount-v">50 000</span> MDL</div>
+                  </div>
+                  <div>
+                    <label class="cc-lb" data-bi>Perioada creditului · Срок кредита</label>
+                    <input type="range" id="cc-months" min="12" max="60" value="36" style="width:100%">
+                    <div class="cc-val"><span id="cc-months-v">36</span> <span data-bi>luni · мес.</span></div>
+                  </div>
+                  <div>
+                    <label class="cc-lb" data-bi>Dobânda anuală % · Годовая ставка %</label>
+                    <input type="number" id="cc-interest" value="9.3" step="0.01" class="cc-in">
+                  </div>
+                  <div></div>
+                  <div>
+                    <label class="cc-lb" data-bi>Venit lunar (salariu/pensie) MDL · Месячный доход (зарплата/пенсия) MDL</label>
+                    <input type="number" id="cc-income" value="10000" class="cc-in">
+                  </div>
+                  <div>
+                    <label class="cc-lb" data-bi>Alte credite lunare MDL · Другие ежемесячные кредиты MDL</label>
+                    <input type="number" id="cc-other" value="0" class="cc-in">
+                  </div>
+                </div>
+                <div class="cc-res">
+                  <div class="cc-card"><span data-bi>Rata lunară · Ежемесячный платёж</span><b id="cc-payment">0 MDL</b></div>
+                  <div class="cc-card"><span data-bi>Grad îndatorare · Долговая нагрузка</span><b id="cc-ratio">0 %</b></div>
+                  <div class="cc-card"><span>Status</span><b id="cc-status">–</b></div>
+                </div>
+                <button type="button" class="btn-blue" style="width:100%" onclick="ccTable()" data-bi>Vezi grafic rambursare · Показать график погашения</button>
+                <div style="overflow-x:auto"><table class="cc-tbl" id="cc-tbl-wrap" style="display:none">
+                  <thead><tr><th data-bi>Luna · Месяц</th><th data-bi>Sold · Остаток</th><th data-bi>Dobândă · Проценты</th><th>Principal</th><th data-bi>Rată · Платёж</th></tr></thead>
+                  <tbody id="cc-tbl"></tbody>
+                </table></div>
+                <p style="font-size:12px;color:#b45309;margin:10px 0 0" data-bi>⚠ Suma afișată este orientativă și nu reprezintă aprobarea creditului. Suma corectă va fi stabilită în contractul de credit. · ⚠ Показанная сумма ориентировочная и не означает одобрения кредита. Точная сумма будет установлена в кредитном договоре.</p>
+              </div>
+              <style>
+                .cc-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 22px;margin-top:8px}
+                @media(max-width:700px){.cc-grid{grid-template-columns:1fr}}
+                .cc-lb{font-weight:700;font-size:13px;display:block;margin-bottom:6px}
+                .cc-val{font-size:18px;color:#00874e;font-weight:800;margin-top:4px}
+                .cc-in{width:100%;padding:10px;border:1px solid #d1d1d1;border-radius:8px;font-size:15px}
+                .cc-res{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;
+                  background:#00874e;padding:16px;border-radius:12px;color:#fff;margin:16px 0 4px}
+                @media(max-width:700px){.cc-res{grid-template-columns:1fr}}
+                .cc-card{text-align:center;font-size:12.5px}
+                .cc-card b{display:block;font-size:19px;margin-top:6px}
+                .cc-ok{color:#00ff99}.cc-warn{color:#ffd166}
+                .cc-tbl{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
+                .cc-tbl th{background:#00874e;color:#fff;padding:8px}
+                .cc-tbl td{padding:7px;border-bottom:1px solid #ddd;text-align:center}
+              </style>
+
+              <div class="pdp-sec" id="p-descr-box" style="display:none">
+                <h3 data-t="descr">Descriere</h3>
+                <div id="p-descr" style="font-size:14.5px;line-height:1.6;white-space:pre-line"></div>
+              </div>
+
+              <div class="pdp-sec">
+                <h3 data-t="comments">Comentarii</h3>
+                <div id="p-comments"></div>
+                <div class="ck-row" style="margin-top:10px">
+                  <input id="c-txt" data-p="yourComment" placeholder="Comentariul dvs.…" style="flex:1;padding:10px;border:1px solid #d1d1d1;border-radius:10px">
+                  <button class="btn-blue" style="margin-top:0" onclick="sendComment()" data-t="sendComment">Trimite</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section" style="margin-top:44px;width:auto">
+            <div class="section-head">
+              <h2 class="section-title" data-t="related" style="font-size:26px">Produse similare</h2>
+            </div>
+            <div class="product-grid" id="p-related"></div>
+          </div>
+        </section>
+{% endblock %}
+{% block js %}
+<script>
+/* RO: fisa produsului (PDP) — rindul de produs vine din
+   /shop/products?cod=, descrierea+comentariile din /shop/product/<cod>,
+   variantele din /shop/variants, ofertele de rate din /shop/credit/offers. */
+const COD = {{ cod }};
+let P = null, OFFERS = [], tileSel = 0, TILES = [];
+
+function crIs0(p) { return /0\s*%/.test(p.name || ''); }
+// RO: naceta ACTIVA = comisionul pachetului + majorarea organizatiei care
+//     inlocuieste transportul neprestat la credit. TREBUIE sa coincida cu
+//     cosul, cu magazinul si cu serverul (models/biro26_credit.py calc()),
+//     altfel clientul vede un pret pe fisa produsului si plateste altul.
+// EN: EFFECTIVE markup = plan commission + the org's no-transport markup;
+//     must match the cart, the shop modal and the server calculation.
+function crEffMarkup(pl, o) { return (pl.markup_pct || 0) + (o.transport_markup_pct || 0); }
+function crTiles(base) {
+  const tiles = [];
+  OFFERS.forEach(o => (o.plans || []).forEach(pl => {
+    // RO/EN: limitele pachetului se verifica pe suma FINANTATA (pretul in
+    //        rate), exact ca pe server — vezi site_cart.html si calc().
+    const cp0 = base * (1 + crEffMarkup(pl, o) / 100);
+    if (cp0 < (pl.amount_min || 0) || cp0 > (pl.amount_max || 1e12)) return;
+    for (let m = pl.months_min; m <= pl.months_max; m++) {
+      const cp = cp0;
+      const monthly = cp / m + cp * (pl.annual_pct || 0) / 12 / 100 +
+        cp * (pl.monthly_fee_pct || 0) / 100;
+      tiles.push({plan: pl, org: o, m, monthly, credit_price: cp});
+    }
+  }));
+  return tiles.sort((a, b) => a.m - b.m);
+}
+/* RO: butoanele de modalitate de achitare — ca in cos (renderPmEntry din
+   site_cart.html): un buton pe fiecare organizatie din OFFERS care ARE
+   termene valabile pentru pretul curent + butonul Standard. Apasarea pune
+   produsul in cos si deschide /cos (?credit=<org> deschide direct modala). */
+function pmBtnClass(name) {
+  const n = String(name || '').toLowerCase();
+  if (n.indexOf('easy') !== -1) return 'pm-btn-easy';
+  if (n.indexOf('maib') !== -1 || n.indexOf('liber') !== -1) return 'pm-btn-maib';
+  return 'pm-btn-generic';
+}
+function renderTiles() {
+  const base = pprice(P) * (parseFloat(document.getElementById('p-qty').value) || 1);
+  TILES = crTiles(base);
+  document.getElementById('p-credit').style.display = '';
+  const orgIds = [...new Set(TILES.map(t => t.org.id))];
+  document.getElementById('p-paybtns').innerHTML = orgIds.map(id => {
+    const o = OFFERS.find(x => x.id === id);
+    return '<button type="button" class="pm-btn ' + pmBtnClass(o.name) +
+      '" onclick="pdpPay(' + id + ')">' + esc(o.name) + '</button>';
+  }).join('') + '<button type="button" class="pm-btn pm-btn-standard" onclick="pdpPay(0)">' +
+    esc(biS('Standard (factură) · Standard (счёт)')) + '</button>';
+  // RO: pretul in rate — ACELASI calcul ca eticheta de sub pret si ca in cos
+  //     (rateBest din site.js): minimul pachetelor FARA dobinda. Inainte se
+  //     lua minimul peste TOATE pachetele si cistiga Microinvest Standard
+  //     (naceta 5%, dar 39% anual) — fisa arata 20.998,95 lei, eticheta
+  //     23.598,82 lei, iar suma reala de plata era si mai mare decit ambele.
+  const minCp = rateBest(pprice(P) *
+    (parseFloat(document.getElementById('p-qty').value) || 1));
+  document.getElementById('p-rate-price').textContent =
+    minCp ? tr('cartRate') + ': ' + fmtLei(minCp) : '';
+}
+function pdpPay(orgId) {
+  let cod = COD, name = P.denumirea || '';
+  const sel = document.getElementById('varsel');
+  if (sel) { cod = parseInt(sel.value, 10) || COD;
+    const o = sel.options[sel.selectedIndex];
+    if (o && o.dataset.name) name = o.dataset.name; }
+  addToCart(cod, name, pprice(P), parseFloat(document.getElementById('p-qty').value) || 1);
+  location.href = siteURL('/cos' + (orgId ? '?credit=' + orgId : ''));
+}
+
+/* RO: calculator de credit MAIB Espresso (macheta calculator-credit.html) —
+   anuitate clasica; ORIENTATIV, decizia si suma finala apartin bancii. */
+function ccFmt(n) { return new Intl.NumberFormat('ro-RO', {maximumFractionDigits: 0}).format(n); }
+function ccPay(a, m, an) { const r = an / 100 / 12;
+  return r ? a * r * Math.pow(1 + r, m) / (Math.pow(1 + r, m) - 1) : a / m; }
+function ccCalc() {
+  const a = +document.getElementById('cc-amount').value,
+        m = +document.getElementById('cc-months').value,
+        an = +document.getElementById('cc-interest').value || 0,
+        inc = +document.getElementById('cc-income').value || 0,
+        oth = +document.getElementById('cc-other').value || 0,
+        pay = ccPay(a, m, an), ratio = inc > 0 ? (pay + oth) / inc * 100 : 0;
+  document.getElementById('cc-amount-v').textContent = ccFmt(a);
+  document.getElementById('cc-months-v').textContent = m;
+  document.getElementById('cc-payment').textContent = ccFmt(pay) + ' MDL';
+  document.getElementById('cc-ratio').textContent = ratio.toFixed(1) + ' %';
+  const st = document.getElementById('cc-status');
+  st.textContent = ratio <= 40 ? bl('Eligibil', 'Проходит') : bl('Analiză', 'Анализ');
+  st.className = ratio <= 40 ? 'cc-ok' : 'cc-warn';
+  document.getElementById('cc-tbl-wrap').style.display = 'none';
+}
+function ccTable() {
+  const a = +document.getElementById('cc-amount').value,
+        m = +document.getElementById('cc-months').value,
+        an = +document.getElementById('cc-interest').value || 0,
+        pay = ccPay(a, m, an), r = an / 100 / 12;
+  let bal = a, h = '';
+  for (let i = 1; i <= m; i++) {
+    const d = bal * r, p = pay - d; bal -= p;
+    h += '<tr><td>' + i + '</td><td>' + ccFmt(Math.max(bal, 0)) + '</td><td>' +
+      ccFmt(d) + '</td><td>' + ccFmt(p) + '</td><td>' + ccFmt(pay) + '</td></tr>';
+  }
+  document.getElementById('cc-tbl').innerHTML = h;
+  document.getElementById('cc-tbl-wrap').style.display = '';
+}
+function ccInit(price) {
+  const box = document.getElementById('p-calc-box');
+  if (price < 5000) { box.style.display = 'none'; return; }
+  box.style.display = '';
+  // RO: suma prestabilita = pretul produsului in credit (+15%), in limitele 5.000-400.000
+  const el = document.getElementById('cc-amount');
+  if (!el.dataset.touched)
+    el.value = Math.min(400000, Math.max(5000, Math.round(price * 1.15 / 1000) * 1000));
+  ['cc-amount', 'cc-months', 'cc-interest', 'cc-income', 'cc-other'].forEach(id => {
+    const e = document.getElementById(id);
+    if (!e.dataset.wired) { e.dataset.wired = '1';
+      e.addEventListener('input', () => { e.dataset.touched = '1'; ccCalc(); }); }
+  });
+  ccCalc();
+}
+
+function pdpFavPaint() {
+  const b = document.getElementById('p-fav'), on = favHas(COD);
+  b.classList.toggle('on', on);
+  b.innerHTML = (on ? '❤' : '♡') + ' ' + tr('favorites');
+}
+function pdpFav() { lsToggle('biro26_fav', COD); pdpFavPaint();
+  toast(favHas(COD) ? '❤ ' + tr('favAdded') : tr('favRemoved')); }
+function pdpCmp() { cmpToggle(COD);
+  if (cmpHas(COD) && lsList('biro26_cmp').length > 1) location.href = siteURL('/compara'); }
+
+async function sendComment() {
+  const txt = document.getElementById('c-txt').value.trim();
+  if (!txt) return;
+  const r = await j(API + '/product/' + COD + '/comment',
+    {method: 'POST', body: JSON.stringify({txt})});
+  if (r.success) { document.getElementById('c-txt').value = ''; loadInfo(); }
+  else toast(r.error || 'Autentificați-vă pentru comentarii', true);
+}
+
+async function loadInfo() {
+  // RO: descrierea din TMS_MPT_WEBATTR (BLOB — diacritice intacte),
+  //     in limba curenta cu intoarcere pe RO
+  const r = await j(API + '/product/' + COD + '?lang=' + curLang());
+  const d = (r.data || {});
+  if (d.descriere || d.denum_full) {
+    document.getElementById('p-descr-box').style.display = '';
+    document.getElementById('p-descr').textContent =
+      (d.denum_full ? d.denum_full + '\n\n' : '') + (d.descriere || '');
+  }
+  document.getElementById('p-comments').innerHTML = (d.comments || []).map(c =>
+    '<div class="comment"><div class="who">' + esc(c.autor || '') +
+    ' · ' + esc(c.created || '') + '</div>' + esc(c.txt || '') + '</div>').join('')
+    || '<p style="color:#808080;font-size:13px">—</p>';
+}
+
+function renderP() {
+  if (!P) return;
+  const price = pprice(P);
+  document.title = pname(P) + ' — {{ app_name }}';
+  document.getElementById('p-name').textContent = pname(P);
+  // RO: NU afisam BIRO26_GOODS.BRAND — acolo sta furnizorul-intermediar
+  //     (Crafti, Birovits, Biblion), nu marca produsului. Ramin articolul
+  //     si codul de bare. EN: BRAND column holds the intermediary supplier.
+  document.getElementById('p-code').textContent =
+    tr('code') + ': ' + (P.codvechi || P.cod) + (P.barcode ? ' · ' + P.barcode : '');
+  // RO: stoc DISPONIBIL (fara comenzile neonorate) — vezi AVAIL_CANT
+  const avail = (P.avail_cant != null) ? P.avail_cant : (P.real_cant || 0);
+  const inStock = avail > 0;
+  const st = document.getElementById('p-stock');
+  st.className = 'stock ' + (inStock ? 'in' : 'order');
+  st.textContent = tr(inStock ? 'inStock' : 'onOrder');
+  document.getElementById('p-price').textContent = fmtLei(price);
+  document.getElementById('p-liber').innerHTML = liberHtml(price, false);
+  const img = document.getElementById('p-img');
+  if (P.image) img.innerHTML = '<img referrerpolicy="no-referrer" src="' + esc(P.image) +
+    '" onclick="window.open(this.src)" onerror="this.style.display=\'none\'">';
+  document.getElementById('crumbs').innerHTML =
+    '<a href="/" data-t="home">' + tr('home') + '</a> › ' +
+    '<a href="/catalog" data-t="catalog">' + tr('catalog') + '</a>' +
+    (P.grupa ? ' › <a href="/catalog?grupa=' + encodeURIComponent(P.grupa) + '">' +
+      esc(P.grupa) + '</a>' : '') +
+    (P.categorie ? ' › <a href="/catalog?grupa=' + encodeURIComponent(P.grupa || '') +
+      '&categorie=' + encodeURIComponent(P.categorie) + '">' + esc(P.categorie) + '</a>' : '');
+  document.getElementById('p-add').onclick = () => {
+    let cod = COD, name = P.denumirea || '';
+    const sel = document.getElementById('varsel');
+    if (sel) { cod = parseInt(sel.value, 10) || COD;
+      const o = sel.options[sel.selectedIndex];
+      if (o && o.dataset.name) name = o.dataset.name; }
+    addToCart(cod, name, price, parseFloat(document.getElementById('p-qty').value) || 1);
+  };
+  renderTiles();
+  ccInit(price);
+}
+
+window.onLangChange = function () { renderP(); loadInfo(); };
+
+// RO: serverul a citit deja fisa ca sa construiasca marcajul — o luam de
+//     aici in loc sa cerem aceleasi date a doua oara (interogarea costa ~1,5 s).
+// EN: the server already read the row for the markup; reuse it instead of
+//     asking for the same data a second time.
+const PRELOAD = {{ product_preload|default('null', true)|safe }};
+
+(async function init() {
+  const need = PRELOAD ? [Promise.resolve({data: [PRELOAD]}), j(API + '/credit/offers')]
+                       : [j(API + '/products?cod=' + COD + '&limit=1'),
+                          j(API + '/credit/offers')];
+  const [pr, offers] = await Promise.all(need);
+  P = (pr.data || [])[0];
+  OFFERS = offers.data || [];
+  if (!P) { document.getElementById('p-name').textContent = 'Produs indisponibil (COD ' + COD + ')'; return; }
+  renderP(); loadInfo(); pdpFavPaint();
+  document.getElementById('p-qty').addEventListener('change', renderTiles);
+  // variante (culoare/marime) — in cos intra COD-ul variantei alese
+  if ((P.var_cnt || 1) > 1) {
+    const v = await j(API + '/variants?cod=' + COD);
+    if ((v.data || []).length > 1) {
+      document.getElementById('p-vars').innerHTML =
+        '<label style="font-size:12.5px;color:#676767">' + tr('variants') + '</label>' +
+        '<select class="varsel" id="varsel">' + v.data.map(x =>
+          '<option value="' + x.cod_univers + '" data-name="' +
+          esc(x.full_name || x.base_name || '') + '"' +
+          (String(x.cod_univers) === String(COD) ? ' selected' : '') + '>' +
+          esc(x.variant || x.full_name || ('#' + x.cod_univers)) + '</option>').join('') +
+        '</select>';
+    }
+  }
+  // similare: aceeasi categorie
+  if (P.categorie) {
+    const rel = await j(API + '/products?limit=20&categorie=' + encodeURIComponent(P.categorie));
+    document.getElementById('p-related').innerHTML =
+      uniq((rel.data || []).filter(x => x.cod !== COD && x.image)).slice(0, 4)
+        .map(cardHtml).join('');
+  }
+})();
+</script>
+{% endblock %}

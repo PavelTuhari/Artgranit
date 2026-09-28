@@ -1,0 +1,32 @@
+-- =====================================================================
+-- RO: ANULAREA grupelor aduse de importul 1 (OFFICESHOP_MERGED).
+-- EN: ROLLBACK of the groups brought by import 1 (OFFICESHOP_MERGED).
+--     Fisier sursa / source file: officeshop_prices_retail+angro.SVERKA.xlsx (2026-08-14)
+--     Data / date: 2026-08-14
+--     Randuri: total 7268, create 267, potrivite 6485, sarite 516
+--
+-- RO: ATENTIE — scriptul NU se ruleaza automat. Citeste-l, verifica
+--     numarul de marfuri din fiecare grupa (coloana N_PRODUCTS_TOTAL_NOW
+--     din CSV-ul alaturat) si ruleaza doar ce vrei sa anulezi.
+-- EN: WARNING — this script does not run itself. Read it, check how many
+--     goods each group holds NOW, and run only what you mean to undo.
+-- =====================================================================
+
+-- RO: 1) marfurile aduse de acest import (le poti arhiva in loc sa le stergi)
+-- EN: 1) the goods this import brought (archive rather than delete)
+-- UPDATE tms_univers SET isarhiv = '2'
+--  WHERE cod IN (SELECT cod FROM tms_mpt_impsrc WHERE src_import_id = 1);
+
+-- RO: 2) grupele CREATE de acest import (doar cele ramase goale)
+-- EN: 2) groups CREATED by this import (only the ones left empty)
+-- RO: 3) nodurile din arborele nativ ramase fara marfa
+-- EN: 3) native-tree nodes left with no goods
+-- DELETE FROM tms_sysgrph h WHERE h.id0 = 1
+--   AND NOT EXISTS (SELECT 1 FROM tms_sysgrp g WHERE g.id0 = 1 AND g.id1 = h.id1)
+--   AND UPPER(TRIM(h.coment)) IN (
+--     );
+
+-- RO: 4) marcajele de sursa si evidenta grupelor
+-- DELETE FROM tms_mpt_impsrc      WHERE src_import_id = 1;
+-- DELETE FROM ybiro_import_groups WHERE import_id     = 1;
+-- UPDATE ybiro_import_log SET notes = notes || ' [ANULAT]' WHERE import_id = 1;
