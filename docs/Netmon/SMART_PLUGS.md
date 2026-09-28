@@ -1,7 +1,7 @@
 # Умные розетки офиса: управление и инструкция
 
 Обследование 12.09.2026. Раздел панели:
-https://nufarul.eminescu.md/UNA.md/orasldev/netmon (вкладка «Оборудование офиса»),
+http://127.0.0.1:3013/UNA.md/orasldev/netmon (вкладка «Оборудование офиса»),
 локально — http://127.0.0.1:3013/UNA.md/orasldev/netmon
 
 ---
@@ -112,13 +112,13 @@ for s in smartplug.all_status():
 | `POST` | `/UNA.md/orasldev/netmon/api/plugs/<ip>/off` | выключить |
 
 Полные адреса для боевого контура:
-- https://nufarul.eminescu.md/UNA.md/orasldev/netmon/api/plugs
+- http://127.0.0.1:3013/UNA.md/orasldev/netmon/api/plugs
 
 Пример:
 
 ```bash
 curl -b cookies.txt -X POST \
-  https://nufarul.eminescu.md/UNA.md/orasldev/netmon/api/plugs/192.168.0.203/off
+  http://127.0.0.1:3013/UNA.md/orasldev/netmon/api/plugs/192.168.0.203/off
 ```
 
 Ответ при отсутствии ключа — понятный отказ, а не молчание:

@@ -72,7 +72,7 @@ MG03ACA200) — все `Online, Spun Up`, ошибок чтения ноль, п
 
 ## Где смотреть
 
-* Панель: https://nufarul.eminescu.md/UNA.md/orasldev/netmon — вкладка
+* Панель: http://127.0.0.1:3013/UNA.md/orasldev/netmon — вкладка
   «Диски сервера БД» (локально
   http://127.0.0.1:3013/UNA.md/orasldev/netmon).
 * API: `GET /UNA.md/orasldev/netmon/api/storage`.

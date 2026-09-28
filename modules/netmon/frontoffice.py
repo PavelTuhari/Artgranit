@@ -62,7 +62,14 @@ def _ssh(command: str, timeout: int = 120) -> str:
     r = subprocess.run(
         ["sshpass", "-e", "ssh", "-o", "HostKeyAlgorithms=+ssh-rsa",
          "-o", "PubkeyAcceptedKeyTypes=+ssh-rsa", "-o", "StrictHostKeyChecking=no",
-         "-o", "ConnectTimeout=15", f"root@{DB_HOST}", command],
+         "-o", "ConnectTimeout=15",
+         # Одно соединение на серию команд. Сбор состояния, отзыв и повторная
+         # проверка — это пять-шесть входов подряд; сервер начинает отвечать
+         # «Permission denied» на часть из них, а в журнале безопасности это
+         # неотличимо от подбора пароля.
+         "-o", "ControlMaster=auto", "-o", "ControlPersist=60",
+         "-o", f"ControlPath={os.path.expanduser('~/.ssh')}/netmon-%r@%h:%p",
+         f"root@{DB_HOST}", command],
         capture_output=True, text=True, env=env, timeout=timeout)
     if r.returncode != 0 and not r.stdout:
         raise RuntimeError(f"сервер {DB_HOST} недоступен: {r.stderr.strip()[:140]}")

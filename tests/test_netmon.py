@@ -582,3 +582,76 @@ def test_audit_review_does_not_claim_raid_is_absent():
     doc = _read("docs/Netmon/AUDIT_2021_REVIEW.md")
     assert "LSI 3108" in doc
     assert "RAID убрали совсем" not in doc
+
+
+# ---------------------------------------- модуль только во внутренней сети
+
+def test_module_is_off_unless_explicitly_enabled():
+    """На публичном сервере модуля быть не должно — даже если код туда приехал.
+
+    Выключено по умолчанию: без NETMON_ENABLED=1 маршруты не импортируются
+    вовсе. Если кто-то «упростит» это до проверки внутри маршрута, модуль
+    снова окажется на nufarul за одним лишь логином.
+    """
+    src = _read("modules/netmon/__init__.py")
+    assert 'os.environ.get("NETMON_ENABLED", "").strip() == "1"' in src
+    assert "if ENABLED:\n    from modules.netmon import routes" in src, \
+        "маршруты должны импортироваться только при включённом флаге"
+
+
+def test_source_network_check_covers_every_route():
+    """Проверка сети — на весь blueprint, а не на отдельные маршруты."""
+    src = _read("modules/netmon/routes.py")
+    assert "@blueprint.before_request" in src
+    assert "abort(404)" in src, "снаружи не должно быть видно, что модуль есть"
+
+
+def test_source_allowed_networks():
+    import importlib, os
+    os.environ["NETMON_ENABLED"] = "1"
+    import modules.netmon as pkg
+    importlib.reload(pkg)
+    from modules.netmon import routes
+    for ok in ("127.0.0.1", "::1", "192.168.0.57", "10.8.0.6"):
+        assert routes.source_allowed(ok), f"отклонён свой адрес {ok}"
+    for bad in ("93.115.136.18", "92.5.3.187", "8.8.8.8", "192.168.1.5",
+                "10.9.0.1", "", "мусор", "2001:db8::1"):
+        assert not routes.source_allowed(bad), f"пропущен чужой адрес {bad!r}"
+
+
+# ------------------------------------------- отзыв доступа OpenVPN
+
+def test_crl_unreadable_means_revocation_does_not_work():
+    from modules.netmon import openvpn as ov
+    crl = ov._parse_crl({"CRLREAD": ["path=/x/pki/crl.pem", "user=nobody",
+                                     "readable=no", "serials=23"]})
+    assert crl["works"] is False and crl["serials"] == 23
+
+
+def test_crl_readable_means_revocation_works():
+    from modules.netmon import openvpn as ov
+    crl = ov._parse_crl({"CRLREAD": ["path=/etc/openvpn/server/crl.pem",
+                                     "user=nobody", "readable=yes", "serials=23"]})
+    assert crl["works"] is True
+
+
+def test_crl_missing_from_config_is_not_working():
+    from modules.netmon import openvpn as ov
+    assert ov._parse_crl({})["works"] is False
+
+
+def test_revoke_fixes_crl_permissions_and_reports_effect():
+    """gen-crl создаёт файл 0600 — служба под nobody перестаёт его читать.
+
+    И отзыв обязан честно сказать, подействовал ли он: снаружи отзыв
+    выглядит выполненным, даже когда доступ у человека остался.
+    """
+    src = _read("modules/netmon/openvpn.py")
+    assert "chmod 644 {EASYRSA}/pki/crl.pem" in src
+    assert '"effective"' in src and "доступ НЕ закрыт" in src
+
+
+def test_ssh_reuses_one_connection():
+    """Серия входов подряд выглядит как подбор пароля и ловит блокировку."""
+    for f in ("modules/netmon/openvpn.py", "modules/netmon/frontoffice.py"):
+        assert "ControlMaster=auto" in _read(f), f

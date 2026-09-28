@@ -1,8 +1,7 @@
 # Инженерное оборудование офиса: учёт, обслуживание, фотофиксация
 
 Заведено 12.09.2026. Раздел панели «Оборудование офиса»:
-https://nufarul.eminescu.md/UNA.md/orasldev/netmon (локально —
-http://127.0.0.1:3013/UNA.md/orasldev/netmon).
+http://127.0.0.1:3013/UNA.md/orasldev/netmon.
 
 ---
 
@@ -97,7 +96,7 @@ Zabbix отвечает на вопрос «жива ли железка в се
 
 ```bash
 curl -b cookies.txt -X POST \
-  https://nufarul.eminescu.md/UNA.md/orasldev/netmon/api/facilities/AC-01/work \
+  http://127.0.0.1:3013/UNA.md/orasldev/netmon/api/facilities/AC-01/work \
   -H 'Content-Type: application/json' \
   -d '{"work_kind":"filter","description":"Промыты фильтры, проверен дренаж","performer":"Иванов"}'
 ```
@@ -109,7 +108,7 @@ curl -b cookies.txt -X POST \
 
 ```bash
 curl -b cookies.txt -X POST \
-  https://nufarul.eminescu.md/UNA.md/orasldev/netmon/api/facilities/AC-01/photo \
+  http://127.0.0.1:3013/UNA.md/orasldev/netmon/api/facilities/AC-01/photo \
   -F "photo=@filter.jpg" -F "caption=Фильтр после чистки"
 ```
 

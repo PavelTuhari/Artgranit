@@ -838,12 +838,29 @@ function renderVpn(){
   document.getElementById("vpn-tiles").innerHTML =
     tile(s.running ? "работает" : "ОСТАНОВЛЕН", "служба", s.running ? "ok" : "crit") +
     tile(s.online, "подключено сейчас", s.online ? "ok" : "dim") +
+    tile(s.revocation_works === false ? "НЕ ДЕЙСТВУЕТ" : "работает", "отзыв доступа",
+         s.revocation_works === false ? "crit" : "ok") +
     tile(s.certs_valid, "действующих доступов") +
     tile(s.certs_revoked, "отозванных", "dim") +
     tile(s.mb_out + " МБ", "отдано клиентам") +
     tile(s.mb_in + " МБ", "принято от клиентов");
 
-  document.getElementById("vpn-server").innerHTML = `
+  const crl = VPN.crl || {};
+  const crlWarn = crl.works === false ? `
+    <div class="card" style="margin-bottom:10px;border-left:3px solid var(--crit)">
+      <h3><span class="crit">Опасно</span> Отзыв доступа не действует</h3>
+      <div style="font-size:13px;margin-top:5px">
+        Служба не может прочитать список отзыва
+        <code>${esc(crl.path || "путь не задан")}</code> под пользователем
+        <code>${esc(crl.user || "nobody")}</code> и работает со списком, загруженным
+        при своём запуске (${esc(VPN.service_started || "дата неизвестна")}).
+        Все отзывы, сделанные после этого, <b>никого не отключили</b>: сертификат
+        помечен отозванным, а человек продолжает подключаться.
+        Отозвано на бумаге: ${crl.serials ?? "?"}.</div>
+      <div class="note" style="margin-top:6px">Как чинить — раздел «Отзыв доступа»
+        в документации модуля.</div></div>` : "";
+
+  document.getElementById("vpn-server").innerHTML = crlWarn + `
     <div class="card"><div class="row">
       <div>Сервер<b>${esc(VPN.host)}</b></div>
       <div>Виртуальная машина<b>${VPN.vm_id}</b></div>

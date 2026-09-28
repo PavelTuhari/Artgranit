@@ -45,7 +45,14 @@ def _ssh(command: str, timeout: int = 120) -> str:
     r = subprocess.run(
         ["sshpass", "-e", "ssh", "-o", "HostKeyAlgorithms=+ssh-rsa",
          "-o", "PubkeyAcceptedKeyTypes=+ssh-rsa", "-o", "StrictHostKeyChecking=no",
-         "-o", "ConnectTimeout=15", f"root@{HOST}", command],
+         "-o", "ConnectTimeout=15",
+         # Одно соединение на серию команд. Сбор состояния, отзыв и повторная
+         # проверка — это пять-шесть входов подряд; сервер начинает отвечать
+         # «Permission denied» на часть из них, а в журнале безопасности это
+         # неотличимо от подбора пароля.
+         "-o", "ControlMaster=auto", "-o", "ControlPersist=60",
+         "-o", f"ControlPath={os.path.expanduser('~/.ssh')}/netmon-%r@%h:%p",
+         f"root@{HOST}", command],
         capture_output=True, text=True, env=env, timeout=timeout)
     if r.returncode != 0 and not r.stdout:
         raise RuntimeError(f"сервер OpenVPN недоступен: {r.stderr.strip()[:140]}")
@@ -75,6 +82,21 @@ def status() -> dict:
         "echo '===VERSION==='; openvpn --version 2>/dev/null | head -1; "
         f"echo '===STATUS==='; cat {STATUS_FILE} 2>/dev/null; "
         f"echo '===INDEX==='; cat {INDEX_FILE} 2>/dev/null; "
+        f"echo '===CRLCONF==='; grep -E '^(crl-verify|user|group)' {SRV_DIR}/server.conf 2>/dev/null; "
+        "echo '===CRLREAD==='; "
+        # Читает ли список отзыва ТОТ пользователь, под которым работает служба.
+        # Права на сам файл ничего не решают: достаточно закрытого каталога
+        # выше по пути, и служба молча продолжает работать со старым списком.
+        f"CRL=$(grep -E '^crl-verify' {SRV_DIR}/server.conf 2>/dev/null | awk '{{print $2}}'); "
+        "SVCUSER=$(grep -E '^user ' " + f"{SRV_DIR}/server.conf" + " 2>/dev/null | awk '{print $2}'); "
+        "echo \"path=$CRL\"; echo \"user=${SVCUSER:-root}\"; "
+        "if [ -n \"$CRL\" ]; then "
+        "  if [ -z \"$SVCUSER\" ] || [ \"$SVCUSER\" = root ]; then "
+        "    [ -r \"$CRL\" ] && echo 'readable=yes' || echo 'readable=no'; "
+        "  else sudo -u \"$SVCUSER\" test -r \"$CRL\" && echo 'readable=yes' || echo 'readable=no'; fi; "
+        "  echo \"serials=$(openssl crl -in \"$CRL\" -noout -text 2>/dev/null | grep -c 'Serial Number')\"; "
+        "fi; "
+        "echo '===SVCSTART==='; systemctl show openvpn-server@server -p ActiveEnterTimestamp --value 2>/dev/null; "
         "echo '===END==='")
     parts: dict[str, list[str]] = {}
     key = None
@@ -123,16 +145,44 @@ def status() -> dict:
     for c in certs:
         c["online"] = c["name"] in online
 
+    crl = _parse_crl(parts)
     svc = (parts.get("SERVICE") or [""])[0].strip()
     return {
         "host": HOST, "vm_id": VM_ID, "endpoint": PUBLIC_ENDPOINT,
         "service": svc, "running": svc == "active",
+        "crl": crl, "service_started": (parts.get("SVCSTART") or [""])[0].strip(),
         "uptime": (parts.get("UPTIME") or [""])[0].strip(),
         "version": (parts.get("VERSION") or [""])[0].strip()[:60],
         "clients": sorted(clients, key=lambda x: -x["bytes_sent"]),
         "certificates": sorted(certs, key=lambda x: (x["revoked"], x["name"].lower())),
         "checked_at": datetime.now(timezone.utc).astimezone().strftime("%Y-%m-%d %H:%M"),
     }
+
+
+def _parse_crl(parts: dict) -> dict:
+    """Состояние списка отзыва — работает ли отзыв доступа вообще.
+
+    Тихая поломка, которую иначе не заметить: OpenVPN перечитывает список
+    отзыва при каждом подключении уже под непривилегированным пользователем.
+    Если путь ему недоступен, в журнал идёт «Failed to stat CRL file, not
+    (re)loading CRL», служба продолжает работать со списком, загруженным при
+    старте, и **все отзывы с того момента не действуют**. Снаружи всё
+    выглядит исправно: команда отзыва отрабатывает, реестр обновляется,
+    сертификат помечен отозванным — а доступ остаётся.
+    """
+    out = {"path": "", "user": "", "readable": None, "serials": None}
+    for line in parts.get("CRLREAD", []):
+        k, _, v = line.strip().partition("=")
+        if k == "path":
+            out["path"] = v
+        elif k == "user":
+            out["user"] = v
+        elif k == "readable":
+            out["readable"] = v == "yes"
+        elif k == "serials" and v.isdigit():
+            out["serials"] = int(v)
+    out["works"] = bool(out["path"]) and out["readable"] is True
+    return out
 
 
 def summary(data: dict) -> dict:
@@ -144,6 +194,7 @@ def summary(data: dict) -> dict:
         "certs_revoked": sum(1 for c in certs if c["revoked"]),
         "mb_in": round(sum(c["mb_received"] for c in data.get("clients", [])), 1),
         "mb_out": round(sum(c["mb_sent"] for c in data.get("clients", [])), 1),
+        "revocation_works": data.get("crl", {}).get("works"),
     }
 
 
@@ -195,10 +246,25 @@ def revoke_client(name: str) -> dict:
     out = _ssh(
         f"cd {EASYRSA} && ./easyrsa --batch revoke {name} 2>&1 | tail -2; "
         f"EASYRSA_CRL_DAYS=3650 ./easyrsa gen-crl 2>&1 | tail -1; "
+        # gen-crl создаёт файл с правами 0600: без этого служба, работающая
+        # под непривилегированным пользователем, перестаёт его читать.
+        f"chmod 644 {EASYRSA}/pki/crl.pem; "
         f"cp -f {EASYRSA}/pki/crl.pem {SRV_DIR}/crl.pem && chmod 644 {SRV_DIR}/crl.pem && "
         f"echo '===REVOKED==='", timeout=180)
     if "===REVOKED===" not in out:
         raise RuntimeError(f"отзыв не выполнен: {out[-200:]}")
-    return {"name": name, "revoked": True,
-            "note": "Список отзыва обновлён. Действующие сессии этого клиента "
-                    "разорвутся при следующем переподключении."}
+    crl = status().get("crl", {})
+    res = {"name": name, "revoked": True, "crl": crl,
+           "effective": bool(crl.get("works")),
+           "note": "Список отзыва обновлён. Действующие сессии этого клиента "
+                   "разорвутся при следующем переподключении."}
+    if not crl.get("works"):
+        # Молчать здесь нельзя: снаружи отзыв выглядит выполненным, а доступ
+        # у человека остаётся.
+        res["note"] = (
+            "ВНИМАНИЕ: сертификат помечен отозванным, но доступ НЕ закрыт. "
+            f"Служба не может прочитать список отзыва ({crl.get('path') or 'путь не задан'}) "
+            f"под пользователем {crl.get('user') or 'nobody'} и продолжает работать "
+            "со списком, загруженным при своём запуске. Пока это не исправлено, "
+            "отзыв не действует ни для кого. Как чинить — docs/Netmon/OPENVPN.md.")
+    return res

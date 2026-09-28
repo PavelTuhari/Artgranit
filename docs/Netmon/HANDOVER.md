@@ -55,7 +55,7 @@
 копия — `~/Documents/infra-passwords.md` (права 600).
 
 Полный реестр доступов виден в панели:
-https://nufarul.eminescu.md/UNA.md/orasldev/netmon — вкладка «Доступы».
+http://127.0.0.1:3013/UNA.md/orasldev/netmon — вкладка «Доступы».
 Там сгруппировано по типам объектов и показано, **как достать** каждый
 пароль, без самих значений.
 
@@ -131,7 +131,7 @@ scutil --nc start  "VPN93"   # поднять
 | Прочее и неопознанное | 3 | низкая |
 
 Полный список с портами, ролями и признаками опознания — в панели
-https://nufarul.eminescu.md/UNA.md/orasldev/netmon — вкладка «Устройства».
+http://127.0.0.1:3013/UNA.md/orasldev/netmon — вкладка «Устройства».
 
 Повторить обследование сети: кнопка «Скан сети» или
 `python modules/netmon/scripts/netmon_zabbix_sync.py`.
@@ -351,7 +351,7 @@ venv/bin/python modules/netmon/scripts/netmon_zabbix_frontoffice.py
 
 | Ситуация | Что открыть |
 |---|---|
-| «Что вообще происходит?» | https://nufarul.eminescu.md/UNA.md/orasldev/netmon |
+| «Что вообще происходит?» | http://127.0.0.1:3013/UNA.md/orasldev/netmon |
 | «Кто прислал это в Telegram?» | там же, вкладка «Лента сообщений» |
 | «Что не так с сервером X?» | Zabbix http://192.168.0.110/zabbix/ (через VPN93) |
 | «Магазин говорит, что не работает» | панель, вкладка «Обзор Zabbix», группа Front Office |

@@ -78,17 +78,62 @@ def kc_set(account: str, service: str, password: str, label: str, internet: bool
     return subprocess.run(cmd, capture_output=True, text=True).returncode == 0
 
 
-def from_proxmox() -> list[dict]:
-    """Учётные данные, записанные администраторами в описаниях виртуальных машин.
+# Слова, которые выглядят как логин, но им не являются. Собраны по живым
+# описаниям машин: в них попадают версии служб, пулы ZFS, пути и образы.
+NOT_A_LOGIN = {
+    "nginx", "apache", "httpd", "gnu", "linux", "iso", "nano", "vi", "vim",
+    "ssd", "rpool", "data", "local", "zfs", "pve", "mnt", "dev", "etc", "var",
+    "usr", "opt", "tmp", "home", "media", "backup", "vm", "sda", "sdb",
+}
 
-    На PROXMOX3 таких машин 18. Пары встречаются в двух формах:
-    «Auth: root/пароль» и просто «admin/пароль» отдельной строкой.
+# Строки, в которых пары «логин/пароль» не бывает по смыслу.
+_LINE_NOISE = re.compile(
+    r"(version\s*[:=]|GNU/Linux|media\s*=|vm-\d+-disk|"
+    r"\b(?:ide|scsi|sata|virtio|net|efidisk|unused)\d+\s*:|"
+    r"\.iso\b|\(\w:\)|^\s*(?:nano|vi|vim|cat|cd|ls|tail)\s+/)",
+    re.I)
+
+# Пара: логин, разделитель (/ \ или :) и пароль. Пароль не содержит косой
+# черты — иначе это путь, а не пароль.
+_PAIR = re.compile(r"([A-Za-zА-Яа-яЁё][\w.@-]{1,23})\s*[/\\]\s*([^\s/\\,;]{4,40})")
+
+# Пароль, похожий на номер версии: 1.16.1, 2.4.6, 4.4.35-1
+_LOOKS_LIKE_VERSION = re.compile(r"^\d+(\.\d+)+")
+
+
+def _pairs_in_line(line: str) -> list[tuple[str, str]]:
+    """Находит в строке описания все пары «логин/пароль».
+
+    Отделить пару от прозы приходится по признакам: администраторы писали
+    в одно поле и доступы, и версии служб, и пути к дискам ZFS. Ошибиться
+    здесь дорого в обе стороны: ложная пара засоряет хранилище, пропущенная
+    остаётся лежать на гипервизоре открытым текстом.
+    """
+    if _LINE_NOISE.search(line):
+        return []
+    out = []
+    for login, pw in _PAIR.findall(line):
+        if login.lower() in NOT_A_LOGIN or pw.lower() in NOT_A_LOGIN:
+            continue
+        if _LOOKS_LIKE_VERSION.match(pw) or pw.startswith("/"):
+            continue
+        if login[0].isdigit():
+            continue
+        out.append((login, pw))
+    return out
+
+
+def from_proxmox() -> list[dict]:
+    """Учётные данные, записанные администраторами в описаниях машин.
+
+    Пары встречаются в трёх формах: «Auth: root/пароль», просто
+    «admin/пароль» отдельной строкой и «Admin \\ пароль» через обратную
+    косую. Все три нужно поднять, иначе часть останется на гипервизоре.
     """
     from modules.netmon import proxmox
     out = []
     data = proxmox._ssh(proxmox._COLLECT.replace("NODE", proxmox.PVE_NODE))
     sec = proxmox._split_sections(data)
-    pair = re.compile(r"([\w.@-]{2,24})\s*/\s*(\S{4,})")
     for key, text in sec.items():
         m = re.match(r"^CONFIG (qemu|lxc) (\d+)$", key)
         if not m:
@@ -102,22 +147,21 @@ def from_proxmox() -> list[dict]:
             mi = re.match(r"^\s*IP\s*[:=]\s*([0-9.]+)", line, re.I)
             if mi:
                 ip = mi.group(1)
+        seen = set()
         for line in descr.splitlines():
-            low = line.lower()
-            hit = pair.search(line)
-            if not hit:
-                continue
-            # отсекаем ложные срабатывания: даты, пути, размеры
-            if re.match(r"^\s*\d", hit.group(1)) or "/" in hit.group(2)[:2]:
-                continue
-            out.append({
-                "source": f"описание {kind} {vmid}",
-                "system": name,
-                "host": ip,
-                "login": hit.group(1),
-                "password": hit.group(2),
-                "note": ("подписано «Auth»" if "auth" in low else "без подписи, в тексте"),
-            })
+            for login, pw in _pairs_in_line(line):
+                if (login, pw) in seen:
+                    continue
+                seen.add((login, pw))
+                out.append({
+                    "source": f"описание {kind} {vmid}",
+                    "vmid": vmid, "kind": kind,
+                    "system": name, "host": ip,
+                    "login": login, "password": pw,
+                    "line": line.strip(),
+                    "note": ("подписано «Auth»" if "auth" in line.lower()
+                             else "без подписи, в тексте"),
+                })
     return out
 
 
