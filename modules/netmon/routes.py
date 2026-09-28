@@ -3,11 +3,43 @@
 Адреса БЕЗ префикса /UNA.md/orasldev/netmon — его подставляет ядро.
 Здесь только разбор запроса и код ответа; логика — в controller.py.
 """
-from flask import jsonify, redirect, render_template, request, session, url_for
+import ipaddress
+import os
+
+from flask import abort, jsonify, redirect, render_template, request, session, url_for
 
 from controllers.auth_controller import AuthController
 from modules.netmon import blueprint
 from modules.netmon.controller import NetmonController
+
+# Откуда модуль вообще отвечает: сама машина, офисная сеть и туннель OpenVPN.
+# Переопределяется в .env через NETMON_ALLOWED_NETS (через запятую).
+_DEFAULT_NETS = "127.0.0.0/8,::1/128,192.168.0.0/24,10.8.0.0/24"
+ALLOWED_NETS = [
+    ipaddress.ip_network(n.strip(), strict=False)
+    for n in os.environ.get("NETMON_ALLOWED_NETS", _DEFAULT_NETS).split(",")
+    if n.strip()
+]
+
+
+def source_allowed(addr: str) -> bool:
+    try:
+        ip = ipaddress.ip_address((addr or "").split("%")[0])
+    except ValueError:
+        return False
+    return any(ip in net for net in ALLOWED_NETS if ip.version == net.version)
+
+
+@blueprint.before_request
+def _only_from_inside():
+    """Вторая линия после флага NETMON_ENABLED — на КАЖДЫЙ маршрут модуля.
+
+    Повешено на blueprint, а не на отдельные маршруты: маршрут, добавленный
+    потом, эту проверку не обойдёт. Отвечаем 404, а не 403 — снаружи не
+    должно быть видно даже того, что модуль здесь есть.
+    """
+    if not source_allowed(request.remote_addr):
+        abort(404)
 
 
 def _guard():
