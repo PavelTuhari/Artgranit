@@ -398,6 +398,58 @@ class NetmonController:
         except Exception as e:  # noqa: BLE001
             return _fail(e, 400)
 
+    # ---------------------------------------------------------------- OpenVPN
+
+    @staticmethod
+    def vpn():
+        """Состояние сервера OpenVPN: кто в сети и какие сертификаты выданы."""
+        try:
+            from modules.netmon import openvpn as ov
+            d = ov.status()
+            return _ok({**d, "summary": ov.summary(d)})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def vpn_create(name, user="system"):
+        """Выдаёт новый доступ: сертификат и готовый профиль .ovpn."""
+        try:
+            from modules.netmon import openvpn as ov
+            res = ov.create_client((name or "").strip())
+            return _ok(res)
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def vpn_revoke(name, user="system"):
+        """Отзывает доступ."""
+        try:
+            from modules.netmon import openvpn as ov
+            return _ok(ov.revoke_client((name or "").strip()))
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    # ------------------------------------------- диски сервера баз данных
+
+    @staticmethod
+    def storage():
+        """Состояние аппаратного RAID и разделов сервера cloudbd.
+
+        Здесь есть подвох, ради которого раздел и сделан: система видит
+        только логические тома контроллера, и штатный SMART отвечает «OK»
+        даже при сдохшем диске в зеркале. Спрашиваем сам контроллер.
+        """
+        try:
+            from modules.netmon import storage as st
+            d = st.collect()
+            return _ok({**d, "summary": st.summary(d)})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
 
 
 

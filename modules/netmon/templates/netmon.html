@@ -96,6 +96,8 @@
   <a href="#" data-p="assets">Домены и стойка</a>
   <a href="#" data-p="vault">Доступы</a>
   <a href="#" data-p="fac">Оборудование офиса</a>
+  <a href="#" data-p="vpn">OpenVPN</a>
+  <a href="#" data-p="storage">Диски сервера БД</a>
 </nav>
 
 <main>
@@ -233,6 +235,74 @@
     </tr></thead><tbody></tbody></table></div>
     <div class="note">Строка кликается — откроется паспорт с журналом работ и фотографиями.
       Кондиционеры: фильтры раз в 90 дней, фреон раз в 2 года. Лифт — осмотр ежемесячно.</div>
+  </section>
+
+  <section class="panel" id="p-vpn">
+    <div class="tiles" id="vpn-tiles"></div>
+    <div id="vpn-server"></div>
+
+    <h3 style="margin:20px 0 8px;font-size:14px">Кто в сети сейчас</h3>
+    <div class="tbl-wrap"><table id="vpn-online"><thead><tr>
+      <th style="width:180px">Клиент</th><th style="width:120px">Адрес в VPN</th>
+      <th style="width:190px">Откуда подключён</th><th style="width:120px">Принято</th>
+      <th style="width:120px">Отдано</th><th>С какого времени</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Выдать новый доступ</h3>
+    <div class="card" style="max-width:640px">
+      <div class="filters" style="margin-bottom:6px">
+        <input type="text" id="vpn-name" placeholder="имя сотрудника, латиницей"
+               style="flex:1;min-width:200px">
+        <button class="primary" id="vpn-add">Создать профиль</button>
+      </div>
+      <div class="note">Имя: латиница, цифры, точка, дефис. После создания браузер скачает
+        файл <code>.ovpn</code> — в нём закрытый ключ, поэтому передавайте его лично,
+        не через общие папки и не в переписке.</div>
+      <div id="vpn-result" style="margin-top:10px"></div>
+    </div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Выданные сертификаты</h3>
+    <div class="filters">
+      <label style="font-size:13px;color:var(--dim)">
+        <input type="checkbox" id="vpn-revoked"> показать отозванные</label>
+      <input type="search" id="vpn-find" placeholder="поиск по имени" style="flex:1;min-width:160px">
+      <span class="dim" id="vpn-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="vpn-certs"><thead><tr>
+      <th style="width:220px">Имя</th><th style="width:130px">Действует до</th>
+      <th style="width:120px">Состояние</th><th style="width:150px">Сейчас в сети</th>
+      <th style="width:200px">Действие</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-storage">
+    <div class="tiles" id="st-tiles"></div>
+    <div id="st-note"></div>
+
+    <h3 style="margin:20px 0 8px;font-size:14px">Что требует внимания</h3>
+    <div id="st-findings"></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Тома контроллера — то, что система видит как диск</h3>
+    <div class="tbl-wrap"><table id="st-vols"><thead><tr>
+      <th style="width:70px">Том</th><th style="width:100px">Уровень</th>
+      <th style="width:110px">Размер</th><th style="width:110px">Состояние</th>
+      <th style="width:90px">Дисков</th><th>Политика кэша</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Физические диски — то, что может умереть</h3>
+    <div class="tbl-wrap"><table id="st-disks"><thead><tr>
+      <th style="width:70px">Слот</th><th style="width:110px">Размер</th>
+      <th style="width:170px">Состояние</th><th style="width:110px">Температура</th>
+      <th style="width:150px">Ошибки чтения</th><th style="width:150px">Предсказание отказа</th>
+      <th>Модель</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Заполнение разделов</h3>
+    <div class="tbl-wrap"><table id="st-mounts"><thead><tr>
+      <th style="width:120px">Раздел</th><th style="width:110px">Занято</th>
+      <th style="width:120px">Свободно</th><th style="width:110px">Всего</th>
+      <th>Что там лежит</th>
+    </tr></thead><tbody></tbody></table></div>
   </section>
 </main>
 
@@ -758,6 +828,156 @@ async function addPhoto(code){
   } catch (e) { alert("Снимок не загрузился: " + e.message); }
 }
 
+
+// ---------------------------------------------------------------- OpenVPN
+let VPN = null;
+
+function renderVpn(){
+  if (!VPN) return;
+  const s = VPN.summary;
+  document.getElementById("vpn-tiles").innerHTML =
+    tile(s.running ? "работает" : "ОСТАНОВЛЕН", "служба", s.running ? "ok" : "crit") +
+    tile(s.online, "подключено сейчас", s.online ? "ok" : "dim") +
+    tile(s.certs_valid, "действующих доступов") +
+    tile(s.certs_revoked, "отозванных", "dim") +
+    tile(s.mb_out + " МБ", "отдано клиентам") +
+    tile(s.mb_in + " МБ", "принято от клиентов");
+
+  document.getElementById("vpn-server").innerHTML = `
+    <div class="card"><div class="row">
+      <div>Сервер<b>${esc(VPN.host)}</b></div>
+      <div>Виртуальная машина<b>${VPN.vm_id}</b></div>
+      <div>Точка подключения<b>${esc(VPN.endpoint)}</b></div>
+      <div>Время работы<b style="font-size:13px">${esc(VPN.uptime || "—")}</b></div>
+    </div>
+    <div class="note" style="margin-top:8px">${esc(VPN.version || "")}</div></div>`;
+
+  document.querySelector("#vpn-online tbody").innerHTML = VPN.clients.map(c => `<tr>
+      <td><b>${esc(c.name)}</b></td>
+      <td><code>${esc(c.vpn_address)}</code></td>
+      <td class="dim">${esc(c.real_address)}</td>
+      <td>${c.mb_received} МБ</td><td>${c.mb_sent} МБ</td>
+      <td class="dim">${esc(c.connected_since)}</td></tr>`).join("")
+    || `<tr><td colspan="6" class="dim">сейчас никто не подключён</td></tr>`;
+
+  const showRevoked = document.getElementById("vpn-revoked").checked;
+  const q = document.getElementById("vpn-find").value.toLowerCase().trim();
+  const rows = VPN.certificates.filter(c =>
+    (showRevoked || !c.revoked) && (!q || c.name.toLowerCase().includes(q)));
+  document.getElementById("vpn-count").textContent =
+    `${rows.length} из ${VPN.certificates.length}`;
+  document.querySelector("#vpn-certs tbody").innerHTML = rows.map(c => `<tr>
+      <td><b>${esc(c.name)}</b></td>
+      <td class="dim">${esc(c.expires || "—")}</td>
+      <td>${c.revoked ? `<span class="badge b-dim">отозван</span>`
+                      : `<span class="badge b-ok">действует</span>`}</td>
+      <td>${c.online ? `<span class="badge b-ok">в сети</span>` : `<span class="dim">—</span>`}</td>
+      <td>${c.revoked ? "" :
+        `<button onclick="revokeVpn('${esc(c.name)}')">Отозвать</button>`}</td>
+    </tr>`).join("") || `<tr><td colspan="5" class="dim">ничего не найдено</td></tr>`;
+}
+
+async function addVpnClient(){
+  const input = document.getElementById("vpn-name");
+  const name = input.value.trim();
+  const box = document.getElementById("vpn-result");
+  if (!name) { box.innerHTML = `<span class="crit">Введите имя</span>`; return; }
+  const btn = document.getElementById("vpn-add");
+  btn.disabled = true;
+  box.innerHTML = `<span class="dim">создаю сертификат, это занимает несколько секунд…</span>`;
+  try {
+    const r = await post("/vpn/clients", {name});
+    // профиль сразу отдаём файлом, на сервере он не хранится
+    const blob = new Blob([r.profile], {type: "application/x-openvpn-profile"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name + ".ovpn";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    box.innerHTML = `<span class="ok">Профиль <b>${esc(name)}.ovpn</b> создан и скачан
+      (${r.size_kb} КБ). Подключение: <code>${esc(r.endpoint)}</code></span>
+      <div class="note">${esc(r.hint)}</div>`;
+    input.value = "";
+    VPN = await get("/vpn"); renderVpn();
+  } catch (e) {
+    box.innerHTML = `<span class="crit">Не получилось: ${esc(e.message)}</span>`;
+  } finally { btn.disabled = false; }
+}
+
+async function revokeVpn(name){
+  if (!confirm(`Отозвать доступ «${name}»? Он перестанет подключаться.`)) return;
+  try {
+    await post(`/vpn/clients/${encodeURIComponent(name)}/revoke`);
+    VPN = await get("/vpn"); renderVpn();
+  } catch (e) { alert("Не удалось отозвать: " + e.message); }
+}
+
+let ST = null;
+
+function renderStorage(){
+  if (!ST) return;
+  const s = ST.summary;
+  document.getElementById("st-tiles").innerHTML =
+    tile(s.redundancy ? "есть" : "НЕТ", "избыточность дисков", s.redundancy ? "ok" : "crit") +
+    tile(`${s.volumes_ok}/${s.volumes}`, "томов в норме", s.volumes_ok === s.volumes ? "ok" : "crit") +
+    tile(`${s.disks_ok}/${s.disks}`, "дисков в строю", s.disks_ok === s.disks ? "ok" : "crit") +
+    tile(s.bbu, "батарея кэша", s.bbu === "Optimal" ? "ok" : "warn") +
+    tile(s.temp_max ? s.temp_max + " °C" : "—", "самый горячий диск",
+         s.temp_max >= 55 ? "crit" : s.temp_max >= 45 ? "warn" : "ok") +
+    tile(s.fullest + " %", "самый полный раздел",
+         s.fullest >= 92 ? "crit" : s.fullest >= 85 ? "warn" : "ok");
+
+  const c = ST.controller;
+  document.getElementById("st-note").innerHTML = `
+    <div class="card"><div class="row">
+      <div>Сервер<b>${esc(ST.host_name)}</b></div>
+      <div>Контроллер<b>${esc(c.product || "—")}</b></div>
+      <div>Кэш<b>${esc(c.memory || "—")}</b></div>
+      <div>Температура контроллера<b>${c.roc_temp ? c.roc_temp + " °C" : "—"}</b></div>
+    </div>
+    <div class="note">Система видит только тома контроллера, поэтому
+      <code>smartctl /dev/sda</code> отвечает «OK» даже при сдохшем диске в зеркале,
+      а <code>/proc/mdstat</code> пуст. Данные на этой вкладке сняты с самого
+      контроллера через <code>MegaCli64</code>. Имена <code>/mnt/md3</code> и
+      <code>/mnt/md4</code> — исторические, программных массивов за ними нет.</div></div>`;
+
+  const f = ST.findings;
+  document.getElementById("st-findings").innerHTML = f.length
+    ? f.map(x => `<div class="card" style="margin-bottom:8px;border-left:3px solid
+        var(--${x.level === "crit" ? "crit" : "warn"})">
+        <h3><span class="${x.level === "crit" ? "crit" : "warn"}">
+          ${x.level === "crit" ? "Опасно" : "Внимание"}</span> ${esc(x.title)}</h3>
+        <div style="font-size:13px;margin-top:5px">${esc(x.text)}</div>
+        <div class="note" style="margin-top:6px">источник: ${esc(x.ref)}</div></div>`).join("")
+    : `<div class="card"><span class="ok">Замечаний нет.</span>
+        <div class="note">Все тома целы, диски в строю, места хватает.</div></div>`;
+
+  document.querySelector("#st-vols tbody").innerHTML = ST.volumes.map(v => `<tr>
+      <td><b>VD${v.id}</b>${v.name ? ` <span class="dim">${esc(v.name)}</span>` : ""}</td>
+      <td>${esc(v.level)}</td><td>${esc(v.size)}</td>
+      <td>${v.ok ? `<span class="badge b-ok">${esc(v.state)}</span>`
+                 : `<span class="badge b-no">${esc(v.state)}</span>`}</td>
+      <td>${v.drives}</td><td class="dim">${esc(v.cache || "—")}</td></tr>`).join("")
+    || `<tr><td colspan="6" class="dim">контроллер не ответил</td></tr>`;
+
+  document.querySelector("#st-disks tbody").innerHTML = ST.physical.map(d => `<tr>
+      <td><b>${d.slot}</b></td><td>${esc(d.size)}</td>
+      <td>${d.ok ? `<span class="badge b-ok">${esc(d.state)}</span>`
+                 : `<span class="badge b-no">${esc(d.state)}</span>`}</td>
+      <td class="${d.temp >= 55 ? "crit" : d.temp >= 45 ? "warn" : ""}">${d.temp ? d.temp + " °C" : "—"}</td>
+      <td class="${d.media_errors ? "warn" : "dim"}">${d.media_errors}</td>
+      <td class="${d.predictive ? "crit" : "dim"}">${d.predictive}</td>
+      <td class="dim">${esc(d.model)}</td></tr>`).join("")
+    || `<tr><td colspan="7" class="dim">контроллер не ответил</td></tr>`;
+
+  document.querySelector("#st-mounts tbody").innerHTML = ST.mounts.map(m => `<tr>
+      <td><code>${esc(m.mount)}</code></td>
+      <td class="${m.level === "crit" ? "crit" : m.level === "warn" ? "warn" : ""}">
+        ${m.used_gb} ГБ (${m.percent} %)</td>
+      <td>${m.free_gb} ГБ</td><td class="dim">${m.total_gb} ГБ</td>
+      <td class="dim">${esc(m.what)}</td></tr>`).join("");
+}
+
 async function loadAll(){
   const o = await get("/overview");
   renderDash(o);
@@ -770,6 +990,8 @@ async function loadAll(){
   try { VAULT = await get("/vault"); renderVault(); } catch (e) { console.warn("vault:", e.message); }
   try { FAC = await get("/facilities"); renderFac(); } catch (e) { console.warn("facilities:", e.message); }
   try { PLUGS = await get("/plugs"); renderPlugs(); } catch (e) { console.warn("plugs:", e.message); }
+  try { VPN = await get("/vpn"); renderVpn(); } catch (e) { console.warn("vpn:", e.message); }
+  try { ST = await get("/storage"); renderStorage(); } catch (e) { console.warn("storage:", e.message); }
 }
 
 document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
@@ -789,6 +1011,9 @@ document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
   document.getElementById(id).addEventListener("input", renderPve));
 ["f-fac","f-fac-kind"].forEach(id =>
   document.getElementById(id).addEventListener("input", renderFac));
+["vpn-find","vpn-revoked"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderVpn));
+document.getElementById("vpn-add").onclick = addVpnClient;
 
 async function withBusy(btn, fn){
   const old = btn.textContent; btn.disabled = true; btn.textContent = "…";

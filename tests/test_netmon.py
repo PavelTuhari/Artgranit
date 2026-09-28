@@ -418,3 +418,167 @@ def test_handover_covers_every_role():
     for topic in ("Oracle DBA", "clouddev", "Резервное копирование",
                   "Доступы", "Чего в этом хозяйстве нет"):
         assert topic in doc, f"в передаче дел не хватает раздела: {topic}"
+
+
+# ------------------------------------------- диски сервера БД (аудит 2021, п. 4.1)
+
+def test_storage_reads_controller_not_only_smart():
+    """Главная ловушка раздела: smartctl на логическом томе всегда «OK».
+
+    Если сборщик когда-нибудь «упростят» до smartctl/mdstat, отказ диска в
+    аппаратном зеркале снова станет невидимым. Тест держит источник данных.
+    """
+    src = _read("modules/netmon/storage.py")
+    assert "MegaCli64" in src, "состояние надо брать с контроллера, а не с тома"
+    for cmd in ("-LDInfo", "-PDList", "GetBbuStatus"):
+        assert cmd in src, f"не опрашивается {cmd}"
+
+
+def test_storage_volume_without_mirror_is_a_finding():
+    from modules.netmon import storage as st
+    vol = {"id": 0, "name": "", "level": "RAID 0", "size": "2 TB",
+           "state": "Optimal", "drives": 1, "cache": "", "bad_blocks": "",
+           "ok": True, "mirrored": False}
+    f = st.findings({}, [vol], [], [])
+    assert any(x["level"] == "crit" for x in f), \
+        "том без избыточности обязан быть опасной находкой, даже если Optimal"
+
+
+def test_storage_offline_disk_is_critical():
+    from modules.netmon import storage as st
+    disk = {"slot": 3, "state": "Unconfigured(bad)", "model": "ST4000", "size": "3.6 TB",
+            "temp": 35, "media_errors": 0, "other_errors": 0, "predictive": 0, "ok": False}
+    f = st.findings({}, [], [disk], [])
+    assert f and f[0]["level"] == "crit" and "слоте 3" in f[0]["title"]
+
+
+def test_storage_predictive_failure_is_critical():
+    from modules.netmon import storage as st
+    disk = {"slot": 1, "state": "Online, Spun Up", "model": "x", "size": "1 TB",
+            "temp": 33, "media_errors": 0, "other_errors": 0, "predictive": 2, "ok": True}
+    f = st.findings({}, [], [disk], [])
+    assert any(x["level"] == "crit" and "предсказано" in x["title"] for x in f), \
+        "предсказание отказа важнее исправного состояния: менять до отказа"
+
+
+def test_storage_healthy_server_has_no_findings():
+    from modules.netmon import storage as st
+    vol = {"id": 0, "name": "", "level": "RAID 1", "size": "2 TB", "state": "Optimal",
+           "drives": 2, "cache": "", "bad_blocks": "No", "ok": True, "mirrored": True}
+    disk = {"slot": 0, "state": "Online, Spun Up", "model": "x", "size": "2 TB",
+            "temp": 35, "media_errors": 0, "other_errors": 0, "predictive": 0, "ok": True}
+    mount = {"mount": "/db", "what": "данные", "percent": 50, "free_gb": 900,
+             "level": "ok"}
+    adp = {"bbu_present": True, "bbu_ok": True, "roc_temp": 58}
+    assert st.findings(adp, [vol], [disk], [mount]) == []
+
+
+def test_storage_bad_cache_battery_is_reported():
+    """Отказ батареи не виден в Oracle: база просто замедляется."""
+    from modules.netmon import storage as st
+    f = st.findings({"bbu_present": True, "bbu_ok": False, "bbu_state": "Failed"},
+                    [], [], [])
+    assert any("батарея" in x["title"].lower() or "Батарея" in x["title"] for x in f)
+
+
+def test_storage_parses_megacli_output():
+    from modules.netmon import storage as st
+    out = st._sections("""===VD===
+Virtual Drive: 1 (Target Id: 1)
+Name                :
+RAID Level          : Primary-1, Secondary-0, RAID Level Qualifier-0
+Size                : 3.637 TB
+State               : Optimal
+Number Of Drives    : 2
+===PD===
+Slot Number: 5
+Raw Size: 1.819 TB [0xe8e088b0 Sectors]
+Firmware state: Online, Spun Up
+Inquiry Data:            2426KKYRFTOSHIBA MG03ACA200                      FL1A
+Media Error Count: 0
+Other Error Count: 0
+Predictive Failure Count: 0
+Drive Temperature :32C (89.60 F)
+===END===""")
+    v = st._volumes(out["VD"])[0]
+    assert (v["level"], v["state"], v["drives"], v["mirrored"]) == ("RAID 1", "Optimal", 2, True)
+    d = st._physical(out["PD"])[0]
+    assert (d["slot"], d["ok"], d["temp"]) == (5, True, 32)
+    assert "MG03ACA200" in d["model"], "модель диска должна быть читаемой"
+
+
+def test_storage_mount_names_are_not_mistaken_for_arrays():
+    """/mnt/md3 и /mnt/md4 — исторические имена, массивов за ними нет."""
+    doc = _read("docs/Netmon/STORAGE.md")
+    assert "имена исторические" in doc or "имена историческ" in doc
+    assert st_soft_arrays_are_empty_note(doc)
+
+
+def st_soft_arrays_are_empty_note(doc: str) -> bool:
+    return "/proc/mdstat" in doc and "пусто" in doc
+
+
+# ------------------------------------------------------ OpenVPN
+
+def test_vpn_client_name_rejects_injection():
+    """Имя подставляется в команды easy-rsa — набор символов обязан быть узким."""
+    from modules.netmon import openvpn as ov
+    for bad in ("; rm -rf /", "a b", "../etc", "имя", "-x", "", "a" * 40,
+                "a$(id)", "a`id`", "a|b", "a&b"):
+        assert not ov.NAME_RE.match(bad), f"пропущено опасное имя: {bad!r}"
+    for good in ("ivan", "ivan.petrov", "ap-kassa_2", "A1"):
+        assert ov.NAME_RE.match(good), f"отклонено нормальное имя: {good!r}"
+
+
+def test_vpn_profile_is_never_stored_on_server():
+    """Профиль содержит закрытый ключ: он идёт в браузер и нигде не остаётся."""
+    src = _read("modules/netmon/openvpn.py")
+    assert "закрытый ключ" in src
+    routes = _read("modules/netmon/routes.py")
+    assert "no-store" in routes, "файл профиля не должен кэшироваться"
+
+
+def test_vpn_certificate_date_handles_utctime():
+    from modules.netmon import openvpn as ov
+    assert ov._parse_index_date("300915120000Z") == "2030-09-15"
+    assert ov._parse_index_date("991231235959Z") == "1999-12-31"
+    assert ov._parse_index_date("") == ""
+
+
+def test_vpn_status_counts_valid_and_revoked_apart():
+    from modules.netmon import openvpn as ov
+    data = {"certificates": [{"name": "a", "revoked": False}, {"name": "b", "revoked": True}],
+            "clients": [{"name": "a", "mb_received": 1.0, "mb_sent": 2.0}],
+            "running": True}
+    s = ov.summary(data)
+    assert (s["certs_valid"], s["certs_revoked"], s["online"]) == (1, 1, 1)
+
+
+def test_zabbix_storage_items_allow_negative_values():
+    src = _read("modules/netmon/scripts/netmon_zabbix_storage.py")
+    assert '"value_type": 3' not in src, "unsigned обнуляет отрицательные значения"
+
+
+def test_zabbix_storage_alerts_on_lost_redundancy():
+    src = _read("modules/netmon/scripts/netmon_zabbix_storage.py")
+    for key in ("raid.disks.bad", "raid.redundancy", "raid.bbu.ok", "vpn.service.up"):
+        assert key in src, f"нет наблюдения за {key}"
+
+
+# ------------------------------------------------ разбор аудита 2021
+
+def test_audit_review_covers_every_finding():
+    doc = _read("docs/Netmon/AUDIT_2021_REVIEW.md")
+    for point in ("2.1.2", "2.1.8", "2.1.10", "3.1.1", "3.1.2", "3.1.3", "3.1.5", "4.1"):
+        assert point in doc, f"замечание аудита {point} не разобрано"
+
+
+def test_audit_review_does_not_claim_raid_is_absent():
+    """Ошибка, которую легко повторить: /proc/mdstat пуст → «RAID нет».
+
+    RAID аппаратный. Если в разборе снова появится вывод об отсутствии
+    избыточности, значит кто-то опять проверил не тем способом.
+    """
+    doc = _read("docs/Netmon/AUDIT_2021_REVIEW.md")
+    assert "LSI 3108" in doc
+    assert "RAID убрали совсем" not in doc

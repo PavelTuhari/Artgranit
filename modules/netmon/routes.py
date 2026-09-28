@@ -219,3 +219,48 @@ def api_plug_switch(ip, state):
         return jsonify({"success": False, "message": "состояние: on или off"}), 400
     return _reply(NetmonController.switch_plug(ip, state == "on",
                                                user=session.get("username", "system")))
+
+
+@blueprint.route("/api/storage")
+def api_storage():
+    """Диски сервера баз данных: тома RAID, физические диски, заполнение."""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.storage())
+
+
+@blueprint.route("/api/vpn")
+def api_vpn():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.vpn())
+
+
+@blueprint.route("/api/vpn/clients", methods=["POST"])
+def api_vpn_create():
+    if (g := _guard()) is not None:
+        return g
+    body = request.get_json(silent=True) or {}
+    return _reply(NetmonController.vpn_create(body.get("name"),
+                                              user=session.get("username", "system")))
+
+
+@blueprint.route("/api/vpn/clients/<name>/revoke", methods=["POST"])
+def api_vpn_revoke(name):
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.vpn_revoke(name, user=session.get("username", "system")))
+
+
+@blueprint.route("/api/vpn/clients/<name>/profile")
+def api_vpn_profile(name):
+    """Отдаёт .ovpn файлом. Профиль содержит закрытый ключ — не кэшируем."""
+    if (g := _guard()) is not None:
+        return g
+    payload, code = NetmonController.vpn_create(name, user=session.get("username", "system"))
+    if code != 200:
+        return jsonify(payload), code
+    from flask import Response
+    return Response(payload["data"]["profile"], mimetype="application/x-openvpn-profile",
+                    headers={"Content-Disposition": f'attachment; filename="{name}.ovpn"',
+                             "Cache-Control": "no-store"})
