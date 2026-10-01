@@ -54,6 +54,8 @@ const T = {
   contacts:   {ro: 'Contacte', ru: 'Контакты'},
   returns:    {ro: 'Retur produse', ru: 'Возврат товаров'},
   cart:       {ro: 'Coș', ru: 'Корзина'},
+  navHome:    {ro: 'Acasă', ru: 'Главная'},
+  navAcc:     {ro: 'Cont', ru: 'Кабинет'},
   useful:     {ro: 'Utile:', ru: 'Полезное:'},
   terms:      {ro: 'Termeni și condiții', ru: 'Условия использования'},
   payDelivery:{ro: 'Plată și livrare', ru: 'Оплата и доставка'},
@@ -165,6 +167,11 @@ function applyLang() {
     e.classList.toggle('is-active', e.dataset.lang === l));
   document.querySelectorAll('[data-t]').forEach(e => {
     const v = tr(e.dataset.t); if (v) e.textContent = v; });
+  // RO: programul de lucru vine din server pentru ziua curenta; la comutarea
+  //     limbii se ia varianta din data-*, nu din dictionar (acolo statea o
+  //     fraza fixa, aceeasi in toate zilele).
+  const h = document.getElementById('topbar-hours');
+  if (h) { const v = h.dataset['hours' + (l === 'ru' ? 'Ru' : 'Ro')]; if (v) h.textContent = v; }
   document.querySelectorAll('[data-p]').forEach(e => {
     const v = tr(e.dataset.p); if (v) e.placeholder = v; });
   // RO: elemente marcate data-bi — continutul original tine ambele limbi
@@ -191,10 +198,16 @@ function cartBadge() {
   //     nu cantitatea totala — cerinta owner (22.08.2026).
   // EN: badge shows the number of DISTINCT products added, not total quantity.
   const n = cart().filter(i => (i.qty || 0) > 0).length;
-  const b = document.getElementById('cart-badge');
-  if (b) { b.style.display = n ? '' : 'none'; b.textContent = n; }
+  ['cart-badge', 'cart-badge-m'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) { b.style.display = n ? '' : 'none'; b.textContent = n; }
+  });
 }
-window.addEventListener('storage', cartBadge);
+window.addEventListener('storage', function (e) {
+  if (e.key && e.key !== CART_KEY) return;
+  cartBadge();
+  if (window.onCartChange) window.onCartChange();
+});
 function addToCart(cod, name, price, qty) {
   const c = cart(); const ex = c.find(i => i.cod === cod);
   if (ex) ex.qty += (qty || 1); else c.push({cod, name, price, qty: qty || 1});
@@ -316,9 +329,6 @@ function cardHtml(p) {
   //     al stocului (vezi get_products_stock -> AVAIL_CANT).
   // EN: the storefront shows AVAILABLE stock — snapshot minus open orders.
   const avail = (p.avail_cant != null) ? p.avail_cant : (p.real_cant || 0);
-  // RO: daca depozitul nostru e gol, ne uitam la stocul FURNIZORULUI: marfa de
-  //     dealer (Ultra) nu sta la noi, dar poate fi livrata. Fara asta toate cele
-  //     37 295 de pozitii Ultra apar "La comandă", inclusiv cele de pe stocul lui.
   const supp = Number(p.furnizor_stoc || 0);
   const inStock = avail > 0 || supp > 0;
   const varSel = (p.var_cnt || 1) > 1
@@ -497,6 +507,50 @@ function payBadgeHtml(name) {
     if (hit) history.replaceState(null, '', u.pathname +
       (u.searchParams.toString() ? '?' + u.searchParams : '') + u.hash);
   } catch (e) {}
+})();
+
+/* ── mobil: fila activa in bara de jos + filtrele ca bottom-sheet ─────
+   RO: bara .bnav exista pe toate paginile (site_base); aici doar marcam
+   fila curenta si transformam panoul de filtre in sheet cu maner,
+   buton de inchidere si overlay (site-mobile.css deseneaza totul).
+   Ruleaza inofensiv si pe desktop — elementele pur si simplu nu se vad. */
+(function mobileNav() {
+  try {
+    const here = location.pathname.replace(SITE_PREFIX, '') || '/';
+    const map = {'': '/', '/': '/', '/catalog': '/catalog', '/cart': '/cos',
+      '/cos': '/cos', '/favorites': '/favorite', '/favorite': '/favorite',
+      '/account': '/cont', '/cont': '/cont'};
+    const cur = here.startsWith('/product') || here.startsWith('/produs')
+      ? '/catalog' : (map[here] || null);
+    document.querySelectorAll('.bnav a').forEach(a =>
+      a.classList.toggle('on', a.dataset.bn === cur));
+  } catch (e) {}
+})();
+window.closeFilterSheet = function () {
+  const side = document.querySelector('.plp-side');
+  const ov = document.getElementById('sheet-overlay');
+  if (!side) return;
+  side.classList.remove('open');
+  if (ov) ov.classList.remove('on');
+  document.body.classList.remove('sheet-open');
+};
+(function filterSheet() {
+  const side = document.querySelector('.plp-side');
+  const ov = document.getElementById('sheet-overlay');
+  if (!side || !ov) return;
+  const close = window.closeFilterSheet;
+  ov.addEventListener('click', close);
+  new MutationObserver(() => {
+    const open = side.classList.contains('open') && innerWidth <= 640;
+    ov.classList.toggle('on', open);
+    document.body.classList.toggle('sheet-open', open);
+    if (open && !side.querySelector('.sheet-grip')) {
+      const g = document.createElement('div'); g.className = 'sheet-grip';
+      const x = document.createElement('button'); x.className = 'sheet-close';
+      x.type = 'button'; x.textContent = '✕'; x.onclick = close;
+      side.prepend(x); side.prepend(g);
+    }
+  }).observe(side, {attributes: true, attributeFilter: ['class']});
 })();
 
 applyLang(); cartBadge();
