@@ -983,7 +983,10 @@ class Biro26Store:
             elif sort == "name_desc":
                 inner += " ORDER BY u.DENUMIREA DESC, u.COD"
             else:
-                inner += " ORDER BY u.DENUMIREA, u.COD"
+                # RO: la cautare — relevanta (models/biro26_search_rank.py)
+                from models import biro26_search_rank as _rank
+                inner += (_rank.ORDER_BY if _rank.applies(search, sort)
+                          else " ORDER BY u.DENUMIREA, u.COD")
             # RO: join-urile scumpe doar peste pagina / EN: heavy joins over the page only
             outer = (
                 "SELECT c.COD, c.CODVECHI, c.DENUMIREA, c.NAMERUS, c.UM, c.TIP, "
