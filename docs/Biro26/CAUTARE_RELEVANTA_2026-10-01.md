@@ -31,17 +31,20 @@ Mulțimea rezultatelor și totalul **nu** se schimbă — doar ordinea.
 
 | Fișier | Ce |
 |---|---|
-| [`models/biro26_search_rank.py`](../../models/biro26_search_rank.py) | logica: `applies()`, `order_by()` — fișier propriu (regula nr. 2) |
-| [`models/biro26_oracle_store.py`](../../models/biro26_oracle_store.py) | `Biro26Store.get_products_stock`: o ramură `elif _rank.applies(...)` + `count_params` |
+| [`models/biro26_search_rank.py`](../../models/biro26_search_rank.py) | logica: `ORDER_BY`, `applies()` — fișier propriu (regula nr. 2) |
+| [`models/biro26_oracle_store.py`](../../models/biro26_oracle_store.py) | `Biro26Store.get_products_stock`: ramura `else` a sortării — 3 rînduri |
 | [`tests/test_biro26_search_relevance.py`](../../tests/test_biro26_search_relevance.py) | 6 teste, fără Oracle |
 
-## Capcana ORA-01036
+## Fără bind-uri noi (capcana ORA-01036)
 
-`count_sql` se construiește **înainte** de `ORDER BY`, iar bind-urile noi
-(`rk_pre`, `rk_eq`, `rk_word`, `rk_any`) există doar în `ORDER BY`. De aceea
-numărătoarea primește `count_params` — copia parametrilor făcută înainte de
-adăugarea `rk_*`. Testul `test_binds_match_sql_exactly` verifică pentru ambele
-interogări că setul de bind-uri din SQL = setul de chei din parametri.
+`count_sql` se construiește **înainte** de `ORDER BY` și primește aceiași
+parametri. Un bind nou doar în `ORDER BY` ar fi dat ORA-01036 la numărătoare.
+De aceea toate treptele se scot din `:s` = `'%termen%'`, pe care filtrul de
+căutare îl leagă deja în ambele interogări (inclusiv pe drumul Oracle Text de pe
+nufarul/cloud, unde `:sq` lipsește): `SUBSTR(:s, 2)` = `'termen%'`,
+`'% ' || SUBSTR(:s, 2)` = `'% termen%'`, `SUBSTR(:s, 2, LENGTH(:s) - 2)` = termenul.
+Numărătoarea și cache-urile ei rămîn neatinse; testul
+`test_binds_match_sql_exactly` verifică: bind-urile din SQL = cheile parametrilor.
 
 ## Verificare (Oracle real, 01.10.2026)
 
@@ -60,8 +63,8 @@ curl -s "https://officeplus.md/api/biro26/shop/products?search=pix&limit=8" | py
 Fișierul `models/biro26_oracle_store.py` e **diferit pe fiecare server**
 (vezi `docs/SERVERE_COD_VS_GIT_2026-10-01.md`, ramura `prod/office-2026-10-01`).
 Nu se copiază fișierul din `main`: pe fiecare server se aplică patch-ul minim
-peste versiunea lui (copie `.bak-20261001`, md5 înainte/după), plus fișierul nou
-`models/biro26_search_rank.py`. Rezultatul pe fiecare contur — în secțiunea
+peste versiunea lui — doar ramura `else` a sortării (copie `.bak-20261001`,
+md5 înainte/după), plus fișierul nou `models/biro26_search_rank.py`. Rezultatul pe fiecare contur — în secțiunea
 „Jurnal deploy” de mai jos.
 
 ## Jurnal deploy
