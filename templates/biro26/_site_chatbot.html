@@ -34,6 +34,8 @@
 @media(max-width:500px){
   #opAsistPanel{left:0;right:0;top:0;bottom:0;width:100vw;height:100%;border-radius:0}
   #opAsistBtn .opAsistTip{display:none}
+  /* RO: pe telefon panoul e pe tot ecranul — bara JivoChat (<jdiv>) ar acoperi cosul */
+  body.opAsistOpen jdiv{display:none!important}
 }
 </style>
 <button id="opAsistBtn" type="button" aria-controls="opAsistPanel" aria-expanded="false"
@@ -56,9 +58,9 @@
       f.src = SRC; f.title = 'Asistent OfficePlus'; f.loading = 'eager';
       panel.appendChild(f);
     }
-    panel.classList.add('open'); btn.setAttribute('aria-expanded', 'true');
+    panel.classList.add('open'); document.body.classList.add('opAsistOpen'); btn.setAttribute('aria-expanded', 'true');
   }
-  function close(){ panel.classList.remove('open'); btn.setAttribute('aria-expanded', 'false'); }
+  function close(){ panel.classList.remove('open'); document.body.classList.remove('opAsistOpen'); btn.setAttribute('aria-expanded', 'false'); }
   btn.addEventListener('click', function(){ panel.classList.contains('open') ? close() : open(); });
   document.addEventListener('keydown', function(e){ if (e.key === 'Escape') close(); });
   // RO: butonul «×» din fereastra botului e in iframe — embed.html ne trimite {opChat:'close'}

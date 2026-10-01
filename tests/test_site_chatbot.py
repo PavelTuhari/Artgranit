@@ -87,3 +87,20 @@ def test_partner_quantity_includes_supplier_stock():
     assert rules.sellable_qty({"avail_cant": 4}) == 4
     assert rules.sellable_qty({"avail_cant": None, "furnizor_stoc": "x"}) == 0
     assert rules.sellable_qty({"avail_cant": -2, "furnizor_stoc": None}) == 0
+
+
+def test_bot_shows_retail_price_not_dealer_price():
+    """RO: in contractul API `user_price` = pretul DEALERULUI (angro), `fixed_price` =
+    pretul cu amanuntul. Pe site botul vorbeste cu cumparatorul — deci retail
+    intii; altfel oferta PDF iesea cu rinduri angro si total retail (validarea
+    serverului calculeaza pe coloana clientului «Persoana fizica» = retail1)."""
+    js = open(os.path.join(BOT, "script.js"), encoding="utf-8").read()
+    assert "pr=p.fixed_price??p.user_price??p.price_d??0" in js
+    assert "pr=p.user_price??p.fixed_price" not in js
+
+
+def test_jivo_bar_hidden_while_panel_open_on_phone():
+    html = _render("officeplus.md")
+    assert "body.opAsistOpen jdiv{display:none!important}" in html
+    assert "document.body.classList.add('opAsistOpen')" in html
+    assert "document.body.classList.remove('opAsistOpen')" in html
