@@ -77,10 +77,9 @@ din `prod/*`, deci nimic nu se schimbase între timp pe servere.
 | Server | md5 înainte | md5 după | Restart | Verificare |
 |---|---|---|---|---|
 | cloud `ubuntu@92.5.130.1:/home/ubuntu/artgranit` | `c08bc1e3…016c` | `bba2c567…7a58` | `systemctl restart artgranit` | `/login` 200, 0 Traceback, `pix` → PIX BILA SCH OFFICE N |
-| nufarul `ubuntu@92.5.3.187:/home/ubuntu/artgranit` | `43908236…80` | `d62eeffe…7a58`* | `systemctl restart artgranit` | `/login` 200, `https://nufarul.eminescu.md/login` HTTP/2 200 |
+| nufarul `ubuntu@92.5.3.187:/home/ubuntu/artgranit` | `43908236…e280` | `d62eeffe…a7a58` | `systemctl restart artgranit` | `/login` 200, `https://nufarul.eminescu.md/login` HTTP/2 200 |
 | office `ubuntu@192.168.0.250:/home/ubuntu/artgranit` | `55f723a9…5259` | `14dbd082…2eca` | `systemctl restart artgranit` (gunicorn) | `/login` 200, `https://officeplus.md/cos` 200 |
 
-\* `d62eeffe162f1bfef2e3a56d3bca7a58`
 
 Live, după deploy:
 
