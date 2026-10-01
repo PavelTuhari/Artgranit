@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!--
+  RO: Varianta «incorporata» a asistentului OfficePlus — pagina pe care vitrina o
+  deschide in iframe (templates/biro26/_site_chatbot.html). Se pune ALATURI de
+  index.html, in /var/www/officeplus/OfficePlus_Chatbot/, ca sa lucreze aceleasi
+  style.css, script.js si api/ ale proprietarului, fara nicio modificare in ele.
+  Fata de index.html: fereastra e deschisa si ocupa tot iframe-ul, butonul rotund
+  propriu e ascuns (pe vitrina e butonul magazinului), iar «×» inchide panoul
+  vitrinei printr-un mesaj catre pagina-parinte.
+  Marcajul de mai jos e copiat 1:1 din index.html — daca proprietarul schimba
+  index.html, se copiaza si aici.
+  Sursa in git: wordpress_officeplus/public_html/OfficePlus_Chatbot/embed.html
+  ?v=AAAAMMZZ la style.css/script.js: la orice modificare a lor se schimba data,
+  altfel vizitatorii raman pe versiunea din cache.
+  Documentatie: docs/Biro26/CHATBOT_PE_SITE_2026-10-01.md
+-->
+<html lang="ro"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>OfficePlus – Asistent</title><link rel="stylesheet" href="style.css?v=20261001">
+<style>
+html,body{height:100%;background:#fff}
+.chat-button{display:none!important}
+.chat-window{display:flex!important;position:static!important;width:100%!important;max-width:none!important;
+  height:100%!important;max-height:none!important;border-radius:0!important;box-shadow:none!important}
+</style></head><body><button id="chatButton" class="chat-button">💬</button><div id="chatWindow" class="chat-window"><div class="chat-header"><div><strong>OfficePlus</strong><small>Asistent online</small></div><button id="closeChat" class="close-button">×</button></div><div id="chatMessages" class="chat-messages"><div class="bot-message">Bună ziua! 👋<br><br>Sunt asistentul OfficePlus. Pot să vă ajut să găsiți produse, să verificați prețul și stocul și să pregătiți o ofertă comercială.</div></div><div class="search-area"><input id="searchInput" placeholder="Ex.: hârtie A4, pix, toner..."><button id="searchButton">Caută</button></div><div id="productsContainer" class="products-container"></div><div id="cartContainer" class="cart-container"></div></div><script src="script.js?v=20261001"></script>
+<script>
+// RO: script.js ascunde fereastra la «×»; in iframe trebuie inchis panoul vitrinei
+document.getElementById('closeChat').onclick = function () {
+  try { window.parent.postMessage({ opChat: 'close' }, '*'); } catch (e) {}
+};
+</script>
+</body></html>

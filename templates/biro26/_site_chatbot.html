@@ -1,0 +1,74 @@
+{# RO: Asistentul OfficePlus (chatbot: cautare produse -> cos -> oferta PDF + Telegram).
+     Botul e aplicatia PHP a proprietarului din /var/www/officeplus/OfficePlus_Chatbot/
+     (sursa: BIRO26/TaskDezvoltare/12 Chat bot). Aici e DOAR butonul de pe vitrina.
+
+     De ce iframe si nu style.css/script.js direct in pagina: style.css-ul botului are
+     reguli globale (`*{box-sizing}`, `body{font-family:Arial}`) care ar schimba fontul
+     intregului magazin, iar script.js foloseste id-uri generice (searchInput, delivery,
+     payment) si adrese relative `api/...` care pe /catalog ar nimeri in Flask. In iframe
+     botul ramine izolat si proprietarul isi poate actualiza fisierele fara sa atinga
+     vitrina. Pagina din iframe e embed.html (fereastra deschisa, fara butonul propriu),
+     sursa in git: wordpress_officeplus/public_html/OfficePlus_Chatbot/.
+
+     Coltul STING-jos: cel drept e ocupat de #opGuideBtn (fituica) si de JivoChat.
+     Iframe-ul se creeaza abia la primul click — vizitatorul care nu-l deschide nu
+     descarca nimic. Se arata doar pe officeplus.* (botul exista doar acolo);
+     pe alt contur se poate forta cu ?chatbot=1 pentru proba.
+     Documentatie: docs/Biro26/CHATBOT_PE_SITE_2026-10-01.md
+     EN: storefront launcher for the owner's PHP chatbot, isolated in an iframe. #}
+{% if request and ('officeplus' in (request.host or '') or request.args.get('chatbot') == '1') %}
+<style>
+#opAsistBtn{position:fixed;left:18px;bottom:18px;z-index:1200;border:none;cursor:pointer;
+  width:58px;height:58px;border-radius:50%;color:#fff;font-size:26px;line-height:58px;padding:0;
+  background:#159447;box-shadow:0 6px 22px rgba(21,148,71,.45);transition:transform .15s}
+#opAsistBtn:hover{transform:scale(1.08)}
+#opAsistBtn .opAsistTip{position:absolute;left:66px;bottom:12px;white-space:nowrap;
+  background:#fff;color:#232323;font-size:13px;line-height:1.2;padding:7px 11px;border-radius:10px;
+  box-shadow:0 4px 16px rgba(0,0,0,.18);pointer-events:none;opacity:0;transition:opacity .2s}
+#opAsistBtn:hover .opAsistTip,#opAsistBtn:focus-visible .opAsistTip{opacity:1}
+#opAsistPanel{position:fixed;left:18px;bottom:86px;z-index:1201;display:none;
+  width:min(420px,calc(100vw - 36px));height:min(650px,calc(100vh - 110px));
+  background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.28)}
+#opAsistPanel.open{display:block}
+#opAsistPanel iframe{border:0;width:100%;height:100%;display:block}
+@media(max-width:500px){
+  #opAsistPanel{left:0;right:0;top:0;bottom:0;width:100vw;height:100%;border-radius:0}
+  #opAsistBtn .opAsistTip{display:none}
+  /* RO: pe telefon panoul e pe tot ecranul — bara JivoChat (<jdiv>) ar acoperi cosul */
+  body.opAsistOpen jdiv{display:none!important}
+}
+</style>
+<button id="opAsistBtn" type="button" aria-controls="opAsistPanel" aria-expanded="false"
+        aria-label="Asistent OfficePlus: găsiți produse și primiți o ofertă PDF">💬<span class="opAsistTip">Asistent: găsiți produse și primiți o ofertă PDF</span></button>
+<div id="opAsistPanel" role="dialog" aria-label="Asistent OfficePlus"></div>
+<script>
+(function(){
+  // RO: ?v= se schimba la orice modificare a embed.html / script.js (cache-ul browserului)
+  var SRC = 'https://officeplus.md/OfficePlus_Chatbot/embed.html?v=20261001';
+  var btn = document.getElementById('opAsistBtn'), panel = document.getElementById('opAsistPanel');
+  if (!btn || !panel) return;
+  // RO: limba vitrinei se alege in browser (curLang din site.js); botul insusi e in romana
+  try { if (typeof curLang === 'function' && curLang() === 'ru') {
+    var t = 'Ассистент: найдите товар и получите предложение в PDF';
+    btn.setAttribute('aria-label', 'Ассистент OfficePlus: найдите товар и получите предложение в PDF');
+    btn.querySelector('.opAsistTip').textContent = t;
+  } } catch (e) {}
+  function open(){
+    if (!panel.firstChild) {
+      var f = document.createElement('iframe');
+      f.src = SRC; f.title = 'Asistent OfficePlus'; f.loading = 'eager';
+      panel.appendChild(f);
+    }
+    panel.classList.add('open'); document.body.classList.add('opAsistOpen'); btn.setAttribute('aria-expanded', 'true');
+  }
+  function close(){ panel.classList.remove('open'); document.body.classList.remove('opAsistOpen'); btn.setAttribute('aria-expanded', 'false'); }
+  btn.addEventListener('click', function(){ panel.classList.contains('open') ? close() : open(); });
+  document.addEventListener('keydown', function(e){ if (e.key === 'Escape') close(); });
+  // RO: butonul «×» din fereastra botului e in iframe — embed.html ne trimite {opChat:'close'}
+  window.addEventListener('message', function(e){
+    if (e.origin !== 'https://officeplus.md') return;
+    if (e.data && e.data.opChat === 'close') close();
+  });
+})();
+</script>
+{% endif %}

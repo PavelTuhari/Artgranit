@@ -457,5 +457,6 @@ window.RATE_PLANS = {{ rate_plans|default([])|tojson }};
   {% if jivo_id %}
   <script src="//code.jivosite.com/widget/{{ jivo_id }}" async></script>
   {% endif %}
+  {% include "biro26/_site_chatbot.html" %}
 </body>
 </html>
