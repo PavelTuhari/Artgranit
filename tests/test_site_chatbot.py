@@ -52,7 +52,7 @@ def test_iframe_is_lazy_isolated_and_origin_checked():
     html = _render("officeplus.md")
     assert "<iframe" not in html, "iframe-ul trebuie creat abia la click"
     assert "createElement('iframe')" in html
-    assert "https://officeplus.md/OfficePlus_Chatbot/embed.html" in html
+    assert "https://officeplus.md/OfficePlus_Chatbot/embed.html?v=" in html
     assert "e.origin !== 'https://officeplus.md'" in html
     # coltul sting: dreptul e ocupat de #opGuideBtn si JivoChat
     assert re.search(r"#opAsistBtn\{position:fixed;left:18px;bottom:18px", html)
@@ -61,7 +61,7 @@ def test_iframe_is_lazy_isolated_and_origin_checked():
 
 
 def test_embed_markup_equals_owner_index():
-    body = re.compile(r"<body>(.*?)<script src=\"script.js\"></script>", re.S)
+    body = re.compile(r"<body>(.*?)<script src=\"script.js(?:\?v=\d+)?\"></script>", re.S)
     idx = body.search(open(os.path.join(BOT, "index.html"), encoding="utf-8").read()).group(1)
     emb = body.search(open(os.path.join(BOT, "embed.html"), encoding="utf-8").read()).group(1)
     assert idx == emb
