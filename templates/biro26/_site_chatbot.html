@@ -36,13 +36,19 @@
 }
 </style>
 <button id="opAsistBtn" type="button" aria-controls="opAsistPanel" aria-expanded="false"
-        aria-label="{{ 'Ассистент OfficePlus: подбор товаров и коммерческое предложение' if lang == 'ru' else 'Asistent OfficePlus: caută produse și primește o ofertă' }}">💬<span class="opAsistTip">{{ 'Ассистент: найти товар и получить предложение' if lang == 'ru' else 'Asistent: găsiți produse și primiți o ofertă PDF' }}</span></button>
+        aria-label="Asistent OfficePlus: găsiți produse și primiți o ofertă PDF">💬<span class="opAsistTip">Asistent: găsiți produse și primiți o ofertă PDF</span></button>
 <div id="opAsistPanel" role="dialog" aria-label="Asistent OfficePlus"></div>
 <script>
 (function(){
   var SRC = 'https://officeplus.md/OfficePlus_Chatbot/embed.html';
   var btn = document.getElementById('opAsistBtn'), panel = document.getElementById('opAsistPanel');
   if (!btn || !panel) return;
+  // RO: limba vitrinei se alege in browser (curLang din site.js); botul insusi e in romana
+  try { if (typeof curLang === 'function' && curLang() === 'ru') {
+    var t = 'Ассистент: найдите товар и получите предложение в PDF';
+    btn.setAttribute('aria-label', 'Ассистент OfficePlus: найдите товар и получите предложение в PDF');
+    btn.querySelector('.opAsistTip').textContent = t;
+  } } catch (e) {}
   function open(){
     if (!panel.firstChild) {
       var f = document.createElement('iframe');
