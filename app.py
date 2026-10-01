@@ -8303,10 +8303,6 @@ def _biro26_chrome_refresh():
         'fmt_html': s.get('SHOP_FMT_HTML') or '1',
         'fmt_xlsx': s.get('SHOP_FMT_XLSX') or '1',
         'ga_id': s.get('SHOP_GA_ID') or 'G-STJ1NQDGY0',
-        # RO: widget-ul JivoChat. Gol = chatul e stins complet. Acelasi ID
-        #     trebuie pus si in WordPress (mu-plugin), altfel chatul dispare
-        #     cind vizitatorul trece de pe magazin pe paginile de continut.
-        # EN: JivoChat widget id; empty disables the chat entirely.
         'jivo_id': s.get('SHOP_JIVO_ID') or '',
         'price_fiz': s.get('SHOP_PRICE_FIZ') or 'retail1',
         'pay_logos': pay_logos,
@@ -8350,7 +8346,7 @@ def _biro26_site_ctx():
     _host = (_rq.host or '').lower().split(':')[0]
     if _host not in Config.BIRO26_SHOP_HOSTS:
         ga_id = ''   # RO: doar pe magazinul public / EN: public shop only
-        jivo_id = ''   # RO: chatul doar pe magazinul public / EN: public shop only
+        jivo_id = ''   # RO: chatul doar pe magazinul public
     # RO: coloana de pret dupa TIPUL clientului logat (fizica/juridica);
     #     vizitatorii vad preturile pentru persoane fizice
     # RO: vizitatorul neautentificat ia coloana din partea comuna (deja citita),
