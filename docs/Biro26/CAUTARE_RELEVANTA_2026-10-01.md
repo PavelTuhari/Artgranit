@@ -69,4 +69,28 @@ md5 înainte/după), plus fișierul nou `models/biro26_search_rank.py`. Rezultat
 
 ## Jurnal deploy
 
-_(se completează la deploy)_
+01.10.2026 — patch minim (`apply_rank.py`: ancoră în `get_products_stock`, copie
+`models/biro26_oracle_store.py.bak-20261001-search`, `py_compile`, rollback automat)
++ fișierul nou `models/biro26_search_rank.py`. md5 „înainte” = exact instantaneele
+din `prod/*`, deci nimic nu se schimbase între timp pe servere.
+
+| Server | md5 înainte | md5 după | Restart | Verificare |
+|---|---|---|---|---|
+| cloud `ubuntu@92.5.130.1:/home/ubuntu/artgranit` | `c08bc1e3…016c` | `bba2c567…7a58` | `systemctl restart artgranit` | `/login` 200, 0 Traceback, `pix` → PIX BILA SCH OFFICE N |
+| nufarul `ubuntu@92.5.3.187:/home/ubuntu/artgranit` | `43908236…80` | `d62eeffe…7a58`* | `systemctl restart artgranit` | `/login` 200, `https://nufarul.eminescu.md/login` HTTP/2 200 |
+| office `ubuntu@192.168.0.250:/home/ubuntu/artgranit` | `55f723a9…5259` | `14dbd082…2eca` | `systemctl restart artgranit` (gunicorn) | `/login` 200, `https://officeplus.md/cos` 200 |
+
+\* `d62eeffe162f1bfef2e3a56d3bca7a58`
+
+Live, după deploy:
+
+- https://officeplus.md/api/biro26/shop/products?search=pix&limit=8&with_count=1 —
+  PIX BILA SCH OFFICE N, PIX SCHNEIDER ERASABLE…, Pix "scrie-sterge"…; total 4538 (neschimbat)
+- https://officeplus.md/api/biro26/shop/products?search=caiet&limit=8&with_count=1 — Caiet 12 foi…; total 3950
+- https://officeplus.md/catalog?q=pix — 200
+
+Rollback pe oricare server:
+
+```bash
+cd /home/ubuntu/artgranit && cp models/biro26_oracle_store.py.bak-20261001-search models/biro26_oracle_store.py && sudo systemctl restart artgranit
+```
