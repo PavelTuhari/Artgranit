@@ -23,15 +23,17 @@ pe 92.5.130.1 (640, www-data; copia veche `config.php.bak-2026-10-01`). În git 
 
 ## Cum e pus pe vitrină
 
-- `templates/biro26/_site_chatbot.html` (nou) — buton verde 💬 în colțul **stîng**-jos
-  (dreptul e ocupat de fițuica `#opGuideBtn` și de JivoChat) + panou cu iframe.
+- `templates/biro26/_site_chatbot.html` (nou) — buton verde 💬 în colțul **drept**-jos,
+  deasupra fițuicii `#opGuideBtn` (la cererea proprietarului, 01.10.2026; inițial era
+  în stînga). Panoul se deschide în stînga coloanei de butoane, ca să nu le acopere;
+  fițuica și asistentul se închid una pe alta, iar bara JivoChat e ascunsă cît
+  panoul e deschis.
 - `templates/biro26/site_base.html` — o singură linie `{% include %}` înainte de `</body>`.
 - iframe și nu `style.css`/`script.js` direct: CSS-ul botului are `*{…}` și
   `body{font-family:Arial}` (ar fi schimbat fontul întregului magazin), iar scriptul
   folosește id-uri generice și adrese relative `api/…`, care pe `/catalog` ar fi
   nimerit în Flask.
-- iframe-ul se creează abia la primul click; pe telefon panoul e pe tot ecranul și
-  bara JivoChat se ascunde cît e deschis.
+- iframe-ul se creează abia la primul click; pe telefon panoul e pe tot ecranul.
 - Butonul apare doar pe `officeplus.*`; pe nufarul (test) — cu `?chatbot=1`.
 - `embed.html` (nou, lîngă `index.html` al proprietarului): fereastra deschisă, fără
   butonul propriu, «×» închide panoul vitrinei. Marcajul e copiat 1:1 din `index.html`
@@ -76,7 +78,7 @@ ramura `prod/office-2026-10-01`) — se face odată cu sincronizarea serverelor 
 
 ## Adrese live
 
-- Magazinul cu asistentul: <https://officeplus.md/catalog> (buton 💬 stînga-jos)
+- Magazinul cu asistentul: <https://officeplus.md/catalog> (buton 💬 dreapta-jos)
 - Asistentul singur: <https://officeplus.md/OfficePlus_Chatbot/embed.html?v=20261001>
 - Test pe nufarul: <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site?chatbot=1>
 - Contul API al botului: <https://officeplus.md/UNA.md/orasldev/partner/> (partener `chatbot@officeplus.md`)

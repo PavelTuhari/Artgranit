@@ -54,8 +54,12 @@ def test_iframe_is_lazy_isolated_and_origin_checked():
     assert "createElement('iframe')" in html
     assert "https://officeplus.md/OfficePlus_Chatbot/embed.html?v=" in html
     assert "e.origin !== 'https://officeplus.md'" in html
-    # coltul sting: dreptul e ocupat de #opGuideBtn si JivoChat
-    assert re.search(r"#opAsistBtn\{position:fixed;left:18px;bottom:18px", html)
+    # coltul drept, deasupra fituicii #opGuideBtn (right:18 bottom:18 + 58px)
+    assert re.search(r"#opAsistBtn\{position:fixed;right:18px;bottom:86px", html)
+    # panoul in stinga coloanei de butoane — nu le acopera
+    assert re.search(r"#opAsistPanel\{position:fixed;right:90px;bottom:18px", html)
+    assert "getElementById('opGuide')" in html
+    assert "getElementById('opGuideBtn'); if (gb) gb.addEventListener('click', close)" in html
     # nimic din style.css/script.js al botului nu intra direct in pagina vitrinei
     assert "OfficePlus_Chatbot/style.css" not in html and "OfficePlus_Chatbot/script.js" not in html
 
@@ -102,5 +106,7 @@ def test_bot_shows_retail_price_not_dealer_price():
 def test_jivo_bar_hidden_while_panel_open_on_phone():
     html = _render("officeplus.md")
     assert "body.opAsistOpen jdiv{display:none!important}" in html
+    # pe orice latime: panoul din dreapta ar sta peste bara JivoChat
+    assert html.index("body.opAsistOpen jdiv") < html.index("@media(max-width:500px)")
     assert "document.body.classList.add('opAsistOpen')" in html
     assert "document.body.classList.remove('opAsistOpen')" in html
