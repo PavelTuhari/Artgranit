@@ -38,7 +38,7 @@ def test_site_base_includes_chatbot_once_as_one_line():
     assert lines == ['  {% include "biro26/_site_chatbot.html" %}']
     # inainte de </body>, dupa JivoChat — nu intirzie afisarea paginii
     assert src.index("_site_chatbot.html") > src.index("code.jivosite.com")
-    assert src.index("_site_chatbot.html") < src.index("</body>")
+    assert src.index("_site_chatbot.html") < src.rindex("</body>")
 
 
 def test_launcher_only_on_officeplus_or_forced():

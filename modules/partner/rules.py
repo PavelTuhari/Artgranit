@@ -64,6 +64,23 @@ def error_body(message: str,
     return body
 
 
+def sellable_qty(row: Dict[str, Any]) -> int:
+    """RO: cantitatea care se poate vinde = stocul NOSTRU disponibil + stocul
+    FURNIZORULUI (BIRO26_GOODS.STOC -> FURNIZOR_STOC). Aceeasi regula ca insigna
+    «În stoc» de pe vitrina (site.js: avail > 0 || furnizor_stoc > 0): marfa de
+    dealer (Ultra) nu sta la noi, dar se livreaza. Fara ea API-ul dadea 0 la
+    aproape tot (tonere: 1 din 1000), iar asistentul de pe site refuza sa puna
+    in cos marfa pe care vitrina o arata «În stoc». Pe serverele unde catalogul
+    inca nu intoarce FURNIZOR_STOC ramine doar stocul nostru.
+    EN: our available stock + the supplier's stock, as the storefront badge."""
+    def n(v: Any) -> int:
+        try:
+            return max(int(float(v or 0)), 0)
+        except (TypeError, ValueError):
+            return 0
+    return n(row.get("avail_cant")) + n(row.get("furnizor_stoc"))
+
+
 def map_product(row: Dict[str, Any]) -> Dict[str, Any]:
     """RO: rindul grilei ERP -> obiectul public al API-ului, cu ACEEASI
     structura ca la Ultra (ultra_code -> code, ultra_uuid -> uuid; restul
@@ -82,7 +99,7 @@ def map_product(row: Dict[str, Any]) -> Dict[str, Any]:
         "description": g("denum_full") or None,
         "description_by_language": {"ro": g("denum_full"),
                                     "ru": g("denum_full_ru")},
-        "quantity": int(g("avail_cant") or 0),
+        "quantity": sellable_qty(row),
         "image_urls": images,
         "barcode": g("barcode"),
         "brand": ({"name": g("brand")} if g("brand") else None),
@@ -103,7 +120,7 @@ def map_quantity(row: Dict[str, Any]) -> Dict[str, Any]:
         "code": str(g("codvechi") or g("cod") or ""),
         "uuid": str(g("cod") or ""),
         "product_name": {"ro": g("denumirea") or ""},
-        "quantity": int(g("avail_cant") or 0),
+        "quantity": sellable_qty(row),
     }
 
 
