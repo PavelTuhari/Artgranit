@@ -974,6 +974,8 @@ class Biro26Store:
             # EN: the total (numbered pagination) is counted over the cheap
             #     core, BEFORE the ORDER BY — only when explicitly asked.
             count_sql = f"SELECT COUNT(*) CNT FROM ({inner})"
+            count_params = dict(params)
+            from models import biro26_search_rank as _rank
             # RO: sortare — alfabetic (implicit) sau dupa pretul efectiv
             # EN: sorting — alphabetical (default) or by effective price
             if sort == "price_asc":
@@ -982,6 +984,12 @@ class Biro26Store:
                 inner += f" ORDER BY {price_expr} DESC NULLS LAST, u.DENUMIREA, u.COD"
             elif sort == "name_desc":
                 inner += " ORDER BY u.DENUMIREA DESC, u.COD"
+            elif _rank.applies(search, sort):
+                # RO: cautare -> relevanta (models/biro26_search_rank.py);
+                #     bind-urile rk_* merg DOAR in pagina, nu in count_sql
+                rk_sql, rk_binds = _rank.order_by(q_norm)
+                inner += rk_sql
+                params = {**params, **rk_binds}
             else:
                 inner += " ORDER BY u.DENUMIREA, u.COD"
             # RO: join-urile scumpe doar peste pagina / EN: heavy joins over the page only
@@ -1064,11 +1072,11 @@ class Biro26Store:
                 #     cache it per filter set for 5 minutes.
                 import hashlib as _h
                 ckey = "cnt:" + _h.md5(
-                    (count_sql + repr(sorted(params.items()))).encode()
+                    (count_sql + repr(sorted(count_params.items()))).encode()
                 ).hexdigest()
                 total = _cached(ckey, 300, lambda: (
                     lambda rc: int(rc[0]["cnt"]) if rc else 0)(
-                        _rows(Biro26DB().execute_query(count_sql, params))))
+                        _rows(Biro26DB().execute_query(count_sql, count_params))))
                 res["total"] = total
             return res
         except Exception as e:
