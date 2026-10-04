@@ -1,0 +1,16 @@
+{
+  "title": {
+    "ru": "Подключение к офису (OpenVPN)",
+    "ro": "Conectare la birou (OpenVPN)",
+    "en": "Office connection (OpenVPN)"
+  },
+  "icon": "🔐",
+  "order": 905,
+  "group": "tools",
+  "url": "/UNA.md/orasldev/vpnguide",
+  "descr": "Как поставить OpenVPN на компьютер или телефон и подключиться к офисной сети",
+  "docs": "VPNGuide",
+  "pages": {
+    "vpnguide": {"ru": "Инструкция OpenVPN", "ro": "Instrucțiune OpenVPN", "en": "OpenVPN guide"}
+  }
+}

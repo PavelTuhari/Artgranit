@@ -655,3 +655,44 @@ def test_ssh_reuses_one_connection():
     """Серия входов подряд выглядит как подбор пароля и ловит блокировку."""
     for f in ("modules/netmon/openvpn.py", "modules/netmon/frontoffice.py"):
         assert "ControlMaster=auto" in _read(f), f
+
+
+# ---------------------------------------- выдача доступа из панели
+
+def test_panel_post_sends_request_body():
+    """Регрессия 04.10.2026: post() молча выбрасывала тело запроса.
+
+    Выдача OpenVPN и запись работ по оборудованию уходили на сервер пустыми
+    и падали на валидации имени. Из интерфейса это выглядело как «ошибка»
+    без причины.
+    """
+    import re
+    html = _read("modules/netmon/templates/netmon.html")
+    m = re.search(r"async function post\(([^)]*)\)\{(.*?)\n\}", html, re.S)
+    assert m, "функция post() не найдена"
+    args, body = m.group(1), m.group(2)
+    assert "body" in args, "post() должна принимать тело запроса"
+    assert "JSON.stringify(body)" in body and "application/json" in body
+
+
+def test_profile_download_does_not_issue_new_certificate():
+    """Повторное скачивание профиля не должно выпускать сертификат заново."""
+    import re
+    src = _read("modules/netmon/routes.py")
+    m = re.search(r"def api_vpn_profile\(name\):(.*?)(?:\n\n\n|\Z)", src, re.S)
+    assert m and "vpn_profile(name)" in m.group(1)
+    assert "vpn_create" not in m.group(1)
+
+
+def test_profile_template_inserts_name_in_cert_and_key():
+    from modules.netmon import openvpn as ov
+    cmd = ov._PROFILE_CMD.format(name="ivan.petrov")
+    assert "issued/ivan.petrov.crt" in cmd and "private/ivan.petrov.key" in cmd
+    assert cmd.startswith("{ ") and cmd.rstrip().endswith("} 2>/dev/null")
+
+
+def test_incomplete_profile_is_rejected():
+    import pytest
+    from modules.netmon import openvpn as ov
+    with pytest.raises(RuntimeError):
+        ov._profile_result("x", "client\n<ca></ca><cert></cert><key></key>")
