@@ -66,7 +66,21 @@ def _int(name, default=None):
 def index():
     if not AuthController.is_authenticated():
         return redirect(url_for("login"))
-    return render_template("netmon.html")
+    return render_template("netmon.html", vpn_guide_url=_vpn_guide_url())
+
+
+def _vpn_guide_url():
+    """Адрес инструкции OpenVPN из соседнего модуля — или None, если его нет.
+
+    Модуль не должен падать из-за отсутствия другого модуля: 04.10.2026
+    прямой url_for('vpnguide.index') в шаблоне уронил всю панель с BuildError,
+    когда сервер работал без vpnguide.
+    """
+    from werkzeug.routing import BuildError
+    try:
+        return url_for("vpnguide.index")
+    except BuildError:
+        return None
 
 
 @blueprint.route("/api/status")
