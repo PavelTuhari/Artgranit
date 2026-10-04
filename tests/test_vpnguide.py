@@ -57,5 +57,22 @@ def test_page_requires_login():
 
 
 def test_netmon_panel_links_to_the_guide():
+    assert 'url_for("vpnguide.index")' in _read("modules/netmon/routes.py")
+    assert "vpn_guide_url" in _read("modules/netmon/templates/netmon.html")
+
+
+def test_netmon_panel_survives_without_the_guide_module():
+    """Регрессия 04.10.2026: url_for на чужой модуль прямо в шаблоне уронил
+    панель мониторинга с BuildError, когда сервер работал без vpnguide.
+    Ссылка на соседний модуль — только через безопасную обёртку."""
+    from flask import Flask
     html = _read("modules/netmon/templates/netmon.html")
-    assert "url_for('vpnguide.index')" in html
+    assert "url_for('vpnguide" not in html and 'url_for("vpnguide' not in html
+    import importlib, os
+    os.environ["NETMON_ENABLED"] = "1"
+    import modules.netmon as pkg
+    importlib.reload(pkg)
+    from modules.netmon import routes
+    app = Flask(__name__)
+    with app.test_request_context():
+        assert routes._vpn_guide_url() is None, "без модуля ссылка должна просто пропасть"
