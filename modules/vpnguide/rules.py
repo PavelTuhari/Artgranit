@@ -72,8 +72,12 @@ def decrypt(token: str, payload: str) -> str | None:
 
 def ttl(value) -> int:
     """Срок жизни ссылки в минутах: по умолчанию 15, в пределах 1…1440."""
-    if value in (None, "", True):
+    # Не `value in (None, "", True)`: в Python 1 == True, и ссылка на одну
+    # минуту молча становилась пятнадцатиминутной.
+    if value is None or value is True or value == "":
         return TTL_DEFAULT
+    if value is False:
+        raise ValueError("срок ссылки не задан")
     try:
         v = int(value)
     except (TypeError, ValueError):
