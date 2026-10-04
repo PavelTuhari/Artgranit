@@ -255,6 +255,18 @@
                style="flex:1;min-width:200px">
         <button class="primary" id="vpn-add">Создать профиль</button>
       </div>
+      <div class="filters" style="margin-bottom:6px;font-size:13px">
+        <label><input type="checkbox" id="vpn-share-on" checked>
+          сразу сделать ссылку для получателя на</label>
+        <input type="number" id="vpn-share-min" value="15" min="1" max="1440" style="width:70px"> мин,
+        язык <select id="vpn-share-lang">
+          <option value="ru">русский</option><option value="ro">română</option><option value="en">English</option>
+        </select>
+      </div>
+      <div class="note">Ссылка открывает инструкцию на трёх языках со ссылками на программу для
+        Windows и macOS, кнопкой скачивания файла и самим текстом профиля внутри — получатель
+        или его помощник с ИИ сделает всё сам. Открывается снаружи, без входа в портал, и
+        перестаёт работать по истечении срока.</div>
       <div class="note">Имя: латиница, цифры, точка, дефис. После создания браузер скачает
         файл <code>.ovpn</code> — в нём закрытый ключ, поэтому передавайте его лично,
         не через общие папки и не в переписке.</div>
