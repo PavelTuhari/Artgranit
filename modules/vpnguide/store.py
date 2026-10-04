@@ -23,6 +23,20 @@ _STATE = ("CASE WHEN s.REVOKED_AT IS NOT NULL THEN 'revoked' "
           "WHEN s.EXPIRES_AT <= SYSTIMESTAMP THEN 'expired' ELSE 'active' END")
 
 
+def _cursor(db):
+    """Курсор с выключенным параллельным DML.
+
+    Autonomous Database по умолчанию выполняет DML параллельно, и на таблице с
+    внешним ключом (VPNG_SHARE_HITS → VPNG_SHARES) это даёт ORA-12860
+    «deadlock detected while waiting for a sibling row lock» — пойман
+    04.10.2026 при удалении строк. Таблицы здесь на десятки строк,
+    параллельность им ничего не даёт.
+    """
+    cur = db.connection.cursor()
+    cur.execute("ALTER SESSION DISABLE PARALLEL DML")
+    return cur
+
+
 def _purge(cur) -> int:
     """Стирает шифротекст у истёкших и отозванных ссылок. Строки остаются."""
     cur.execute("UPDATE VPNG_SHARES SET PAYLOAD = NULL "
@@ -43,7 +57,7 @@ def create_share(client_name: str, profile: str, ttl_min, created_by: str,
     minutes = rules.ttl(ttl_min)
     token = rules.new_token()
     with DatabaseModel() as db:
-        cur = db.connection.cursor()
+        cur = _cursor(db)
         _purge(cur)
         new_id = cur.var(int)
         cur.execute(
@@ -70,7 +84,7 @@ def open_share(token: str, kind: str, ip: str = "", user_agent: str = "") -> dic
     if not rules.token_valid(token):
         return {"state": "unknown"}
     with DatabaseModel() as db:
-        cur = db.connection.cursor()
+        cur = _cursor(db)
         cur.execute(
             f"SELECT s.ID, s.CLIENT_NAME, s.PAYLOAD, s.LANG, "
             f"TO_CHAR(SYS_EXTRACT_UTC(s.EXPIRES_AT), '{_ISO}'), {_STATE}, "
@@ -103,7 +117,7 @@ def open_share(token: str, kind: str, ip: str = "", user_agent: str = "") -> dic
 
 def revoke(share_id: int, reason: str = "") -> bool:
     with DatabaseModel() as db:
-        cur = db.connection.cursor()
+        cur = _cursor(db)
         cur.execute("UPDATE VPNG_SHARES SET REVOKED_AT = SYSTIMESTAMP, PAYLOAD = NULL, "
                     "REVOKE_REASON = :r WHERE ID = :i AND REVOKED_AT IS NULL",
                     r=(reason or "")[:200], i=share_id)
@@ -115,7 +129,7 @@ def revoke(share_id: int, reason: str = "") -> bool:
 def revoke_for_client(client_name: str, reason: str) -> int:
     """Все живые ссылки клиента — при отзыве его сертификата."""
     with DatabaseModel() as db:
-        cur = db.connection.cursor()
+        cur = _cursor(db)
         cur.execute("UPDATE VPNG_SHARES SET REVOKED_AT = SYSTIMESTAMP, PAYLOAD = NULL, "
                     "REVOKE_REASON = :r WHERE CLIENT_NAME = :cn AND REVOKED_AT IS NULL "
                     "AND EXPIRES_AT > SYSTIMESTAMP",
@@ -127,7 +141,7 @@ def revoke_for_client(client_name: str, reason: str) -> int:
 
 def list_shares(limit: int = 50) -> list[dict]:
     with DatabaseModel() as db:
-        cur = db.connection.cursor()
+        cur = _cursor(db)
         _purge(cur)
         db.connection.commit()
         cur.execute(

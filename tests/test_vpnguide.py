@@ -186,3 +186,10 @@ def test_page_contains_downloads_and_profile_slots():
     for slot in ("dl.windows", "dl.macos", "dl.site", "profile_url", 'id="ovpn-profile"',
                  'id="ovpn-data"', "md_url"):
         assert slot in html, slot
+
+
+def test_store_disables_parallel_dml():
+    """ADB выполняет DML параллельно, и с внешним ключом это ORA-12860 (04.10.2026)."""
+    src = _read("modules/vpnguide/store.py")
+    assert "ALTER SESSION DISABLE PARALLEL DML" in src
+    assert src.count("db.connection.cursor()") == 1, "все курсоры — через _cursor(db)"
