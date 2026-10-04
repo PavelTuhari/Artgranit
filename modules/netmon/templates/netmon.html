@@ -1116,6 +1116,7 @@ async function loadAll(){
   try { FAC = await get("/facilities"); renderFac(); } catch (e) { console.warn("facilities:", e.message); }
   try { PLUGS = await get("/plugs"); renderPlugs(); } catch (e) { console.warn("plugs:", e.message); }
   try { VPN = await get("/vpn"); renderVpn(); } catch (e) { console.warn("vpn:", e.message); }
+  loadShares();
   try { ST = await get("/storage"); renderStorage(); } catch (e) { console.warn("storage:", e.message); }
 }
 
