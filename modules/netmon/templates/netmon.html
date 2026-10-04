@@ -258,9 +258,11 @@
       <div class="note">Имя: латиница, цифры, точка, дефис. После создания браузер скачает
         файл <code>.ovpn</code> — в нём закрытый ключ, поэтому передавайте его лично,
         не через общие папки и не в переписке.</div>
+      {% if vpn_guide_url %}
       <div class="note">Вместе с файлом дайте человеку ссылку на инструкцию по установке —
         она открывается и на nufarul:
-        <a href="{{ url_for('vpnguide.index') }}" target="_blank">как подключиться к офису через OpenVPN</a>.</div>
+        <a href="{{ vpn_guide_url }}" target="_blank">как подключиться к офису через OpenVPN</a>.</div>
+      {% endif %}
       <div id="vpn-result" style="margin-top:10px"></div>
     </div>
 
