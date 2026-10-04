@@ -218,25 +218,49 @@ def create_client(name: str) -> dict:
     out = _ssh(
         f"cd {EASYRSA} && "
         f"EASYRSA_CERT_EXPIRE=3650 ./easyrsa --batch build-client-full {name} nopass "
-        "2>&1 | tail -3; echo '===BUILD_DONE==='; "
-        # собираем профиль из шаблона и выданных ключей
-        f"{{ cat {SRV_DIR}/client-common.txt; "
-        f"  echo '<ca>'; cat {EASYRSA}/pki/ca.crt; echo '</ca>'; "
-        f"  echo '<cert>'; sed -ne '/BEGIN CERTIFICATE/,$ p' {EASYRSA}/pki/issued/{name}.crt; echo '</cert>'; "
-        f"  echo '<key>'; cat {EASYRSA}/pki/private/{name}.key; echo '</key>'; "
-        f"  echo '<tls-crypt>'; sed -ne '/BEGIN OpenVPN Static key/,$ p' {SRV_DIR}/tc.key; echo '</tls-crypt>'; "
-        f"}} 2>/dev/null", timeout=180)
+        "2>&1 | tail -3; echo '===BUILD_DONE==='; " + _PROFILE_CMD.format(name=name),
+        timeout=180)
 
     if "===BUILD_DONE===" not in out:
         raise RuntimeError(f"выпуск сертификата не завершился: {out[:200]}")
     build_log, _, profile = out.partition("===BUILD_DONE===")
+    return _profile_result(name, profile, build_log)
+
+
+# Сборка профиля из шаблона клиента и уже выданных ключей — без выпуска.
+_PROFILE_CMD = (
+    f"{{{{ cat {SRV_DIR}/client-common.txt; "
+    f"  echo '<ca>'; cat {EASYRSA}/pki/ca.crt; echo '</ca>'; "
+    f"  echo '<cert>'; sed -ne '/BEGIN CERTIFICATE/,$ p' {EASYRSA}/pki/issued/{{name}}.crt; echo '</cert>'; "
+    f"  echo '<key>'; cat {EASYRSA}/pki/private/{{name}}.key; echo '</key>'; "
+    f"  echo '<tls-crypt>'; sed -ne '/BEGIN OpenVPN Static key/,$ p' {SRV_DIR}/tc.key; echo '</tls-crypt>'; "
+    f"}}}} 2>/dev/null")
+
+
+def _profile_result(name: str, profile: str, log: str = "") -> dict:
     profile = profile.strip()
-    if "<key>" not in profile or "BEGIN PRIVATE KEY" not in profile:
-        raise RuntimeError(f"профиль собран неполностью: {build_log.strip()[:200]}")
+    if "<key>" not in profile or "BEGIN PRIVATE KEY" not in profile \
+            or "BEGIN CERTIFICATE" not in profile.split("<cert>")[-1]:
+        raise RuntimeError(f"профиль собран неполностью: {log.strip()[:200]}")
     return {"name": name, "profile": profile, "size_kb": len(profile) // 1024 + 1,
             "endpoint": PUBLIC_ENDPOINT,
             "hint": "Файл содержит закрытый ключ: передать владельцу лично, "
                     "в репозиторий и общие папки не класть."}
+
+
+def get_profile(name: str) -> dict:
+    """Профиль для УЖЕ выданного, действующего сертификата — без нового выпуска.
+
+    Нужен, когда файл потерялся или браузер его не сохранил. Раньше единственный
+    путь к профилю шёл через выпуск, и повторное скачивание падало с ошибкой
+    «сертификат уже выдан».
+    """
+    if not NAME_RE.match(name or ""):
+        raise ValueError("недопустимое имя клиента")
+    valid = {c["name"] for c in status()["certificates"] if not c["revoked"]}
+    if name not in valid:
+        raise ValueError(f"действующего сертификата «{name}» нет")
+    return _profile_result(name, _ssh(_PROFILE_CMD.format(name=name), timeout=60))
 
 
 def revoke_client(name: str) -> dict:
