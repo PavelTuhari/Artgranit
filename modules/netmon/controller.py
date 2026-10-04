@@ -476,14 +476,21 @@ class NetmonController:
 
     @staticmethod
     def vpn_revoke(name, user="system"):
-        """Отзывает доступ."""
+        """Отзывает доступ — и вместе с ним все живые ссылки на этот профиль."""
         try:
             from modules.netmon import openvpn as ov
-            return _ok(ov.revoke_client((name or "").strip()))
+            name = (name or "").strip()
+            res = ov.revoke_client(name)
         except ValueError as e:
             return _fail(e, 400)
         except Exception as e:  # noqa: BLE001
             return _fail(e)
+        try:
+            from modules.vpnguide import store
+            res["shares_revoked"] = store.revoke_for_client(name, f"сертификат отозван ({user})")
+        except Exception as e:  # noqa: BLE001
+            res["shares_error"] = str(e)[:200]
+        return _ok(res)
 
     # ------------------------------------------- диски сервера баз данных
 
