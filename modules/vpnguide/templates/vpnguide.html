@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Подключение к офису — OpenVPN</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#ffffff; --line:#dfe3e8; --txt:#1c2128; --dim:#5b6573;
+    --acc:#0a66c2; --ok:#1a7f37; --warn:#9a6700; --crit:#cf222e; --code:#eef1f4;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0d1117; --panel:#161b22; --line:#30363d; --txt:#e6edf3; --dim:#8b949e;
+      --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --crit:#f85149; --code:#1f252d;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1117; --panel:#161b22; --line:#30363d; --txt:#e6edf3; --dim:#8b949e;
+    --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --crit:#f85149; --code:#1f252d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  main{max-width:820px;margin:0 auto;padding:24px 16px 60px}
+  h1{font-size:24px;margin:0 0 6px}
+  h2{font-size:18px;margin:30px 0 10px}
+  .lead{color:var(--dim);margin:0 0 20px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+  .card.warn{border-left:4px solid var(--warn)}
+  .card.crit{border-left:4px solid var(--crit)}
+  ol{padding-left:22px;margin:8px 0} li{margin:7px 0}
+  code{background:var(--code);padding:1px 6px;border-radius:5px;font:13px ui-monospace,SFMono-Regular,Menlo,monospace}
+  pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow-x:auto;margin:8px 0}
+  pre code{background:none;padding:0}
+  a{color:var(--acc)}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 0}
+  .tabs button{border:1px solid var(--line);background:var(--panel);color:var(--txt);
+               padding:7px 14px;border-radius:20px;cursor:pointer;font:inherit;font-size:14px}
+  .tabs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+  .pane{display:none} .pane.on{display:block}
+  table{width:100%;border-collapse:collapse;font-size:14px}
+  td,th{border-bottom:1px solid var(--line);padding:9px 6px;text-align:left;vertical-align:top}
+  th{color:var(--dim);font-weight:600}
+  .ok{color:var(--ok)} .dim{color:var(--dim)}
+  .steps-head{display:flex;align-items:center;gap:10px;margin:0 0 4px}
+  .num{display:inline-flex;width:28px;height:28px;border-radius:50%;background:var(--acc);
+       color:#fff;align-items:center;justify-content:center;font-weight:700;flex:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>🔐 Подключение к офису через OpenVPN</h1>
+  <p class="lead">Как работать с офисными программами и серверами из дома или в поездке.
+    Займёт пять минут, один раз на каждое устройство.</p>
+
+  <div class="card">
+    <div class="steps-head"><span class="num">1</span><b>Получите файл доступа</b></div>
+    Это файл с расширением <code>.ovpn</code>, например <code>IvanPetrov.ovpn</code>.
+    Его выдаёт администратор — <b>лично каждому сотруднику</b>. В файле уже есть всё
+    нужное: адрес сервера и ваш личный ключ. Ничего вводить руками не придётся.
+  </div>
+
+  <div class="card">
+    <div class="steps-head"><span class="num">2</span><b>Поставьте программу и подключитесь</b></div>
+    Программа одна для всех устройств — <b>OpenVPN Connect</b>, официальный бесплатный
+    клиент. Выберите своё устройство:
+    <div class="tabs" role="tablist">
+      {% for key, label in platforms %}
+      <button role="tab" data-p="{{ key }}" {% if loop.first %}class="on"{% endif %}>{{ label }}</button>
+      {% endfor %}
+    </div>
+
+    <section class="pane on" id="p-windows">
+      <ol>
+        <li>Откройте <a href="https://openvpn.net/client/" target="_blank" rel="noopener">openvpn.net/client</a>
+          и скачайте <b>OpenVPN Connect для Windows</b>.</li>
+        <li>Запустите скачанный файл и установите программу — везде «Далее».</li>
+        <li>Откройте OpenVPN Connect. Выберите <b>Upload File</b> (или <b>Import Profile → File</b>)
+          и перетащите в окно свой файл <code>.ovpn</code>.</li>
+        <li>Нажмите <b>Connect</b>. Если Windows спросит разрешение — разрешите.</li>
+      </ol>
+    </section>
+
+    <section class="pane" id="p-macos">
+      <ol>
+        <li>Откройте <a href="https://openvpn.net/client/" target="_blank" rel="noopener">openvpn.net/client</a>
+          и скачайте <b>OpenVPN Connect для macOS</b>.</li>
+        <li>Откройте скачанный файл <code>.dmg</code> и установите программу.
+          macOS попросит разрешить установку системного расширения — разрешите в
+          «Системных настройках → Конфиденциальность и безопасность».</li>
+        <li>Откройте OpenVPN Connect → <b>Upload File</b> и перетащите свой файл <code>.ovpn</code>.</li>
+        <li>Нажмите <b>Connect</b>. При первом подключении macOS спросит, можно ли добавить
+          конфигурацию VPN, — нажмите «Разрешить».</li>
+      </ol>
+    </section>
+
+    <section class="pane" id="p-iphone">
+      <ol>
+        <li>Поставьте <a href="https://apps.apple.com/app/openvpn-connect/id590379981" target="_blank" rel="noopener">OpenVPN Connect из App Store</a>.</li>
+        <li>Перенесите файл <code>.ovpn</code> на телефон: через AirDrop со своего компьютера
+          или сохраните его в приложение «Файлы».</li>
+        <li>Нажмите на файл → <b>Поделиться</b> → <b>OpenVPN</b>. Приложение откроется
+          и предложит профиль — нажмите <b>Add</b>.</li>
+        <li>Включите переключатель профиля. iPhone спросит про добавление конфигурации VPN —
+          разрешите и подтвердите код-паролем.</li>
+      </ol>
+    </section>
+
+    <section class="pane" id="p-android">
+      <ol>
+        <li>Поставьте <a href="https://play.google.com/store/apps/details?id=net.openvpn.openvpn" target="_blank" rel="noopener">OpenVPN Connect из Google Play</a>.</li>
+        <li>Перенесите файл <code>.ovpn</code> на телефон, например кабелем в папку
+          «Загрузки».</li>
+        <li>Откройте OpenVPN Connect → <b>Upload File</b> → <b>Browse</b> и выберите файл.
+          Нажмите <b>Add</b>.</li>
+        <li>Включите переключатель профиля. Android спросит разрешение на VPN — нажмите «ОК».</li>
+      </ol>
+    </section>
+
+    <section class="pane" id="p-linux">
+      <p>Проще всего — через встроенный менеджер сетей (Ubuntu, Mint, Fedora):</p>
+<pre><code>sudo apt install network-manager-openvpn-gnome     # в Fedora: dnf install NetworkManager-openvpn-gnome
+nmcli connection import type openvpn file IvanPetrov.ovpn</code></pre>
+      <p>После этого подключение появится в меню сети — включайте его там.
+        Без графической оболочки:</p>
+<pre><code>sudo apt install openvpn
+sudo openvpn --config IvanPetrov.ovpn</code></pre>
+      <p class="dim">Окно терминала держите открытым, пока работаете: закроете — соединение оборвётся.</p>
+    </section>
+  </div>
+
+  <div class="card">
+    <div class="steps-head"><span class="num">3</span><b>Проверьте, что всё работает</b></div>
+    В программе статус сменится на <span class="ok"><b>Connected</b></span>, обычно за 5–10 секунд.
+    После этого офисные программы и папки открываются так же, как в офисе.
+    Закончили работу — нажмите <b>Disconnect</b>.
+  </div>
+
+  <h2>Правила</h2>
+  <div class="card crit">
+    <b>Файл <code>.ovpn</code> — это ваш личный ключ от офиса.</b>
+    <ul>
+      <li>Не пересылайте его коллегам, не кладите в облако, общие папки и мессенджеры.
+        У каждого сотрудника свой файл.</li>
+      <li><b>Потеряли телефон или ноутбук</b>, на котором стоит профиль, — сразу сообщите
+        администратору. Доступ отключат за минуту, новый выдадут заново.</li>
+      <li>Один профиль можно поставить на несколько своих устройств, но подключаться
+        одновременно с двух не получится: второе подключение выбивает первое.</li>
+    </ul>
+  </div>
+
+  <h2>Если не подключается</h2>
+  <div class="card">
+    <table>
+      <tr><th style="width:42%">Что видите</th><th>Что делать</th></tr>
+      <tr><td>Долго висит «Connecting…», потом ошибка <code>TLS handshake failed</code>
+          или <code>Connection timeout</code></td>
+          <td>Чаще всего сеть, к которой вы подключены, блокирует VPN — так бывает в гостиницах,
+          кафе и гостевом Wi-Fi. Попробуйте раздать интернет с телефона.</td></tr>
+      <tr><td><code>AUTH_FAILED</code>, <code>certificate revoked</code>
+          или «сертификат отозван»</td>
+          <td>Ваш доступ отключён. Обратитесь к администратору за новым файлом.</td></tr>
+      <tr><td>Подключение каждые несколько минут рвётся и восстанавливается</td>
+          <td>Тот же профиль включён на другом вашем устройстве — отключите его там.</td></tr>
+      <tr><td>Статус <b>Connected</b>, но офисные программы не открываются</td>
+          <td>Нажмите Disconnect, подождите десять секунд и подключитесь снова.
+          Не помогло — напишите администратору, когда и что именно не открылось.</td></tr>
+      <tr><td>Программа не принимает файл</td>
+          <td>Проверьте, что расширение <code>.ovpn</code>, а не <code>.ovpn.txt</code>
+          или <code>.txt</code>: почта и мессенджеры иногда его меняют. Попросите прислать
+          заново лично.</td></tr>
+    </table>
+  </div>
+</main>
+<script>
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".tabs button").forEach(x => x.classList.remove("on"));
+  document.querySelectorAll(".pane").forEach(x => x.classList.remove("on"));
+  b.classList.add("on");
+  document.getElementById("p-" + b.dataset.p).classList.add("on");
+  try { localStorage.setItem("vpnguide-platform", b.dataset.p); } catch (e) {}
+});
+// Сразу открываем вкладку своего устройства: сотрудник чаще всего читает
+// инструкцию с того самого телефона или ноутбука, который настраивает.
+(function(){
+  let p = null;
+  try { p = localStorage.getItem("vpnguide-platform"); } catch (e) {}
+  if (!p) {
+    const ua = navigator.userAgent;
+    p = /iPhone|iPad|iPod/.test(ua) ? "iphone" : /Android/.test(ua) ? "android"
+      : /Mac OS X/.test(ua) ? "macos" : /Linux/.test(ua) ? "linux" : "windows";
+  }
+  const b = document.querySelector(`.tabs button[data-p="${p}"]`);
+  if (b) b.click();
+})();
+</script>
+</body>
+</html>
