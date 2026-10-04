@@ -542,3 +542,20 @@ def _service_summary(f: dict, fac) -> dict:
         if order[st["level"]] > order[worst["level"]]:
             worst = st
     return worst
+
+
+def _make_share(client_name: str, profile: str, minutes, lang: str, user: str) -> dict:
+    """Ссылка для получателя: модуль vpnguide хранит её и отдаёт публично.
+
+    Абсолютный адрес — всегда публичного сервера: открывать ссылку будут
+    снаружи, а не с машины администратора.
+    """
+    from flask import url_for
+
+    from modules.vpnguide import store
+    from modules.vpnguide.routes import PUBLIC_BASE
+    s = store.create_share(client_name, profile, minutes, user, lang)
+    path = url_for("vpnguide.share_page", token=s["token"])
+    return {"id": s["id"], "url": PUBLIC_BASE + path,
+            "markdown_url": PUBLIC_BASE + url_for("vpnguide.share_markdown", token=s["token"]),
+            "ttl_min": s["ttl_min"], "expires_local": s["expires_local"]}
