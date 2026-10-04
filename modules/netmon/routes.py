@@ -287,8 +287,34 @@ def api_vpn_create():
     if (g := _guard()) is not None:
         return g
     body = request.get_json(silent=True) or {}
-    return _reply(NetmonController.vpn_create(body.get("name"),
-                                              user=session.get("username", "system")))
+    return _reply(NetmonController.vpn_create(
+        body.get("name"), user=session.get("username", "system"),
+        share_minutes=body.get("share_minutes"), share_lang=body.get("share_lang", "ru")))
+
+
+@blueprint.route("/api/vpn/clients/<name>/share", methods=["POST"])
+def api_vpn_share(name):
+    """Ссылка для получателя на уже выданный сертификат (15 минут по умолчанию)."""
+    if (g := _guard()) is not None:
+        return g
+    body = request.get_json(silent=True) or {}
+    return _reply(NetmonController.vpn_share(name, body.get("minutes"), body.get("lang", "ru"),
+                                             user=session.get("username", "system")))
+
+
+@blueprint.route("/api/vpn/shares")
+def api_vpn_shares():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.vpn_shares())
+
+
+@blueprint.route("/api/vpn/shares/<int:share_id>/revoke", methods=["POST"])
+def api_vpn_share_revoke(share_id):
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.vpn_share_revoke(share_id,
+                                                    user=session.get("username", "system")))
 
 
 @blueprint.route("/api/vpn/clients/<name>/revoke", methods=["POST"])
