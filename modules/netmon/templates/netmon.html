@@ -900,7 +900,9 @@ function renderVpn(){
                       : `<span class="badge b-ok">действует</span>`}</td>
       <td>${c.online ? `<span class="badge b-ok">в сети</span>` : `<span class="dim">—</span>`}</td>
       <td>${c.revoked ? "" :
-        `<button onclick="revokeVpn('${esc(c.name)}')">Отозвать</button>`}</td>
+        `<a href="${API}/vpn/clients/${encodeURIComponent(c.name)}/profile"
+            title="Повторно скачать профиль .ovpn без нового выпуска"><button>Профиль</button></a>
+         <button onclick="revokeVpn('${esc(c.name)}')">Отозвать</button>`}</td>
     </tr>`).join("") || `<tr><td colspan="5" class="dim">ничего не найдено</td></tr>`;
 }
 
