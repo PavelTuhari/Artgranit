@@ -323,10 +323,20 @@ async function get(path){
   if (!j.success) throw new Error(j.message || "ошибка запроса");
   return j.data;
 }
-async function post(path){
-  const r = await fetch(API + path, {method:"POST"});
-  const j = await r.json();
-  if (!j.success) throw new Error(j.message || "ошибка синхронизации");
+// Тело запроса отправляется JSON-ом. Раньше функция принимала только адрес и
+// молча выбрасывала второй аргумент: выдача доступа OpenVPN и запись работ по
+// оборудованию уходили на сервер пустыми и падали с ошибкой валидации.
+async function post(path, body){
+  const opt = {method: "POST", headers: {"Accept": "application/json"}};
+  if (body !== undefined) {
+    opt.headers["Content-Type"] = "application/json";
+    opt.body = JSON.stringify(body);
+  }
+  const r = await fetch(API + path, opt);
+  let j;
+  try { j = await r.json(); }
+  catch (e) { throw new Error(`сервер ответил ${r.status} не в формате JSON`); }
+  if (!j.success) throw new Error(j.message || `ошибка запроса (${r.status})`);
   return j.data;
 }
 
