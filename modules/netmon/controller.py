@@ -423,6 +423,17 @@ class NetmonController:
             return _fail(e)
 
     @staticmethod
+    def vpn_profile(name):
+        """Профиль уже выданного сертификата — повторное скачивание без выпуска."""
+        try:
+            from modules.netmon import openvpn as ov
+            return _ok(ov.get_profile((name or "").strip()))
+        except ValueError as e:
+            return _fail(e, 404)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
     def vpn_revoke(name, user="system"):
         """Отзывает доступ."""
         try:
