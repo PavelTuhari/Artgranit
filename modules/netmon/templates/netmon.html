@@ -927,8 +927,71 @@ function renderVpn(){
       <td>${c.revoked ? "" :
         `<a href="${API}/vpn/clients/${encodeURIComponent(c.name)}/profile"
             title="Повторно скачать профиль .ovpn без нового выпуска"><button>Профиль</button></a>
-         <button onclick="revokeVpn('${esc(c.name)}')">Отозвать</button>`}</td>
+         <button onclick="shareVpn('${esc(c.name)}')"
+            title="Ссылка с инструкцией и файлом для получателя">Ссылка</button>
+         <button onclick="revokeVpn('${esc(c.name)}')">Отозвать</button>
+         <div class="vpn-share-box" id="share-${esc(c.name)}"></div>`}</td>
     </tr>`).join("") || `<tr><td colspan="5" class="dim">ничего не найдено</td></tr>`;
+}
+
+// Ссылка для получателя: показываем адрес и кнопку копирования. Сам адрес в
+// панели не хранится — после перезагрузки страницы его не достать, только
+// сделать новый. Так задумано: токен существует только у того, кому его дали.
+function shareHtml(s){
+  const id = "sh" + s.id;
+  return `<div class="card" style="margin-top:8px;padding:10px 12px">
+    <div style="font-size:13px">Ссылка на <b>${s.ttl_min} мин</b>, до <b>${esc(s.expires_local)}</b>:</div>
+    <div class="filters" style="margin:6px 0 0">
+      <input type="text" id="${id}" value="${esc(s.url)}" readonly style="flex:1;min-width:240px;font-size:12px">
+      <button onclick="copyShare('${id}', this)">Копировать</button>
+      <a href="${esc(s.url)}" target="_blank" rel="noreferrer"><button>Открыть</button></a>
+    </div>
+    <div class="note" style="margin-top:6px">Отправьте ссылку получателю. После срока она перестанет
+      открываться; отозвать раньше — в таблице «Ссылки для получателей».</div></div>`;
+}
+
+async function copyShare(id, btn){
+  const el = document.getElementById(id);
+  try { await navigator.clipboard.writeText(el.value); }
+  catch (e) { el.select(); document.execCommand("copy"); }
+  btn.textContent = "Скопировано ✓";
+}
+
+async function shareVpn(name){
+  const m = prompt(`Ссылка для «${name}»: на сколько минут?`, "15");
+  if (m === null) return;
+  const box = document.getElementById("share-" + name);
+  box.innerHTML = `<span class="dim">делаю ссылку…</span>`;
+  try {
+    const s = await post(`/vpn/clients/${encodeURIComponent(name)}/share`,
+                         {minutes: m, lang: document.getElementById("vpn-share-lang").value});
+    box.innerHTML = shareHtml(s);
+    loadShares();
+  } catch (e) { box.innerHTML = `<span class="crit">Не получилось: ${esc(e.message)}</span>`; }
+}
+
+const SHARE_STATE = {active: ["действует", "b-ok"], expired: ["истекла", "b-dim"],
+                     revoked: ["отозвана", "b-no"]};
+async function loadShares(){
+  let rows = [];
+  try { rows = await get("/vpn/shares"); } catch (e) { console.warn("shares:", e.message); return; }
+  document.querySelector("#vpn-shares tbody").innerHTML = rows.map(s => {
+    const [label, cls] = SHARE_STATE[s.state] || [s.state, "b-dim"];
+    return `<tr>
+      <td><b>${esc(s.client_name)}</b><div class="dim" style="font-size:11px">${esc(s.created_by || "")}</div></td>
+      <td class="dim">${esc(s.created_local)}</td>
+      <td class="dim">${esc(s.expires_local)} <span style="font-size:11px">(${s.ttl_min} мин)</span></td>
+      <td><span class="badge ${cls}" title="${esc(s.revoke_reason || "")}">${label}</span></td>
+      <td>${s.page_hits} / ${s.downloads}</td>
+      <td class="dim">${esc(s.last_hit_local || "—")}</td>
+      <td>${s.state === "active" ? `<button onclick="revokeShare(${s.id})">Отозвать ссылку</button>` : ""}</td>
+    </tr>`; }).join("") || `<tr><td colspan="7" class="dim">ссылок ещё не было</td></tr>`;
+}
+
+async function revokeShare(id){
+  if (!confirm("Отозвать ссылку? Сертификат останется действующим, перестанет открываться только ссылка.")) return;
+  try { await post(`/vpn/shares/${id}/revoke`); loadShares(); }
+  catch (e) { alert("Не удалось: " + e.message); }
 }
 
 async function addVpnClient(){
@@ -939,8 +1002,13 @@ async function addVpnClient(){
   const btn = document.getElementById("vpn-add");
   btn.disabled = true;
   box.innerHTML = `<span class="dim">создаю сертификат, это занимает несколько секунд…</span>`;
+  const body = {name};
+  if (document.getElementById("vpn-share-on").checked) {
+    body.share_minutes = document.getElementById("vpn-share-min").value || 15;
+    body.share_lang = document.getElementById("vpn-share-lang").value;
+  }
   try {
-    const r = await post("/vpn/clients", {name});
+    const r = await post("/vpn/clients", body);
     // профиль сразу отдаём файлом, на сервере он не хранится
     const blob = new Blob([r.profile], {type: "application/x-openvpn-profile"});
     const a = document.createElement("a");
