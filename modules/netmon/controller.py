@@ -411,14 +411,55 @@ class NetmonController:
             return _fail(e)
 
     @staticmethod
-    def vpn_create(name, user="system"):
-        """Выдаёт новый доступ: сертификат и готовый профиль .ovpn."""
+    def vpn_create(name, user="system", share_minutes=None, share_lang="ru"):
+        """Выдаёт новый доступ: сертификат и готовый профиль .ovpn.
+
+        share_minutes — по желанию сразу сделать ссылку для получателя.
+        Если сертификат выпущен, а ссылка не создалась, выдача НЕ считается
+        неудачной: профиль уже в ответе, ссылку можно сделать отдельно.
+        """
         try:
             from modules.netmon import openvpn as ov
             res = ov.create_client((name or "").strip())
-            return _ok(res)
         except ValueError as e:
             return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+        if share_minutes not in (None, "", False, 0, "0"):
+            try:
+                res["share"] = _make_share(res["name"], res["profile"], share_minutes,
+                                           share_lang, user)
+            except Exception as e:  # noqa: BLE001
+                res["share_error"] = str(e)[:200]
+        return _ok(res)
+
+    @staticmethod
+    def vpn_share(name, minutes=None, lang="ru", user="system"):
+        """Ссылка для получателя на уже выданный сертификат."""
+        try:
+            from modules.netmon import openvpn as ov
+            prof = ov.get_profile((name or "").strip())
+            return _ok(_make_share(prof["name"], prof["profile"], minutes, lang, user))
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def vpn_shares():
+        try:
+            from modules.vpnguide import store
+            return _ok(store.list_shares())
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def vpn_share_revoke(share_id, user="system"):
+        try:
+            from modules.vpnguide import store
+            if not store.revoke(int(share_id), f"отозвана вручную ({user})"):
+                return _fail("ссылка уже не действует", 404)
+            return _ok({"id": int(share_id), "revoked": True})
         except Exception as e:  # noqa: BLE001
             return _fail(e)
 
