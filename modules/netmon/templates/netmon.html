@@ -1018,9 +1018,12 @@ async function addVpnClient(){
     URL.revokeObjectURL(a.href);
     box.innerHTML = `<span class="ok">Профиль <b>${esc(name)}.ovpn</b> создан и скачан
       (${r.size_kb} КБ). Подключение: <code>${esc(r.endpoint)}</code></span>
-      <div class="note">${esc(r.hint)}</div>`;
+      <div class="note">${esc(r.hint)}</div>`
+      + (r.share ? shareHtml(r.share) : "")
+      + (r.share_error ? `<div class="crit" style="margin-top:6px">Сертификат выпущен, но ссылку
+          сделать не удалось: ${esc(r.share_error)}. Сделайте её кнопкой «Ссылка» в таблице.</div>` : "");
     input.value = "";
-    VPN = await get("/vpn"); renderVpn();
+    VPN = await get("/vpn"); renderVpn(); loadShares();
   } catch (e) {
     box.innerHTML = `<span class="crit">Не получилось: ${esc(e.message)}</span>`;
   } finally { btn.disabled = false; }
