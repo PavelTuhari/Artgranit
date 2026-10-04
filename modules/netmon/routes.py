@@ -286,10 +286,14 @@ def api_vpn_revoke(name):
 
 @blueprint.route("/api/vpn/clients/<name>/profile")
 def api_vpn_profile(name):
-    """Отдаёт .ovpn файлом. Профиль содержит закрытый ключ — не кэшируем."""
+    """Отдаёт .ovpn УЖЕ выданного сертификата файлом, без нового выпуска.
+
+    Профиль содержит закрытый ключ — не кэшируем. Раньше этот адрес выпускал
+    сертификат заново, и повторное скачивание падало с «уже выдан».
+    """
     if (g := _guard()) is not None:
         return g
-    payload, code = NetmonController.vpn_create(name, user=session.get("username", "system"))
+    payload, code = NetmonController.vpn_profile(name)
     if code != 200:
         return jsonify(payload), code
     from flask import Response
