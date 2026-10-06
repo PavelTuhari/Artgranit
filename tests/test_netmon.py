@@ -283,7 +283,8 @@ def test_vault_never_returns_password_values():
     # Панель показывает, какой доступ есть и как достать его из Keychain,
     # но не сами значения.
     src = _read("modules/netmon/controller.py")
-    vault = src[src.index("def vault("):src.index("def _vault_group")]
+    start = src.index("def vault(")
+    vault = src[start:src.index("    @staticmethod", start)]   # только сам метод vault()
     # проверяем наличие пароля только там, где он был бы значением,
     # а не в названии команды security find-*-password
     cleaned = vault.replace("find-generic-password", "").replace("find-internet-password", "")
@@ -784,3 +785,140 @@ def test_mikrotik_findings_flag_pptp():
 def test_mikrotik_disable_revokes_only_l2tp_links():
     src = _read("modules/netmon/controller.py")
     assert 'kind="l2tp"' in src and 'kind="openvpn"' in src
+
+
+# --------------------------------------------- файловые ресурсы 192.168.0.21
+
+def test_fs_login_from_email():
+    import pytest
+    from modules.netmon import fileshare as fs
+    assert fs.login_from_email("Ivan.Petrov@unisim-soft.com") == "ivan-petrov"
+    assert fs.login_from_email("o_tuhari@unisim-soft.com") == "o_tuhari"
+    for bad in ("ivan@gmail.com", "ivan@unisim-soft.com.evil.md", "; rm -rf /@unisim-soft.com",
+                "", "@unisim-soft.com", "a b@unisim-soft.com"):
+        with pytest.raises(ValueError):
+            fs.login_from_email(bad)
+
+
+def test_fs_policy_matches_owner_decision():
+    """06.10.2026: U, K, T — только администрация, I, X, M — все три группы."""
+    ddl = _read("modules/netmon/sql/203_nmon_fs.sql")
+    import re
+    pol = set(re.findall(r"VALUES \('(\w+)', '(admin|consult|support)'\)", ddl))
+    for share in ("unisim", "uni_bank", "st8"):
+        assert {r for s, r in pol if s == share} == {"admin"}, share
+    for share in ("docs", "shares", "db"):
+        assert {r for s, r in pol if s == share} == {"admin", "consult", "support"}, share
+    drives = dict(re.findall(r"VALUES \('(\w+)', '([A-Z])'", ddl))
+    assert drives == {"unisim": "U", "uni_bank": "K", "st8": "T", "docs": "I", "shares": "X", "db": "M"}
+
+
+def test_fs_effective_open_share_lets_everyone_in():
+    """Без valid users в ресурс входит любой — так сейчас устроены U, I, M, T."""
+    from modules.netmon import fileshare as fs
+    e = fs.effective({"read only": "No", "admin users": "netuser"}, ["a", "netuser"], {})
+    assert e["open_to_all"] and e["enter"] == ["a", "netuser"] and e["root"] == ["netuser"]
+
+
+def test_fs_effective_groups_and_junk():
+    from modules.netmon import fileshare as fs
+    sh = {"valid users": '"@shares read", ivan', "read list": '"@shares read"  ; all from folder clients',
+          "read only": "No"}
+    e = fs.effective(sh, ["ivan", "petr", "maria"], {"shares read": ["petr"]}, known={"ivan", "petr", "maria"})
+    assert e["enter"] == ["ivan", "petr"] and e["write"] == ["ivan"]
+    assert {"all", "from", "folder", "clients"} <= set(e["junk"]), "встроенный «комментарий» — мусор"
+
+
+_FS_POLICY = {"roles": {"admin": {"title": "А", "group": "fs_administratia"},
+                        "consult": {"title": "К", "group": "fs_consult_prog"}},
+              "shares": [{"name": "unisim", "drive": "U", "roles": ["admin"]},
+                         {"name": "docs", "drive": "I", "roles": ["admin", "consult"]}]}
+_FS_CONF = ("[global]\n\tworkgroup = INTERNAL\n\tsecurity = ADS\n"
+            "[docs]\n   path = /storage/docs\n   admin users = netuser\n   ;valid users = x\n   read only = No\n"
+            "[unisim]\n   path = /storage/unisim\n   admin users = \"@domain admins\", netuser\n"
+            "\tread list = \"@unisim read\"\n[other]\n   valid users = keep-me\n")
+
+
+def test_fs_render_is_reversible_and_idempotent():
+    """revert(render(x)) == x байт в байт: панель не трогает ничего лишнего."""
+    from modules.netmon import fs_policy as fp
+    for mode in fp.MODES:
+        new = fp.render(_FS_CONF, _FS_POLICY, mode, ("netuser",), "2026-10-06")
+        assert fp.revert(new) == _FS_CONF, mode
+        again = fp.render(new, _FS_POLICY, mode, ("netuser",), "2026-10-07")
+        assert again.count(fp.BEGIN) == 2 and fp.revert(again) == _FS_CONF
+        assert "valid users = keep-me" in new, "чужие ресурсы не трогаются"
+
+
+def test_fs_transition_keeps_legacy_and_root():
+    from modules.netmon import fs_policy as fp
+    new = fp.render(_FS_CONF, _FS_POLICY, "transition", ("netuser", "netadmin"), "2026-10-06")
+    assert "valid users = @fs_administratia, netuser, netadmin" in new
+    assert "valid users = @fs_administratia, @fs_consult_prog, netuser, netadmin" in new
+    assert '\n   admin users = "@domain admins", netuser' in new, "root-права в переходном режиме не меняются"
+
+
+def test_fs_final_drops_legacy_and_root():
+    from modules.netmon import fs_policy as fp
+    new = fp.render(_FS_CONF, _FS_POLICY, "final", ("netuser",), "2026-10-06")
+    assert "valid users = @fs_administratia\n" in new
+    active = [l for l in new.split("\n") if not l.startswith(";") and "admin users" in l]
+    assert not active, "в финальном режиме root-права убраны"
+
+
+def test_fs_impact_transition_cuts_nobody_working():
+    from modules.netmon import fs_policy as fp
+    status = {"shares": [{"name": "unisim", "open_to_all": True, "local_enter": ["netuser", "tester"]},
+                         {"name": "docs", "open_to_all": True, "local_enter": ["netuser", "tester"]}],
+              "local_users": [{"login": "netuser"}, {"login": "tester"}],
+              "role_groups": {"admin": ["ivan"], "consult": ["maria"]},
+              "sessions": {"netuser": ["pc1", "pc2"]}, "domain_users": 424}
+    imp = {i["name"]: i for i in fp.impact(status, _FS_POLICY, "transition", ("netuser",))}
+    assert imp["unisim"]["machines_cut"] == [] and imp["unisim"]["lose"] == ["tester"]
+    assert "ivan" in imp["unisim"]["gain"] and "maria" not in imp["unisim"]["gain"]
+    assert "maria" in imp["docs"]["gain"]
+    fin = {i["name"]: i for i in fp.impact(status, _FS_POLICY, "final", ("netuser",))}
+    assert fin["unisim"]["machines_cut"] == ["pc1", "pc2"], "финальный режим честно показывает, кого отрежет"
+
+
+def test_fs_apply_guards():
+    src = _read("modules/netmon/fileshare.py")
+    assert "md5 != expected_md5" in src, "применение только по свежему пробному расчёту"
+    assert "testparm -s {tmp}" in src and "cp -a {CONF} {backup}" in src
+    assert "reload-config" in src and "restart" not in src.split("def apply")[1].split("def backups")[0]
+    routes = _read("modules/netmon/routes.py")
+    assert 'body.get("confirm") != "ПРИМЕНИТЬ"' in routes
+
+
+def test_fs_accounts_have_no_shell_and_password_via_stdin():
+    src = _read("modules/netmon/fileshare.py")
+    assert "-s /sbin/nologin" in src, "учётки сотрудников — без входа в систему"
+    assert 'smbpasswd -s -a {login}", stdin=' in src, "пароль не должен попадать в командную строку"
+
+
+def test_fs_ddl_has_no_semicolons_in_comments_and_tz_times():
+    import re
+    ddl = _read("modules/netmon/sql/203_nmon_fs.sql")
+    for line in ddl.splitlines():
+        if line.strip().startswith("--"):
+            assert ";" not in line, line
+    assert re.search(r"CREATED_AT\s+TIMESTAMP WITH TIME ZONE", ddl)
+
+
+def test_smb_cmd_handles_error_1219_and_literal_findstr():
+    from modules.vpnguide import rules
+    cfg = {"server": "192.168.0.21", "netbios": "CENTOS666", "login": "ivan", "password": "Abc1",
+           "drives": [{"drive": "I", "share": "docs"}]}
+    c = rules.smb_cmd(cfg)
+    assert "findstr /i /l /c:" in c, "буквальный поиск: точки в адресе"
+    assert "cmdkey /add:192.168.0.21 /user:CENTOS666\\ivan" in c
+    assert c.index("/delete") < c.index("cmdkey /add"), "сначала снять старые подключения (ошибка 1219)"
+    assert c.startswith("@echo off") and "\r\n" in c
+
+
+def test_smb_payload_rejects_cmd_metacharacters():
+    import pytest
+    from modules.vpnguide import rules
+    for bad in ("a&b", 'a"b', "a b", "a%b", "a^b", "a|b", "a>b"):
+        with pytest.raises(ValueError):
+            rules.smb_payload("192.168.0.21", "CENTOS666", "ivan", bad, [{"drive": "I", "share": "docs"}])

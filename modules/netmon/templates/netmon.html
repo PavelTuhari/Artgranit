@@ -98,6 +98,7 @@
   <a href="#" data-p="fac">Оборудование офиса</a>
   <a href="#" data-p="vpn">OpenVPN</a>
   <a href="#" data-p="mikrotik">MikroTik</a>
+  <a href="#" data-p="fs">Файловые ресурсы</a>
   <a href="#" data-p="storage">Диски сервера БД</a>
 </nav>
 
@@ -344,6 +345,73 @@
       <th style="width:200px">Учётка</th><th style="width:80px">Протокол</th>
       <th style="width:120px">Профиль</th><th style="width:110px">Последний вход</th>
       <th style="width:100px">Состояние</th><th>Комментарий</th><th style="width:250px">Действие</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-fs">
+    <div class="tiles" id="fs-tiles"></div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Что требует внимания</h3>
+    <div id="fs-findings"></div>
+
+    <h3 style="margin:20px 0 8px;font-size:14px">Ресурсы: как сейчас и как должно быть</h3>
+    <div class="tbl-wrap"><table id="fs-shares"><thead><tr>
+      <th style="width:60px">Диск</th><th style="width:110px">Ресурс</th><th style="width:150px">Папка</th>
+      <th style="width:190px">Кто входит сейчас</th><th style="width:200px">Работают как root</th>
+      <th style="width:80px">Подкл.</th><th>Должно быть</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Выдать доступ сотруднику</h3>
+    <div class="card" style="max-width:760px">
+      <div class="filters" style="margin-bottom:6px">
+        <input type="email" id="fs-email" placeholder="почта, имя@unisim-soft.com" style="flex:1;min-width:220px">
+        <input type="text" id="fs-name" placeholder="ФИО" style="flex:1;min-width:160px">
+        <select id="fs-role"></select>
+        <button class="primary" id="fs-add">Выдать доступ</button>
+      </div>
+      <div class="filters" style="margin-bottom:6px;font-size:13px">
+        <label><input type="checkbox" id="fs-share-on" checked> сразу сделать ссылку для сотрудника на</label>
+        <input type="number" id="fs-share-min" value="15" min="1" max="1440" style="width:70px"> мин,
+        язык <select id="fs-share-lang"><option value="ru">русский</option><option value="ro">română</option><option value="en">English</option></select>
+      </div>
+      <div class="note">Учётка заводится на файловом сервере без входа в систему, только для дисков.
+        Имя входа берётся из почты (<code>ivan.petrov@…</code> → <code>ivan-petrov</code>), пароль
+        генерируется. Ссылка открывает инструкцию на трёх языках с файлом <code>.cmd</code>, который
+        сам подключает диски, положенные роли.</div>
+      <div id="fs-result" style="margin-top:10px"></div>
+    </div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Сотрудники с личными учётками</h3>
+    <div class="tbl-wrap"><table id="fs-people"><thead><tr>
+      <th style="width:230px">Почта / ФИО</th><th style="width:120px">Вход</th><th style="width:220px">Роль</th>
+      <th style="width:110px">Диски</th><th style="width:110px">Состояние</th><th style="width:150px">Подключён с</th>
+      <th>Действие</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Учётки вне учёта (общие)</h3>
+    <div class="tbl-wrap"><table id="fs-unmanaged"><thead><tr>
+      <th style="width:160px">Учётка</th><th style="width:110px">Состояние</th><th>С каких компьютеров работают сейчас</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Применить политику к серверу</h3>
+    <div class="card">
+      <div class="note" style="margin-top:0">Сначала — пробный расчёт: он ничего не меняет, а показывает,
+        кто потеряет и кто получит доступ и какие компьютеры отрежет. <b>Переходный режим</b>: входят
+        роли и общие учётки (netuser, netadmin, ptuhari) — никто из работающих не отключится.
+        <b>Финальный</b>: только роли, общие учётки и root-права убраны — включать, когда все переведены
+        на личные учётки. Перед заменой smb.conf делается резервная копия, новый файл проверяется
+        <code>testparm</code>, служба перечитывает конфигурацию без перезапуска.</div>
+      <div class="filters" style="margin-top:10px">
+        <button onclick="fsPlan('transition')">Рассчитать переходный режим</button>
+        <button onclick="fsPlan('final')">Рассчитать финальный режим</button>
+      </div>
+      <div id="fs-plan"></div>
+      <div id="fs-backups" style="margin-top:10px"></div>
+    </div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Журнал изменений</h3>
+    <div class="tbl-wrap"><table id="fs-log"><thead><tr>
+      <th style="width:140px">Когда</th><th style="width:110px">Кто</th><th style="width:140px">Действие</th>
+      <th style="width:140px">Кого</th><th>Подробно</th>
     </tr></thead><tbody></tbody></table></div>
   </section>
 
@@ -1206,6 +1274,171 @@ async function mtSetDisabled(name, disabled){
   } catch (e) { alert("Не удалось: " + e.message); }
 }
 
+let FS = null, FSPLAN = null;
+
+function renderFs(){
+  if (!FS) return;
+  const legacyN = FS.unmanaged.reduce((n, u) => n + u.machines.length, 0);
+  const open = FS.shares.filter(s => s.open_to_all).length;
+  const storage = FS.disks.find(d => d.mount === "/storage");
+  document.getElementById("fs-tiles").innerHTML =
+    tile(open, "ресурсов открыто всем", open ? "crit" : "ok") +
+    tile(legacyN, "компьютеров под общими учётками", legacyN ? "crit" : "ok") +
+    tile(FS.people.filter(p => p.status === "active").length, "сотрудников с личной учёткой") +
+    tile(FS.domain_ok ? "есть" : "НЕТ", "связь с доменом", FS.domain_ok ? "ok" : "crit") +
+    (storage ? tile(storage.percent + " %", "/storage занят", storage.percent >= 97 ? "crit" : storage.percent >= 90 ? "warn" : "ok") : "");
+  const lv = {crit: ["Опасно", "crit"], warn: ["Внимание", "warn"], info: ["К сведению", "dim"]};
+  document.getElementById("fs-findings").innerHTML = FS.findings.map(f => {
+    const [label, cls] = lv[f.level] || lv.info;
+    return `<div class="card" style="margin-bottom:8px;border-left:3px solid var(--${cls === "dim" ? "line" : cls})">
+      <h3><span class="${cls}">${label}</span> ${esc(f.title)}</h3>
+      <div style="font-size:13px;margin-top:5px">${esc(f.text)}</div></div>`; }).join("");
+  document.querySelector("#fs-shares tbody").innerHTML = FS.shares.map(s => `<tr>
+      <td><b style="font-size:16px">${esc(s.letter)}:</b></td><td><code>${esc(s.name)}</code></td>
+      <td class="dim" style="font-size:12px">${esc(s.path)}</td>
+      <td>${s.open_to_all ? `<span class="badge b-no">все ${FS.domain_users} пользователей домена</span>`
+                          : esc(s.local_enter.join(", ") || "—")}</td>
+      <td class="${s.local_root.length ? "warn" : "dim"}">${esc(s.local_root.join(", ") || "—")}</td>
+      <td>${s.sessions}</td><td>${esc(s.target_title)}</td></tr>`).join("");
+  const roles = FS.policy.roles;
+  document.getElementById("fs-role").innerHTML = Object.values(roles).map(r =>
+    `<option value="${r.code}">${esc(r.title)}</option>`).join("");
+  document.querySelector("#fs-people tbody").innerHTML = FS.people.map(p => {
+    const l = esc(p.login);
+    const sel = `<select onchange="fsRole('${l}', this.value)">` + Object.values(roles).map(r =>
+      `<option value="${r.code}" ${r.code === p.role ? "selected" : ""}>${esc(r.title)}</option>`).join("") + `</select>`;
+    const state = !p.on_server ? `<span class="badge b-no">нет на сервере</span>`
+      : p.status === "disabled" ? `<span class="badge b-dim">выключен</span>` : `<span class="badge b-ok">действует</span>`;
+    const acts = p.status === "disabled"
+      ? `<button onclick="fsDisable('${l}', false)">Включить</button>`
+      : `<button onclick="fsReset('${l}')">Новый пароль + ссылка</button> <button onclick="fsDisable('${l}', true)">Выключить</button>`;
+    return `<tr><td><b>${esc(p.email)}</b><div class="dim" style="font-size:12px">${esc(p.full_name || "")}</div></td>
+      <td><code>${l}</code></td><td>${sel}</td><td>${p.drives.map(d => d + ":").join(" ")}</td>
+      <td>${state}</td><td class="dim" style="font-size:12px">${esc(p.machines.join(", ") || "—")}</td>
+      <td>${acts}<div id="fs-share-${l}"></div></td></tr>`; }).join("")
+    || `<tr><td colspan="7" class="dim">личных учёток ещё нет — выдайте первую формой выше</td></tr>`;
+  document.querySelector("#fs-unmanaged tbody").innerHTML = FS.unmanaged.map(u => `<tr>
+      <td><b>${esc(u.login)}</b>${FS.legacy.includes(u.login) ? ` <span class="badge b-no">общая</span>` : ""}</td>
+      <td>${u.disabled ? "выключена" : "действует"}</td>
+      <td class="dim">${esc(u.machines.join(", ") || "сейчас никто")}</td></tr>`).join("");
+  document.querySelector("#fs-log tbody").innerHTML = FS.log.map(x => `<tr>
+      <td class="dim">${esc(x.at)}</td><td>${esc(x.actor)}</td><td>${esc(x.action)}</td>
+      <td>${esc(x.target || "")}</td><td class="dim" style="font-size:12px">${esc(x.details || "")}</td></tr>`).join("")
+    || `<tr><td colspan="5" class="dim">изменений ещё не было</td></tr>`;
+  fsBackups();
+}
+
+function fsCreds(r){
+  return `<div class="card" style="margin-top:8px;padding:10px 12px;font-size:13px">
+    <b>${esc(r.email)}</b>: вход <code>${esc(r.login)}</code>, пароль <code>${esc(r.password)}</code>,
+    диски ${r.drives.map(d => esc(d.drive) + ":").join(" ")}
+    <div class="note" style="margin-top:4px">Пароль показан один раз.</div></div>`;
+}
+
+async function fsAdd(){
+  const box = document.getElementById("fs-result");
+  const body = {email: document.getElementById("fs-email").value.trim(),
+                full_name: document.getElementById("fs-name").value.trim(),
+                role: document.getElementById("fs-role").value};
+  if (!body.email) { box.innerHTML = `<span class="crit">Введите почту</span>`; return; }
+  if (document.getElementById("fs-share-on").checked) {
+    body.share_minutes = document.getElementById("fs-share-min").value || 15;
+    body.share_lang = document.getElementById("fs-share-lang").value;
+  }
+  const btn = document.getElementById("fs-add"); btn.disabled = true;
+  box.innerHTML = `<span class="dim">завожу учётку на сервере…</span>`;
+  try {
+    const r = await post("/fs/people", body);
+    box.innerHTML = `<span class="ok">Доступ выдан.</span>` + fsCreds(r) + (r.share ? shareHtml(r.share) : "")
+      + (r.share_error ? `<div class="crit">Учётка создана, ссылка не создалась: ${esc(r.share_error)}</div>` : "");
+    document.getElementById("fs-email").value = ""; document.getElementById("fs-name").value = "";
+    FS = await get("/fs"); renderFs(); loadShares();
+  } catch (e) { box.innerHTML = `<span class="crit">Не получилось: ${esc(e.message)}</span>`; }
+  finally { btn.disabled = false; }
+}
+
+async function fsRole(login, role){
+  try { const r = await post(`/fs/people/${encodeURIComponent(login)}/role`, {role});
+        FS = await get("/fs"); renderFs(); }
+  catch (e) { alert("Не удалось сменить роль: " + e.message); FS = await get("/fs"); renderFs(); }
+}
+
+async function fsReset(login){
+  const m = prompt(`«${login}»: новый пароль и ссылка. Старый пароль перестанет работать.\nНа сколько минут ссылка?`, "15");
+  if (m === null) return;
+  const box = document.getElementById("fs-share-" + login);
+  box.innerHTML = `<span class="dim">меняю пароль…</span>`;
+  try {
+    const r = await post(`/fs/people/${encodeURIComponent(login)}/reset`,
+                         {minutes: m, lang: document.getElementById("fs-share-lang").value});
+    box.innerHTML = fsCreds(r) + (r.share ? shareHtml(r.share) : "");
+    loadShares();
+  } catch (e) { box.innerHTML = `<span class="crit">Не получилось: ${esc(e.message)}</span>`; }
+}
+
+async function fsDisable(login, disabled){
+  if (disabled && !confirm(`Выключить «${login}»? Его текущие подключения к дискам будут разорваны, ссылки погаснут.`)) return;
+  try { await post(`/fs/people/${encodeURIComponent(login)}/${disabled ? "disable" : "enable"}`);
+        FS = await get("/fs"); renderFs(); loadShares(); }
+  catch (e) { alert("Не удалось: " + e.message); }
+}
+
+async function fsPlan(mode){
+  const box = document.getElementById("fs-plan");
+  box.innerHTML = `<span class="dim">считаю, сервер не меняется…</span>`;
+  try {
+    FSPLAN = await get(`/fs/plan?mode=${mode}`);
+    const cut = FSPLAN.impact.reduce((n, i) => n + i.machines_cut.length, 0);
+    box.innerHTML = `
+      <h3 style="margin:14px 0 6px;font-size:14px">Пробный расчёт: ${mode === "final" ? "финальный" : "переходный"} режим</h3>
+      ${FSPLAN.role_groups_missing.length ? `<div class="note">Группы ролей будут созданы на сервере:
+        ${FSPLAN.role_groups_missing.join(", ")}.</div>` : ""}
+      <div class="tbl-wrap"><table><thead><tr><th style="width:60px">Диск</th><th>Роли</th>
+        <th>Останутся</th><th>Потеряют доступ</th><th>Получат</th><th>Отрежет компьютеров</th></tr></thead><tbody>
+      ${FSPLAN.impact.map(i => `<tr><td><b>${esc(i.drive)}:</b></td><td>${esc(i.roles.join(", "))}</td>
+        <td class="dim">${esc(i.keep.join(", ") || "—")}</td>
+        <td class="${i.lose.length ? "warn" : "dim"}">${esc(i.lose.join(", ") || "—")}
+          ${i.open_to_all_now ? `<div style="font-size:11px">и все ${i.domain_users_now} пользователей домена</div>` : ""}</td>
+        <td class="ok">${esc(i.gain.join(", ") || "—")}</td>
+        <td class="${i.machines_cut.length ? "crit" : "ok"}">${esc(i.machines_cut.join(", ") || "ни одного")}</td></tr>`).join("")}
+      </tbody></table></div>
+      <details style="margin:8px 0"><summary class="dim">Изменения в smb.conf</summary>
+        <pre style="font-size:11px;max-height:360px;overflow:auto">${esc(FSPLAN.diff)}</pre></details>
+      <div class="${cut ? "crit" : "ok"}" style="margin:8px 0">${cut
+        ? `Внимание: будут отрезаны ${cut} компьютеров с открытыми подключениями.`
+        : "Ни один работающий сейчас компьютер не отрежет."}</div>
+      <button class="primary" onclick="fsApply()">Применить к серверу…</button>`;
+  } catch (e) { box.innerHTML = `<span class="crit">Не удалось рассчитать: ${esc(e.message)}</span>`; }
+}
+
+async function fsApply(){
+  if (!FSPLAN) return;
+  const word = prompt("Это изменит доступ к дискам для всей компании.\n" +
+    "Резервная копия smb.conf будет сделана, откат — одной кнопкой.\n\nНапечатайте ПРИМЕНИТЬ:");
+  if (word !== "ПРИМЕНИТЬ") return;
+  const box = document.getElementById("fs-plan");
+  try {
+    const r = await post("/fs/apply", {mode: FSPLAN.mode, md5: FSPLAN.md5, confirm: "ПРИМЕНИТЬ"});
+    box.innerHTML = `<div class="ok" style="margin-top:8px">Применено. Резервная копия: <code>${esc(r.backup)}</code></div>`;
+    FSPLAN = null; FS = await get("/fs"); renderFs();
+  } catch (e) { box.innerHTML += `<div class="crit">Не применено: ${esc(e.message)}</div>`; }
+}
+
+async function fsBackups(){
+  try {
+    const list = await get("/fs/backups");
+    document.getElementById("fs-backups").innerHTML = list.length ? `<div class="note">Резервные копии smb.conf,
+      сделанные панелью: ${list.map(b => `<div><code>${esc(b)}</code>
+      <button onclick="fsRollback('${esc(b)}')">Вернуть эту</button></div>`).join("")}</div>` : "";
+  } catch (e) { console.warn("backups:", e.message); }
+}
+
+async function fsRollback(b){
+  if (!confirm(`Вернуть smb.conf из ${b}? Текущий файл тоже будет сохранён.`)) return;
+  try { await post("/fs/rollback", {backup: b}); FS = await get("/fs"); renderFs(); alert("Возвращено."); }
+  catch (e) { alert("Откат не выполнен: " + e.message); }
+}
+
 let ST = null;
 
 function renderStorage(){
@@ -1287,6 +1520,7 @@ async function loadAll(){
   try { VPN = await get("/vpn"); renderVpn(); } catch (e) { console.warn("vpn:", e.message); }
   loadShares();
   try { MT = await get("/mikrotik"); renderMikrotik(); } catch (e) { console.warn("mikrotik:", e.message); }
+  try { FS = await get("/fs"); renderFs(); } catch (e) { console.warn("fs:", e.message); }
   try { ST = await get("/storage"); renderStorage(); } catch (e) { console.warn("storage:", e.message); }
 }
 
@@ -1313,6 +1547,7 @@ document.getElementById("vpn-add").onclick = addVpnClient;
 ["mt-find","mt-off","mt-svc"].forEach(id =>
   document.getElementById(id).addEventListener("input", renderMikrotikUsers));
 document.getElementById("mt-add").onclick = mtCreate;
+document.getElementById("fs-add").onclick = fsAdd;
 
 async function withBusy(btn, fn){
   const old = btn.textContent; btn.disabled = true; btn.textContent = "…";

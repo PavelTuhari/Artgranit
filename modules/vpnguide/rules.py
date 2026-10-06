@@ -431,3 +431,134 @@ def markdown_l2tp(cfg: dict, expires_at: str, minutes_left: int,
                        ensure_ascii=False, indent=2),
             "```", ""]
     return "\n".join(out)
+
+
+# ================================================================ сетевые диски
+# Файловый сервер 192.168.0.21: личная учётка и диски, положенные роли.
+
+KINDS = ("openvpn", "l2tp", "smb")
+_DRIVE_RE = re.compile(r"^[A-Z]$")
+_SHARE_RE = re.compile(r"^[A-Za-z0-9_.-]{1,40}$")
+_SAFE_RE = re.compile(r"^[A-Za-z0-9_.-]{1,64}$")
+
+
+def smb_payload(server: str, netbios: str, login: str, password: str,
+                drives: list[dict]) -> str:
+    import json
+    if not drives:
+        raise ValueError("у роли нет ни одного диска")
+    for v in (server, netbios, login, password):
+        if not _SAFE_RE.match(v or ""):
+            raise ValueError("недопустимые символы в настройках подключения")
+    for d in drives:
+        if not _DRIVE_RE.match(d["drive"]) or not _SHARE_RE.match(d["share"]):
+            raise ValueError(f"недопустимый диск: {d}")
+    return json.dumps({"server": server, "netbios": netbios, "login": login,
+                       "password": password,
+                       "drives": [{"drive": d["drive"], "share": d["share"],
+                                   "title": d.get("title", "")} for d in drives]},
+                      ensure_ascii=False)
+
+
+def smb_settings(payload: str) -> dict:
+    import json
+    return json.loads(payload)
+
+
+def smb_cmd(cfg: dict) -> str:
+    """Файл .cmd: снимает старые подключения к серверу и подключает диски роли.
+
+    Windows не даёт подключиться к одному серверу двумя учётками сразу
+    (ошибка 1219), а сейчас почти у всех открыты подключения под общей
+    netuser. Поэтому сначала снимаются все подключения к ЭТОМУ серверу
+    (другие серверы не трогаются), затем пароль кладётся в диспетчер учётных
+    данных — после перезагрузки диски поднимутся сами.
+    Значения проверены smb_payload: только буквы, цифры, . _ - — кавычки и
+    спецсимволы cmd в них попасть не могут.
+    """
+    srv, user = cfg["server"], f"{cfg['netbios']}\\{cfg['login']}"
+    lines = [
+        "@echo off",
+        "chcp 65001 >nul",
+        f"echo Подключение сетевых дисков для {cfg['login']} / Conectarea discurilor de rețea / Mapping network drives",
+        # /l /c: — буквальный поиск: по умолчанию findstr видит в точках регулярное выражение
+        f"for /f \"tokens=2\" %%d in ('net use ^| findstr /i /l /c:\"\\\\{srv}\\\\\"') do net use %%d /delete /y >nul 2>&1",
+        f"net use \\\\{srv}\\IPC$ /delete /y >nul 2>&1",
+        f"cmdkey /delete:{srv} >nul 2>&1",
+        f"cmdkey /add:{srv} /user:{user} /pass:{cfg['password']} >nul",
+    ]
+    for d in cfg["drives"]:
+        lines += [f"net use {d['drive']}: /delete /y >nul 2>&1",
+                  f"net use {d['drive']}: \\\\{srv}\\{d['share']} /persistent:yes",
+                  f"if errorlevel 1 (echo [!] {d['drive']}: \\\\{srv}\\{d['share']} — ошибка / eroare / failed) "
+                  f"else (echo [ok] {d['drive']}: \\\\{srv}\\{d['share']})"]
+    lines += ["echo.", "pause", ""]
+    return "\r\n".join(lines)
+
+
+T.update({
+    "smb_title": {"ru": "Сетевые диски офиса", "ro": "Discurile de rețea ale biroului",
+                  "en": "Office network drives"},
+    "smb_lead": {
+        "ru": "Ваша личная учётка на файловом сервере. Диски работают в офисе или через VPN.",
+        "ro": "Contul dvs. personal pe serverul de fișiere. Discurile funcționează în birou sau prin VPN.",
+        "en": "Your personal account on the file server. Drives work in the office or over VPN.",
+    },
+    "smb_drives": {"ru": "Ваши диски", "ro": "Discurile dvs.", "en": "Your drives"},
+    "smb_win": {"ru": "1. Windows — подключение в один шаг", "ro": "1. Windows — conectare într-un singur pas",
+                "en": "1. Windows — one-step setup"},
+    "smb_win_btn": {"ru": "Скачать и запустить office-drives.cmd", "ro": "Descărcați și rulați office-drives.cmd",
+                    "en": "Download and run office-drives.cmd"},
+    "smb_win_how": {
+        "ru": "Дважды щёлкните по скачанному файлу. Он отключит старые подключения к этому серверу "
+              "(в том числе под общей учёткой), запомнит ваш пароль и подключит диски. После "
+              "перезагрузки диски поднимутся сами.",
+        "ro": "Faceți dublu clic pe fișierul descărcat. Acesta va deconecta conexiunile vechi la acest "
+              "server (inclusiv cu contul comun), va memora parola și va conecta discurile. După "
+              "repornire discurile se vor reconecta singure.",
+        "en": "Double-click the downloaded file. It removes old connections to this server (including "
+              "the shared account), remembers your password and maps the drives. They reconnect "
+              "automatically after a restart.",
+    },
+    "smb_mac": {"ru": "2. macOS", "ro": "2. macOS", "en": "2. macOS"},
+    "smb_mac_how": {
+        "ru": "Finder → «Переход» → «Подключение к серверу» (⌘K), введите адрес из таблицы, затем "
+              "имя и пароль ниже.",
+        "ro": "Finder → „Mergi” → „Conectare la server” (⌘K), introduceți adresa din tabel, apoi "
+              "numele și parola de mai jos.",
+        "en": "Finder → Go → Connect to Server (⌘K), enter the address from the table, then the "
+              "user name and password below.",
+    },
+    "smb_manual": {"ru": "3. Данные для входа", "ro": "3. Date de autentificare", "en": "3. Sign-in details"},
+    "smb_user": {"ru": "Имя пользователя (вводить вместе с именем сервера)",
+                 "ro": "Nume utilizator (împreună cu numele serverului)",
+                 "en": "User name (including the server name)"},
+    "smb_vpn": {
+        "ru": "Вне офиса сначала подключите VPN — ссылку на него даёт администратор.",
+        "ro": "În afara biroului conectați mai întâi VPN — linkul îl oferă administratorul.",
+        "en": "Outside the office, connect the VPN first — the administrator provides its link.",
+    },
+})
+
+
+def markdown_smb(cfg: dict, expires_at: str, minutes_left: int, cmd_url: str) -> str:
+    import json
+    user = f"{cfg['netbios']}\\{cfg['login']}"
+    out = []
+    for lg in ("en", "ru", "ro"):
+        out += [f"# {text('smb_title', lg)} — {cfg['login']}", "",
+                text("expires", lg, at=expires_at, left=minutes_left), "",
+                text("smb_lead", lg), "", f"## {text('smb_drives', lg)}", ""]
+        out += [f"- {d['drive']}: \\\\{cfg['server']}\\{d['share']}" for d in cfg["drives"]]
+        out += ["", f"## {text('smb_win', lg)}", "", f"{cmd_url}", "", text("smb_win_how", lg), "",
+                f"## {text('smb_mac', lg)}", "", text("smb_mac_how", lg), ""]
+        out += [f"- smb://{cfg['server']}/{d['share']}" for d in cfg["drives"]]
+        out += ["", f"## {text('smb_manual', lg)}", "",
+                f"- {text('smb_user', lg)}: {user}",
+                f"- {text('f_password', lg)}: {cfg['password']}", "",
+                text("smb_vpn", lg), "", f"## {text('rules', lg)}", ""]
+        out += [f"- {s}" for s in text("rules_list", lg)]
+        out += ["", "---", ""]
+    out += ["## Machine-readable settings", "", "```json",
+            json.dumps({"type": "SMB", "user": user, **cfg}, ensure_ascii=False, indent=2), "```", ""]
+    return "\n".join(out)

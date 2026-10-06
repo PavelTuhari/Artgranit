@@ -83,6 +83,15 @@ def share_page(token):
         return _gone(s["state"])
     lang = rules.lang(request.args.get("lang") or s["lang"])
     name = s["client_name"]
+    if s.get("kind") == "smb":
+        cfg = rules.smb_settings(s["profile"])
+        html = render_template(
+            "vpnguide_share_smb.html",
+            lang=lang, langs=rules.LANGS, t=rules.text, cfg=cfg, client_name=name,
+            expires_local=s["expires_local"], minutes_left=s["minutes_left"],
+            cmd_url=url_for("vpnguide.share_cmd", token=token),
+            md_url=url_for("vpnguide.share_markdown", token=token))
+        return _private(Response(html, mimetype="text/html"))
     if s.get("kind") == "l2tp":
         cfg = rules.l2tp_settings(s["profile"])
         html = render_template(
@@ -123,7 +132,10 @@ def share_markdown(token):
     if s["state"] != "active":
         abort(404 if s["state"] == "unknown" else 410)
     expires = s["expires_local"] + " (Europe/Chisinau)"
-    if s.get("kind") == "l2tp":
+    if s.get("kind") == "smb":
+        body = rules.markdown_smb(rules.smb_settings(s["profile"]), expires, s["minutes_left"],
+                                  public_url("vpnguide.share_cmd", token=token))
+    elif s.get("kind") == "l2tp":
         body = rules.markdown_l2tp(
             rules.l2tp_settings(s["profile"]), expires, s["minutes_left"],
             public_url("vpnguide.share_windows", token=token),
@@ -165,3 +177,17 @@ def share_apple(token):
     return _private(Response(rules.mobileconfig(cfg),
                              mimetype="application/x-apple-aspen-config",
                              headers={"Content-Disposition": 'attachment; filename="office-vpn.mobileconfig"'}))
+
+
+@blueprint.route("/s/<token>/office-drives.cmd")
+def share_cmd(token):
+    """Файл .cmd: подключает сотруднику диски его роли."""
+    s = _open(token, "cmd")
+    if s["state"] != "active":
+        return _gone(s["state"])
+    if s.get("kind") != "smb":
+        abort(404)
+    # Без BOM: cmd спотыкается о него в первой строке («@echo» не распознаётся).
+    body = rules.smb_cmd(rules.smb_settings(s["profile"])).encode("utf-8")
+    return _private(Response(body, mimetype="text/plain",
+                             headers={"Content-Disposition": 'attachment; filename="office-drives.cmd"'}))

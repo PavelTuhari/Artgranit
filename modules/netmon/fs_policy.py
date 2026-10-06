@@ -72,7 +72,7 @@ def render(conf: str, policy: dict, mode: str, legacy: tuple[str, ...], stamp: s
         key = re.match(r"^\s*([a-z][a-z ]*?)\s*=", line, re.I)
         if key and key.group(1).strip().lower() in RIGHTS_KEYS \
                 and key.group(1).strip().lower() not in keep_keys:
-            out.append(f";netmon-{stamp}; {s}")
+            out.append(f";netmon-{stamp};{line}")    # строка целиком, с исходным отступом
             continue
         out.append(line)
     return "\n".join(out)
@@ -112,3 +112,24 @@ def impact(status: dict, policy: dict, mode: str, legacy: tuple[str, ...]) -> li
             "root_after": cur.get("local_root", []) if mode == "transition" else [],
         })
     return out
+
+
+def revert(conf: str) -> str:
+    """Обратное render(): убрать блоки панели, вернуть закомментированные строки.
+
+    Проверка, что render() не тронул ничего лишнего: revert(render(x)) == x.
+    И второй путь отката, кроме резервной копии.
+    """
+    out, in_block = [], False
+    for line in conf.split("\n"):
+        s = line.strip()
+        if s.startswith(BEGIN):
+            in_block = True
+            continue
+        if in_block:
+            if s.startswith(END):
+                in_block = False
+            continue
+        m = re.match(r"^;netmon-[0-9-]+;(.*)$", line)
+        out.append(m.group(1) if m else line)
+    return "\n".join(out)

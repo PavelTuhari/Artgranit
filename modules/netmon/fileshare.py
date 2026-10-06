@@ -146,7 +146,8 @@ def _member(name: str, entries: list[str], groups: dict[str, list[str]]) -> bool
     return False
 
 
-def effective(share: dict, users: list[str], groups: dict[str, list[str]]) -> dict:
+def effective(share: dict, users: list[str], groups: dict[str, list[str]],
+              known: set[str] | None = None) -> dict:
     """Кто входит, кто пишет, кто root — по правилам Samba 3.6.
 
     Если `valid users` не задан, входит ЛЮБОЙ прошедший проверку пользователь.
@@ -170,7 +171,7 @@ def effective(share: dict, users: list[str], groups: dict[str, list[str]]) -> di
         if writes or _member(u, admin, groups):
             res["write"].append(u)
     # мусор в списках: слова, которые не являются ни пользователем, ни группой
-    known = set(users) | {"@" + g for g in groups}
+    known = (known or set()) | set(users)
     res["junk"] = sorted({e for e in valid + admin + read_list + write_list + invalid
                           if not e.startswith(("@", "+", "&")) and e.lower() not in known})
     res["groups_without_at"] = sorted({e for e in valid + admin + read_list
@@ -183,7 +184,8 @@ def effective(share: dict, users: list[str], groups: dict[str, list[str]]) -> di
 _STATE = r"""
 echo '===USERS==='; pdbedit -L 2>/dev/null | cut -d: -f1
 echo '===FLAGS==='; pdbedit -Lv 2>/dev/null | awk -F': *' '/^Unix username/{u=$2} /^Account Flags/{print u "|" $2}'
-echo '===GROUPS==='; for g in %(groups)s; do echo "$g|$(getent group $g | cut -d: -f4)"; done
+echo '===GROUPS==='; for g in %(groups)s; do if getent group "$g" >/dev/null; then echo "$g|1|$(getent group "$g" | cut -d: -f4)"; else echo "$g|0|"; fi; done
+echo '===DOMUSERS==='; timeout 30 wbinfo -u 2>/dev/null
 echo '===SESSIONS==='; smbstatus -b 2>/dev/null | awk 'NR>4 && NF>=4 {print $2 "|" $4}' | sort -u
 echo '===SHARESESS==='; smbstatus -S 2>/dev/null | awk 'NR>3 && NF>=3 {print $1 "|" $2}'
 echo '===DF==='; df -P -m /storage /st8 /sda 2>/dev/null | tail -n +2
@@ -222,10 +224,16 @@ def status() -> dict:
     sec = _sections(raw)
     local_users = [u.strip() for u in sec.get("USERS", []) if u.strip()]
     flags = dict(l.split("|", 1) for l in sec.get("FLAGS", []) if "|" in l)
-    groups = {}
+    groups, exists = {}, {}
     for l in sec.get("GROUPS", []):
-        g, _, m = l.partition("|")
-        groups[g.lower()] = [x for x in m.split(",") if x]
+        parts = l.split("|", 2)
+        if len(parts) != 3:
+            continue
+        g, ok, m = parts
+        exists[g.lower()] = ok == "1"
+        if ok == "1":
+            groups[g.lower()] = [x for x in m.split(",") if x]
+    domain_users = sorted({u.strip().lower() for u in sec.get("DOMUSERS", []) if u.strip()})
     sessions = {}
     for l in sec.get("SESSIONS", []):
         u, _, mach = l.partition("|")
@@ -239,7 +247,7 @@ def status() -> dict:
     shares = []
     for name, letter, roles in SHARES:
         sh = shares_raw.get(name, {})
-        eff = effective(sh, universe, groups)
+        eff = effective(sh, universe, groups, known=set(domain_users) | set(local_users))
         eff_local = effective(sh, local_users, groups)
         shares.append({
             "name": name, "letter": letter, "path": sh.get("path", ""),
@@ -269,8 +277,8 @@ def status() -> dict:
         "local_users": [{"login": u, "disabled": "D" in flags.get(u, ""),
                          "machines": sorted(sessions.get(u, []))} for u in local_users],
         "role_groups": {code: groups.get(g, []) for code, (_, g) in ROLES.items()},
-        "role_groups_exist": {code: g in groups and groups[g] is not None
-                              for code, (_, g) in ROLES.items()},
+        "role_groups_exist": {code: exists.get(g, False) for code, (_, g) in ROLES.items()},
+        "domain_users": len(domain_users),
         "sessions": {u: sorted(m) for u, m in sessions.items()},
         "shares": shares, "disks": disks,
         "checked_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
@@ -383,3 +391,106 @@ def reset_password(login: str, password: str) -> None:
         rc, out = s.run(f"smbpasswd -s {login}", stdin=f"{password}\n{password}\n")
         if rc != 0:
             raise RuntimeError(f"smbpasswd: {out[:160]}")
+
+
+# ------------------------------------------------- применение политики к Samba
+
+CONF = "/etc/samba/smb.conf"
+
+
+def _read_conf(s: Session) -> tuple[str, str]:
+    import hashlib
+    with s.c.open_sftp() as sftp:
+        text = sftp.open(CONF).read().decode("utf-8")
+    return text, hashlib.md5(text.encode("utf-8")).hexdigest()
+
+
+def netbios_name() -> str:
+    """Имя сервера для входа локальной учёткой: СЕРВЕР\\логин.
+
+    Сервер в домене (security = ADS). Если в имени входа не указать сервер,
+    Windows подставит свой домен, и Samba пойдёт проверять пароль в домен —
+    а связи с ним нет.
+    """
+    with Session() as s:
+        _, out = s.run("testparm -s --parameter-name='netbios name' 2>/dev/null")
+    return out.strip().splitlines()[-1].strip().upper() if out.strip() else HOST
+
+
+def plan(mode: str) -> dict:
+    """Пробный расчёт: что будет в smb.conf и кого это заденет. Ничего не меняет."""
+    from modules.netmon import fs_policy, fs_store
+    policy = fs_store.load_policy()
+    st = status()
+    with Session() as s:
+        conf, md5 = _read_conf(s)
+    new = fs_policy.render(conf, policy, mode, LEGACY_ACCOUNTS, datetime.now().strftime("%Y-%m-%d"))
+    import difflib
+    diff = [l for l in difflib.unified_diff(conf.split("\n"), new.split("\n"),
+                                            "smb.conf (сейчас)", "smb.conf (после)", lineterm="", n=1)]
+    return {"mode": mode, "md5": md5, "diff": "\n".join(diff),
+            "impact": fs_policy.impact(st, policy, mode, LEGACY_ACCOUNTS),
+            "role_groups_missing": [c for c, ok in st["role_groups_exist"].items() if not ok],
+            "role_members": st["role_groups"]}
+
+
+def apply(mode: str, expected_md5: str) -> dict:
+    """Установить новую политику. Возвращает имя резервной копии для отката."""
+    from modules.netmon import fs_policy, fs_store
+    policy = fs_store.load_policy()
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup = f"{CONF}.bak-netmon-{stamp}"
+    ensure_role_groups()
+    with Session() as s:
+        conf, md5 = _read_conf(s)
+        if md5 != expected_md5:
+            raise RuntimeError("smb.conf изменился после расчёта плана — пересчитайте план")
+        new = fs_policy.render(conf, policy, mode, LEGACY_ACCOUNTS, datetime.now().strftime("%Y-%m-%d"))
+        tmp = f"{CONF}.netmon-new"
+        with s.c.open_sftp() as sftp, sftp.open(tmp, "w") as f:
+            f.write(new)
+        rc, out = s.run(f"testparm -s {tmp} >/dev/null 2>/tmp/netmon-tp.err; echo $?; cat /tmp/netmon-tp.err")
+        if not out.startswith("0"):
+            s.run(f"rm -f {tmp}")
+            raise RuntimeError(f"testparm отверг новый smb.conf: {out[:300]}")
+        # каждый ресурс — ровно с теми правами, что задумано
+        for sh in policy["shares"]:
+            want = fs_policy.managed(sh, policy["roles"], mode, LEGACY_ACCOUNTS)["valid users"]
+            _, got = s.run(f"testparm -s --section-name={sh['name']} {tmp} 2>/dev/null | "
+                           "sed -n 's/^\\s*valid users = //p'")
+            if got.strip() != want:
+                s.run(f"rm -f {tmp}")
+                raise RuntimeError(f"[{sh['name']}] после разбора valid users = {got!r}, ждали {want!r}")
+        rc, out = s.run(f"cp -a {CONF} {backup} && cp {tmp} {CONF} && rm -f {tmp} && "
+                        "smbcontrol smbd reload-config && echo OK")
+        if "OK" not in out:
+            s.run(f"cp -a {backup} {CONF}; smbcontrol smbd reload-config")
+            raise RuntimeError(f"установка не прошла, возвращён прежний файл: {out[:200]}")
+        _, md5_after = s.run(f"md5sum {CONF} | cut -d' ' -f1")
+    return {"mode": mode, "backup": backup, "md5_before": md5, "md5_after": md5_after.strip()}
+
+
+def backups() -> list[str]:
+    with Session() as s:
+        _, out = s.run(f"ls -1t {CONF}.bak-netmon-* 2>/dev/null | head -10")
+    return [l for l in out.splitlines() if l.strip()]
+
+
+def rollback(backup: str) -> dict:
+    if not re.match(r"^/etc/samba/smb\.conf\.bak-netmon-\d{8}-\d{6}$", backup or ""):
+        raise ValueError("недопустимое имя резервной копии")
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    with Session() as s:
+        rc, out = s.run(f"test -f {backup} && cp -a {CONF} {CONF}.bak-netmon-{stamp} && "
+                        f"cp {backup} {CONF} && smbcontrol smbd reload-config && echo OK")
+        if "OK" not in out:
+            raise RuntimeError(f"откат не выполнен: {out[:200]}")
+    return {"restored": backup, "saved_current_as": f"{CONF}.bak-netmon-{stamp}"}
+
+
+def delete_account(login: str) -> None:
+    """Только для отката неудачного создания учётки."""
+    if not LOGIN_RE.match(login) or login in LEGACY_ACCOUNTS:
+        raise ValueError("недопустимое имя")
+    with Session() as s:
+        s.run(f"smbpasswd -x {login} >/dev/null 2>&1; userdel {login} >/dev/null 2>&1")

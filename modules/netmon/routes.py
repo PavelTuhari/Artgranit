@@ -385,3 +385,92 @@ def api_mikrotik_enable(name):
     if (g := _guard()) is not None:
         return g
     return _reply(NetmonController.mikrotik_disable(name, False, user=session.get("username", "system")))
+
+
+# ------------------------------------------------ файловые ресурсы 192.168.0.21
+
+def _who():
+    return session.get("username", "system")
+
+
+@blueprint.route("/api/fs")
+def api_fs():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.fs_status())
+
+
+@blueprint.route("/api/fs/plan")
+def api_fs_plan():
+    """Пробный расчёт новой политики — ничего не меняет."""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.fs_plan(request.args.get("mode", "transition")))
+
+
+@blueprint.route("/api/fs/apply", methods=["POST"])
+def api_fs_apply():
+    """Применить политику. Требует md5 из пробного расчёта: если smb.conf
+    изменился после него, применение отказывает."""
+    if (g := _guard()) is not None:
+        return g
+    body = request.get_json(silent=True) or {}
+    if body.get("confirm") != "ПРИМЕНИТЬ":
+        return jsonify({"success": False, "message": "нужно подтверждение: confirm = ПРИМЕНИТЬ"}), 400
+    return _reply(NetmonController.fs_apply(body.get("mode", ""), body.get("md5", ""), user=_who()))
+
+
+@blueprint.route("/api/fs/backups")
+def api_fs_backups():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.fs_backups())
+
+
+@blueprint.route("/api/fs/rollback", methods=["POST"])
+def api_fs_rollback():
+    if (g := _guard()) is not None:
+        return g
+    body = request.get_json(silent=True) or {}
+    return _reply(NetmonController.fs_rollback(body.get("backup", ""), user=_who()))
+
+
+@blueprint.route("/api/fs/people", methods=["POST"])
+def api_fs_add():
+    if (g := _guard()) is not None:
+        return g
+    b = request.get_json(silent=True) or {}
+    return _reply(NetmonController.fs_add_person(
+        b.get("email"), b.get("full_name"), b.get("role"), user=_who(),
+        share_minutes=b.get("share_minutes"), share_lang=b.get("share_lang", "ru")))
+
+
+@blueprint.route("/api/fs/people/<login>/role", methods=["POST"])
+def api_fs_role(login):
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.fs_set_role(login, (request.get_json(silent=True) or {}).get("role"),
+                                               user=_who()))
+
+
+@blueprint.route("/api/fs/people/<login>/disable", methods=["POST"])
+def api_fs_disable(login):
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.fs_set_disabled(login, True, user=_who()))
+
+
+@blueprint.route("/api/fs/people/<login>/enable", methods=["POST"])
+def api_fs_enable(login):
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.fs_set_disabled(login, False, user=_who()))
+
+
+@blueprint.route("/api/fs/people/<login>/reset", methods=["POST"])
+def api_fs_reset(login):
+    if (g := _guard()) is not None:
+        return g
+    b = request.get_json(silent=True) or {}
+    return _reply(NetmonController.fs_reset(login, user=_who(), share_minutes=b.get("minutes", 15),
+                                            share_lang=b.get("lang", "ru")))

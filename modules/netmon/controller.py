@@ -555,6 +555,170 @@ class NetmonController:
                 res["shares_error"] = str(e)[:200]
         return _ok(res)
 
+    # ------------------------------------- файловые ресурсы 192.168.0.21
+
+    @staticmethod
+    def fs_status():
+        """Состояние ресурсов, выводы, учёт сотрудников и сверка с сервером."""
+        try:
+            from modules.netmon import fileshare as fs, fs_store
+            d = fs.status()
+            people = fs_store.list_people()
+            policy = fs_store.load_policy()
+            on_server = {u["login"]: u for u in d["local_users"]}
+            for p in people:
+                srv = on_server.get(p["login"])
+                p["on_server"] = srv is not None
+                p["server_disabled"] = bool(srv and srv["disabled"])
+                p["machines"] = srv["machines"] if srv else []
+                p["drives"] = [s["drive"] for s in policy["shares"] if p["role"] in s["roles"]]
+            known = {p["login"] for p in people}
+            d["unmanaged"] = [u for u in d["local_users"] if u["login"] not in known]
+            return _ok({**d, "findings": fs.findings(d), "people": people, "policy": policy,
+                        "log": fs_store.recent_log(), "email_domain": fs.EMAIL_DOMAIN,
+                        "legacy": list(fs.LEGACY_ACCOUNTS)})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def fs_plan(mode):
+        try:
+            from modules.netmon import fileshare as fs
+            return _ok(fs.plan(mode))
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def fs_apply(mode, md5, user="system"):
+        """Изменение доступа всей компании — только после пробного расчёта (md5)."""
+        try:
+            from modules.netmon import fileshare as fs, fs_store
+            res = fs.apply(mode, md5)
+            fs_store.log(user, "policy_apply", mode,
+                         f"резервная копия {res['backup']}, md5 {res['md5_before']} → {res['md5_after']}")
+            return _ok(res)
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def fs_backups():
+        try:
+            from modules.netmon import fileshare as fs
+            return _ok(fs.backups())
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def fs_rollback(backup, user="system"):
+        try:
+            from modules.netmon import fileshare as fs, fs_store
+            res = fs.rollback(backup)
+            fs_store.log(user, "policy_rollback", "smb.conf",
+                         f"возвращён {res['restored']}, текущий сохранён как {res['saved_current_as']}")
+            return _ok(res)
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def fs_add_person(email, full_name, role, user="system", share_minutes=None, share_lang="ru"):
+        """Новый сотрудник: учёт по почте, учётка на сервере, ссылка с дисками роли.
+
+        Порядок выбран так, чтобы сбой не оставил «половинчатого» сотрудника:
+        запись в учёте → учётка на сервере (при сбое запись удаляется).
+        """
+        from modules.netmon import fileshare as fs, fs_store
+        try:
+            email = (email or "").strip().lower()
+            login = fs.login_from_email(email)
+            policy = fs_store.load_policy()
+            if role not in policy["roles"]:
+                raise ValueError("неизвестная роль")
+            if any(p["email"] == email or p["login"] == login for p in fs_store.list_people()):
+                raise ValueError(f"{email} уже в учёте")
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+        password = fs.new_password()
+        try:
+            fs_store.add_person(email, login, full_name, role, user)
+        except Exception as e:  # noqa: BLE001
+            return _fail(f"не записалось в учёт: {e}")
+        try:
+            fs.ensure_role_groups()
+            fs.create_account(login, role, password)
+        except Exception as e:  # noqa: BLE001
+            fs_store.delete_person(login)
+            return _fail(e, 400 if isinstance(e, ValueError) else 500)
+        fs_store.log(user, "person_add", login, f"{email}, роль {role}")
+        res = {"email": email, "login": login, "role": role, "password": password,
+               "server": fs.HOST, "drives": _role_drives(policy, role)}
+        _attach_smb_share(res, share_minutes, share_lang, user)
+        return _ok(res)
+
+    @staticmethod
+    def fs_set_role(login, role, user="system"):
+        try:
+            from modules.netmon import fileshare as fs, fs_store
+            policy = fs_store.load_policy()
+            if role not in policy["roles"]:
+                raise ValueError("неизвестная роль")
+            fs.set_role(login, role)
+            fs_store.update_person(login, role=role)
+            fs_store.log(user, "person_role", login, f"роль {role}")
+            return _ok({"login": login, "role": role, "drives": [d["drive"] for d in _role_drives(policy, role)]})
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def fs_set_disabled(login, disabled, user="system"):
+        try:
+            from modules.netmon import fileshare as fs, fs_store
+            res = fs.set_disabled(login, disabled)
+            fs_store.update_person(login, status="disabled" if disabled else "active")
+            fs_store.log(user, "person_disable" if disabled else "person_enable", login,
+                         f"закрыто подключений {res['sessions_closed']}")
+            if disabled:
+                from modules.vpnguide import store
+                res["shares_revoked"] = store.revoke_for_client(login, f"учётка выключена ({user})", kind="smb")
+            return _ok(res)
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def fs_reset(login, user="system", share_minutes=15, share_lang="ru"):
+        """Новый пароль и ссылка — «редактирование» доступа сотрудника."""
+        try:
+            from modules.netmon import fileshare as fs, fs_store
+            person = fs_store.get_person(login)
+            if not person:
+                raise ValueError(f"{login} нет в учёте")
+            password = fs.new_password()
+            fs.reset_password(login, password)
+            fs_store.log(user, "person_reset", login, "новый пароль")
+            from modules.vpnguide import store
+            store.revoke_for_client(login, f"пароль сменён ({user})", kind="smb")
+            policy = fs_store.load_policy()
+            res = {"email": person["email"], "login": login, "role": person["role"],
+                   "password": password, "server": fs.HOST,
+                   "drives": _role_drives(policy, person["role"])}
+            _attach_smb_share(res, share_minutes, share_lang, user)
+            return _ok(res)
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
     # ------------------------------------------- диски сервера баз данных
 
     @staticmethod
@@ -635,5 +799,24 @@ def _attach_l2tp_share(res: dict, minutes, lang: str, user: str) -> None:
         from modules.vpnguide import rules
         payload = rules.l2tp_payload(res["server"], res["name"], res["password"], mt.l2tp_psk())
         res["share"] = _make_share(res["name"], payload, minutes, lang, user, kind="l2tp")
+    except Exception as e:  # noqa: BLE001
+        res["share_error"] = str(e)[:200]
+
+
+def _role_drives(policy: dict, role: str) -> list[dict]:
+    return [{"drive": s["drive"], "share": s["name"], "title": s.get("title") or ""}
+            for s in policy["shares"] if role in s["roles"]]
+
+
+def _attach_smb_share(res: dict, minutes, lang: str, user: str) -> None:
+    """Ссылка для сотрудника: диски его роли, файл .cmd, вход СЕРВЕР\\логин."""
+    if minutes in (None, "", False, 0, "0"):
+        return
+    try:
+        from modules.netmon import fileshare as fs
+        from modules.vpnguide import rules
+        payload = rules.smb_payload(fs.HOST, fs.netbios_name(), res["login"], res["password"],
+                                    res["drives"])
+        res["share"] = _make_share(res["login"], payload, minutes, lang, user, kind="smb")
     except Exception as e:  # noqa: BLE001
         res["share_error"] = str(e)[:200]

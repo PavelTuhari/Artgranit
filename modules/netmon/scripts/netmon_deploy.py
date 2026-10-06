@@ -16,8 +16,13 @@ sys.path.insert(0, str(ROOT))
 # Разбор SQL берём у общего установщика, чтобы не дублировать логику
 from deploy_oracle_objects import _is_comment_only, _is_plsql_block, _split_ddl_dml, _sql_blocks  # noqa: E402
 
-FILES = ["200_nmon_tables.sql", "201_nmon_pve.sql", "202_nmon_facility.sql"]
+FILES = ["200_nmon_tables.sql", "201_nmon_pve.sql", "202_nmon_facility.sql", "203_nmon_fs.sql"]
 SQL_DIR = Path(__file__).resolve().parents[1] / "sql"
+
+# «Уже есть» — не ошибка: установщик запускается повторно при каждом новом
+# файле DDL. ORA-00001 — начальная строка справочника уже вставлена.
+ALREADY = ("ORA-00955", "ORA-01430", "ORA-02260", "ORA-02261", "ORA-02264",
+           "ORA-02275", "ORA-01408", "ORA-00001")
 
 
 def main() -> None:
@@ -41,16 +46,21 @@ def main() -> None:
     from models.database import DatabaseConnection
     conn = DatabaseConnection.get_connection()
     cur = conn.cursor()
-    ok = err = 0
+    ok = err = skip = 0
     for s in stmts:
         try:
             cur.execute(s.rstrip().rstrip("/").rstrip())
             conn.commit()
             ok += 1
         except Exception as e:  # noqa: BLE001
-            print(f"  ошибка: {str(e)[:160]}")
+            msg = str(e)
+            # Повторный запуск: объект уже стоит или начальная строка уже есть.
+            if any(code in msg for code in ALREADY):
+                skip += 1
+                continue
+            print(f"  ошибка: {msg[:160]}")
             err += 1
-    print(f"готово: успешно {ok}, ошибок {err}")
+    print(f"готово: успешно {ok}, уже было {skip}, ошибок {err}")
     sys.exit(1 if err else 0)
 
 
