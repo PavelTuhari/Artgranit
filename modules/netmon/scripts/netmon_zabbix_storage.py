@@ -33,11 +33,12 @@ sys.path.insert(0, str(ROOT))
 from dotenv import load_dotenv  # noqa: E402
 load_dotenv(ROOT / ".env")
 
-from modules.netmon import assets, openvpn as ov, sources, storage as st  # noqa: E402
+from modules.netmon import assets, mikrotik as mt, openvpn as ov, sources, storage as st  # noqa: E402
 
 GROUP = "Infrastructure Health"
 ST_HOST = "cloudbd-storage"
 VPN_HOST = "office-openvpn"
+MT_HOST = "office-mikrotik"
 
 # Элементы держателя показателей дисков.
 # ВАЖНО: value_type 0 (float), а не 3 (unsigned). На unsigned Zabbix молча
@@ -118,6 +119,22 @@ VPN_TRIGGERS = [
 ]
 
 
+MT_ITEMS = [
+    ("mt.ppp.online", "MikroTik: VPN-сессий сейчас", "", "PPP-сессии на главном маршрутизаторе."),
+    ("mt.ppp.pptp", "MikroTik: из них по PPTP", "",
+     "PPTP защищён MS-CHAPv2, который взламывается перебором. Цель — ноль."),
+    ("mt.ppp.enabled", "MikroTik: включённых учёток VPN", "",
+     "Рост без ведома администратора — повод для разбора: каждая учётка — вход в сеть."),
+    ("mt.ppp.never", "MikroTik: включённых учёток, ни разу не входивших", "", ""),
+    ("mt.cpu", "MikroTik: загрузка ЦП", "%", ""),
+]
+
+MT_TRIGGERS = [
+    ("mt.cpu", ">=90", 3, "Маршрутизатор MikroTik загружен на 90 % и больше",
+     "Это шлюз всей сети: при перегрузке тормозит всё. /tool profile на маршрутизаторе."),
+]
+
+
 def ensure_group(z, name: str) -> str:
     g = z.call("hostgroup.get", {"filter": {"name": name}, "output": ["groupid"]})
     return g[0]["groupid"] if g else z.call("hostgroup.create", {"name": name})["groupids"][0]
@@ -189,13 +206,20 @@ def vpn_values(d: dict) -> dict:
     }
 
 
+def mikrotik_values(d: dict) -> dict:
+    s = mt.summary(d)
+    return {"mt.ppp.online": s["online"], "mt.ppp.pptp": s["online_pptp"],
+            "mt.ppp.enabled": s["enabled"], "mt.ppp.never": s["never_logged"],
+            "mt.cpu": s["cpu_load"] or 0}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--only", choices=("storage", "vpn"), help="только один раздел")
+    ap.add_argument("--only", choices=("storage", "vpn", "mikrotik"), help="только один раздел")
     a = ap.parse_args()
 
-    todo = ("storage", "vpn") if not a.only else (a.only,)
+    todo = ("storage", "vpn", "mikrotik") if not a.only else (a.only,)
     data: dict[str, dict] = {}
 
     if "storage" in todo:
@@ -217,9 +241,16 @@ def main() -> None:
               f"в сети {s['online']}, доступов {s['certs_valid']}, "
               f"отозвано {s['certs_revoked']}")
 
+    if "mikrotik" in todo:
+        d = mt.status()
+        data["mikrotik"] = d
+        s = mt.summary(d)
+        print(f"MikroTik {mt.HOST}: в сети {s['online']} (PPTP {s['online_pptp']}), "
+              f"включено учёток {s['enabled']}, ЦП {s['cpu_load']} %")
+
     if a.dry_run:
         for k, d in data.items():
-            vals = storage_values(d) if k == "storage" else vpn_values(d)
+            vals = {"storage": storage_values, "vpn": vpn_values, "mikrotik": mikrotik_values}[k](d)
             print(f"\n{k}: значения к отправке")
             for key, v in vals.items():
                 print(f"   {key:<28} {v}")
@@ -257,6 +288,19 @@ def main() -> None:
         t = ensure_triggers(z, VPN_HOST, VPN_TRIGGERS)
         print(f"\n{VPN_HOST}: новых элементов {n}, новых триггеров {t}")
         res = assets.push_to_zabbix(vpn_values(data["vpn"]), host=VPN_HOST)
+        print(f"   отправлено {res.get('sent')}, отказов {res.get('failed')}")
+        sent_total += res.get("sent", 0)
+
+    if "mikrotik" in data:
+        hostid = ensure_host(
+            z, MT_HOST, "MikroTik офиса — VPN", mt.HOST, gid,
+            "Главный маршрутизатор офиса, шлюз всей сети. Держатель показателей VPN: "
+            "сессии PPP, доля PPTP, число включённых учёток. Значения снимает модуль "
+            "netmon по SSH. Разбор: docs/Netmon/MIKROTIK.md")
+        n = ensure_items(z, hostid, MT_ITEMS)
+        t = ensure_triggers(z, MT_HOST, MT_TRIGGERS)
+        print(f"\n{MT_HOST}: новых элементов {n}, новых триггеров {t}")
+        res = assets.push_to_zabbix(mikrotik_values(data["mikrotik"]), host=MT_HOST)
         print(f"   отправлено {res.get('sent')}, отказов {res.get('failed')}")
         sent_total += res.get("sent", 0)
 
