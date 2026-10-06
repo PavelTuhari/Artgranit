@@ -193,3 +193,61 @@ def test_store_disables_parallel_dml():
     src = _read("modules/vpnguide/store.py")
     assert "ALTER SESSION DISABLE PARALLEL DML" in src
     assert src.count("db.connection.cursor()") == 1, "все курсоры — через _cursor(db)"
+
+
+# ------------------------------------------------------- ссылки L2TP
+
+def test_l2tp_payload_requires_all_fields():
+    import pytest
+    from modules.vpnguide import rules
+    with pytest.raises(ValueError):
+        rules.l2tp_payload("srv", "user", "", "psk")
+    cfg = rules.l2tp_settings(rules.l2tp_payload("srv", "user", "pw", "psk"))
+    assert cfg == {"server": "srv", "username": "user", "password": "pw", "psk": "psk"}
+
+
+def test_powershell_quotes_secrets_literally():
+    """В двойных кавычках $ и ` в ключе превратились бы в код PowerShell."""
+    from modules.vpnguide import rules
+    ps = rules.powershell({"server": "s", "username": "u", "password": "p$1`x", "psk": "it's$`"})
+    assert "-L2tpPsk 'it''s$`'" in ps and "'p$1`x'" in ps
+    assert '"it' not in ps
+
+
+def test_mobileconfig_routes_all_traffic_and_holds_key():
+    import plistlib
+    from modules.vpnguide import rules
+    p = plistlib.loads(rules.mobileconfig({"server": "s", "username": "u", "password": "p", "psk": "k"}))
+    v = p["PayloadContent"][0]
+    assert v["VPNType"] == "L2TP" and v["IPSec"]["SharedSecret"] == b"k"
+    assert v["IPv4"]["OverridePrimary"] == 1, "без этого офисная сеть 192.168.0.0/24 не откроется"
+
+
+def test_l2tp_markdown_ends_with_machine_readable_json():
+    import json, re
+    from modules.vpnguide import rules
+    cfg = {"server": "s", "username": "u", "password": "p", "psk": "k"}
+    md = rules.markdown_l2tp(cfg, "10:00", 15, "https://x/w.ps1", "https://x/a.mobileconfig")
+    block = re.search(r"```json\n(.*)\n```\s*$", md, re.S).group(1)
+    assert json.loads(block)["psk"] == "k"
+    for lg in rules.LANGS:
+        assert rules.text("l2tp_title", lg) in md
+
+
+def test_android_warning_present():
+    """Android 12+ не умеет L2TP/IPsec — получатель должен знать об этом сразу."""
+    from modules.vpnguide import rules
+    assert "Android 12" in rules.text("l2tp_android", "ru")
+
+
+def test_ovpn_route_refuses_l2tp_links():
+    src = _read("modules/vpnguide/routes.py")
+    assert 'if s.get("kind") != "openvpn":' in src
+
+
+def test_kind_installer_is_rerunnable():
+    src = _read("modules/vpnguide/scripts/vpnguide_deploy.py")
+    assert "ORA-00955" in src and "301_vpng_kind.sql" in src
+    for line in _read("modules/vpnguide/sql/301_vpng_kind.sql").splitlines():
+        if line.strip().startswith("--"):
+            assert ";" not in line

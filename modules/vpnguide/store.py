@@ -52,8 +52,14 @@ def local_time(iso_utc: str) -> str:
 
 
 def create_share(client_name: str, profile: str, ttl_min, created_by: str,
-                 lang: str = "ru") -> dict:
-    """Новая ссылка. Токен возвращается ОДИН раз — в базе его нет."""
+                 lang: str = "ru", kind: str = "openvpn") -> dict:
+    """Новая ссылка. Токен возвращается ОДИН раз — в базе его нет.
+
+    kind: 'openvpn' — profile это текст .ovpn, 'l2tp' — JSON с настройками
+    (rules.l2tp_payload). И то и другое шифруется одинаково.
+    """
+    if kind not in rules.KINDS:
+        raise ValueError(f"неизвестный тип ссылки: {kind}")
     minutes = rules.ttl(ttl_min)
     token = rules.new_token()
     with DatabaseModel() as db:
@@ -61,17 +67,18 @@ def create_share(client_name: str, profile: str, ttl_min, created_by: str,
         _purge(cur)
         new_id = cur.var(int)
         cur.execute(
-            "INSERT INTO VPNG_SHARES (CLIENT_NAME, TOKEN_HASH, PAYLOAD, TTL_MIN, LANG, "
-            "EXPIRES_AT, CREATED_BY) VALUES (:cn, :th, :pl, :ttl, :lg, "
+            "INSERT INTO VPNG_SHARES (CLIENT_NAME, TOKEN_HASH, PAYLOAD, TTL_MIN, LANG, KIND, "
+            "EXPIRES_AT, CREATED_BY) VALUES (:cn, :th, :pl, :ttl, :lg, :kd, "
             "SYSTIMESTAMP + NUMTODSINTERVAL(:ttl, 'MINUTE'), :usr) RETURNING ID INTO :nid",
             cn=client_name, th=rules.token_hash(token), pl=rules.encrypt(token, profile),
-            ttl=minutes, lg=rules.lang(lang), usr=(created_by or "system")[:100], nid=new_id)
+            ttl=minutes, lg=rules.lang(lang), kd=kind, usr=(created_by or "system")[:100],
+            nid=new_id)
         share_id = new_id.getvalue()[0]
         cur.execute(f"SELECT TO_CHAR(SYS_EXTRACT_UTC(EXPIRES_AT), '{_ISO}') "
                     "FROM VPNG_SHARES WHERE ID = :i", i=share_id)
         expires = cur.fetchone()[0]
         db.connection.commit()
-    return {"id": share_id, "token": token, "ttl_min": minutes,
+    return {"id": share_id, "token": token, "ttl_min": minutes, "kind": kind,
             "expires_utc": expires, "expires_local": local_time(expires)}
 
 
@@ -86,7 +93,7 @@ def open_share(token: str, kind: str, ip: str = "", user_agent: str = "") -> dic
     with DatabaseModel() as db:
         cur = _cursor(db)
         cur.execute(
-            f"SELECT s.ID, s.CLIENT_NAME, s.PAYLOAD, s.LANG, "
+            f"SELECT s.ID, s.CLIENT_NAME, s.PAYLOAD, s.LANG, s.KIND, "
             f"TO_CHAR(SYS_EXTRACT_UTC(s.EXPIRES_AT), '{_ISO}'), {_STATE}, "
             "ROUND((CAST(SYS_EXTRACT_UTC(s.EXPIRES_AT) AS DATE) "
             "      - CAST(SYS_EXTRACT_UTC(SYSTIMESTAMP) AS DATE)) * 1440) "
@@ -94,7 +101,7 @@ def open_share(token: str, kind: str, ip: str = "", user_agent: str = "") -> dic
         row = cur.fetchone()
         if not row:
             return {"state": "unknown"}
-        share_id, client, payload, lang, expires, state, left = row
+        share_id, client, payload, lang, share_kind, expires, state, left = row
         payload = payload.read() if payload is not None and hasattr(payload, "read") else payload
         cur.execute("INSERT INTO VPNG_SHARE_HITS (SHARE_ID, KIND, CLIENT_IP, USER_AGENT) "
                     "VALUES (:s, :k, :ip, :ua)",
@@ -108,6 +115,7 @@ def open_share(token: str, kind: str, ip: str = "", user_agent: str = "") -> dic
             _purge(cur)
         db.connection.commit()
     res = {"state": state, "id": share_id, "client_name": client, "lang": lang,
+           "kind": share_kind,
            "expires_utc": expires, "expires_local": local_time(expires),
            "minutes_left": max(int(left or 0), 0)}
     if profile is not None:
@@ -126,14 +134,18 @@ def revoke(share_id: int, reason: str = "") -> bool:
     return n > 0
 
 
-def revoke_for_client(client_name: str, reason: str) -> int:
-    """Все живые ссылки клиента — при отзыве его сертификата."""
+def revoke_for_client(client_name: str, reason: str, kind: str | None = None) -> int:
+    """Все живые ссылки клиента — при отзыве его доступа.
+
+    kind обязателен по смыслу: имя сертификата OpenVPN может совпасть с
+    учёткой L2TP, и отзыв одного не должен гасить ссылки другого.
+    """
     with DatabaseModel() as db:
         cur = _cursor(db)
         cur.execute("UPDATE VPNG_SHARES SET REVOKED_AT = SYSTIMESTAMP, PAYLOAD = NULL, "
                     "REVOKE_REASON = :r WHERE CLIENT_NAME = :cn AND REVOKED_AT IS NULL "
-                    "AND EXPIRES_AT > SYSTIMESTAMP",
-                    r=(reason or "")[:200], cn=client_name)
+                    "AND EXPIRES_AT > SYSTIMESTAMP AND (:kd IS NULL OR KIND = :kd)",
+                    r=(reason or "")[:200], cn=client_name, kd=kind)
         n = cur.rowcount
         db.connection.commit()
     return n
@@ -148,9 +160,10 @@ def list_shares(limit: int = 50) -> list[dict]:
             "SELECT * FROM ("
             f" SELECT s.ID, s.CLIENT_NAME, TO_CHAR(SYS_EXTRACT_UTC(s.CREATED_AT), '{_ISO}'),"
             f"  TO_CHAR(SYS_EXTRACT_UTC(s.EXPIRES_AT), '{_ISO}'), s.TTL_MIN, s.CREATED_BY,"
-            f"  {_STATE}, s.REVOKE_REASON,"
+            f"  {_STATE}, s.REVOKE_REASON, s.KIND,"
             "  (SELECT COUNT(*) FROM VPNG_SHARE_HITS h WHERE h.SHARE_ID = s.ID AND h.KIND = 'page'),"
-            "  (SELECT COUNT(*) FROM VPNG_SHARE_HITS h WHERE h.SHARE_ID = s.ID AND h.KIND = 'profile'),"
+            "  (SELECT COUNT(*) FROM VPNG_SHARE_HITS h WHERE h.SHARE_ID = s.ID"
+            "    AND h.KIND IN ('profile','windows','apple')),"
             f"  (SELECT TO_CHAR(SYS_EXTRACT_UTC(MAX(h.HIT_AT)), '{_ISO}') FROM VPNG_SHARE_HITS h"
             "    WHERE h.SHARE_ID = s.ID)"
             " FROM VPNG_SHARES s ORDER BY s.ID DESC"
@@ -161,6 +174,6 @@ def list_shares(limit: int = 50) -> list[dict]:
         out.append({"id": r[0], "client_name": r[1],
                     "created_local": local_time(r[2]), "expires_local": local_time(r[3]),
                     "ttl_min": r[4], "created_by": r[5], "state": r[6],
-                    "revoke_reason": r[7], "page_hits": r[8], "downloads": r[9],
-                    "last_hit_local": local_time(r[10]) if r[10] else None})
+                    "revoke_reason": r[7], "kind": r[8], "page_hits": r[9], "downloads": r[10],
+                    "last_hit_local": local_time(r[11]) if r[11] else None})
     return out

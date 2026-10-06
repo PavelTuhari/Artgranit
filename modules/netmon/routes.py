@@ -340,3 +340,48 @@ def api_vpn_profile(name):
     return Response(payload["data"]["profile"], mimetype="application/x-openvpn-profile",
                     headers={"Content-Disposition": f'attachment; filename="{name}.ovpn"',
                              "Cache-Control": "no-store"})
+
+
+# ------------------------------------------------------------- MikroTik
+
+@blueprint.route("/api/mikrotik")
+def api_mikrotik():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.mikrotik())
+
+
+@blueprint.route("/api/mikrotik/users", methods=["POST"])
+def api_mikrotik_create():
+    """Новая учётка L2TP/IPsec; share_minutes — сразу ссылка для получателя."""
+    if (g := _guard()) is not None:
+        return g
+    body = request.get_json(silent=True) or {}
+    return _reply(NetmonController.mikrotik_create(
+        body.get("name"), user=session.get("username", "system"),
+        share_minutes=body.get("share_minutes"), share_lang=body.get("share_lang", "ru")))
+
+
+@blueprint.route("/api/mikrotik/users/<name>/reset", methods=["POST"])
+def api_mikrotik_reset(name):
+    """Новый пароль и ссылка для получателя (старые ссылки гаснут)."""
+    if (g := _guard()) is not None:
+        return g
+    body = request.get_json(silent=True) or {}
+    return _reply(NetmonController.mikrotik_reset(
+        name, user=session.get("username", "system"),
+        share_minutes=body.get("minutes", 15), share_lang=body.get("lang", "ru")))
+
+
+@blueprint.route("/api/mikrotik/users/<name>/disable", methods=["POST"])
+def api_mikrotik_disable(name):
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.mikrotik_disable(name, True, user=session.get("username", "system")))
+
+
+@blueprint.route("/api/mikrotik/users/<name>/enable", methods=["POST"])
+def api_mikrotik_enable(name):
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.mikrotik_disable(name, False, user=session.get("username", "system")))

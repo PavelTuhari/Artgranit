@@ -487,9 +487,72 @@ class NetmonController:
             return _fail(e)
         try:
             from modules.vpnguide import store
-            res["shares_revoked"] = store.revoke_for_client(name, f"сертификат отозван ({user})")
+            res["shares_revoked"] = store.revoke_for_client(name, f"сертификат отозван ({user})",
+                                                            kind="openvpn")
         except Exception as e:  # noqa: BLE001
             res["shares_error"] = str(e)[:200]
+        return _ok(res)
+
+    # ------------------------------------------------ MikroTik (L2TP/PPTP)
+
+    @staticmethod
+    def mikrotik():
+        """Главный маршрутизатор: учётки PPP, кто в сети, выводы."""
+        try:
+            from modules.netmon import mikrotik as mt
+            d = mt.status()
+            return _ok({**d, "summary": mt.summary(d), "findings": mt.findings(d)})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def mikrotik_create(name, user="system", share_minutes=None, share_lang="ru"):
+        """Новая учётка L2TP/IPsec и, по желанию, сразу ссылка для получателя."""
+        try:
+            from modules.netmon import mikrotik as mt
+            res = mt.create_user((name or "").strip(), by=user)
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+        _attach_l2tp_share(res, share_minutes, share_lang, user)
+        return _ok(res)
+
+    @staticmethod
+    def mikrotik_reset(name, user="system", share_minutes=None, share_lang="ru"):
+        """Новый пароль существующей учётке и ссылка — «редактирование» доступа."""
+        try:
+            from modules.netmon import mikrotik as mt
+            res = mt.reset_password((name or "").strip(), by=user)
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+        try:
+            from modules.vpnguide import store
+            store.revoke_for_client(res["name"], f"пароль сменён ({user})", kind="l2tp")
+        except Exception:  # noqa: BLE001
+            pass        # старые ссылки и так несут старый пароль — он уже не действует
+        _attach_l2tp_share(res, share_minutes, share_lang, user)
+        return _ok(res)
+
+    @staticmethod
+    def mikrotik_disable(name, disabled=True, user="system"):
+        """Выключить (с разрывом сессии) или включить учётку. Не удаляем."""
+        try:
+            from modules.netmon import mikrotik as mt
+            res = mt.set_disabled((name or "").strip(), disabled)
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+        if disabled:
+            try:
+                from modules.vpnguide import store
+                res["shares_revoked"] = store.revoke_for_client(
+                    res["name"], f"учётка выключена ({user})", kind="l2tp")
+            except Exception as e:  # noqa: BLE001
+                res["shares_error"] = str(e)[:200]
         return _ok(res)
 
     # ------------------------------------------- диски сервера баз данных
@@ -544,7 +607,8 @@ def _service_summary(f: dict, fac) -> dict:
     return worst
 
 
-def _make_share(client_name: str, profile: str, minutes, lang: str, user: str) -> dict:
+def _make_share(client_name: str, profile: str, minutes, lang: str, user: str,
+                kind: str = "openvpn") -> dict:
     """Ссылка для получателя: модуль vpnguide хранит её и отдаёт публично.
 
     Абсолютный адрес — всегда публичного сервера: открывать ссылку будут
@@ -554,8 +618,22 @@ def _make_share(client_name: str, profile: str, minutes, lang: str, user: str) -
 
     from modules.vpnguide import store
     from modules.vpnguide.routes import PUBLIC_BASE
-    s = store.create_share(client_name, profile, minutes, user, lang)
+    s = store.create_share(client_name, profile, minutes, user, lang, kind=kind)
     path = url_for("vpnguide.share_page", token=s["token"])
     return {"id": s["id"], "url": PUBLIC_BASE + path,
             "markdown_url": PUBLIC_BASE + url_for("vpnguide.share_markdown", token=s["token"]),
             "ttl_min": s["ttl_min"], "expires_local": s["expires_local"]}
+
+
+def _attach_l2tp_share(res: dict, minutes, lang: str, user: str) -> None:
+    """Ссылка для получателя L2TP. Ключ IPsec читается с маршрутизатора только
+    здесь и сразу уходит в шифр — в ответ API и в журналы он не попадает."""
+    if minutes in (None, "", False, 0, "0"):
+        return
+    try:
+        from modules.netmon import mikrotik as mt
+        from modules.vpnguide import rules
+        payload = rules.l2tp_payload(res["server"], res["name"], res["password"], mt.l2tp_psk())
+        res["share"] = _make_share(res["name"], payload, minutes, lang, user, kind="l2tp")
+    except Exception as e:  # noqa: BLE001
+        res["share_error"] = str(e)[:200]

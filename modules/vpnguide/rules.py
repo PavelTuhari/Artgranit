@@ -239,3 +239,195 @@ def markdown(client_name: str, profile: str, expires_at: str, minutes_left: int,
             profile.rstrip("\n"),
             "-----END OVPN PROFILE-----", ""]
     return "\n".join(out)
+
+
+# =================================================================== L2TP/IPsec
+# Доступ на маршрутизатор MikroTik. Файла профиля у L2TP нет — есть четыре
+# настройки (сервер, логин, пароль, общий ключ). Чтобы получателю не набирать
+# их руками, на лету собираются скрипт PowerShell для Windows и профиль
+# .mobileconfig для macOS и iPhone.
+
+KINDS = ("openvpn", "l2tp")
+VPN_NAME = "Office VPN"
+
+
+def l2tp_payload(server: str, username: str, password: str, psk: str) -> str:
+    import json
+    for k, v in (("server", server), ("username", username), ("password", password), ("psk", psk)):
+        if not v:
+            raise ValueError(f"для ссылки L2TP не хватает: {k}")
+    return json.dumps({"server": server, "username": username,
+                       "password": password, "psk": psk}, ensure_ascii=False)
+
+
+def l2tp_settings(payload: str) -> dict:
+    import json
+    d = json.loads(payload)
+    return {k: d[k] for k in ("server", "username", "password", "psk")}
+
+
+def _ps_quote(v: str) -> str:
+    """Строка PowerShell в одинарных кавычках: всё буквально, ' удваивается.
+    В двойных кавычках $ и ` в ключе или пароле превратились бы в код."""
+    return "'" + v.replace("'", "''") + "'"
+
+
+def powershell(cfg: dict) -> str:
+    """Скрипт, который создаёт подключение и сразу подключается.
+
+    Запуск: правой кнопкой → «Выполнить с помощью PowerShell», или
+    powershell -ExecutionPolicy Bypass -File office-vpn.ps1
+    """
+    n = _ps_quote(VPN_NAME)
+    return "\r\n".join([
+        f"# {VPN_NAME}: L2TP/IPsec, пользователь {cfg['username']}",
+        "# Создаёт подключение Windows и сразу подключается. Запускать от своего имени.",
+        "$ErrorActionPreference = 'Stop'",
+        f"$name = {n}",
+        "if (Get-VpnConnection -Name $name -ErrorAction SilentlyContinue) {",
+        "    Remove-VpnConnection -Name $name -Force",
+        "}",
+        f"Add-VpnConnection -Name $name -ServerAddress {_ps_quote(cfg['server'])} "
+        f"-TunnelType L2tp -L2tpPsk {_ps_quote(cfg['psk'])} -AuthenticationMethod MSChapv2 "
+        "-EncryptionLevel Required -RememberCredential -Force",
+        f"rasdial $name {_ps_quote(cfg['username'])} {_ps_quote(cfg['password'])}",
+        "if ($LASTEXITCODE -eq 0) { Write-Host 'Подключено / Conectat / Connected' -ForegroundColor Green }",
+        "else { Write-Host \"Ошибка подключения, код $LASTEXITCODE\" -ForegroundColor Red }",
+        "",
+    ])
+
+
+def mobileconfig(cfg: dict) -> bytes:
+    """Профиль конфигурации Apple (macOS и iPhone/iPad) с настроенным L2TP.
+
+    OverridePrimary = 1: весь трафик идёт через офис. Без этого macOS
+    маршрутизирует только сеть выданного адреса (10.x), и офисная сеть
+    192.168.0.0/24 не открывается.
+    """
+    import plistlib
+    import uuid
+    inner, outer = str(uuid.uuid4()).upper(), str(uuid.uuid4()).upper()
+    vpn = {
+        "PayloadType": "com.apple.vpn.managed",
+        "PayloadIdentifier": f"md.office.vpn.l2tp.{inner}",
+        "PayloadUUID": inner, "PayloadVersion": 1,
+        "PayloadDisplayName": VPN_NAME, "UserDefinedName": VPN_NAME,
+        "VPNType": "L2TP",
+        "PPP": {"AuthName": cfg["username"], "AuthPassword": cfg["password"],
+                "CommRemoteAddress": cfg["server"]},
+        "IPSec": {"AuthenticationMethod": "SharedSecret",
+                  "SharedSecret": cfg["psk"].encode("utf-8")},
+        "IPv4": {"OverridePrimary": 1},
+    }
+    profile = {
+        "PayloadContent": [vpn],
+        "PayloadDisplayName": f"{VPN_NAME} — {cfg['username']}",
+        "PayloadIdentifier": f"md.office.vpn.{outer}",
+        "PayloadType": "Configuration", "PayloadUUID": outer, "PayloadVersion": 1,
+        "PayloadRemovalDisallowed": False,
+    }
+    return plistlib.dumps(profile, fmt=plistlib.FMT_XML)
+
+
+T.update({
+    "l2tp_title": {
+        "ru": "Подключение к офису (L2TP/IPsec)",
+        "ro": "Conectarea la birou (L2TP/IPsec)",
+        "en": "Connecting to the office (L2TP/IPsec)",
+    },
+    "l2tp_lead": {
+        "ru": "Отдельная программа не нужна: L2TP/IPsec встроен в Windows, macOS и iPhone. "
+              "Проще всего — скачать готовую настройку для своего устройства и запустить её.",
+        "ro": "Nu este nevoie de un program separat: L2TP/IPsec este integrat în Windows, macOS și iPhone. "
+              "Cel mai simplu — descărcați configurația gata pentru dispozitivul dvs. și rulați-o.",
+        "en": "No extra app is needed: L2TP/IPsec is built into Windows, macOS and iPhone. "
+              "The easiest way is to download the ready-made setup for your device and run it.",
+    },
+    "l2tp_auto": {"ru": "1. Настройка в один шаг", "ro": "1. Configurare într-un singur pas",
+                  "en": "1. One-step setup"},
+    "l2tp_win_btn": {"ru": "Windows — скрипт настройки (.ps1)", "ro": "Windows — script de configurare (.ps1)",
+                     "en": "Windows — setup script (.ps1)"},
+    "l2tp_win_how": {
+        "ru": "Скачайте, нажмите на файл правой кнопкой → «Выполнить с помощью PowerShell». "
+              "Если Windows не даст запустить, откройте PowerShell в папке с файлом и выполните:",
+        "ro": "Descărcați, faceți clic dreapta pe fișier → „Executare cu PowerShell”. "
+              "Dacă Windows nu permite rularea, deschideți PowerShell în dosarul fișierului și executați:",
+        "en": "Download it, right-click the file → “Run with PowerShell”. "
+              "If Windows refuses, open PowerShell in the file's folder and run:",
+    },
+    "l2tp_apple_btn": {"ru": "macOS и iPhone — профиль (.mobileconfig)",
+                       "ro": "macOS și iPhone — profil (.mobileconfig)",
+                       "en": "macOS and iPhone — profile (.mobileconfig)"},
+    "l2tp_apple_how": {
+        "ru": "Mac: откройте файл, затем «Системные настройки → Конфиденциальность и безопасность → "
+              "Профили» → «Установить». iPhone: откройте ссылку в Safari, затем «Настройки → Профиль "
+              "загружен» → «Установить». Система предупредит, что профиль не подписан, — это нормально.",
+        "ro": "Mac: deschideți fișierul, apoi „Setări sistem → Confidențialitate și securitate → Profiluri” → "
+              "„Instalare”. iPhone: deschideți linkul în Safari, apoi „Setări → Profil descărcat” → „Instalare”. "
+              "Sistemul va avertiza că profilul nu este semnat — este normal.",
+        "en": "Mac: open the file, then “System Settings → Privacy & Security → Profiles” → “Install”. "
+              "iPhone: open the link in Safari, then “Settings → Profile Downloaded” → “Install”. "
+              "The system will warn that the profile is unsigned — that is expected.",
+    },
+    "l2tp_android": {
+        "ru": "Android 12 и новее больше не умеет L2TP/IPsec. Для телефона Android попросите у "
+              "администратора доступ OpenVPN.",
+        "ro": "Android 12 și versiunile mai noi nu mai suportă L2TP/IPsec. Pentru un telefon Android "
+              "cereți administratorului acces OpenVPN.",
+        "en": "Android 12 and newer no longer support L2TP/IPsec. For an Android phone, ask the "
+              "administrator for OpenVPN access.",
+    },
+    "l2tp_manual": {"ru": "2. Если хотите настроить вручную", "ro": "2. Dacă doriți configurare manuală",
+                    "en": "2. If you prefer to set it up manually"},
+    "l2tp_manual_text": {
+        "ru": "Тип VPN — «L2TP/IPsec с общим ключом» (L2TP over IPSec, pre-shared key). Значения:",
+        "ro": "Tip VPN — „L2TP/IPsec cu cheie partajată” (L2TP over IPSec, pre-shared key). Valori:",
+        "en": "VPN type — “L2TP/IPsec with pre-shared key” (L2TP over IPSec). Values:",
+    },
+    "f_server": {"ru": "Сервер", "ro": "Server", "en": "Server"},
+    "f_user": {"ru": "Имя пользователя", "ro": "Nume utilizator", "en": "User name"},
+    "f_password": {"ru": "Пароль", "ro": "Parolă", "en": "Password"},
+    "f_psk": {"ru": "Общий ключ (IPsec PSK)", "ro": "Cheie partajată (IPsec PSK)",
+              "en": "Pre-shared key (IPsec PSK)"},
+    "f_auth": {"ru": "Проверка подлинности", "ro": "Autentificare", "en": "Authentication"},
+    "l2tp_ai": {
+        "ru": "Для ИИ-помощника: все настройки в машиночитаемом виде — в блоке JSON на странице "
+              "и в текстовой версии.",
+        "ro": "Pentru asistentul AI: toate setările în format citibil de mașină — în blocul JSON "
+              "de pe pagină și în versiunea text.",
+        "en": "For an AI assistant: all settings in machine-readable form are in the JSON block on "
+              "this page and in the plain-text version.",
+    },
+})
+
+
+def markdown_l2tp(cfg: dict, expires_at: str, minutes_left: int,
+                  ps1_url: str, apple_url: str) -> str:
+    """Текстовая версия для ИИ-агента. Настройки — в последнем блоке, JSON."""
+    import json
+    out = []
+    for lg in ("en", "ru", "ro"):
+        out += [f"# {text('l2tp_title', lg)} — {cfg['username']}", "",
+                text("expires", lg, at=expires_at, left=minutes_left), "",
+                text("l2tp_lead", lg), "",
+                f"## {text('l2tp_auto', lg)}", "",
+                f"- {text('l2tp_win_btn', lg)}: {ps1_url}",
+                f"  {text('l2tp_win_how', lg)} `powershell -ExecutionPolicy Bypass -File office-vpn.ps1`",
+                f"- {text('l2tp_apple_btn', lg)}: {apple_url}",
+                f"  {text('l2tp_apple_how', lg)}",
+                f"- {text('l2tp_android', lg)}", "",
+                f"## {text('l2tp_manual', lg)}", "",
+                text("l2tp_manual_text", lg), "",
+                f"- {text('f_server', lg)}: {cfg['server']}",
+                f"- {text('f_user', lg)}: {cfg['username']}",
+                f"- {text('f_password', lg)}: {cfg['password']}",
+                f"- {text('f_psk', lg)}: {cfg['psk']}",
+                f"- {text('f_auth', lg)}: MS-CHAP v2", "",
+                f"## {text('rules', lg)}", ""]
+        out += [f"- {s}" for s in text("rules_list", lg)]
+        out += ["", "---", ""]
+    out += ["## Machine-readable settings", "", "```json",
+            json.dumps({"type": "L2TP/IPsec PSK", "authentication": "MS-CHAPv2", **cfg},
+                       ensure_ascii=False, indent=2),
+            "```", ""]
+    return "\n".join(out)

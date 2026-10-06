@@ -6,7 +6,9 @@
 * `/s/<токен>`                 — персональная инструкция с файлом, БЕЗ входа:
                                  у получателя учётной записи портала нет;
 * `/s/<токен>/profile`         — сам файл .ovpn;
-* `/s/<токен>/instructions.md` — то же простым текстом для ИИ-агента.
+* `/s/<токен>/instructions.md` — то же простым текстом для ИИ-агента;
+* `/s/<токен>/windows.ps1`, `/s/<токен>/apple.mobileconfig` — для L2TP:
+                                 готовая настройка Windows и macOS/iPhone.
 
 Ссылки по токену живут 15 минут по умолчанию (rules.TTL_DEFAULT). Устройство
 защиты — в docstring rules.py.
@@ -81,6 +83,16 @@ def share_page(token):
         return _gone(s["state"])
     lang = rules.lang(request.args.get("lang") or s["lang"])
     name = s["client_name"]
+    if s.get("kind") == "l2tp":
+        cfg = rules.l2tp_settings(s["profile"])
+        html = render_template(
+            "vpnguide_share_l2tp.html",
+            lang=lang, langs=rules.LANGS, t=rules.text, cfg=cfg, client_name=name,
+            expires_local=s["expires_local"], minutes_left=s["minutes_left"],
+            ps1_url=url_for("vpnguide.share_windows", token=token),
+            apple_url=url_for("vpnguide.share_apple", token=token),
+            md_url=url_for("vpnguide.share_markdown", token=token))
+        return _private(Response(html, mimetype="text/html"))
     html = render_template(
         "vpnguide_share.html",
         lang=lang, langs=rules.LANGS, t=rules.text, dl=rules.DOWNLOADS,
@@ -97,6 +109,8 @@ def share_profile(token):
     s = _open(token, "profile")
     if s["state"] != "active":
         return _gone(s["state"])
+    if s.get("kind") != "openvpn":
+        abort(404)          # у L2TP файла профиля нет — есть .ps1 и .mobileconfig
     name = rules.file_name(s["client_name"])
     return _private(Response(
         s["profile"], mimetype="application/x-openvpn-profile",
@@ -108,7 +122,46 @@ def share_markdown(token):
     s = _open(token, "markdown")
     if s["state"] != "active":
         abort(404 if s["state"] == "unknown" else 410)
-    body = rules.markdown(
-        s["client_name"], s["profile"], s["expires_local"] + " (Europe/Chisinau)",
-        s["minutes_left"], public_url("vpnguide.share_profile", token=token))
+    expires = s["expires_local"] + " (Europe/Chisinau)"
+    if s.get("kind") == "l2tp":
+        body = rules.markdown_l2tp(
+            rules.l2tp_settings(s["profile"]), expires, s["minutes_left"],
+            public_url("vpnguide.share_windows", token=token),
+            public_url("vpnguide.share_apple", token=token))
+    else:
+        body = rules.markdown(
+            s["client_name"], s["profile"], expires, s["minutes_left"],
+            public_url("vpnguide.share_profile", token=token))
     return _private(Response(body, mimetype="text/markdown; charset=utf-8"))
+
+
+def _l2tp(token: str, kind: str):
+    s = _open(token, kind)
+    if s["state"] != "active":
+        return None, _gone(s["state"])
+    if s.get("kind") != "l2tp":
+        abort(404)
+    return rules.l2tp_settings(s["profile"]), None
+
+
+@blueprint.route("/s/<token>/windows.ps1")
+def share_windows(token):
+    """Скрипт PowerShell: создаёт подключение L2TP и сразу подключается."""
+    cfg, gone = _l2tp(token, "windows")
+    if gone:
+        return gone
+    # BOM нужен: без него PowerShell 5 читает кириллицу в комментариях как ANSI.
+    body = "\ufeff" + rules.powershell(cfg)
+    return _private(Response(body.encode("utf-8"), mimetype="text/plain",
+                             headers={"Content-Disposition": 'attachment; filename="office-vpn.ps1"'}))
+
+
+@blueprint.route("/s/<token>/apple.mobileconfig")
+def share_apple(token):
+    """Профиль конфигурации для macOS и iPhone: L2TP уже настроен."""
+    cfg, gone = _l2tp(token, "apple")
+    if gone:
+        return gone
+    return _private(Response(rules.mobileconfig(cfg),
+                             mimetype="application/x-apple-aspen-config",
+                             headers={"Content-Disposition": 'attachment; filename="office-vpn.mobileconfig"'}))

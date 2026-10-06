@@ -696,3 +696,91 @@ def test_incomplete_profile_is_rejected():
     from modules.netmon import openvpn as ov
     with pytest.raises(RuntimeError):
         ov._profile_result("x", "client\n<ca></ca><cert></cert><key></key>")
+
+
+# ------------------------------------------------------------- MikroTik
+
+def test_mikrotik_name_rejects_injection():
+    """Имя подставляется в команду RouterOS."""
+    from modules.netmon import mikrotik as mt
+    for bad in ('a"; /system reboot', "a b", "a]", "a[", "a$x", "", "a;b", "имя", "a" * 40):
+        assert not mt.NAME_RE.match(bad), bad
+    assert mt.NAME_RE.match("ivan.petrov") and mt.NAME_RE.match("Tudor_2")
+
+
+def test_mikrotik_password_is_alnum_and_long():
+    from modules.netmon import mikrotik as mt
+    pw = {mt.new_password() for _ in range(30)}
+    assert len(pw) == 30 and all(len(p) == 16 and p.isalnum() for p in pw)
+
+
+def test_mikrotik_record_parsing_traps():
+    """Три ловушки разбора вывода RouterOS, пойманные 06.10.2026."""
+    from modules.netmon import mikrotik as mt
+    f = ["name", "service", "comment"]
+    # многострочный комментарий склеивается, а не ломает запись
+    r = mt._record("ivan\x1fl2tp\x1fстрока1\r\nстрока2\x1f~\r\n", f)
+    assert r == {"name": "ivan", "service": "l2tp", "comment": "строка1 строка2"}
+    # пустое последнее поле не теряется благодаря явному «~»
+    assert mt._record("ivan\x1fl2tp\x1f\x1f~", f)["comment"] == ""
+    # обрыв записи распознаётся, а не превращается в мусор
+    assert mt._record("ivan\x1fl2tp", f) is None
+
+
+def test_mikrotik_uses_uppercase_hex_separator_and_safe_strip():
+    src = _read("modules/netmon/mikrotik.py")
+    assert '"\\\\1F"' in src and '"\\\\1f"' not in src, "RouterOS понимает только \\1F"
+    assert 'out.strip(" \\r\\n\\t")' in src, ".strip() срезает 0x1E/0x1F — терялась первая запись"
+
+
+def test_mikrotik_never_counts_with_print_count_only():
+    """`:put [… print count-only]` печатает число дважды — сравнение с 0 ломается."""
+    import re
+    src = _read("modules/netmon/mikrotik.py")
+    assert not re.search(r"run\([^)]*print count-only", src)
+
+
+def test_mikrotik_never_prints_secrets():
+    """print в RouterOS v6 выводит пароли PPP и ключ IPsec открытым текстом."""
+    import re
+    src = _read("modules/netmon/mikrotik.py")
+    cmds = re.findall(r'run\(f?["\']([^"\']+)', src)
+    for c in cmds:
+        assert not re.search(r"/(ppp secret|interface l2tp-server server|ip ipsec \w+) print(?! count)", c), c
+    # ключ IPsec читается ровно в одном месте — для ссылки получателя
+    assert src.count("ipsec-secret") == 1, "ключ IPsec читается только в l2tp_psk()"
+
+
+def test_mikrotik_new_users_are_l2tp_only():
+    src = _read("modules/netmon/mikrotik.py")
+    assert "service=l2tp" in src and "service=pptp" not in src
+
+
+def test_mikrotik_reset_refuses_pptp_only_accounts():
+    src = _read("modules/netmon/mikrotik.py")
+    assert 'not in ("l2tp", "any")' in src
+
+
+def test_mikrotik_ssh_avoids_broken_rsa_host_key():
+    src = _read("modules/netmon/mikrotik.py")
+    assert '"ssh-rsa"' in src and "disabled_algorithms" in src
+    assert ">= 4" in src, "paramiko 4 не умеет DSA — должна быть явная проверка версии"
+
+
+def test_mikrotik_ros_date():
+    from modules.netmon import mikrotik as mt
+    assert mt._ros_date("oct/06/2026 14:11:50") == "2026-10-06"
+    assert mt._ros_date("jan/01/1970 00:00:00") == ""
+
+
+def test_mikrotik_findings_flag_pptp():
+    from modules.netmon import mikrotik as mt
+    d = {"users": [], "active": [{"name": "a", "service": "pptp"}, {"name": "b", "service": "l2tp"}],
+         "servers": {"pptp": True}, "version": "6.45.5 (stable)"}
+    titles = " ".join(f["title"] for f in mt.findings(d))
+    assert "PPTP" in titles and "6.45.5" in titles
+
+
+def test_mikrotik_disable_revokes_only_l2tp_links():
+    src = _read("modules/netmon/controller.py")
+    assert 'kind="l2tp"' in src and 'kind="openvpn"' in src

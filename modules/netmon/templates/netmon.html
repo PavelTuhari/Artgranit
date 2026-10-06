@@ -97,6 +97,7 @@
   <a href="#" data-p="vault">Доступы</a>
   <a href="#" data-p="fac">Оборудование офиса</a>
   <a href="#" data-p="vpn">OpenVPN</a>
+  <a href="#" data-p="mikrotik">MikroTik</a>
   <a href="#" data-p="storage">Диски сервера БД</a>
 </nav>
 
@@ -297,6 +298,52 @@
       <th style="width:220px">Имя</th><th style="width:130px">Действует до</th>
       <th style="width:120px">Состояние</th><th style="width:150px">Сейчас в сети</th>
       <th style="width:200px">Действие</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-mikrotik">
+    <div class="tiles" id="mt-tiles"></div>
+    <div id="mt-server"></div>
+    <h3 style="margin:20px 0 8px;font-size:14px">Что требует внимания</h3>
+    <div id="mt-findings"></div>
+
+    <h3 style="margin:20px 0 8px;font-size:14px">Кто в сети сейчас</h3>
+    <div class="tbl-wrap"><table id="mt-online"><thead><tr>
+      <th style="width:200px">Учётка</th><th style="width:90px">Протокол</th>
+      <th style="width:160px">Откуда</th><th style="width:140px">Адрес в VPN</th><th>В сети</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Выдать новый доступ L2TP/IPsec</h3>
+    <div class="card" style="max-width:640px">
+      <div class="filters" style="margin-bottom:6px">
+        <input type="text" id="mt-name" placeholder="имя сотрудника, латиницей" style="flex:1;min-width:200px">
+        <button class="primary" id="mt-add">Создать учётку</button>
+      </div>
+      <div class="filters" style="margin-bottom:6px;font-size:13px">
+        <label><input type="checkbox" id="mt-share-on" checked> сразу сделать ссылку для получателя на</label>
+        <input type="number" id="mt-share-min" value="15" min="1" max="1440" style="width:70px"> мин,
+        язык <select id="mt-share-lang">
+          <option value="ru">русский</option><option value="ro">română</option><option value="en">English</option>
+        </select>
+      </div>
+      <div class="note">Только L2TP/IPsec: PPTP новым пользователям не выдаётся. Пароль генерируется
+        и показывается один раз. Ссылка открывает инструкцию на трёх языках с готовой настройкой
+        для Windows (скрипт PowerShell) и для macOS и iPhone (профиль), а также все значения для
+        ручной настройки.</div>
+      <div id="mt-result" style="margin-top:10px"></div>
+    </div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Учётки VPN на маршрутизаторе</h3>
+    <div class="filters">
+      <label style="font-size:13px;color:var(--dim)"><input type="checkbox" id="mt-off"> показать выключенные</label>
+      <select id="mt-svc"><option value="">все протоколы</option><option>l2tp</option><option>pptp</option><option>any</option></select>
+      <input type="search" id="mt-find" placeholder="поиск по имени и комментарию" style="flex:1;min-width:160px">
+      <span class="dim" id="mt-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="mt-users"><thead><tr>
+      <th style="width:200px">Учётка</th><th style="width:80px">Протокол</th>
+      <th style="width:120px">Профиль</th><th style="width:110px">Последний вход</th>
+      <th style="width:100px">Состояние</th><th>Комментарий</th><th style="width:250px">Действие</th>
     </tr></thead><tbody></tbody></table></div>
   </section>
 
@@ -978,7 +1025,8 @@ async function loadShares(){
   document.querySelector("#vpn-shares tbody").innerHTML = rows.map(s => {
     const [label, cls] = SHARE_STATE[s.state] || [s.state, "b-dim"];
     return `<tr>
-      <td><b>${esc(s.client_name)}</b><div class="dim" style="font-size:11px">${esc(s.created_by || "")}</div></td>
+      <td><b>${esc(s.client_name)}</b> <span class="badge b-dim">${s.kind === "l2tp" ? "L2TP" : "OpenVPN"}</span>
+        <div class="dim" style="font-size:11px">${esc(s.created_by || "")}</div></td>
       <td class="dim">${esc(s.created_local)}</td>
       <td class="dim">${esc(s.expires_local)} <span style="font-size:11px">(${s.ttl_min} мин)</span></td>
       <td><span class="badge ${cls}" title="${esc(s.revoke_reason || "")}">${label}</span></td>
@@ -1035,6 +1083,127 @@ async function revokeVpn(name){
     await post(`/vpn/clients/${encodeURIComponent(name)}/revoke`);
     VPN = await get("/vpn"); renderVpn();
   } catch (e) { alert("Не удалось отозвать: " + e.message); }
+}
+
+let MT = null;
+
+function renderMikrotik(){
+  if (!MT) return;
+  const s = MT.summary;
+  document.getElementById("mt-tiles").innerHTML =
+    tile(s.online, "в сети сейчас", s.online ? "ok" : "dim") +
+    tile(s.online_pptp, "из них по PPTP", s.online_pptp ? "crit" : "ok") +
+    tile(s.online_l2tp, "по L2TP/IPsec") +
+    tile(s.enabled, "включённых учёток") +
+    tile(s.users - s.enabled, "выключенных", "dim") +
+    tile((s.cpu_load ?? "—") + " %", "загрузка ЦП", s.cpu_load >= 80 ? "warn" : "ok");
+  document.getElementById("mt-server").innerHTML = `
+    <div class="card"><div class="row">
+      <div>Маршрутизатор<b>${esc(MT.board)}</b></div>
+      <div>RouterOS<b>${esc(MT.version)}</b></div>
+      <div>Адрес<b>${esc(MT.host)}</b></div>
+      <div>Снаружи<b>${esc(MT.endpoint)}</b></div>
+      <div>Время работы<b style="font-size:13px">${esc(MT.uptime)}</b></div>
+      <div>Память свободна<b>${MT.memory_free_pct ?? "—"} %</b></div>
+    </div>
+    <div class="note">Серверы VPN: L2TP ${MT.servers.l2tp ? "включён" : "выключен"},
+      PPTP ${MT.servers.pptp ? "<span class='crit'>включён</span>" : "выключен"},
+      SSTP ${MT.servers.sstp ? "включён" : "выключен"}.
+      Проверка L2TP: ${esc(MT.l2tp_auth)}.</div></div>`;
+  const lv = {crit: ["Опасно", "crit"], warn: ["Внимание", "warn"], info: ["К сведению", "dim"]};
+  document.getElementById("mt-findings").innerHTML = MT.findings.map(f => {
+    const [label, cls] = lv[f.level] || lv.info;
+    return `<div class="card" style="margin-bottom:8px;border-left:3px solid var(--${cls === "dim" ? "line" : cls})">
+      <h3><span class="${cls}">${label}</span> ${esc(f.title)}</h3>
+      <div style="font-size:13px;margin-top:5px">${esc(f.text)}</div></div>`; }).join("");
+  document.querySelector("#mt-online tbody").innerHTML = MT.active.map(a => `<tr>
+      <td><b>${esc(a.name)}</b></td>
+      <td>${a.service === "pptp" ? `<span class="badge b-no">PPTP</span>` : `<span class="badge b-ok">${esc(a.service.toUpperCase())}</span>`}</td>
+      <td class="dim">${esc(a.from)}</td><td><code>${esc(a.address)}</code></td>
+      <td class="dim">${esc(a.uptime)}</td></tr>`).join("")
+    || `<tr><td colspan="5" class="dim">сейчас никто не подключён</td></tr>`;
+  renderMikrotikUsers();
+}
+
+function renderMikrotikUsers(){
+  if (!MT) return;
+  const off = document.getElementById("mt-off").checked;
+  const svc = document.getElementById("mt-svc").value;
+  const q = document.getElementById("mt-find").value.toLowerCase().trim();
+  const rows = MT.users.filter(u => (off || !u.disabled) && (!svc || u.service === svc)
+    && (!q || u.name.toLowerCase().includes(q) || (u.comment || "").toLowerCase().includes(q)));
+  document.getElementById("mt-count").textContent = `${rows.length} из ${MT.users.length}`;
+  document.querySelector("#mt-users tbody").innerHTML = rows.map(u => {
+    const n = esc(u.name);
+    const acts = u.disabled
+      ? `<button onclick="mtSetDisabled('${n}', false)">Включить</button>`
+      : `${u.service !== "pptp" ? `<button onclick="mtReset('${n}')" title="Новый пароль и ссылка для получателя">Новый пароль + ссылка</button>` : ""}
+         <button onclick="mtSetDisabled('${n}', true)">Выключить</button>`;
+    return `<tr>
+      <td><b>${n}</b>${u.ours ? ` <span class="badge b-ok" title="заведена из панели">панель</span>` : ""}</td>
+      <td>${u.service === "pptp" ? `<span class="badge b-no">PPTP</span>` : esc(u.service)}</td>
+      <td class="dim">${esc(u.profile)}</td>
+      <td class="dim">${esc(u.last_login || "ни разу")}</td>
+      <td>${u.online ? `<span class="badge b-ok">в сети</span>` : u.disabled ? `<span class="badge b-dim">выключена</span>` : `<span class="dim">включена</span>`}</td>
+      <td class="dim" style="font-size:12px">${esc(u.comment || "")}</td>
+      <td>${acts}<div id="mt-share-${n}"></div></td></tr>`; }).join("")
+    || `<tr><td colspan="7" class="dim">ничего не найдено</td></tr>`;
+}
+
+function credsHtml(r){
+  return `<div class="card" style="margin-top:8px;padding:10px 12px;font-size:13px">
+    Учётка <b>${esc(r.name)}</b>, L2TP/IPsec, сервер <code>${esc(r.server)}</code>,
+    пароль <code>${esc(r.password)}</code>
+    <div class="note" style="margin-top:4px">Пароль показан один раз. Общий ключ IPsec в панели не
+      показывается — он есть в ссылке для получателя.</div></div>`;
+}
+
+async function mtCreate(){
+  const input = document.getElementById("mt-name");
+  const name = input.value.trim();
+  const box = document.getElementById("mt-result");
+  if (!name) { box.innerHTML = `<span class="crit">Введите имя</span>`; return; }
+  const btn = document.getElementById("mt-add"); btn.disabled = true;
+  box.innerHTML = `<span class="dim">завожу учётку на маршрутизаторе…</span>`;
+  const body = {name};
+  if (document.getElementById("mt-share-on").checked) {
+    body.share_minutes = document.getElementById("mt-share-min").value || 15;
+    body.share_lang = document.getElementById("mt-share-lang").value;
+  }
+  try {
+    const r = await post("/mikrotik/users", body);
+    box.innerHTML = `<span class="ok">Учётка <b>${esc(r.name)}</b> создана.</span>` + credsHtml(r)
+      + (r.share ? shareHtml(r.share) : "")
+      + (r.share_error ? `<div class="crit" style="margin-top:6px">Учётка создана, но ссылку сделать не
+          удалось: ${esc(r.share_error)}. Сделайте её кнопкой «Новый пароль + ссылка».</div>` : "");
+    input.value = "";
+    MT = await get("/mikrotik"); renderMikrotik(); loadShares();
+  } catch (e) { box.innerHTML = `<span class="crit">Не получилось: ${esc(e.message)}</span>`; }
+  finally { btn.disabled = false; }
+}
+
+async function mtReset(name){
+  const m = prompt(`«${name}»: сменить пароль и сделать ссылку для получателя.\n` +
+                   `Старый пароль перестанет работать. На сколько минут ссылка?`, "15");
+  if (m === null) return;
+  const box = document.getElementById("mt-share-" + name);
+  box.innerHTML = `<span class="dim">меняю пароль…</span>`;
+  try {
+    const r = await post(`/mikrotik/users/${encodeURIComponent(name)}/reset`,
+                         {minutes: m, lang: document.getElementById("mt-share-lang").value});
+    box.innerHTML = credsHtml(r) + (r.share ? shareHtml(r.share) : "")
+      + (r.share_error ? `<div class="crit">Пароль сменён, ссылка не создалась: ${esc(r.share_error)}</div>` : "");
+    loadShares();
+  } catch (e) { box.innerHTML = `<span class="crit">Не получилось: ${esc(e.message)}</span>`; }
+}
+
+async function mtSetDisabled(name, disabled){
+  if (disabled && !confirm(`Выключить учётку «${name}»? Текущая сессия будет разорвана, ` +
+                           `живые ссылки на неё погаснут. Учётка не удаляется, её можно включить обратно.`)) return;
+  try {
+    await post(`/mikrotik/users/${encodeURIComponent(name)}/${disabled ? "disable" : "enable"}`);
+    MT = await get("/mikrotik"); renderMikrotik(); loadShares();
+  } catch (e) { alert("Не удалось: " + e.message); }
 }
 
 let ST = null;
@@ -1117,6 +1286,7 @@ async function loadAll(){
   try { PLUGS = await get("/plugs"); renderPlugs(); } catch (e) { console.warn("plugs:", e.message); }
   try { VPN = await get("/vpn"); renderVpn(); } catch (e) { console.warn("vpn:", e.message); }
   loadShares();
+  try { MT = await get("/mikrotik"); renderMikrotik(); } catch (e) { console.warn("mikrotik:", e.message); }
   try { ST = await get("/storage"); renderStorage(); } catch (e) { console.warn("storage:", e.message); }
 }
 
@@ -1140,6 +1310,9 @@ document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
 ["vpn-find","vpn-revoked"].forEach(id =>
   document.getElementById(id).addEventListener("input", renderVpn));
 document.getElementById("vpn-add").onclick = addVpnClient;
+["mt-find","mt-off","mt-svc"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderMikrotikUsers));
+document.getElementById("mt-add").onclick = mtCreate;
 
 async function withBusy(btn, fn){
   const old = btn.textContent; btn.disabled = true; btn.textContent = "…";

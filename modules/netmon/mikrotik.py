@@ -43,7 +43,8 @@ NAME_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_.-]{1,30}$")
 # Пароль генерируем сами и только из букв и цифр: его будут набирать руками
 # в настройках VPN телефона, а спецсимволы в RouterOS-скрипте ещё и экранировать.
 _PW_ALPHABET = string.ascii_letters + string.digits
-SEP = "\x1f"   # разделитель полей в выводе: в именах и комментариях его не бывает
+SEP = "\x1f"   # разделитель полей: в именах и комментариях его не бывает
+REC = "\x1e"   # начало записи: значения бывают многострочными
 
 
 def keychain() -> str:
@@ -82,22 +83,45 @@ class Session:
     def __exit__(self, *exc):
         self.c.close()
 
+    def count(self, menu: str, where: str = "") -> int:
+        """Число записей. Не `:put [… print count-only]` — он печатает число
+        дважды («205\\r\\n205»), и сравнение с «0» молча ломается."""
+        out = self.run(f":put [:len [{menu} find {where}]]")
+        return int(out.split()[0]) if out.split() and out.split()[0].isdigit() else -1
+
     def run(self, cmd: str, timeout: int = 40) -> str:
         _, o, e = self.c.exec_command(cmd, timeout=timeout)
         out = (o.read() + e.read()).decode("utf-8", "replace")
-        return out.strip()
+        # Не .strip(): Python считает 0x1C–0x1F пробельными и срезал маркер
+        # первой записи — каждый раз терялась ровно первая строка списка.
+        return out.strip(" \r\n\t")
 
     def rows(self, menu: str, fields: list[str], where: str = "") -> list[dict]:
-        """Записи меню RouterOS — только перечисленные поля."""
-        getters = ' . "\\1f" . '.join(f'[{menu} get $i {f}]' for f in fields)
-        out = self.run(f':foreach i in=[{menu} find {where}] do={{:put ({getters})}}')
-        res = []
-        for line in out.splitlines():
-            parts = line.split(SEP)
-            if len(parts) == len(fields):
-                res.append(dict(zip(fields, parts)))
-        return res
+        """Записи меню RouterOS — только перечисленные поля.
 
+        Формат вывода, на котором уже обожглись (06.10.2026):
+        * разделитель полей — символ 0x1F, и RouterOS понимает только
+          заглавную запись «\\1F»: строчная даёт syntax error и пустой ответ;
+        * в комментариях бывают переводы строк — запись нельзя резать по \\n,
+          поэтому каждая начинается маркером 0x1E;
+        * :put обрезает управляющий символ в конце строки — при пустом
+          последнем поле пропадал и разделитель. Поэтому в конце явный «~».
+        """
+        getters = ' . "\\1F" . '.join(f'[{menu} get $i {f}]' for f in fields)
+        out = self.run(f':foreach i in=[{menu} find {where}] do={{:put ("\\1E" . {getters} . "\\1F~")}}')
+        return [r for r in (_record(chunk, fields) for chunk in out.split(REC)[1:]) if r is not None]
+
+    def single(self, menu: str, fields: list[str]) -> dict:
+        """Меню из одной записи (/system resource): get без find."""
+        getters = ' . "\\1F" . '.join(f'[{menu} get {f}]' for f in fields)
+        return _record(self.run(f':put ({getters} . "\\1F~")'), fields) or {}
+
+
+def _record(chunk: str, fields: list[str]) -> dict | None:
+    parts = chunk.rstrip("\r\n").split(SEP)
+    if len(parts) != len(fields) + 1 or parts[-1].strip() != "~":
+        return None
+    return {f: " ".join(v.split()) if "\n" in v else v for f, v in zip(fields, parts)}
 
 # --------------------------------------------------------------- состояние
 
@@ -115,12 +139,9 @@ def _ros_date(s: str) -> str:
 
 def status() -> dict:
     with Session() as s:
-        res = dict(s.rows("/system resource",
-                          ["version", "uptime", "cpu-load", "free-memory", "total-memory",
-                           "board-name", "architecture-name"])[0:1] and
-                   s.rows("/system resource",
-                          ["version", "uptime", "cpu-load", "free-memory", "total-memory",
-                           "board-name", "architecture-name"])[0])
+        res = s.single("/system resource",
+                       ["version", "uptime", "cpu-load", "free-memory", "total-memory",
+                        "board-name", "architecture-name"])
         servers = {}
         for proto in ("l2tp", "pptp", "sstp"):
             r = s.run(f':put [/interface {proto}-server server get enabled]')
@@ -227,13 +248,13 @@ def create_user(name: str, by: str = "system") -> dict:
     pw = new_password()
     comment = f"{COMMENT_TAG} {datetime.now():%Y-%m-%d} {re.sub(r'[^A-Za-z0-9_.@-]', '', by)[:30]}"
     with Session() as s:
-        if s.run(f':put [/ppp secret print count-only where name="{name}"]').strip() != "0":
+        if s.count("/ppp secret", f'where name="{name}"') != 0:
             raise ValueError(f"учётка «{name}» на маршрутизаторе уже есть")
         out = s.run(f'/ppp secret add name="{name}" password="{pw}" service=l2tp '
                     f'profile={DEFAULT_PROFILE} comment="{comment}"')
         if out:
             raise RuntimeError(f"маршрутизатор не принял учётку: {out[:160]}")
-        if s.run(f':put [/ppp secret print count-only where name="{name}"]').strip() != "1":
+        if s.count("/ppp secret", f'where name="{name}"') != 1:
             raise RuntimeError("учётка не появилась после добавления")
     return {"name": name, "password": pw, "service": "l2tp", "server": PUBLIC_ENDPOINT,
             "profile": DEFAULT_PROFILE,
@@ -247,12 +268,12 @@ def set_disabled(name: str, disabled: bool) -> dict:
     if not NAME_RE.match(name or "") and not re.match(r"^[\w.@<>-]{1,64}$", name or ""):
         raise ValueError("недопустимое имя")
     with Session() as s:
-        if s.run(f':put [/ppp secret print count-only where name="{name}"]').strip() != "1":
+        if s.count("/ppp secret", f'where name="{name}"') != 1:
             raise ValueError(f"учётки «{name}» нет")
         s.run(f'/ppp secret set [find name="{name}"] disabled={"yes" if disabled else "no"}')
         kicked = 0
         if disabled:
-            kicked = int(s.run(f':put [/ppp active print count-only where name="{name}"]') or 0)
+            kicked = max(s.count("/ppp active", f'where name="{name}"'), 0)
             s.run(f'/ppp active remove [find name="{name}"]')
         state = s.run(f':put [/ppp secret get [find name="{name}"] disabled]').strip()
     return {"name": name, "disabled": state == "true", "sessions_closed": kicked}
@@ -262,3 +283,29 @@ def l2tp_psk() -> str:
     """Общий ключ IPsec L2TP-сервера — только для ссылки получателя, сразу в шифр."""
     with Session() as s:
         return s.run(":put [/interface l2tp-server server get ipsec-secret]").strip()
+
+
+def reset_password(name: str, by: str = "system") -> dict:
+    """Новый пароль для существующей учётки — чтобы выдать её ссылкой.
+
+    Старый пароль панель не читает и не показывает: проще и безопаснее выдать
+    новый. Учётки только под PPTP не трогаем: инструкция по ссылке — для
+    L2TP/IPsec, и смена пароля оборвала бы человеку работающий PPTP.
+    """
+    if not NAME_RE.match(name or ""):
+        raise ValueError("недопустимое имя")
+    pw = new_password()
+    with Session() as s:
+        rows = s.rows("/ppp secret", ["name", "service", "disabled"], f'where name="{name}"')
+        if len(rows) != 1:
+            raise ValueError(f"учётки «{name}» нет")
+        if rows[0]["service"] not in ("l2tp", "any"):
+            raise ValueError(f"учётка «{name}» только для {rows[0]['service'].upper()}: "
+                             "по ссылке выдаётся L2TP/IPsec — заведите новую учётку")
+        out = s.run(f'/ppp secret set [find name="{name}"] password="{pw}"')
+        if out:
+            raise RuntimeError(f"маршрутизатор не принял пароль: {out[:160]}")
+        if rows[0]["disabled"] == "true":
+            s.run(f'/ppp secret set [find name="{name}"] disabled=no')
+    return {"name": name, "password": pw, "service": "l2tp", "server": PUBLIC_ENDPOINT,
+            "was_disabled": rows[0]["disabled"] == "true"}
