@@ -474,3 +474,11 @@ def api_fs_reset(login):
     b = request.get_json(silent=True) or {}
     return _reply(NetmonController.fs_reset(login, user=_who(), share_minutes=b.get("minutes", 15),
                                             share_lang=b.get("lang", "ru")))
+
+
+@blueprint.route("/api/dbload")
+def api_dbload():
+    """Нагрузка сервера баз данных и тяжёлые сессии Oracle. Только чтение."""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.dbload())

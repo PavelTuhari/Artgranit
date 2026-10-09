@@ -44,6 +44,10 @@ DISK_UTIL_WARN = 85           # % загрузки устройства
 DISK_AWAIT_WARN = 50          # мс на операцию
 MEM_AVAIL_WARN = 10           # % доступной памяти
 
+# Что на каком устройстве (логические тома контроллера, см. storage.py)
+DISK_ROLE = {"sda": "система и /opt", "sdb": "/db — файлы данных Oracle",
+             "sdc": "/mnt/md3 — архивы", "sdd": "/mnt/md4 — архивы"}
+
 # Разделитель полей в выводе SQL. В текстах сессий его не бывает, а «|»
 # бывает в модулях и программах.
 SEP = "~^~"
@@ -92,6 +96,15 @@ select 'TOP~^~' || kind || '~^~' || sid || '~^~' || serial# || '~^~' || username
      where s.paddr = p.addr and s.type = 'USER' and st.sid = s.sid
        and st.statistic# = n.statistic# and n.name = 'physical reads'
   ) where rn <= 8;
+-- Сессии процессов, которые top только что показал занятыми (список — из
+-- /tmp/netmon_pids.sql, его пишет оболочка после замера top)
+@/tmp/netmon_pids.sql
+select 'PROC~^~' || p.spid || '~^~' || s.sid || '~^~' || s.serial# || '~^~' || s.username || '~^~' ||
+       replace(s.machine, '~', '') || '~^~' || replace(substr(s.program, 1, 48), '~', '') || '~^~' ||
+       s.status || '~^~' || nvl(s.sql_id, s.prev_sql_id) || '~^~' || replace(s.event, '~', '') || '~^~' ||
+       s.state || '~^~' || s.last_call_et
+  from v$session s, v$process p
+ where s.paddr = p.addr and p.spid in (&pids);
 -- Длинные операции, которые ещё идут
 select 'LONG~^~' || sid || '~^~' || serial# || '~^~' || replace(substr(opname, 1, 40), '~', '') || '~^~' ||
        replace(substr(target, 1, 60), '~', '') || '~^~' || round(sofar / nullif(totalwork, 0) * 100) || '~^~' ||
@@ -101,6 +114,9 @@ select 'LONG~^~' || sid || '~^~' || serial# || '~^~' || replace(substr(opname, 1
 select 'SQL~^~' || sql_id || '~^~' || replace(replace(substr(sql_text, 1, 160), chr(10), ' '), '~', '')
   from (select sql_id, sql_text, row_number() over (partition by sql_id order by child_number) rn
           from v$sql where sql_id in (
+            select nvl(s2.sql_id, s2.prev_sql_id) from v$session s2, v$process p2
+             where s2.paddr = p2.addr and p2.spid in (&pids)
+            union
             select sql_id from v$session where type = 'USER' and sql_id is not null
               and (status = 'ACTIVE' or sid in (
                 select sid from (select st.sid from v$sesstat st, v$statname n
@@ -115,13 +131,15 @@ echo '===LOADAVG==='; cat /proc/loadavg; nproc
 echo '===VMSTAT==='; vmstat 2 2 | tail -1
 echo '===MEM==='; free -m | awk '/^Mem:/{print $2, $7} /^Swap:/{print $2, $3}'
 echo '===IOSTAT==='; iostat -dxm 2 2 | awk '/^Device/{n++; next} n==2 && NF'
-echo '===TOP==='; top -b -n 2 -d 2 -w 200 2>/dev/null | awk '/^top -/{n++} n==2' | awk 'f && NF {print} /PID USER/{f=1}' | head -15
+echo '===TOP==='; top -b -n 2 -d 2 -w 200 2>/dev/null | awk '/^top -/{n++} n==2' | awk 'f && NF {print} /PID USER/{f=1}' | head -15 | tee /tmp/netmon_top.txt
+PIDS=$(awk '$1 ~ /^[0-9]+$/ {printf "%%s'"'"'%%s'"'"'", (n++ ? "," : ""), $1}' /tmp/netmon_top.txt)
+echo "define pids = \"${PIDS:-'0'}\"" > /tmp/netmon_pids.sql; chmod 644 /tmp/netmon_pids.sql; rm -f /tmp/netmon_top.txt
 echo %(b64)s | base64 -d > /tmp/netmon_dbload.sql && chmod 644 /tmp/netmon_dbload.sql
 for db in %(dbs)s; do
   echo "===DB $db==="
   su - oracle -c "export ORACLE_SID=$db; sqlplus -s / as sysdba @/tmp/netmon_dbload.sql" 2>&1
 done
-rm -f /tmp/netmon_dbload.sql
+rm -f /tmp/netmon_dbload.sql /tmp/netmon_pids.sql
 echo '===END==='
 """
 
@@ -170,7 +188,7 @@ def parse_host(sec: dict) -> dict:
         f = line.split()
         # Device rrqm/s wrqm/s r/s w/s rMB/s wMB/s avgrq-sz avgqu-sz await r_await w_await svctm %util
         if len(f) >= 14 and not f[0].startswith("dm-"):
-            disks.append({"device": f[0], "r_s": _num(f[3]), "w_s": _num(f[4]),
+            disks.append({"device": f[0], "role": DISK_ROLE.get(f[0], ""), "r_s": _num(f[3]), "w_s": _num(f[4]),
                           "read_mb_s": _num(f[5]), "write_mb_s": _num(f[6]),
                           "queue": _num(f[8]), "await_ms": _num(f[9]), "util_pct": _num(f[13])})
     procs = []
@@ -192,6 +210,8 @@ _ACT = ["sid", "serial", "username", "osuser", "machine", "program", "module", "
 _TOP = ["kind", "sid", "serial", "username", "machine", "program", "status", "sql_id", "spid",
         "value", "logon_min"]
 _LONG = ["sid", "serial", "opname", "target", "pct", "elapsed", "remaining"]
+_PROC = ["spid", "sid", "serial", "username", "machine", "program", "status", "sql_id", "event",
+         "state", "call_seconds"]
 _INT = {"sid", "serial", "seconds_in_wait", "call_seconds", "cpu_cs", "phys_reads", "value",
         "logon_min", "pct", "elapsed", "remaining"}
 
@@ -220,7 +240,11 @@ def parse_db(name: str, lines: list[str]) -> dict:
     sess = next((l.split(SEP) for l in lines if l.startswith("SESS" + SEP)), ["", "0", "0"])
     cpus = next((int(_num(l.split(SEP)[1])) for l in lines if l.startswith("CPUCOUNT" + SEP)), 0)
     active = _rows(lines, "ACT", _ACT)
+    # ACTIVE в v$session ещё не значит «работает»: исполнители заданий и
+    # очередей висят ACTIVE в ожидании класса Idle. Их в список не берём.
+    active = [a for a in active if not (a["state"] == "WAITING" and a["wait_class"] == "Idle")]
     for a in active:
+        a["on_cpu"] = a["state"] != "WAITING"     # не ждёт — значит, считает на процессоре
         a["blocking_session"] = int(_num(a["blocking_session"])) if a["blocking_session"] else None
         a["cpu_seconds"] = round(a.pop("cpu_cs") / 100)
         a["kill"] = f"ALTER SYSTEM KILL SESSION '{a['sid']},{a['serial']}' IMMEDIATE;"
@@ -234,7 +258,8 @@ def parse_db(name: str, lines: list[str]) -> dict:
             p = line.split(SEP)
             if len(p) >= 3:
                 sqls[p[1]] = p[2].strip()
-    for row in active + top:
+    procs = _rows(lines, "PROC", _PROC)
+    for row in active + top + procs:
         row["sql_text"] = sqls.get(row.get("sql_id") or "", "")
     errors = [l.strip() for l in lines if re.match(r"^\s*(ORA|SP2)-\d+", l)]
     return {
@@ -248,6 +273,7 @@ def parse_db(name: str, lines: list[str]) -> dict:
         "top_cpu": [t for t in top if t["kind"] == "cpu"],
         "top_io": [t for t in top if t["kind"] == "io"],
         "longops": _rows(lines, "LONG", _LONG),
+        "procs": procs,
         "errors": errors[:5],
     }
 
@@ -261,7 +287,7 @@ def collect() -> dict:
     # Процесс ОС → сессия Oracle: кто именно грузит процессор прямо сейчас
     by_spid = {}
     for d in dbs:
-        for row in d["active"] + d["top_cpu"] + d["top_io"]:
+        for row in d["procs"] + d["active"] + d["top_cpu"] + d["top_io"]:
             if row.get("spid"):
                 by_spid.setdefault(row["spid"], {"db": d["name"], **row})
     for p in host["top"]:
@@ -332,7 +358,7 @@ def summary(d: dict) -> dict:
         "iowait": os_.get("cpu", {}).get("iowait", 0),
         "mem_available_pct": os_.get("mem", {}).get("available_pct"),
         "disk_util_max": max((x["util_pct"] for x in os_.get("disks", [])), default=0),
-        "cloudbd_active": main.get("active_count", 0),
+        "cloudbd_active": len(main.get("active", [])),
         "cloudbd_sessions": main.get("sessions", 0),
         "cloudbd_blocked": len(main.get("blocked", [])),
         "cloudbd_longest_call": max((a["call_seconds"] for a in main.get("active", [])

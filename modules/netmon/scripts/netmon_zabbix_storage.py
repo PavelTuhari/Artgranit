@@ -33,12 +33,13 @@ sys.path.insert(0, str(ROOT))
 from dotenv import load_dotenv  # noqa: E402
 load_dotenv(ROOT / ".env")
 
-from modules.netmon import assets, mikrotik as mt, openvpn as ov, sources, storage as st  # noqa: E402
+from modules.netmon import assets, dbload as dl, mikrotik as mt, openvpn as ov, sources, storage as st  # noqa: E402
 
 GROUP = "Infrastructure Health"
 ST_HOST = "cloudbd-storage"
 VPN_HOST = "office-openvpn"
 MT_HOST = "office-mikrotik"
+DL_HOST = "cloudbd-load"
 
 # Элементы держателя показателей дисков.
 # ВАЖНО: value_type 0 (float), а не 3 (unsigned). На unsigned Zabbix молча
@@ -135,6 +136,37 @@ MT_TRIGGERS = [
 ]
 
 
+DL_ITEMS = [
+    ("host.load1", "cloudbd: нагрузка (load average, 1 мин)", "", "16 ядер: больше 19 — очередь на процессор."),
+    ("host.cpu.busy", "cloudbd: процессор занят", "%", "Снимается vmstat за 2 секунды."),
+    ("host.iowait", "cloudbd: процессор ждёт диск", "%", "Высокое значение — узкое место в дисках."),
+    ("host.mem.avail", "cloudbd: доступно памяти", "%", ""),
+    ("host.disk.util", "cloudbd: самый загруженный диск", "%", "iostat -x, %util. sdb — файлы данных Oracle."),
+    ("db.cloudbd.active", "cloudbd: сессий работает сейчас", "",
+     "Без исполнителей заданий, которые висят ACTIVE в ожидании класса Idle."),
+    ("db.cloudbd.blocked", "cloudbd: сессий ждут блокировку", "", ""),
+    ("db.cloudbd.longest", "cloudbd: самый долгий текущий запрос", "s", ""),
+    ("db.cloudbd.aas", "cloudbd: средняя активность (Average Active Sessions)", "",
+     "Больше 16 (ядер) — работы больше, чем процессор успевает."),
+    ("db.cloudbd.preads", "cloudbd: чтений с диска в секунду", "", ""),
+    ("db.clouddev.active", "clouddev: сессий работает сейчас", "", ""),
+    ("db.clouddev.blocked", "clouddev: сессий ждут блокировку", "", ""),
+]
+
+DL_TRIGGERS = [
+    ("host.load1", f">={16 * dl.LOAD_PER_CORE_CRIT:.0f}", 4, "Сервер баз данных перегружен (load average)",
+     "Очередь на процессор длиннее числа ядер. Вкладка «Нагрузка БД» покажет, кто грузит."),
+    ("host.iowait", f">={dl.IOWAIT_WARN}", 3, "Сервер баз данных ждёт диск",
+     "Процессор простаивает в ожидании дисков. Смотреть сессии с большими чтениями."),
+    ("db.cloudbd.blocked", ">0", 3, "cloudbd: сессии ждут блокировку",
+     "Кто-то держит незавершённую транзакцию. Вкладка «Нагрузка БД» — колонка «Блокирует»."),
+    ("db.cloudbd.longest", f">={dl.LONG_CALL_CRIT}", 4, "cloudbd: запрос выполняется дольше 30 минут",
+     "Вкладка «Нагрузка БД»: сессия, SQL и откуда пришёл запрос."),
+    ("db.cloudbd.aas", ">16", 4, "cloudbd: средняя активность выше числа ядер",
+     "База перегружена: работы больше, чем процессор успевает."),
+]
+
+
 def ensure_group(z, name: str) -> str:
     g = z.call("hostgroup.get", {"filter": {"name": name}, "output": ["groupid"]})
     return g[0]["groupid"] if g else z.call("hostgroup.create", {"name": name})["groupids"][0]
@@ -213,13 +245,24 @@ def mikrotik_values(d: dict) -> dict:
             "mt.cpu": s["cpu_load"] or 0}
 
 
+def dbload_values(d: dict) -> dict:
+    s = dl.summary(d)
+    dev = next((x for x in d["databases"] if x["name"] == "clouddev"), {"active": [], "blocked": []})
+    return {"host.load1": s["load1"], "host.cpu.busy": s["cpu_busy"], "host.iowait": s["iowait"],
+            "host.mem.avail": s["mem_available_pct"] or 0, "host.disk.util": round(s["disk_util_max"], 1),
+            "db.cloudbd.active": s["cloudbd_active"], "db.cloudbd.blocked": s["cloudbd_blocked"],
+            "db.cloudbd.longest": s["cloudbd_longest_call"], "db.cloudbd.aas": s["cloudbd_aas"],
+            "db.cloudbd.preads": s["cloudbd_phys_reads"],
+            "db.clouddev.active": len(dev["active"]), "db.clouddev.blocked": len(dev["blocked"])}
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--only", choices=("storage", "vpn", "mikrotik"), help="только один раздел")
+    ap.add_argument("--only", choices=("storage", "vpn", "mikrotik", "dbload"), help="только один раздел")
     a = ap.parse_args()
 
-    todo = ("storage", "vpn", "mikrotik") if not a.only else (a.only,)
+    todo = ("storage", "vpn", "mikrotik", "dbload") if not a.only else (a.only,)
     data: dict[str, dict] = {}
 
     if "storage" in todo:
@@ -248,9 +291,18 @@ def main() -> None:
         print(f"MikroTik {mt.HOST}: в сети {s['online']} (PPTP {s['online_pptp']}), "
               f"включено учёток {s['enabled']}, ЦП {s['cpu_load']} %")
 
+    if "dbload" in todo:
+        d = dl.collect()
+        data["dbload"] = d
+        s = dl.summary(d)
+        print(f"Нагрузка {dl.HOST_NAME}: load {s['load1']} на {s['cores']} ядер, ЦП {s['cpu_busy']} %, "
+              f"ожидание диска {s['iowait']} %, cloudbd работают {s['cloudbd_active']}, "
+              f"блокировок {s['cloudbd_blocked']}")
+
     if a.dry_run:
         for k, d in data.items():
-            vals = {"storage": storage_values, "vpn": vpn_values, "mikrotik": mikrotik_values}[k](d)
+            vals = {"storage": storage_values, "vpn": vpn_values, "mikrotik": mikrotik_values,
+                    "dbload": dbload_values}[k](d)
             print(f"\n{k}: значения к отправке")
             for key, v in vals.items():
                 print(f"   {key:<28} {v}")
@@ -301,6 +353,19 @@ def main() -> None:
         t = ensure_triggers(z, MT_HOST, MT_TRIGGERS)
         print(f"\n{MT_HOST}: новых элементов {n}, новых триггеров {t}")
         res = assets.push_to_zabbix(mikrotik_values(data["mikrotik"]), host=MT_HOST)
+        print(f"   отправлено {res.get('sent')}, отказов {res.get('failed')}")
+        sent_total += res.get("sent", 0)
+
+    if "dbload" in data:
+        hostid = ensure_host(
+            z, DL_HOST, "Нагрузка сервера баз данных cloudbd", dl.HOST, gid,
+            "Нагрузка Linux и сессии Oracle cloudbd/clouddev. Значения снимает модуль netmon "
+            "одним заходом по SSH (top, vmstat, iostat, sqlplus / as sysdba). Подробности — "
+            "вкладка «Нагрузка БД» панели мониторинга.")
+        n = ensure_items(z, hostid, DL_ITEMS)
+        t = ensure_triggers(z, DL_HOST, DL_TRIGGERS)
+        print(f"\n{DL_HOST}: новых элементов {n}, новых триггеров {t}")
+        res = assets.push_to_zabbix(dbload_values(data["dbload"]), host=DL_HOST)
         print(f"   отправлено {res.get('sent')}, отказов {res.get('failed')}")
         sent_total += res.get("sent", 0)
 

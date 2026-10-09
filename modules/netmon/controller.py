@@ -719,6 +719,18 @@ class NetmonController:
         except Exception as e:  # noqa: BLE001
             return _fail(e)
 
+    # ------------------------------------- нагрузка сервера баз данных
+
+    @staticmethod
+    def dbload():
+        """Нагрузка Linux cloudbd и сессии Oracle: кто грузит процессор и диск."""
+        try:
+            from modules.netmon import dbload as dl
+            d = dl.collect()
+            return _ok({**d, "summary": dl.summary(d)})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
     # ------------------------------------------- диски сервера баз данных
 
     @staticmethod

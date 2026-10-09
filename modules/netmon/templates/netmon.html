@@ -99,6 +99,7 @@
   <a href="#" data-p="vpn">OpenVPN</a>
   <a href="#" data-p="mikrotik">MikroTik</a>
   <a href="#" data-p="fs">Файловые ресурсы</a>
+  <a href="#" data-p="dbload">Нагрузка БД</a>
   <a href="#" data-p="storage">Диски сервера БД</a>
 </nav>
 
@@ -413,6 +414,32 @@
       <th style="width:140px">Когда</th><th style="width:110px">Кто</th><th style="width:140px">Действие</th>
       <th style="width:140px">Кого</th><th>Подробно</th>
     </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-dbload">
+    <div class="filters">
+      <button class="primary" id="dl-refresh">Обновить</button>
+      <span class="dim" id="dl-when">сбор занимает около 12 секунд: два замера по 2 секунды и запросы к обеим базам</span>
+    </div>
+    <div class="tiles" id="dl-tiles" style="margin-top:10px"></div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Что требует внимания</h3>
+    <div id="dl-findings"></div>
+
+    <h3 style="margin:20px 0 8px;font-size:14px">Кто грузит процессор прямо сейчас</h3>
+    <div class="note" style="margin:0 0 6px">Замер top за 2 секунды; процесс сопоставлен с сессией Oracle
+      по номеру процесса. 100 % — одно ядро из 16.</div>
+    <div class="tbl-wrap"><table id="dl-top"><thead><tr>
+      <th style="width:70px">PID</th><th style="width:70px">ЦП</th><th style="width:80px">База</th>
+      <th style="width:130px">Схема</th><th style="width:200px">Откуда</th><th>Что выполняет</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:20px 0 8px;font-size:14px">Диски сервера</h3>
+    <div class="tbl-wrap"><table id="dl-disks"><thead><tr>
+      <th style="width:70px">Диск</th><th style="width:220px">Что на нём</th><th style="width:90px">Загрузка</th>
+      <th style="width:100px">Задержка</th><th style="width:110px">Чтение</th><th style="width:110px">Запись</th><th>Операций/с</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <div id="dl-dbs"></div>
   </section>
 
   <section class="panel" id="p-storage">
@@ -1439,6 +1466,113 @@ async function fsRollback(b){
   catch (e) { alert("Откат не выполнен: " + e.message); }
 }
 
+let DL = null;
+
+function fmtSec(s){
+  s = +s || 0;
+  if (s < 60) return s + " с";
+  if (s < 3600) return Math.floor(s / 60) + " мин " + (s % 60) + " с";
+  return Math.floor(s / 3600) + " ч " + Math.floor(s % 3600 / 60) + " мин";
+}
+
+function sqlCell(id, text){
+  if (!id) return `<span class="dim">—</span>`;
+  return `<code>${esc(id)}</code><div class="dim" style="font-size:11px;max-width:520px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap" title="${esc(text || "")}">${esc(text || "")}</div>`;
+}
+
+function renderDbload(){
+  if (!DL) return;
+  const s = DL.summary, o = DL.os;
+  const perCore = s.load1 / Math.max(s.cores, 1);
+  document.getElementById("dl-tiles").innerHTML =
+    tile(`${s.load1}`, `нагрузка на ${s.cores} ядер`, perCore >= 1.2 ? "crit" : perCore >= .8 ? "warn" : "ok") +
+    tile(s.cpu_busy + " %", "процессор занят", s.cpu_busy >= 85 ? "crit" : s.cpu_busy >= 60 ? "warn" : "ok") +
+    tile(s.iowait + " %", "ожидание диска", s.iowait >= 15 ? "warn" : "ok") +
+    tile((s.mem_available_pct ?? "—") + " %", "памяти доступно", s.mem_available_pct < 10 ? "warn" : "ok") +
+    tile(Math.round(s.disk_util_max) + " %", "самый загруженный диск", s.disk_util_max >= 85 ? "warn" : "ok") +
+    tile(s.cloudbd_active, `cloudbd: работают из ${s.cloudbd_sessions}`) +
+    tile(s.cloudbd_blocked, "cloudbd: ждут блокировку", s.cloudbd_blocked ? "crit" : "ok") +
+    tile(fmtSec(s.cloudbd_longest_call), "cloudbd: самый долгий запрос", s.cloudbd_longest_call >= 1800 ? "crit" : s.cloudbd_longest_call >= 300 ? "warn" : "ok");
+  const lv = {crit: ["Опасно", "crit"], warn: ["Внимание", "warn"]};
+  document.getElementById("dl-findings").innerHTML = DL.findings.map(f => {
+    const [label, cls] = lv[f.level] || ["К сведению", "dim"];
+    return `<div class="card" style="margin-bottom:8px;border-left:3px solid var(--${cls})">
+      <h3><span class="${cls}">${label}</span> ${esc(f.title)}</h3>
+      <div style="font-size:13px;margin-top:5px">${esc(f.text)}</div></div>`; }).join("")
+    || `<div class="card"><span class="ok">Замечаний нет.</span>
+        <div class="note">Нагрузка в норме, блокировок и долгих запросов нет.</div></div>`;
+  document.querySelector("#dl-top tbody").innerHTML = o.top.filter(p => p.cpu_pct >= 1).map(p => {
+    const x = p.session;
+    return `<tr><td><code>${esc(p.pid)}</code></td>
+      <td class="${p.cpu_pct >= 80 ? "crit" : p.cpu_pct >= 40 ? "warn" : ""}"><b>${p.cpu_pct}%</b></td>
+      <td>${x ? esc(x.db) : `<span class="dim">${p.background ? "фоновый" : esc(p.command)}</span>`}</td>
+      <td>${x ? `<b>${esc(x.username || "")}</b> <span class="dim">sid ${x.sid}</span>` : ""}</td>
+      <td class="dim" style="font-size:12px">${x ? esc(x.machine || "") + "<br>" + esc(x.program || "") : ""}</td>
+      <td>${x ? sqlCell(x.sql_id, x.sql_text) : ""}</td></tr>`; }).join("")
+    || `<tr><td colspan="6" class="dim">ничего заметного</td></tr>`;
+  document.querySelector("#dl-disks tbody").innerHTML = o.disks.map(d => `<tr>
+      <td><code>${esc(d.device)}</code></td><td class="dim">${esc(d.role)}</td>
+      <td class="${d.util_pct >= 85 ? "warn" : ""}">${Math.round(d.util_pct)} %</td>
+      <td class="${d.await_ms >= 50 ? "warn" : ""}">${d.await_ms.toFixed(1)} мс</td>
+      <td>${d.read_mb_s.toFixed(1)} МБ/с</td><td>${d.write_mb_s.toFixed(1)} МБ/с</td>
+      <td class="dim">${Math.round(d.r_s)} чт / ${Math.round(d.w_s)} зап</td></tr>`).join("");
+  const mk = (d, name) => d.metrics[name] ?? "—";
+  document.getElementById("dl-dbs").innerHTML = DL.databases.map(d => `
+    <h3 style="margin:24px 0 8px;font-size:15px">База ${esc(d.name)}</h3>
+    <div class="card"><div class="row">
+      <div>Сессий<b>${d.sessions}</b></div>
+      <div>Работают сейчас<b>${d.active.length}</b></div>
+      <div>Средняя активность<b>${mk(d, "Average Active Sessions")}</b></div>
+      <div>Транзакций/с<b>${mk(d, "User Transaction Per Sec")}</b></div>
+      <div>Выполнений/с<b>${mk(d, "Executions Per Sec")}</b></div>
+      <div>Чтений с диска/с<b>${mk(d, "Physical Reads Per Sec")}</b></div>
+      <div>Записей/с<b>${mk(d, "Physical Writes Per Sec")}</b></div>
+    </div><div class="note">Средняя активность — сколько сессий в среднем одновременно работают или ждут
+      за последнюю минуту. Больше ${d.cpu_count} (ядер) — база перегружена.</div></div>
+
+    <h4 style="margin:14px 0 6px;font-size:13px">Работают сейчас — дольше всех сверху</h4>
+    <div class="tbl-wrap"><table><thead><tr>
+      <th style="width:110px">Сессия</th><th style="width:130px">Схема</th><th style="width:190px">Откуда</th>
+      <th style="width:100px">Запрос идёт</th><th style="width:200px">Чем занята</th><th>SQL</th><th style="width:90px">Блокирует</th>
+    </tr></thead><tbody>${d.active.map(a => `<tr>
+      <td><code>${a.sid},${a.serial}</code><div class="dim" style="font-size:11px">процесс ${esc(a.spid)}</div></td>
+      <td><b>${esc(a.username || "фоновая")}</b></td>
+      <td class="dim" style="font-size:12px">${esc(a.machine)}<br>${esc(a.program)}</td>
+      <td class="${a.call_seconds >= 1800 ? "crit" : a.call_seconds >= 300 ? "warn" : ""}">${fmtSec(a.call_seconds)}</td>
+      <td style="font-size:12px">${a.on_cpu ? `<span class="badge b-ok">на процессоре</span>` : esc(a.event)}
+        ${a.wait_class && !a.on_cpu ? `<div class="dim" style="font-size:11px">${esc(a.wait_class)}, ${a.seconds_in_wait} с</div>` : ""}</td>
+      <td>${sqlCell(a.sql_id, a.sql_text)}</td>
+      <td>${a.blocking_session ? `<span class="badge b-no">ждёт ${a.blocking_session}</span>` : ""}</td></tr>`).join("")
+      || `<tr><td colspan="7" class="dim">сейчас никто не работает</td></tr>`}</tbody></table></div>
+
+    <h4 style="margin:14px 0 6px;font-size:13px">Тяжелее всех с момента входа</h4>
+    <div class="tbl-wrap"><table><thead><tr>
+      <th style="width:50%">По процессору</th><th>По чтениям с диска</th></tr></thead><tbody><tr>
+      <td style="vertical-align:top">${d.top_cpu.map(x => `<div style="margin-bottom:6px"><b>${esc(x.username)}</b>
+        <span class="dim">sid ${x.sid}, ${esc(x.machine)}</span> — <b>${fmtSec(x.cpu_seconds)}</b>
+        <span class="dim">за ${fmtSec(x.logon_min * 60)}</span></div>`).join("")}</td>
+      <td style="vertical-align:top">${d.top_io.map(x => `<div style="margin-bottom:6px"><b>${esc(x.username)}</b>
+        <span class="dim">sid ${x.sid}, ${esc(x.machine)}</span> — <b>${(x.value / 1e6).toFixed(1)} млн</b> блоков</div>`).join("")}</td>
+    </tr></tbody></table></div>
+    ${d.longops.length ? `<h4 style="margin:14px 0 6px;font-size:13px">Длинные операции</h4>
+      <div class="tbl-wrap"><table><tbody>${d.longops.map(l => `<tr><td>sid ${l.sid}</td><td>${esc(l.opname)}</td>
+        <td class="dim">${esc(l.target)}</td><td>${l.pct ?? "—"} %</td><td>идёт ${fmtSec(l.elapsed)}, осталось ${fmtSec(l.remaining)}</td></tr>`).join("")}
+      </tbody></table></div>` : ""}
+    ${d.blocked.length ? `<div class="note">Снять блокировщика может DBA:
+      ${d.blocked.map(b => `<code>ALTER SYSTEM KILL SESSION '${b.blocking_session},…'</code>`).join(" ")} — панель сама сессии не убивает.</div>` : ""}
+  `).join("");
+  document.getElementById("dl-when").textContent = "снято только что";
+}
+
+async function loadDbload(){
+  const btn = document.getElementById("dl-refresh");
+  btn.disabled = true; document.getElementById("dl-when").textContent = "снимаю, около 12 секунд…";
+  try { DL = await get("/dbload"); renderDbload(); }
+  catch (e) { document.getElementById("dl-when").innerHTML = `<span class="crit">Не удалось: ${esc(e.message)}</span>`; }
+  finally { btn.disabled = false; }
+}
+
 let ST = null;
 
 function renderStorage(){
@@ -1530,6 +1664,7 @@ document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
   document.querySelectorAll(".panel").forEach(x => x.classList.remove("on"));
   a.classList.add("on");
   document.getElementById("p-" + a.dataset.p).classList.add("on");
+  if (a.dataset.p === "dbload" && !DL) loadDbload();
 });
 ["f-kind","f-missing","f-find"].forEach(id =>
   document.getElementById(id).addEventListener("input", renderDevices));
@@ -1548,6 +1683,7 @@ document.getElementById("vpn-add").onclick = addVpnClient;
   document.getElementById(id).addEventListener("input", renderMikrotikUsers));
 document.getElementById("mt-add").onclick = mtCreate;
 document.getElementById("fs-add").onclick = fsAdd;
+document.getElementById("dl-refresh").onclick = loadDbload;
 
 async function withBusy(btn, fn){
   const old = btn.textContent; btn.disabled = true; btn.textContent = "…";

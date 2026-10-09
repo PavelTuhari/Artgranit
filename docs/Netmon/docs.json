@@ -118,5 +118,15 @@
     "title": "MikroTik офиса: VPN-учётки и выдача L2TP",
     "audience": "для эксплуатации",
     "descr": "Учётки PPP, кто в сети, выдача L2TP/IPsec со ссылкой, 17 из 18 сессий по PPTP, пять ловушек RouterOS."
+  },
+  "DBLOAD.md": {
+    "slug": "dbload",
+    "public": false,
+    "icon": "📈",
+    "cls": "g",
+    "order": 58,
+    "title": "Нагрузка сервера баз данных",
+    "audience": "для Oracle DBA и эксплуатации",
+    "descr": "Linux cloudbd и сессии Oracle: кто грузит процессор и диск прямо сейчас, долгие запросы, блокировки, Zabbix."
   }
 }

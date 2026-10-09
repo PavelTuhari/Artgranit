@@ -922,3 +922,75 @@ def test_smb_payload_rejects_cmd_metacharacters():
     for bad in ("a&b", 'a"b', "a b", "a%b", "a^b", "a|b", "a>b"):
         with pytest.raises(ValueError):
             rules.smb_payload("192.168.0.21", "CENTOS666", "ivan", bad, [{"drive": "I", "share": "docs"}])
+
+
+# ------------------------------------------- нагрузка сервера баз данных
+
+def _dl_act(**kw):
+    from modules.netmon import dbload as dl
+    base = dict(sid="10", serial="5", username="APP", osuser="u", machine="pc", program="p", module="m",
+                sql_id="abc", event="", wait_class="", state="WAITED SHORT TIME", seconds_in_wait="0",
+                call_seconds="1", blocking_session="", spid="100", cpu_cs="500", phys_reads="7")
+    base.update({k: str(v) for k, v in kw.items()})
+    return "ACT" + dl.SEP + dl.SEP.join(base[f] for f in dl._ACT)
+
+
+def test_dbload_idle_active_sessions_are_not_counted():
+    """Исполнители заданий висят ACTIVE в ожидании класса Idle — это не работа."""
+    from modules.netmon import dbload as dl
+    lines = [_dl_act(sid=1, state="WAITING", wait_class="Idle", event="jobq slave wait"),
+             _dl_act(sid=2, state="WAITED KNOWN TIME", wait_class="User I/O"),
+             _dl_act(sid=3, state="WAITING", wait_class="User I/O", event="db file sequential read")]
+    d = dl.parse_db("cloudbd", lines)
+    assert [a["sid"] for a in d["active"]] == [2, 3]
+    assert d["active"][0]["on_cpu"] and not d["active"][1]["on_cpu"]
+    assert d["active"][0]["cpu_seconds"] == 5, "CPU used by this session — в сотых долях секунды"
+
+
+def test_dbload_blocking_and_long_calls_become_findings():
+    from modules.netmon import dbload as dl
+    db = dl.parse_db("cloudbd", [
+        _dl_act(sid=7, state="WAITING", wait_class="Application", event="enq: TX - row lock contention",
+                seconds_in_wait=120, blocking_session=42),
+        _dl_act(sid=8, call_seconds=2400, sql_id="zzz")])
+    host = {"load1": 2, "cores": 16, "cpu": {"idle": 80, "iowait": 1}, "mem": {"available_pct": 60}, "disks": []}
+    f = dl.findings(host, [db])
+    titles = " ".join(x["title"] for x in f)
+    assert "ждёт блокировку от сессии 42" in titles
+    assert any(x["level"] == "crit" and "40 мин" in x["title"] for x in f), "дольше 30 минут — опасно"
+    assert db["active"][0]["kill"].startswith("ALTER SYSTEM KILL SESSION '7,5'")
+
+
+def test_dbload_host_parsing_vmstat_iostat_top():
+    from modules.netmon import dbload as dl
+    sec = {"LOADAVG": ["3.15 3.43 3.47 2/665 1343", "16"],
+           "VMSTAT": [" 3  0 311252 13686484 168952 30109704  0  0  363  230 7829 6797 18  1 81  0  0"],
+           "MEM": ["64155 39020", "31999 303"],
+           "IOSTAT": ["sdb 0.00 0.00 120.0 30.0 5.5 0.4 30.0 0.8 6.1 6.0 6.5 2.0 52.3",
+                      "dm-0 0 0 0 0 0 0 0 0 0 0 0 0 0"],
+           "TOP": [" 3708 oracle    20   0 8521m 1.2g 1.1g R  94.1  1.9   0:12.34 oracleCLOUDBD (LOCAL=NO)"]}
+    h = dl.parse_host(sec)
+    assert h["cores"] == 16 and h["cpu"]["idle"] == 81 and h["mem"]["available_pct"] == 61
+    assert [d["device"] for d in h["disks"]] == ["sdb"], "dm-* — дубли логических томов"
+    assert h["disks"][0]["role"].startswith("/db") and h["disks"][0]["util_pct"] == 52.3
+    assert h["top"][0]["pid"] == "3708" and h["top"][0]["cpu_pct"] == 94.1
+
+
+def test_dbload_uses_top_not_ps_for_current_cpu():
+    """ps -o pcpu — среднее за жизнь процесса: долгая сессия выглядит тихой."""
+    src = _read("modules/netmon/dbload.py")
+    assert "top -b -n 2 -d 2" in src and "p.spid in (&pids)" in src
+
+
+def test_dbload_never_kills_sessions():
+    import re
+    src = _read("modules/netmon/dbload.py")
+    sql = src[src.index('_SQL = r"""'):src.index('_SH = r"""')]
+    assert not re.search(r"^\s*alter\s+system", sql, re.I | re.M), "только чтение"
+    assert "kill" not in _read("modules/netmon/routes.py").split("def api_dbload")[1]
+
+
+def test_dbload_zabbix_items_are_float_and_thresholds_from_module():
+    src = _read("modules/netmon/scripts/netmon_zabbix_storage.py")
+    assert '"value_type": 3' not in src
+    assert "dl.LONG_CALL_CRIT" in src and "dl.LOAD_PER_CORE_CRIT" in src
