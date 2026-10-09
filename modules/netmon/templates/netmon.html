@@ -421,6 +421,37 @@
       <button class="primary" id="dl-refresh">Обновить</button>
       <span class="dim" id="dl-when">сбор занимает около 12 секунд: два замера по 2 секунды и запросы к обеим базам</span>
     </div>
+    <div class="card" id="ob-card" style="margin-top:12px">
+      <div class="filters" style="margin:0">
+        <button class="primary" id="ob-toggle">Серьёзное наблюдение</button>
+        <span id="ob-state" class="dim">…</span>
+      </div>
+      <div class="filters" style="margin:10px 0 0;font-size:13px">
+        Замер каждые <input type="number" id="ob-interval" min="3" max="300" style="width:64px"> с,
+        останавливать через <input type="number" id="ob-hours" min="1" max="72" style="width:56px"> ч,
+        хранить <input type="number" id="ob-days" min="1" max="90" style="width:56px"> дн.
+        <button id="ob-save">Сохранить</button> <span id="ob-saved" class="dim"></span>
+      </div>
+      <div class="note">Пока наблюдение включено, фоновый процесс на этой машине раз в N секунд снимает
+        процессор, нагрузку, память, диски, сеть сервера и по обеим базам — работающие сессии,
+        блокировки, процессор базы, чтения, выполнения и фиксации, и пишет в локальный кэш
+        <code id="ob-path">~/.netmon/observe.sqlite</code>. Один замер — около секунды: одно SSH-соединение
+        и открытый sqlplus к каждой базе. Закрытая страница наблюдение не останавливает.</div>
+    </div>
+
+    <div id="ob-charts-wrap" style="display:none">
+      <div class="filters" style="margin:16px 0 8px">
+        <b style="font-size:14px">В реальном времени</b>
+        <select id="ob-window">
+          <option value="5">5 минут</option><option value="30" selected>30 минут</option>
+          <option value="120">2 часа</option><option value="720">12 часов</option><option value="1440">сутки</option>
+        </select>
+        <span class="dim" id="ob-meta"></span>
+      </div>
+      <div id="ob-charts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:12px"></div>
+      <div id="ob-at" style="margin-top:12px"></div>
+    </div>
+
     <div class="tiles" id="dl-tiles" style="margin-top:10px"></div>
     <h3 style="margin:18px 0 8px;font-size:14px">Что требует внимания</h3>
     <div id="dl-findings"></div>
@@ -1573,6 +1604,201 @@ async function loadDbload(){
   finally { btn.disabled = false; }
 }
 
+// ---------------------------------------------------------- наблюдение
+let OB = {state: null, series: null, timer: null};
+const OB_COLORS = ["#58a6ff", "#3fb950", "#d29922", "#f85149", "#bc8cff", "#39c5cf", "#db6d28"];
+
+function obCharts(){
+  const s = OB.series; if (!s) return [];
+  const h = s.host, out = [];
+  out.push({title: "Процессор сервера", unit: "%", max: 100, stacked: true, t: h.t,
+            lines: [["пользователь", h.cpu_user], ["система", h.cpu_system], ["ожидание диска", h.cpu_iowait]]});
+  out.push({title: "Нагрузка (load average)", unit: "", t: h.t, ref: 16, refLabel: "16 ядер",
+            lines: [["среднее", h.load1], ["пик", h.load1_max]]});
+  out.push({title: "Память сервера", unit: "%", max: 100, t: h.t, lines: [["занято", h.mem_used_pct]]});
+  out.push({title: "Сеть сервера", unit: " КБ/с", t: h.t, lines: [["приём", h.net_rx_kbs], ["отдача", h.net_tx_kbs]]});
+  const devs = Object.keys(s.disks);
+  if (devs.length) {
+    out.push({title: "Загрузка дисков", unit: "%", max: 100, t: s.disks[devs[0]].t,
+              lines: devs.map(d => [d + (d === "sdb" ? " (/db)" : ""), s.disks[d].util_pct])});
+    out.push({title: "Диск sdb — файлы данных Oracle", unit: " МБ/с", t: (s.disks.sdb || s.disks[devs[0]]).t,
+              lines: [["чтение", (s.disks.sdb || {}).read_mb_s || []], ["запись", (s.disks.sdb || {}).write_mb_s || []]]});
+  }
+  for (const [db, d] of Object.entries(s.dbs)) {
+    out.push({title: `${db}: сессии`, unit: "", t: d.t, click: true,
+              lines: [["работают", d.active], ["на процессоре", d.on_cpu], ["ждут блокировку", d.blocked]]});
+    out.push({title: `${db}: процессор базы`, unit: "%", t: d.t, lines: [["доля всех ядер", d.db_cpu_pct]]});
+    if (db === "cloudbd") {
+      out.push({title: `${db}: чтения с диска`, unit: "/с", t: d.t, lines: [["блоков", d.phys_reads_s]]});
+      out.push({title: `${db}: логические чтения`, unit: "/с", t: d.t, lines: [["блоков", d.logical_reads_s]]});
+      out.push({title: `${db}: выполнения и фиксации`, unit: "/с", t: d.t,
+                lines: [["выполнений", d.executions_s], ["фиксаций", d.commits_s]]});
+      out.push({title: `${db}: самый долгий запрос`, unit: " с", t: d.t, ref: 300, refLabel: "5 мин",
+                lines: [["секунд", d.longest_call]]});
+    }
+  }
+  return out;
+}
+
+function fmtNum(v){
+  if (v == null) return "—";
+  return Math.abs(v) >= 10000 ? (v / 1000).toFixed(0) + "k" : Math.abs(v) >= 100 ? Math.round(v) : (+v).toFixed(1);
+}
+
+function drawChart(cv, c){
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = 150;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + "px";
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement);
+  const line = css.getPropertyValue("--line").trim() || "#30363d", dim = css.getPropertyValue("--dim").trim() || "#8b949e";
+  const pl = 44, pr = 8, pt = 8, pb = 18, w = W - pl - pr, h = H - pt - pb;
+  const n = c.t.length;
+  let max = c.max;
+  if (!max) {
+    let m = c.ref || 0;
+    c.lines.forEach(([, d]) => d.forEach((v, i) => {
+      const sv = c.stacked ? c.lines.reduce((a, [, dd]) => a + (dd[i] || 0), 0) : v;
+      if (sv > m) m = sv; }));
+    max = m > 0 ? m * 1.15 : 1;
+  }
+  g.font = "10px -apple-system, sans-serif"; g.fillStyle = dim; g.strokeStyle = line; g.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pt + h - h * i / 4;
+    g.globalAlpha = .5; g.beginPath(); g.moveTo(pl, y); g.lineTo(pl + w, y); g.stroke(); g.globalAlpha = 1;
+    g.fillText(fmtNum(max * i / 4), 2, y + 3);
+  }
+  if (n) {
+    const t0 = c.t[0], t1 = c.t[n - 1], span = Math.max(t1 - t0, 1);
+    const X = i => pl + (n === 1 ? w : (c.t[i] - t0) / span * w);
+    const Y = v => pt + h - Math.min(v, max) / max * h;
+    g.fillText(new Date(t0 * 1000).toLocaleTimeString().slice(0, 5), pl, H - 4);
+    g.fillText(new Date(t1 * 1000).toLocaleTimeString().slice(0, 5), pl + w - 28, H - 4);
+    let base = new Array(n).fill(0);
+    c.lines.forEach(([, d], li) => {
+      const col = OB_COLORS[li % OB_COLORS.length];
+      const top = d.map((v, i) => (c.stacked ? base[i] : 0) + (v || 0));
+      g.beginPath();
+      top.forEach((v, i) => i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)));
+      g.strokeStyle = col; g.lineWidth = 1.5; g.stroke();
+      if (c.stacked || li === 0) {
+        for (let i = n - 1; i >= 0; i--) g.lineTo(X(i), Y(c.stacked ? base[i] : 0));
+        g.closePath(); g.fillStyle = col; g.globalAlpha = .18; g.fill(); g.globalAlpha = 1;
+      }
+      if (c.stacked) base = top;
+    });
+    if (c.ref && c.ref <= max) {
+      g.setLineDash([4, 4]); g.strokeStyle = "#f85149"; g.beginPath();
+      g.moveTo(pl, Y(c.ref)); g.lineTo(pl + w, Y(c.ref)); g.stroke(); g.setLineDash([]);
+      g.fillStyle = "#f85149"; g.fillText(c.refLabel || "", pl + w - 50, Y(c.ref) - 3);
+    }
+    cv._map = {t: c.t, pl, w, t0, span};
+  }
+}
+
+function renderObserveCharts(){
+  const box = document.getElementById("ob-charts");
+  const charts = obCharts();
+  box.innerHTML = charts.map((c, i) => {
+    const last = c.lines.map(([name, d], li) => `<span style="color:${OB_COLORS[li % OB_COLORS.length]}">
+      ${esc(name)} <b>${fmtNum(d[d.length - 1])}${esc(c.unit)}</b></span>`).join(" &nbsp; ");
+    return `<div class="card" style="padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;flex-wrap:wrap">
+        <b>${esc(c.title)}</b><span style="font-size:12px">${last}</span></div>
+      <canvas id="obc-${i}" style="width:100%;margin-top:6px;cursor:${c.click ? "pointer" : "crosshair"}"></canvas></div>`;
+  }).join("") || `<div class="dim">замеров пока нет — первый появится через один интервал</div>`;
+  charts.forEach((c, i) => {
+    const cv = document.getElementById("obc-" + i);
+    drawChart(cv, c);
+    cv.onclick = e => {
+      const m = cv._map; if (!m) return;
+      const x = e.offsetX - m.pl; if (x < 0) return;
+      obSessionsAt(m.t0 + x / m.w * m.span);
+    };
+  });
+  const s = OB.series;
+  document.getElementById("ob-meta").textContent = s.host.t.length
+    ? `${s.host.t.length} точек${s.bucket_sec > 1.5 ? `, каждая — ${Math.round(s.bucket_sec)} с (сессии и блокировки — по максимуму)` : ""}. Щелчок по графику — кто работал в тот момент.`
+    : "";
+}
+
+async function obSessionsAt(ts){
+  const box = document.getElementById("ob-at");
+  try {
+    const rows = await get(`/observe/sessions?ts=${ts}`);
+    const when = rows.length ? new Date(rows[0].ts * 1000).toLocaleTimeString() : new Date(ts * 1000).toLocaleTimeString();
+    box.innerHTML = `<h3 style="margin:0 0 6px;font-size:14px">Работали в ${esc(when)}</h3>
+      <div class="tbl-wrap"><table><thead><tr><th>База</th><th>Сессия</th><th>Схема</th><th>Откуда</th>
+        <th>Запрос идёт</th><th>Чем занята</th><th>SQL</th><th>Блокирует</th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td>${esc(r.db)}</td><td><code>${r.sid},${r.serial}</code></td><td><b>${esc(r.username)}</b></td>
+        <td class="dim" style="font-size:12px">${esc(r.machine)}<br>${esc(r.program)}</td><td>${fmtSec(r.call_seconds)}</td>
+        <td style="font-size:12px">${r.on_cpu ? `<span class="badge b-ok">на процессоре</span>` : esc(r.event)}</td>
+        <td><code>${esc(r.sql_id || "—")}</code></td>
+        <td>${r.blocking_session ? `<span class="badge b-no">ждёт ${r.blocking_session}</span>` : ""}</td></tr>`).join("")
+        || `<tr><td colspan="8" class="dim">в этот момент никто не работал</td></tr>`}</tbody></table></div>`;
+  } catch (e) { box.innerHTML = `<span class="crit">${esc(e.message)}</span>`; }
+}
+
+function renderObserveState(){
+  const st = OB.state; if (!st) return;
+  const btn = document.getElementById("ob-toggle");
+  btn.textContent = st.alive ? "Остановить наблюдение" : "Серьёзное наблюдение";
+  btn.className = st.alive ? "" : "primary";
+  const age = st.heartbeat_age != null ? `последний замер ${Math.round(st.heartbeat_age)} с назад` : "";
+  document.getElementById("ob-state").innerHTML = st.alive
+    ? `<span class="ok">● идёт</span> с ${new Date(st.started_at * 1000).toLocaleTimeString()},
+       замеров ${st.samples}, ${age}, процесс ${st.pid}` 
+    : `<span class="dim">○ выключено</span>${st.store.samples ? ` · в кэше ${st.store.samples} замеров, ${st.store.size_mb} МБ` : ""}`;
+  if (st.last_error) document.getElementById("ob-state").innerHTML += `<div class="${st.alive ? "warn" : "dim"}" style="font-size:12px">${esc(st.last_error)}</div>`;
+  const cfg = st.settings;
+  for (const [id, k] of [["ob-interval", "interval_sec"], ["ob-hours", "max_hours"], ["ob-days", "retention_days"]]) {
+    const el = document.getElementById(id);
+    if (document.activeElement !== el) el.value = cfg[k];
+  }
+  document.getElementById("ob-path").textContent = st.store.path;
+  document.getElementById("ob-charts-wrap").style.display = st.store.samples ? "" : "none";
+}
+
+async function obRefresh(){
+  try {
+    const minutes = document.getElementById("ob-window").value;
+    OB.series = await get(`/observe/series?minutes=${minutes}`);
+    OB.state = OB.series.state;
+    renderObserveState();
+    if (OB.state.store.samples) renderObserveCharts();
+  } catch (e) { document.getElementById("ob-state").innerHTML = `<span class="crit">${esc(e.message)}</span>`; }
+  obSchedule();
+}
+
+function obSchedule(){
+  clearTimeout(OB.timer);
+  const tabOn = document.getElementById("p-dbload").classList.contains("on");
+  if (!tabOn || document.hidden) return;              // невидимую вкладку не дёргаем
+  const iv = OB.state ? OB.state.settings.interval_sec : 30;
+  OB.timer = setTimeout(obRefresh, (OB.state && OB.state.alive ? Math.max(iv, 3) : 30) * 1000);
+}
+
+async function obToggle(){
+  const btn = document.getElementById("ob-toggle"); btn.disabled = true;
+  try {
+    OB.state = await post(OB.state && OB.state.alive ? "/observe/stop" : "/observe/start");
+    renderObserveState();
+    setTimeout(obRefresh, 2500);
+  } catch (e) { alert("Не удалось: " + e.message); }
+  finally { btn.disabled = false; }
+}
+
+async function obSave(){
+  try {
+    const cfg = await post("/observe/settings", {
+      interval_sec: +document.getElementById("ob-interval").value,
+      max_hours: +document.getElementById("ob-hours").value,
+      retention_days: +document.getElementById("ob-days").value});
+    document.getElementById("ob-saved").innerHTML = `<span class="ok">сохранено: каждые ${cfg.interval_sec} с</span>`;
+    if (OB.state) OB.state.settings = cfg;
+    obSchedule();
+  } catch (e) { document.getElementById("ob-saved").innerHTML = `<span class="crit">${esc(e.message)}</span>`; }
+}
+
 let ST = null;
 
 function renderStorage(){
@@ -1665,6 +1891,7 @@ document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
   a.classList.add("on");
   document.getElementById("p-" + a.dataset.p).classList.add("on");
   if (a.dataset.p === "dbload" && !DL) loadDbload();
+  if (a.dataset.p === "dbload") obRefresh(); else clearTimeout(OB.timer);
 });
 ["f-kind","f-missing","f-find"].forEach(id =>
   document.getElementById(id).addEventListener("input", renderDevices));
@@ -1684,6 +1911,11 @@ document.getElementById("vpn-add").onclick = addVpnClient;
 document.getElementById("mt-add").onclick = mtCreate;
 document.getElementById("fs-add").onclick = fsAdd;
 document.getElementById("dl-refresh").onclick = loadDbload;
+document.getElementById("ob-toggle").onclick = obToggle;
+document.getElementById("ob-save").onclick = obSave;
+document.getElementById("ob-window").onchange = obRefresh;
+document.addEventListener("visibilitychange", () => { if (!document.hidden) obRefresh(); });
+window.addEventListener("resize", () => { if (OB.series && OB.state && OB.state.store.samples) renderObserveCharts(); });
 
 async function withBusy(btn, fn){
   const old = btn.textContent; btn.disabled = true; btn.textContent = "…";

@@ -994,3 +994,119 @@ def test_dbload_zabbix_items_are_float_and_thresholds_from_module():
     src = _read("modules/netmon/scripts/netmon_zabbix_storage.py")
     assert '"value_type": 3' not in src
     assert "dl.LONG_CALL_CRIT" in src and "dl.LOAD_PER_CORE_CRIT" in src
+
+
+# ------------------------------------------------- серьёзное наблюдение
+
+_PROC = """@@STAT
+cpu  1000 0 200 8000 100 0 0 0 0 0
+procs_running 3
+procs_blocked 1
+@@LOAD
+2.90 3.10 3.20 2/600 999
+@@MEM
+MemTotal:       65695744 kB
+MemAvailable:   39960576 kB
+SwapTotal:      32767996 kB
+SwapFree:       32457724 kB
+@@DISK
+   8      16 sdb 1000 0 80000 500 200 0 16000 300 0 900 800 0 0 0 0
+   8      17 sdb1 999 0 79999 499 199 0 15999 299 0 899 799 0 0 0 0
+ 253       0 dm-0 5 0 5 5 5 0 5 5 0 5 5 0 0 0 0
+@@NET
+  eth0: 1048576 100 0 0 0 0 0 0 2097152 200 0 0 0 0 0 0
+    lo: 999999 9 0 0 0 0 0 0 999999 9 0 0 0 0 0 0
+@@END"""
+
+
+def _proc_later():
+    return (_PROC.replace("cpu  1000 0 200 8000 100", "cpu  1600 0 300 9100 200")
+                 .replace("sdb 1000 0 80000 500 200 0 16000 300 0 900",
+                          "sdb 1100 0 100480 700 300 0 18048 500 0 2400")
+                 .replace("eth0: 1048576", "eth0: 3145728").replace("0 2097152 200", "0 4194304 200"))
+
+
+def test_observe_host_delta_from_proc_counters():
+    from modules.netmon import observe_sampler as s
+    a, b = s.parse_host_raw(_PROC), s.parse_host_raw(_proc_later())
+    assert list(a["disks"]) == ["sdb"], "только целые устройства: без разделов и dm-*"
+    assert a["net_rx"] == 1048576, "lo не считается"
+    d = s.delta(a, b, dt=2.0)
+    # из 1900 тиков: польз 600, сист 100, простой 1100, ожидание 100
+    assert (d["cpu_user"], d["cpu_system"], d["cpu_iowait"]) == (31.6, 5.3, 5.3)
+    disk = d["disks"][0]
+    assert disk["util_pct"] == 75.0, "io_ticks 1500 мс за 2 с"
+    assert disk["r_s"] == 50.0 and disk["w_s"] == 50.0
+    assert disk["read_mb_s"] == 5.0 and disk["await_ms"] == 2.0
+    assert d["net_rx_kbs"] == 1024.0 and d["mem_used_pct"] == 39.2
+
+
+def test_observe_db_rates_from_sysstat_deltas():
+    from modules.netmon import observe_sampler as s
+    raw1 = "SYS@@physical reads@@1000\nSYS@@execute count@@500\nSYS@@CPU used by this session@@10000\nCNT@@200@@5@@3@@1@@40"
+    raw2 = "SYS@@physical reads@@3000\nSYS@@execute count@@2500\nSYS@@CPU used by this session@@14000\nCNT@@201@@6@@4@@0@@12"
+    a, b = s.parse_db_raw("cloudbd", raw1), s.parse_db_raw("cloudbd", raw2)
+    d = s.db_delta(a, b, dt=10, cpu_count=16)
+    assert d["phys_reads_s"] == 200.0 and d["executions_s"] == 200.0
+    assert d["db_cpu_pct"] == 25.0, "40 с процессора за 10 с на 16 ядрах = 25 % сервера"
+    assert (d["sessions"], d["active"], d["on_cpu"], d["blocked"], d["longest_call"]) == (201, 6, 4, 0, 12)
+
+
+def test_observe_session_line_parsing():
+    from modules.netmon import observe_sampler as s
+    d = s.parse_db_raw("cloudbd", "SES@@924@@5@@UNWEBSHOP@@web4@@php@@abc@@@@1@@3@@\n"
+                                  "SES@@7@@1@@APP@@pc@@x@@def@@enq: TX - row lock contention@@0@@120@@42")
+    assert d["sessions"][0]["on_cpu"] and d["sessions"][0]["blocking_session"] is None
+    assert d["sessions"][1]["blocking_session"] == 42 and d["sessions"][1]["call_seconds"] == 120
+
+
+def test_observe_settings_limits_and_persistence(tmp_path, monkeypatch):
+    import pytest
+    from modules.netmon import observe_store as st
+    monkeypatch.setattr(st, "DB_PATH", tmp_path / "o.sqlite")
+    assert st.get_settings()["interval_sec"] == 30, "по умолчанию — 30 секунд"
+    assert st.save_settings({"interval_sec": 3})["interval_sec"] == 3
+    assert st.get_settings()["interval_sec"] == 3, "настройка сохраняется"
+    for bad in (2, 301, "abc"):
+        with pytest.raises(ValueError):
+            st.save_settings({"interval_sec": bad})
+
+
+def test_observe_series_keeps_peaks_when_downsampling(tmp_path, monkeypatch):
+    """Длинное окно сжимается: сессии и блокировки — по максимуму, иначе пик пропадёт."""
+    import time
+    from modules.netmon import observe_store as st
+    monkeypatch.setattr(st, "DB_PATH", tmp_path / "o.sqlite")
+    now = time.time()
+    for i in range(60):
+        ts = now - 600 + i * 10
+        st.save_sample({"ts": ts, "interval": 10, "cpu_user": 10, "cpu_system": 1, "cpu_iowait": 0,
+                        "cpu_idle": 89, "cpu_steal": 0, "load1": 2, "load5": 2, "procs_running": 1,
+                        "procs_blocked": 0, "mem_used_pct": 40, "mem_available_mb": 1, "swap_used_mb": 0,
+                        "net_rx_kbs": 1, "net_tx_kbs": 1, "collect_ms": 900, "disks": [],
+                        "dbs": [{"db": "cloudbd", "sessions": 200, "active": 30 if i == 31 else 2,
+                                 "on_cpu": 1, "blocked": 5 if i == 31 else 0, "longest_call": 1,
+                                 "db_cpu_pct": 10, "phys_reads_s": 1, "logical_reads_s": 1,
+                                 "executions_s": 1, "commits_s": 1, "redo_kbs": 1}],
+                        "sessions": []})
+    s = st.series(minutes=11, points=6)
+    assert len(s["host"]["t"]) <= 7
+    assert max(s["dbs"]["cloudbd"]["active"]) == 30 and max(s["dbs"]["cloudbd"]["blocked"]) == 5
+
+
+def test_observe_single_instance_and_start_race():
+    worker = _read("modules/netmon/scripts/netmon_observe.py")
+    assert "fcntl.LOCK_EX | fcntl.LOCK_NB" in worker, "второй экземпляр должен выходить"
+    assert 'max_hours' in worker, "забытое наблюдение должно остановиться само"
+    ctl = _read("modules/netmon/controller.py")
+    start = ctl[ctl.index("def observe_start"):ctl.index("def observe_stop")]
+    assert "set_control(pid=proc.pid" in start, "номер процесса — сразу, иначе гонка"
+    assert "start_new_session=True" in start
+
+
+def test_observe_cache_lives_outside_repository():
+    from modules.netmon import observe_store as st
+    import os
+    root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    assert not str(st.DB_PATH).startswith(root), "кэш наблюдения — не в репозитории"
+    assert "ЭТО КЭШ, А НЕ ХРАНИЛИЩЕ" in _read("modules/netmon/observe_store.py")

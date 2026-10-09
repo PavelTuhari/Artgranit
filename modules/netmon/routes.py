@@ -482,3 +482,50 @@ def api_dbload():
     if (g := _guard()) is not None:
         return g
     return _reply(NetmonController.dbload())
+
+
+# ---------------------------------------------------- серьёзное наблюдение
+
+@blueprint.route("/api/observe")
+def api_observe():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.observe_status())
+
+
+@blueprint.route("/api/observe/start", methods=["POST"])
+def api_observe_start():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.observe_start())
+
+
+@blueprint.route("/api/observe/stop", methods=["POST"])
+def api_observe_stop():
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.observe_stop())
+
+
+@blueprint.route("/api/observe/settings", methods=["GET", "POST"])
+def api_observe_settings():
+    if (g := _guard()) is not None:
+        return g
+    body = request.get_json(silent=True) if request.method == "POST" else None
+    return _reply(NetmonController.observe_settings(body or None))
+
+
+@blueprint.route("/api/observe/series")
+def api_observe_series():
+    """Ряды для графиков за последние ?minutes= минут (не больше 600 точек)."""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.observe_series(request.args.get("minutes", 30)))
+
+
+@blueprint.route("/api/observe/sessions")
+def api_observe_sessions():
+    """Кто работал в момент ?ts= — для щелчка по пику графика."""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.observe_sessions(request.args.get("ts", 0)))

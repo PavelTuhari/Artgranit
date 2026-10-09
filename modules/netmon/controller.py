@@ -731,6 +731,87 @@ class NetmonController:
         except Exception as e:  # noqa: BLE001
             return _fail(e)
 
+    # ------------------------------------------- серьёзное наблюдение
+
+    @staticmethod
+    def observe_status():
+        try:
+            from modules.netmon import observe_store as st
+            return _ok(_observe_state())
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def observe_start():
+        """Запустить фоновую запись, если она ещё не идёт."""
+        try:
+            import subprocess
+            import sys
+            from pathlib import Path
+            from modules.netmon import observe_store as st
+            state = _observe_state()
+            if state["alive"]:
+                return _ok({**state, "note": "наблюдение уже идёт"})
+            st.set_control(desired="running", last_error=None)
+            root = Path(__file__).resolve().parents[2]
+            log = st.DB_PATH.parent / "observe.log"
+            with open(log, "a") as fh:
+                proc = subprocess.Popen(
+                    [sys.executable, str(root / "modules/netmon/scripts/netmon_observe.py")],
+                    cwd=str(root), stdout=fh, stderr=subprocess.STDOUT,
+                    start_new_session=True)          # не умрёт при перезапуске веб-сервера
+            # Номер — сразу: иначе повторное нажатие в первые секунды, пока процесс
+            # поднимается, запускало второй (поймано проверкой 08.10.2026).
+            import time as _t
+            st.set_control(pid=proc.pid, started_at=_t.time(), heartbeat=_t.time())
+            return _ok({**_observe_state(), "pid": proc.pid, "log": str(log)})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def observe_stop():
+        try:
+            import os
+            import signal
+            from modules.netmon import observe_store as st
+            ctl = st.control()
+            st.set_control(desired="stopped")     # процесс увидит на ближайшем замере
+            if ctl["pid"]:
+                try:
+                    os.kill(ctl["pid"], signal.SIGTERM)
+                except ProcessLookupError:
+                    st.set_control(pid=None)
+            return _ok(_observe_state())
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def observe_settings(values=None):
+        try:
+            from modules.netmon import observe_store as st
+            return _ok(st.save_settings(values) if values else st.get_settings())
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def observe_series(minutes):
+        try:
+            from modules.netmon import observe_store as st
+            m = min(max(float(minutes or 30), 1), 60 * 24 * 7)
+            return _ok({**st.series(m), "state": _observe_state()})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def observe_sessions(ts):
+        try:
+            from modules.netmon import observe_store as st
+            return _ok(st.sessions_at(float(ts)))
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
     # ------------------------------------------- диски сервера баз данных
 
     @staticmethod
@@ -832,3 +913,21 @@ def _attach_smb_share(res: dict, minutes, lang: str, user: str) -> None:
         res["share"] = _make_share(res["login"], payload, minutes, lang, user, kind="smb")
     except Exception as e:  # noqa: BLE001
         res["share_error"] = str(e)[:200]
+
+
+def _observe_state() -> dict:
+    """Идёт ли наблюдение на самом деле: процесс жив И пульс свежий."""
+    import os
+    import time
+    from modules.netmon import observe_store as st
+    ctl, cfg = st.control(), st.get_settings()
+    alive = False
+    if ctl["pid"]:
+        try:
+            os.kill(ctl["pid"], 0)
+            # пульс должен быть не старше трёх интервалов (и минуты на подключение)
+            alive = (time.time() - (ctl["heartbeat"] or 0)) < cfg["interval_sec"] * 3 + 60
+        except (ProcessLookupError, PermissionError):
+            alive = False
+    return {**ctl, "alive": alive, "settings": cfg, "store": st.stats(),
+            "heartbeat_age": round(time.time() - ctl["heartbeat"], 1) if ctl["heartbeat"] else None}

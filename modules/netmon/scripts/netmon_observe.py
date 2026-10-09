@@ -56,6 +56,16 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _on_term)
     signal.signal(signal.SIGINT, _on_term)
 
+    # Один экземпляр на машину: файловая блокировка держится, пока процесс жив,
+    # и снимается системой даже при аварийном завершении.
+    import fcntl
+    lock = open(store.DB_PATH.parent / "observe.lock", "w")
+    try:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        print("наблюдение уже идёт в другом процессе — выхожу")
+        return
+
     started = time.time()
     store.set_control(desired="running", pid=os.getpid(), started_at=started, heartbeat=started,
                       last_error=None, samples=0)
