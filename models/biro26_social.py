@@ -163,6 +163,10 @@ class Biro26Social:
         {set_cookies: {...}} cind cookie-urile trebuie (re)scrise; logheaza
         vizita atribuita in fundal. Fail-silent integral."""
         try:
+            # RO: cookie-urile de atributie doar cu acord pe «Marketing» (legea datelor personale)
+            from models.biro26_cookie_consent import marketing_allowed, wipe_marketing
+            if not marketing_allowed(req):
+                return wipe_marketing(req)
             attr = Biro26Social.classify(req.args, req.referrer or "")
             vid = req.cookies.get(VISITOR_COOKIE)
             new_vid = False

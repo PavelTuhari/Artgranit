@@ -389,9 +389,10 @@ async function loadContact() {
   const tl = document.getElementById('ct-tel');
   tl.textContent = d.telefon || ''; tl.href = 'tel:' + (d.telefon || '').replace(/[^+0-9]/g, '');
   document.getElementById('ct-adr').textContent = d.adresa || '';
-  if (d.harta) document.getElementById('ct-map').innerHTML =
-    '<iframe loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="' +
-    d.harta.replace(/&#0?38;/g, '&').replace(/&amp;/g, '&') + '"></iframe>';
+  // RO: harta Google pune cookie-uri — o porneste cookie-consent.js (acord «Functionale» sau click pe «Afișați harta»)
+  if (d.harta) { const m = document.getElementById('ct-map');
+    m.setAttribute('data-opcc-src', d.harta.replace(/&#0?38;/g, '&').replace(/&amp;/g, '&'));
+    if (window.opConsent) window.opConsent.scan(); }
 }
 
 /* ── redare completa (si la schimbarea limbii) ───────────────────────── */

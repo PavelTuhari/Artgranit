@@ -2,13 +2,17 @@
 <html lang="ro">
 <head>
   {# RO: Google tag (gtag.js) — imediat dupa <head>, cum cere Google Analytics.
-       Se randeaza doar cind ga_id e setat (pe domeniul public officeplus.md). #}
+       Se randeaza doar cind ga_id e setat (pe domeniul public officeplus.md).
+       Din 09.10.2026 (legea datelor personale): aici doar coada dataLayer cu
+       consent default = denied; gtag.js il descarca _site_cookie_consent.html
+       abia dupa acordul pe «Analitice». Pina atunci nicio cerere la Google. #}
   {% if ga_id %}
-  <!-- Google tag (gtag.js) -->
-  <script async src="https://www.googletagmanager.com/gtag/js?id={{ ga_id }}"></script>
   <script>
+    window.OP_GA_ID = '{{ ga_id }}';
     window.dataLayer = window.dataLayer || [];
     function gtag(){dataLayer.push(arguments);}
+    gtag('consent', 'default', {ad_storage: 'denied', ad_user_data: 'denied',
+      ad_personalization: 'denied', analytics_storage: 'denied'});
     gtag('js', new Date());
     gtag('config', '{{ ga_id }}');
   </script>
@@ -16,9 +20,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ app_name }} – Totul de ce ai nevoie într-un singur loc{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  {# RO: Inter gazduit la noi (nu Google Fonts: IP-ul vizitatorului nu pleaca la Google fara acord) #}
+  <link href="/static/biro26/fonts/inter/inter.css?v=20261009" rel="stylesheet">
   <meta name="description" content="{{ app_name }} — magazin online de birotică și papetărie în Moldova: catalog live, coș, achitare online (MAIB/MIA), rate și credit.">
   {# RO: adresele absolute folosesc DOAR domeniul public (canonical_url / public_base).
        Cu request.host, pe officeplus.una.md — care e doar o redirectare de reclama —
@@ -454,9 +457,11 @@ window.RATE_PLANS = {{ rate_plans|default([])|tojson }};
        ATENTIE: acelasi ID trebuie sa fie si in mu-plugin-ul WordPress —
        paginile de continut (/despre-companie s.a.) sint servite de WP, nu de
        aplicatie, iar fara el chatul dispare cind vizitatorul trece acolo. #}
+  {# RO: din 09.10.2026 scriptul Jivo il porneste cookie-consent.js, doar cu acord pe «Functionale» #}
   {% if jivo_id %}
-  <script src="//code.jivosite.com/widget/{{ jivo_id }}" async></script>
+  <script>window.OP_JIVO_ID = '{{ jivo_id }}';</script>
   {% endif %}
+  {% include "biro26/_site_cookie_consent.html" %}
   {% include "biro26/_site_chatbot.html" %}
 </body>
 </html>

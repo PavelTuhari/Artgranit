@@ -47,13 +47,12 @@ add_action('admin_init', function () {
     );
 });
 
-/** Сам виджет — в подвал, асинхронно, чтобы не задерживать отрисовку. */
+/** Сам виджет. С 09.10.2026 (закон о персональных данных) скрипт Jivo НЕ грузится
+ *  напрямую: здесь только ID, а запускает чат cookie-consent.js
+ *  (officeplus-cookie-consent.php) — и только после согласия на «Funcționale». */
 add_action('wp_footer', function () {
     if (is_admin()) { return; }
     $id = trim((string) get_option(OFFICEPLUS_JIVO_OPTION, ''));
     if ($id === '') { return; }          // не задан — чата нет вовсе
-    printf(
-        '<script src="//code.jivosite.com/widget/%s" async></script>' . "\n",
-        esc_attr($id)
-    );
+    printf('<script>window.OP_JIVO_ID = %s;</script>' . "\n", wp_json_encode($id));
 }, 99);
