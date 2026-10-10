@@ -37,7 +37,7 @@ def test_site_base_includes_chatbot_once_as_one_line():
     lines = [l for l in src.splitlines() if "_site_chatbot.html" in l]
     assert lines == ['  {% include "biro26/_site_chatbot.html" %}']
     # inainte de </body>, dupa JivoChat — nu intirzie afisarea paginii
-    assert src.index("_site_chatbot.html") > src.index("code.jivosite.com")
+    assert src.index("_site_chatbot.html") > src.index("window.OP_JIVO_ID")
     assert src.index("_site_chatbot.html") < src.rindex("</body>")
 
 
