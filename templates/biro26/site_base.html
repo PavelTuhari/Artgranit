@@ -20,9 +20,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}{{ app_name }} – Totul de ce ai nevoie într-un singur loc{% endblock %}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  {# RO: Inter gazduit la noi (nu Google Fonts: IP-ul vizitatorului nu pleaca la Google fara acord) #}
+  <link href="/static/biro26/fonts/inter/inter.css?v=20261009" rel="stylesheet">
   <meta name="description" content="{{ app_name }} — magazin online de birotică și papetărie în Moldova: catalog live, coș, achitare online (MAIB/MIA), rate și credit.">
   {# RO: adresele absolute folosesc DOAR domeniul public (canonical_url / public_base).
        Cu request.host, pe officeplus.una.md — care e doar o redirectare de reclama —

@@ -34,8 +34,8 @@ def test_consent_partial_included_once():
     src = _read("templates", "biro26", "site_base.html")
     assert src.count('{% include "biro26/_site_cookie_consent.html" %}') == 1
     part = _read("templates", "biro26", "_site_cookie_consent.html")
-    assert re.search(r'/static/biro26/cookie-consent\.css\?v=\d{8}', part)
-    assert re.search(r'/static/biro26/cookie-consent\.js\?v=\d{8}', part)
+    assert re.search(r'/static/biro26/cookie-consent\.css\?v=\d{8,10}', part)
+    assert re.search(r'/static/biro26/cookie-consent\.js\?v=\d{8,10}', part)
 
 
 def test_trackers_started_only_from_consent_script():
@@ -45,7 +45,7 @@ def test_trackers_started_only_from_consent_script():
     assert "code.jivosite.com/widget/" in js[js.index("function startFunctional"):js.index("function apply")]
     assert "if (c.a) startAnalytics();" in js and "if (c.f) startFunctional();" in js
     # fara alegere -> doar bannerul, nimic pornit
-    assert "if (c) apply(c, null); else banner();" in js
+    assert "if (c) apply(c, null); else { banner(); scan(); }" in js
 
 
 def test_reject_as_easy_as_accept():
@@ -84,3 +84,24 @@ def test_attribution_cookies_only_with_marketing_consent():
     # cu acord pe marketing -> ID de vizitator nou
     r = Biro26Social.on_request(_req({"op_consent": "v1.a0.f0.m1.1"}))
     assert r and len(r["set_cookies"]["op_vid"]) == 32
+
+
+def test_no_google_fonts_and_self_hosted_inter():
+    src = _read("templates", "biro26", "site_base.html")
+    assert "fonts.googleapis.com" not in src and "fonts.gstatic.com" not in src
+    assert "/static/biro26/fonts/inter/inter.css?v=" in src
+    css = _read("static", "biro26", "fonts", "inter", "inter.css")
+    for sub in ("latin", "latin-ext", "cyrillic", "cyrillic-ext"):
+        f = "inter-%s-wght-normal.woff2" % sub
+        assert "url(%s)" % f in css
+        with open(os.path.join(ROOT, "static", "biro26", "fonts", "inter", f), "rb") as fh:
+            assert fh.read(4) == b"wOF2"
+
+
+def test_google_map_waits_for_consent_or_click():
+    home = _read("templates", "biro26", "site_home.html")
+    assert "<iframe" not in home[home.index("if (d.harta)"):home.index("if (d.harta)") + 400]
+    assert "m.setAttribute('data-opcc-src'" in home and "window.opConsent.scan()" in home
+    js = _read("static", "biro26", "cookie-consent.js")
+    scan = js[js.index("function scan"):js.index("function apply")]
+    assert "if (ok) {" in scan and "opcc-ph" in scan and "frame(b, u)" in scan

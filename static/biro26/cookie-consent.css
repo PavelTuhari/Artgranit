@@ -39,6 +39,9 @@
 .opcc-sw:checked::after{left:23px}
 .opcc-dialog .opcc-actions{margin-top:14px}
 .opcc-dialog .opcc-text{margin-top:10px}
+.opcc-ph{height:300px;border-radius:12px;background:#eef3fa;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center;color:#3a3a3a;font-size:14px}
+.opcc-ph p{margin:0;max-width:420px}
 @media(max-width:760px){
   .opcc-banner{flex-direction:column;align-items:stretch;left:8px;right:8px;bottom:8px;padding:14px}
   .opcc-actions{justify-content:stretch}

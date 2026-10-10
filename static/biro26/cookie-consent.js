@@ -36,9 +36,11 @@
       more: 'Politica de confidențialitate',
       accept: 'Accept toate', reject: 'Refuz', custom: 'Personalizez',
       save: 'Salvez alegerea', settings: 'Setări cookie', always: 'Mereu active',
+      map: 'Harta Google Maps pune cookie-uri Google și se încarcă doar cu acordul dumneavoastră.',
+      mapBtn: 'Afișați harta',
       cats: {
         n: ['Strict necesare', 'Sesiunea contului, coșul, limba, această alegere. Fără ele site-ul nu funcționează.'],
-        f: ['Funcționale', 'Chatul de asistență JivoChat (păstrează conversația între pagini).'],
+        f: ['Funcționale', 'Chatul de asistență JivoChat (păstrează conversația între pagini) și harta Google Maps din pagina de contacte.'],
         a: ['Analitice', 'Google Analytics — cîți vizitatori avem și ce pagini citesc (cookie _ga). Fără date de contact.'],
         m: ['Marketing', 'De unde ați venit (Facebook, Google, TikTok…), ca să știm care reclamă funcționează (cookie op_vid, op_attr, 90 de zile).']
       }
@@ -52,9 +54,11 @@
       more: 'Политика конфиденциальности',
       accept: 'Принять все', reject: 'Отказаться', custom: 'Настроить',
       save: 'Сохранить выбор', settings: 'Настройки cookie', always: 'Всегда активны',
+      map: 'Карта Google Maps ставит cookie Google и загружается только с вашего согласия.',
+      mapBtn: 'Показать карту',
       cats: {
         n: ['Строго необходимые', 'Сессия аккаунта, корзина, язык, этот выбор. Без них сайт не работает.'],
-        f: ['Функциональные', 'Чат поддержки JivoChat (сохраняет переписку между страницами).'],
+        f: ['Функциональные', 'Чат поддержки JivoChat (сохраняет переписку между страницами) и карта Google Maps в контактах.'],
         a: ['Аналитика', 'Google Analytics — сколько посетителей и какие страницы читают (cookie _ga). Без контактных данных.'],
         m: ['Маркетинг', 'Откуда вы пришли (Facebook, Google, TikTok…), чтобы понимать, какая реклама работает (cookie op_vid, op_attr, 90 дней).']
       }
@@ -114,9 +118,32 @@
     document.body.appendChild(s);
   }
 
+  // RO: iframe-uri externe care pun cookie-uri (harta Google din pagina principala):
+  //     elementul are data-opcc-src; cu acord «Functionale» -> iframe, altfel o
+  //     placa cu buton — click-ul e acordul pentru harta aceea, nu se memoreaza.
+  function frame(box, src) {
+    box.innerHTML = '<iframe loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="' +
+      src.replace(/"/g, '&quot;') + '"></iframe>';
+  }
+
+  function scan() {
+    var t = T[lang()], ok = (read() || {}).f;
+    var list = document.querySelectorAll('[data-opcc-src]');
+    for (var i = 0; i < list.length; i++) {
+      var box = list[i], src = box.getAttribute('data-opcc-src');
+      if (!src || /^https?:/.test(src) === false) continue;
+      if (ok) { if (!box.querySelector('iframe')) frame(box, src); continue; }
+      if (box.querySelector('.opcc-ph')) continue;
+      box.innerHTML = '<div class="opcc-ph"><p>' + t.map + '</p><button type="button" class="opcc-btn opcc-custom">' +
+        t.mapBtn + '</button></div>';
+      (function (b, u) { b.querySelector('button').addEventListener('click', function () { frame(b, u); }); })(box, src);
+    }
+  }
+
   function apply(c, prev) {
     if (c.a) startAnalytics();
     if (c.f) startFunctional();
+    scan();
     // RO: acordul retras -> curatam ce s-a apucat sa se scrie
     if (prev && prev.a && !c.a) {
       try { window.gtag('consent', 'update', { analytics_storage: 'denied' }); } catch (e) {}
@@ -237,12 +264,13 @@
   window.opConsent = {
     has: function (k) { var c = read(); return !!(c && c[k]); },
     get: read,
-    open: settings
+    open: settings,
+    scan: scan
   };
 
   function init() {
     var c = read();
-    if (c) apply(c, null); else banner();
+    if (c) apply(c, null); else { banner(); scan(); }
     footerLink();
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
