@@ -812,6 +812,29 @@ class NetmonController:
         except Exception as e:  # noqa: BLE001
             return _fail(e)
 
+    # ------------------------------------------------ доска заявок OTRS
+
+    _otrs_cache: dict = {}
+
+    @staticmethod
+    def otrs_board(force=False):
+        """Заявки OTRS: требуют рассмотрения, на закрытие, вернулись. Только чтение.
+
+        Сбор ~11 с (запуск толстого клиента Oracle 11g и три запроса), поэтому
+        результат держится минуту: переключение вкладок базу не дёргает.
+        """
+        import time
+        try:
+            from modules.netmon import otrs_board as ob
+            c = NetmonController._otrs_cache
+            if not force and c.get("data") and time.time() - c.get("at", 0) < 60:
+                return _ok({**c["data"], "cached_sec": round(time.time() - c["at"])})
+            data = ob.board()
+            NetmonController._otrs_cache = {"data": data, "at": time.time()}
+            return _ok({**data, "cached_sec": 0})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
     # ------------------------------------------- диски сервера баз данных
 
     @staticmethod

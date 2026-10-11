@@ -100,7 +100,9 @@
 
 <script>
 (function(){
-  const API_OTRS = API + "/otrs";
+  // API и esc определяет основной скрипт панели НИЖЕ этой вставки — поэтому
+  // только лениво, внутри функций, а не при загрузке.
+  const apiOtrs = () => API + "/otrs";
   const SECTIONS = [
     {key: "review", title: "Требуют рассмотрения", color: "#4573d2",
      hint: "клиент ждёт ответа, новые без исполнителя"},
@@ -131,7 +133,12 @@
   }
 
   function note(key, r){
-    if (key === "review") return r.last_customer_subject ? "Клиент: " + r.last_customer_subject : (r.reason_titles || []).join(" · ");
+    if (key === "review") {
+      // тема письма клиента почти всегда повторяет название заявки — тогда она ничего не добавляет
+      const norm = s => String(s || "").replace(/^\s*((re|fwd?|aw|ответ)\s*:\s*)+/i, "").trim().toLowerCase();
+      const subj = r.last_customer_subject;
+      return subj && norm(subj) !== norm(r.title) ? "Клиент: " + subj : (r.reason_titles || []).join(" · ");
+    }
     if (key === "to_close") return (r.work_comment || "").replace(/\s+/g, " ") || `${r.work_entries} записей работы`;
     return r.held_days != null ? `была у исполнителя ${r.held_days} дн, работы не записано` : "работы не записано";
   }
@@ -201,7 +208,7 @@
     const sub = document.getElementById("ob-sub");
     sub.textContent = "загружаю из базы OTRS, около 10 секунд…";
     try {
-      const r = await fetch(API_OTRS + (force ? "?force=1" : ""), {headers: {Accept: "application/json"}});
+      const r = await fetch(apiOtrs() + (force ? "?force=1" : ""), {headers: {Accept: "application/json"}});
       const j = await r.json();
       if (!j.success) throw new Error(j.message || "ошибка");
       DATA = j.data;

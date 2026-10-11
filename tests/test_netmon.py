@@ -1110,3 +1110,51 @@ def test_observe_cache_lives_outside_repository():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     assert not str(st.DB_PATH).startswith(root), "кэш наблюдения — не в репозитории"
     assert "ЭТО КЭШ, А НЕ ХРАНИЛИЩЕ" in _read("modules/netmon/observe_store.py")
+
+
+# ---------------------------------------------------- доска заявок OTRS
+
+def test_otrs_returned_split_by_logged_work():
+    from modules.netmon import otrs_board as ob
+    rows = [{"id": 1, "work_entries": 3, "returned_at": "2026-10-10T10:00:00", "assigned_at": "2026-10-01T10:00:00"},
+            {"id": 2, "work_entries": 0, "returned_at": "2026-10-10T10:00:00", "assigned_at": None}]
+    to_close, not_done = ob.classify_returned(rows)
+    assert [r["id"] for r in to_close] == [1] and [r["id"] for r in not_done] == [2]
+    assert to_close[0]["held_days"] == 9 and not_done[0]["held_days"] is None
+    assert to_close[0]["url"].endswith("Action=AgentTicketZoom;TicketID=1")
+
+
+def test_otrs_review_merges_reasons_and_excludes_returned():
+    from modules.netmon import otrs_board as ob
+    rows = [{"reason": "fresh", "id": 5, "created": "2026-10-01T00:00:00"},
+            {"reason": "customer", "id": 5, "created": "2026-10-01T00:00:00",
+             "last_customer_at": "2026-10-02T00:00:00", "last_customer_subject": "Re: x"},
+            {"reason": "unassigned", "id": 6, "created": "2026-10-03T00:00:00", "owner_login": "root"},
+            {"reason": "customer", "id": 7, "created": "2026-10-03T00:00:00"}]
+    out = ob.merge_review(rows, exclude_ids={7})
+    assert [r["id"] for r in out] == [6, 5], "неназначенные — первыми, вернувшиеся сюда не попадают"
+    assert out[1]["reasons"] == ["customer", "fresh"] and out[1]["last_customer_subject"] == "Re: x"
+
+
+def test_otrs_board_is_read_only_and_uses_owner_not_responsible():
+    import re
+    src = _read("modules/netmon/otrs_board.py")
+    sql = "\n".join(re.findall(r'_SQL_\w+ = f?"""(.*?)"""', src, re.S))
+    assert not re.search(r"\b(insert|update|delete|merge)\b", sql, re.I), "только чтение"
+    assert "responsible_user_id" not in sql.lower(), "в этом OTRS работа идёт через владельца"
+    assert "history_type_id = 23" in sql and "to_number(t.tn)" in sql, "XUSERWORK связан по номеру заявки"
+
+
+def test_otrs_ui_is_asana_style_and_scoped():
+    html = _read("modules/netmon/templates/otrs_board.html")
+    assert ".asana{" in html and "Asana" in html
+    assert 'data-view="board"' in html and 'data-view="list"' in html
+    assert "const apiOtrs = () => API" in html, "API определяется ниже вставки — только лениво"
+    assert 'target="_blank" rel="noopener"' in html
+
+
+def test_otrs_style_rule_recorded_in_owner_md():
+    import os
+    md = "/Users/pt/cursorsprojects/unisimNginx/CLAUDE.md"
+    if os.path.exists(md):
+        assert "стиле Asana" in open(md, encoding="utf-8").read()

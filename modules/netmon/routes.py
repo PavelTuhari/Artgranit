@@ -529,3 +529,11 @@ def api_observe_sessions():
     if (g := _guard()) is not None:
         return g
     return _reply(NetmonController.observe_sessions(request.args.get("ts", 0)))
+
+
+@blueprint.route("/api/otrs")
+def api_otrs():
+    """Доска заявок OTRS. ?force=1 — мимо минутного кэша."""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.otrs_board(force=request.args.get("force") == "1"))

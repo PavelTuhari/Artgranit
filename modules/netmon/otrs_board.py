@@ -132,7 +132,7 @@ select 'unassigned' reason, t.id, t.tn, t.title, t.customer_id, q.name queue, s.
        null last_customer_at, null last_customer_subject, ou.login owner_login
   from ticket t, queue q, ticket_state s, ticket_priority p, system_user ou, ticket_state_type st
  where q.id = t.queue_id and s.id = t.ticket_state_id and p.id = t.ticket_priority_id and ou.id = t.user_id
-   and st.id = s.type_id and st.name = 'new'
+   and st.id = s.type_id and st.name = 'new' and t.create_time > sysdate - :ret_days
 union all
 select 'customer', t.id, t.tn, t.title, t.customer_id, q.name, s.name, p.name,
        to_char(t.create_time, {_ISO}), to_char(t.change_time, {_ISO}),
@@ -157,9 +157,13 @@ select 'fresh', t.id, t.tn, t.title, t.customer_id, q.name, s.name, p.name,
 """
 
 _SQL_COUNTS = f"""
-select count(*) open_mine,
-       sum(case when t.change_time < sysdate - :stale_days then 1 else 0 end) stale_mine
-  from ticket t where t.user_id = :me and t.ticket_state_id in {_OPEN}
+select m.open_mine, m.stale_mine,
+       (select count(*) from ticket t2, ticket_state s2, ticket_state_type st2
+         where s2.id = t2.ticket_state_id and st2.id = s2.type_id and st2.name = 'new'
+           and t2.create_time <= sysdate - :ret_days) stuck_new
+  from (select count(*) open_mine,
+               sum(case when t.change_time < sysdate - :stale_days then 1 else 0 end) stale_mine
+          from ticket t where t.user_id = :me and t.ticket_state_id in {_OPEN}) m
 """
 
 REASONS = {
@@ -226,8 +230,10 @@ def board() -> dict:
     binds["me"] = users[0]["id"]
     res = _run([
         {"sql": _SQL_RETURNED, "params": {**binds, "ret_days": RETURN_DAYS}, "kind": "query"},
-        {"sql": _SQL_REVIEW, "params": {**binds, "review_days": REVIEW_DAYS}, "kind": "query"},
-        {"sql": _SQL_COUNTS, "params": {"me": binds["me"], "stale_days": STALE_DAYS}, "kind": "query"},
+        {"sql": _SQL_REVIEW, "params": {**binds, "review_days": REVIEW_DAYS, "ret_days": RETURN_DAYS},
+         "kind": "query"},
+        {"sql": _SQL_COUNTS, "params": {"me": binds["me"], "stale_days": STALE_DAYS, "ret_days": RETURN_DAYS},
+         "kind": "query"},
     ])
     returned = _rows(res[0])
     to_close, not_done = classify_returned(returned)
@@ -238,7 +244,9 @@ def board() -> dict:
         "review": review, "to_close": to_close, "returned": not_done,
         "counts": {"review": len(review), "to_close": len(to_close), "returned": len(not_done),
                    "open_mine": int(counts.get("open_mine") or 0),
-                   "stale_mine": int(counts.get("stale_mine") or 0)},
+                   "stale_mine": int(counts.get("stale_mine") or 0),
+                   # «new» старше окна — тестовые заявки 2019 года и подобные: не в списке, только цифрой
+                   "stuck_new": int(counts.get("stuck_new") or 0)},
         "windows": {"return_days": RETURN_DAYS, "review_days": REVIEW_DAYS, "stale_days": STALE_DAYS},
         "reasons": REASONS,
         "checked_at": datetime.now().strftime("%Y-%m-%d %H:%M"),
