@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>OfficePlus — lucrări tehnice</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;
+    font:16px/1.55 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:#1f2937;
+    background:linear-gradient(135deg,#eef3fa 0%,#fdf1ea 100%)}
+  .card{background:#fff;max-width:620px;width:100%;border-radius:20px;padding:36px 32px;
+    box-shadow:0 16px 48px rgba(25,70,129,.16);text-align:center;border-top:6px solid #194681}
+  .logo{font-size:30px;font-weight:800;color:#194681;letter-spacing:-.5px}
+  .logo span{color:#e8632c}
+  .ico{font-size:54px;margin:18px 0 6px}
+  h1{font-size:24px;margin:6px 0 10px;color:#194681}
+  p{margin:6px 0;color:#374151}
+  .ru{margin-top:22px;padding-top:18px;border-top:1px solid #e5e7eb}
+  .contacts{margin-top:24px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+  .contacts a{display:inline-block;padding:11px 18px;border-radius:10px;background:#194681;color:#fff;
+    text-decoration:none;font-weight:600}
+  .contacts a.alt{background:#fff;color:#194681;border:2px solid #194681}
+  small{display:block;margin-top:18px;color:#6b7280}
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="logo">Office<span>Plus</span></div>
+  <div class="ico">🛠️</div>
+  <h1>Se efectuează lucrări tehnice</h1>
+  <p>{{ msg_ro or 'Magazinul online este temporar indisponibil. Vă rugăm să reveniți mai tîrziu.' }}</p>
+  <p>Comenzile le primim în continuare la telefon și pe email.</p>
+  <div class="ru">
+    <h1>Ведутся технические работы</h1>
+    <p>{{ msg_ru or 'Интернет-магазин временно недоступен. Пожалуйста, зайдите позже.' }}</p>
+    <p>Заказы по-прежнему принимаем по телефону и по email.</p>
+  </div>
+  <div class="contacts">
+    <a href="tel:+37362007211">📞 +373 620 07 211</a>
+    <a class="alt" href="mailto:officeplussrl@gmail.com">✉️ officeplussrl@gmail.com</a>
+  </div>
+  <small>GRECU OFFICE GROUP SRL · mun. Bălți, str. Libertății 96, of.1</small>
+</main>
+</body>
+</html>

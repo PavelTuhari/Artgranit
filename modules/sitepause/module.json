@@ -1,0 +1,15 @@
+{
+  "title": {
+    "ru": "Пауза сайта officeplus.md",
+    "ro": "Pauză site officeplus.md",
+    "en": "officeplus.md maintenance switch"
+  },
+  "icon": "⏸️",
+  "order": 960,
+  "url": "/UNA.md/orasldev/sitepause/",
+  "descr": "Технические работы: магазин officeplus.md отвечает 503, nufarul не затронут",
+  "docs": "Biro26",
+  "pages": {
+    "sitepause": {"ru": "Пауза сайта", "ro": "Pauză site", "en": "Maintenance"}
+  }
+}
