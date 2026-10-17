@@ -162,21 +162,21 @@ def main() -> None:
     tickets, articles, attach, history, ta = [], [], [], [], []
     free = ", ".join(f"freekey{i}, freetext{i}" for i in range(1, 11))
     for part in chunks(ids, 500):
-        tickets += q(f"""select id, tn, title, queue_id, state_id_x state_id, ticket_priority_id priority_id,
+        tickets += q(f"""select id, tn, title, queue_id, ticket_state_id state_id, ticket_priority_id priority_id,
                 user_id owner_id, ticket_lock_id lock_id, ticket_answered answered, customer_id, customer_user_id,
                 until_time, to_char(create_time, {ISO}) created, to_char(change_time, {ISO}) changed,
-                create_by, change_by, {free}
-              from (select t.*, t.ticket_state_id state_id_x from ticket t) where id in ({in_list(part)})""")
+                create_by created_by, change_by changed_by, {free}
+              from ticket where id in ({in_list(part)})""")
         history += q(f"""select id, ticket_id, history_type_id, name, owner_id, state_id, queue_id, priority_id,
-                to_char(create_time, {ISO}) created, create_by from ticket_history
+                to_char(create_time, {ISO}) created, create_by created_by from ticket_history
               where ticket_id in ({in_list(part)})""")
-        ta += q(f"""select ticket_id, article_id, time_unit, to_char(create_time, {ISO}) created, create_by
+        ta += q(f"""select ticket_id, article_id, time_unit, to_char(create_time, {ISO}) created, create_by created_by
               from time_accounting where ticket_id in ({in_list(part)})""")
     print(f"  истории: {len(history)}, учёта времени: {len(ta)}")
     for i, part in enumerate(chunks(ids, 120)):
         articles += q(f"""select id, ticket_id, article_type_id type_id, article_sender_type_id sender_type_id,
                 a_from, a_to, a_cc, a_subject subject, a_content_type content_type, a_body body,
-                to_char(create_time, {ISO}) created, create_by, a_from_user from_user,
+                to_char(create_time, {ISO}) created, create_by created_by, a_from_user from_user,
                 plan_confirm_by_client, plan_confirm_by_mngr
               from article where ticket_id in ({in_list(part)})""")
         print(f"\r  писем: {len(articles)}", end="", flush=True)
@@ -246,19 +246,33 @@ def main() -> None:
     # ------------------------------------------------- вычисляемые признаки
     login_of = {u["id"]: u["login"] for u in users}
     closed = {s["id"] for s in states if s["type"] in ("closed", "removed", "merged")}
-    by_t = lambda rows: {k: sorted([r for r in rows if r["ticket_id"] == k], key=lambda r: r["created"] or "")
-                         for k in ids}
+    def by_t(rows):
+        """Группировка за один проход: письма и история — по заявкам, по времени."""
+        g = {k: [] for k in ids}
+        for r in rows:
+            g.setdefault(r["ticket_id"], []).append(r)
+        for v in g.values():
+            v.sort(key=lambda r: r["created"] or "")
+        return g
     a_by, h_by = by_t(articles), by_t(history)
     w_by: dict = {}
     for w in wl:
         if w["ticket_id"] and not w["deleted"]:
             w_by.setdefault(w["ticket_id"], []).append(w)
     now = datetime.now()
+    # Списки доски — ОДИН источник правды: сама доска (otrs_board.board()).
+    # Свои правила здесь разошлись бы с ней, и ИИ получил бы два разных
+    # «требуют рассмотрения» (поймано проверкой 17.10.2026: 922 против 53).
+    brd = ob.board()
+    board_of = {}
+    for lst in ("review", "to_close", "returned"):
+        for r in brd[lst]:
+            board_of.setdefault(r["id"], lst)
     facts = []
     for t in tickets:
         f = rules.ticket_facts(t, a_by[t["id"]], h_by[t["id"]], w_by.get(t["id"], []), login_of, now,
                                closed, ob.LOGIN)
-        f["board_list"] = board_list(t, f, h_by[t["id"]], w_by.get(t["id"], []), login_of, closed)
+        f["board_list"] = board_of.get(t["id"]) or other_list(t, f, login_of, closed)
         facts.append(f)
     ins("ticket_facts", facts, list(facts[0].keys()) if facts else [])
 
@@ -281,24 +295,20 @@ def main() -> None:
     print(json.dumps(meta, ensure_ascii=False, indent=1))
 
 
-def board_list(t, f, history, work, login_of, closed) -> str:
-    """В каком списке доски заявка была бы сейчас (те же правила, что otrs_board.py)."""
+def other_list(t, f, login_of, closed) -> str:
+    """Метка для заявок, которых нет на доске. Списки доски сюда не попадают."""
     if t["state_id"] in closed:
         return "closed"
-    me = ob.LOGIN
-    if login_of.get(t["owner_id"]) == me:
-        owners = [h for h in history if h["history_type_id"] == rules.HISTORY_OWNER]
-        if owners and rules.owner_login_from_history(owners[-1]["name"]) == me \
-                and login_of.get(owners[-1]["created_by"]) != me and len(owners) > 1:
-            ex = owners[-1]["created_by"]
-            prev = [h for h in owners[:-1] if rules.owner_login_from_history(h["name"]) == login_of.get(ex)]
-            since = prev[-1]["created"] if prev else ""
-            did = any(w["user_id"] == ex and (w["started"] or "") >= since and
-                      (w["started"] or "") <= owners[-1]["created"] for w in work)
-            return "to_close" if did else "returned"
-    if f["waiting_on"] == "agent":
-        return "review"
-    return "waiting_customer"
+    owner = login_of.get(t["owner_id"])
+    if owner == "root":
+        return "unassigned_old"          # «new» без владельца, старше окна доски
+    if owner != ob.LOGIN:
+        return "with_executor"           # сейчас у исполнителя
+    if (f.get("idle_days") or 0) > ob.STALE_DAYS:
+        return "stale"                   # на мне, без движения больше полугода
+    if f["waiting_on"] == "customer":
+        return "waiting_customer"        # мы ответили последними — ждём клиента
+    return "mine_other"                  # на мне, ход за нами, но вне окон доски
 
 
 if __name__ == "__main__":

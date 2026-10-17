@@ -1158,3 +1158,63 @@ def test_otrs_style_rule_recorded_in_owner_md():
     md = "/Users/pt/cursorsprojects/unisimNginx/CLAUDE.md"
     if os.path.exists(md):
         assert "стиле Asana" in open(md, encoding="utf-8").read()
+
+
+# ---------------------------------------------- выгрузка OTRS для ИИ
+
+def test_otrs_ai_masks_passwords_in_letters():
+    from modules.netmon import otrs_ai_rules as r
+    for text in ("пароль: Qwe123!", "Password = s3cret", "parola este Abc#2024", "pwd:root123",
+                 "login: admin / Pa55word"):
+        out, n = r.redact(text)
+        assert n == 1 and "[скрыто]" in out, text
+    out, n = r.redact("Сломался принтер в бухгалтерии, просим помочь")
+    assert n == 0 and out.startswith("Сломался")
+
+
+def test_otrs_ai_html_to_text():
+    from modules.netmon import otrs_ai_rules as r
+    html = "<html><head><style>p{color:red}</style></head><body><p>Добрый день,</p><div>счёт &amp; акт<br>во вложении</div></body></html>"
+    t = r.to_text(html, "text/html; charset=utf-8")
+    assert "color:red" not in t and "<" not in t
+    assert "Добрый день," in t and "счёт & акт" in t and "во вложении" in t
+
+
+def test_otrs_ai_body_is_limited_and_counted():
+    from modules.netmon import otrs_ai_rules as r
+    b = r.prepare_body("x" * (r.BODY_LIMIT + 50), "text/plain")
+    assert len(b["body_text"]) == r.BODY_LIMIT and b["body_truncated"] == 1 and b["body_chars"] == r.BODY_LIMIT + 50
+
+
+def test_otrs_ai_ticket_facts():
+    from datetime import datetime
+    from modules.netmon import otrs_ai_rules as r
+    t = {"id": 1, "created": "2026-10-01T09:00:00", "changed": "2026-10-05T10:00:00", "state_id": 4}
+    arts = [{"sender_type_id": 3, "type_id": 1, "created": "2026-10-01T09:00:00"},
+            {"sender_type_id": 1, "type_id": 1, "created": "2026-10-01T15:00:00"},
+            {"sender_type_id": 3, "type_id": 1, "created": "2026-10-04T08:00:00", "plan_confirm_by_client": 1}]
+    hist = [{"history_type_id": 23, "name": "%%ivan%%9", "created_by": 2, "created": "2026-10-01T10:00:00"},
+            {"history_type_id": 23, "name": "%%ptuhari%%2", "created_by": 9, "created": "2026-10-03T10:00:00"}]
+    work = [{"seconds": 7200}, {"seconds": 1800}]
+    f = r.ticket_facts(t, arts, hist, work, {2: "ptuhari", 9: "ivan"}, datetime(2026, 10, 6), {2, 3}, "ptuhari")
+    assert f["first_reply_hours"] == 6.0 and f["waiting_on"] == "agent", "клиент написал последним"
+    assert f["returns_to_owner"] == 1 and f["executors"] == "ivan"
+    assert f["work_hours"] == 2.5 and f["plan_confirmed_client"] == 1
+
+
+def test_otrs_ai_export_never_writes_otrs_and_keeps_data_out_of_repo():
+    import re
+    src = _read("modules/netmon/scripts/otrs_ai_export.py")
+    sql = " ".join(re.findall(r'q\(f?"""(.*?)"""', src, re.S) + re.findall(r'q\(f?"([^"]+)"', src))
+    assert not re.search(r"\b(insert|update|delete|merge)\b", sql, re.I), "OTRS — только чтение"
+    assert "внутри репозитория" in src and "os.chmod(out, 0o600)" in src
+    assert re.search(r"select login, email, customer_id, first_name, last_name, valid_id from customer_user", src), \
+        "пароли клиентов (pw) не выгружаются"
+    assert "ob.board()" in src, "списки доски — из самой доски, один источник правды"
+
+
+def test_otrs_ai_task_md_sets_autonomy_limits():
+    md = _read("docs/Netmon/OTRS_AI_TASK.md")
+    for must in ("Уровни автономности", "Запрещено писать в базу OTRS напрямую", "стиле Asana",
+                 "ai_recommendations", "new_module.py otrsai"):
+        assert must in md, must
