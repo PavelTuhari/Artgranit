@@ -1218,3 +1218,62 @@ def test_otrs_ai_task_md_sets_autonomy_limits():
     for must in ("Уровни автономности", "Запрещено писать в базу OTRS напрямую", "стиле Asana",
                  "ai_recommendations", "new_module.py otrsai"):
         assert must in md, must
+
+
+# ------------------------------------------------- просмотрщик SQLite
+
+def _demo_db(tmp_path):
+    import sqlite3
+    p = tmp_path / "demo.sqlite"
+    con = sqlite3.connect(p)
+    con.executescript("""
+      CREATE TABLE tickets (id INTEGER PRIMARY KEY, tn TEXT, title TEXT, changed TEXT, url TEXT);
+      INSERT INTO tickets VALUES (1, '1001', 'Вопросы по Вайберу', '2026-10-01', 'https://x/1'),
+                                 (2, '1002', 'Принтер не печатает', '2026-10-05', 'https://x/2'),
+                                 (3, '1003', 'Bomba credite', '2026-10-03', 'https://x/3');
+    """)
+    con.execute('CREATE TABLE "странная ""таблица""" (x TEXT)')   # имя с кавычками и кириллицей
+    con.commit(); con.close()
+    return p
+
+
+def test_sqlite_view_search_is_case_insensitive_for_cyrillic(tmp_path):
+    from modules.netmon.sqlite_view import Db
+    db = Db(_demo_db(tmp_path))
+    assert db.page("tickets", "вайберу")["total"] == 1
+    assert db.page("tickets", "ВАЙБЕРУ")["total"] == 1, "стандартный LIKE SQLite кириллицу не сворачивает"
+    assert db.page("tickets", "принтер печатает")["total"] == 1, "все слова — в любых столбцах"
+
+
+def test_sqlite_view_sort_and_paging(tmp_path):
+    from modules.netmon.sqlite_view import Db
+    db = Db(_demo_db(tmp_path))
+    p = db.page("tickets", order="changed", desc=True, limit=2)
+    assert [r[0] for r in p["rows"]] == [2, 3] and p["total"] == 3
+    assert [r[0] for r in db.page("tickets", order="changed", offset=2, limit=2)["rows"]] == [2]
+    assert db.page("tickets", order="; DROP TABLE tickets", limit=1)["total"] == 3, "чужое имя столбца не попадает в SQL"
+
+
+def test_sqlite_view_is_read_only_and_quotes_names(tmp_path):
+    import pytest, sqlite3
+    from modules.netmon.sqlite_view import Db
+    db = Db(_demo_db(tmp_path))
+    with pytest.raises(sqlite3.OperationalError):
+        db.run_sql("DELETE FROM tickets")
+    assert db.page('странная "таблица"')["total"] == 0, "имена с кавычками и кириллицей"
+    assert {o["name"] for o in db.objects()} >= {"tickets", 'странная "таблица"'}
+
+
+def test_sqlite_view_find_ticket_by_number_and_words(tmp_path):
+    from modules.netmon.sqlite_view import Db
+    db = Db(_demo_db(tmp_path))
+    assert [t["id"] for t in db.find_ticket("1002")] == [2]
+    assert [t["id"] for t in db.find_ticket("BOMBA")] == [3]
+
+
+def test_sqlite_view_cell_and_csv(tmp_path):
+    from modules.netmon.sqlite_view import Db, cell
+    assert cell(None) == "∅" and cell("a\nb") == "a ⏎ b" and len(cell("x" * 500)) == 200
+    out = tmp_path / "o.csv"
+    assert Db.to_csv(out, ["a", "б"], [(1, "Вайбер")]) == 1
+    assert out.read_bytes().startswith(b"\xef\xbb\xbf"), "BOM — чтобы Excel открыл UTF-8"
