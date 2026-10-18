@@ -128,11 +128,12 @@
 
   function row(h, mark) {
     const url = safeUrl(h.url);
+    // каждое поле экранируется здесь же: в meta только готовый безопасный HTML
     const meta = h.source === "OTRS"
-      ? [h.tn ? "#" + h.tn : "", h.customer, h.queue,
+      ? [h.tn ? e("#" + h.tn) : "", e(h.customer), e(h.queue),
          h.open ? `<span class="open">${e(h.state)}</span>` : e(h.state),
-         h.owner, h.parts ? h.parts + " писем" : "", ago(h.changed)]
-      : [h.space, h.lang, h.author, ago(h.changed)];
+         e(h.owner), h.parts ? e(h.parts + " писем") : "", e(ago(h.changed))]
+      : [e(h.space), e(h.lang), e(h.author), e(ago(h.changed))];
     const why = WHY[h.matched_by] ?? "";
     return `<a class="s-row" ${url ? `href="${e(url)}" target="_blank" rel="noopener noreferrer"` : ""}>
       <div class="s-top"><span class="s-src ${h.source}">${h.source === "XWIKI" ? "Вики" : "OTRS"}</span>
