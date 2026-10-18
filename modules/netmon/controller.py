@@ -835,6 +835,31 @@ class NetmonController:
         except Exception as e:  # noqa: BLE001
             return _fail(e)
 
+    # ------------------------------------------- поиск по XWiki и OTRS
+
+    @staticmethod
+    def search(q, source=None, open_=None, offset=0, order="rank"):
+        """Умный поиск: логика в пакете NMON_SRCH базы cloudbd, здесь вызов."""
+        try:
+            from modules.netmon import search as srch
+            return _ok(srch.find(q, source=source, open_=open_, offset=offset or 0, order=order or "rank"))
+        except Exception as e:  # noqa: BLE001
+            msg = str(e)
+            if "NMON_SRCH" in msg.upper() and any(c in msg for c in ("ORA-00904", "ORA-00942", "PLS-00201")):
+                return _fail("поиск ещё не установлен в базе cloudbd: "
+                             "modules/netmon/scripts/netmon_search_deploy.py", 503)
+            return _fail(e)
+
+    @staticmethod
+    def search_refresh(full=False):
+        """Догрузить изменения в индекс (или пересобрать) — фоном, без ожидания."""
+        try:
+            from modules.netmon import search as srch
+            srch.refresh(full=bool(full))
+            return _ok({"started": True, "full": bool(full)})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
     # ------------------------------------------- диски сервера баз данных
 
     @staticmethod
