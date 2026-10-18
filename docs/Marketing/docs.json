@@ -1,0 +1,30 @@
+{
+  "PROSPECT_ARTGRANIT.md": {
+    "order": 10, "icon": "📣", "audience": "заказчики · разработчики · Oracle",
+    "title": {"ru": "Рекламный проспект Artgranit", "ro": "Prospect publicitar Artgranit", "en": "Artgranit brochure"},
+    "descr": {"ru": "Что это, в цифрах: 21 модуль, 99 страниц, 345 тестов; модули, архитектура, внедрение за дни; резюме RO/EN.",
+              "ro": "Ce este, în cifre: 21 module, 99 pagini, 345 teste; module, arhitectură, implementare în zile; rezumat RO/EN.",
+              "en": "What it is, in numbers: 21 modules, 99 pages, 345 tests; modules, architecture, days-to-deploy; RO/EN summary."}
+  },
+  "PUBLIC_TINTA.md": {
+    "order": 20, "icon": "🎯", "audience": "маркетинг",
+    "title": {"ru": "Целевые группы: разработчики, Oracle, заказчики", "ro": "Public țintă: dezvoltatori, Oracle, clienți", "en": "Target groups: developers, Oracle, customers"},
+    "descr": {"ru": "Кто они, где живут, что им обещаем, чего боятся, какое действие хотим; сводная таблица сообщений.",
+              "ro": "Cine sînt, unde sînt, ce le promitem, de ce se tem, ce acțiune vrem; tabelul mesajelor.",
+              "en": "Who they are, where they live, the promise, the fears, the desired action; message matrix."}
+  },
+  "STRATEGIA_PROMOVARE.md": {
+    "order": 30, "icon": "🧭", "audience": "владелец · маркетинг",
+    "title": {"ru": "Стратегия продвижения в сетях и интернете", "ro": "Strategia de promovare în rețele și internet", "en": "Online & social promotion strategy"},
+    "descr": {"ru": "Позиционирование, KPI на 90 дней и 12 месяцев, каналы по группам, контент-план, бюджет 2 800 €, риски, первые 10 действий.",
+              "ro": "Poziționare, KPI la 90 de zile și 12 luni, canale pe grupuri, plan de conținut, buget 2 800 €, riscuri, primele 10 acțiuni.",
+              "en": "Positioning, 90-day and 12-month KPIs, channels per group, content calendar, 2 800 € budget, risks, first 10 actions."}
+  },
+  "KIT_CONTINUT.md": {
+    "order": 40, "icon": "✍️", "audience": "маркетинг · продажи",
+    "title": {"ru": "Набор готового контента", "ro": "Kit de conținut gata", "en": "Ready-to-post content kit"},
+    "descr": {"ru": "Посты FB/LinkedIn RO/RU, письмо клиентам UNA.md, объявления Google, план статей для Habr/dev.to, письмо в Oracle PartnerNetwork, кейс, доклад, bio, UTM.",
+              "ro": "Postări FB/LinkedIn RO/RU, scrisoare clienților UNA.md, anunțuri Google, articole Habr/dev.to, scrisoare Oracle PartnerNetwork, caz, abstract, bio, UTM.",
+              "en": "FB/LinkedIn posts RO/RU, UNA.md customer email, Google ads, Habr/dev.to article plan, Oracle PartnerNetwork email, case study, talk abstract, bio, UTM."}
+  }
+}
