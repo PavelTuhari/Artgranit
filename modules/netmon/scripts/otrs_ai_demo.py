@@ -187,6 +187,9 @@ def board_json(db: Path) -> dict:
                          "work_entries": r["work_entries"], "work_comment": w["comment"] if w else None,
                          "held_days": (datetime.fromisoformat(h["created"]) - datetime.fromisoformat(a["created"])).days if a else None})
         out[lst].append(base)
+    open_mine = con.execute("SELECT COUNT(*) FROM v_open WHERE owner = ?", [OWNER]).fetchone()[0]
+    stale_mine = con.execute("SELECT COUNT(*) FROM v_open WHERE owner = ? AND idle_days > 180", [OWNER]).fetchone()[0]
+    con.close()
     return {"login": OWNER, "otrs_url": "https://otrs.una.md/otrs/index.pl", **out,
             "counts": {"review": len(out["review"]), "to_close": len(out["to_close"]), "returned": len(out["returned"]),
                        "open_mine": 27, "stale_mine": 0, "stuck_new": 0},
