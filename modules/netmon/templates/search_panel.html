@@ -139,7 +139,7 @@
       <div class="s-top"><span class="s-src ${h.source}">${h.source === "XWIKI" ? "Вики" : "OTRS"}</span>
         <span class="s-title">${e(h.title || "(без названия)")}</span>
         ${why ? `<span class="s-why">${e(why)}</span>` : ""}</div>
-      <div class="s-meta">${meta.filter(Boolean).map(x => x.startsWith && x.startsWith("<span") ? x : e(x)).join(" · ")}</div>
+      <div class="s-meta">${meta.filter(Boolean).join(" · ")}</div>
       ${h.snippet ? `<div class="s-snip">${snip(h.snippet, mark)}</div>` : ""}
     </a>`;
   }
