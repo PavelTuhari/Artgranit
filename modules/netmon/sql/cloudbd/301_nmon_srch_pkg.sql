@@ -105,7 +105,7 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
     'ом', 'ем', 'ам', 'ям', 'ах', 'ях', 'ию', 'ия', 'ии', 'ье', 'ья', 'ть',
     'а', 'я', 'о', 'е', 'ы', 'и', 'у', 'ю', 'ь', 'й');
   c_lat_end CONSTANT t_words := t_words(
-    'urilor', 'urile', 'ilor', 'elor', 'ului', 'uri', 'ile', 'lor', 'ing', 'ul', 'ea', 'ii',
+    'ilor', 'elor', 'ului', 'ile', 'lor', 'ing', 'ul', 'ea', 'ii',
     'le', 'ed', 'es', 's', 'e', 'i', 'a', 'u');
   -- Слова языка запросов Oracle Text: перед ними нельзя ставить * и %.
   c_reserved CONSTANT t_words := t_words(
@@ -234,7 +234,8 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
     v := REGEXP_REPLACE(v, '<[^>]*>', ' ');
     v := REGEXP_REPLACE(v, '&(nbsp|amp|lt|gt|quot|laquo|raquo|mdash|ndash);', ' ');
     v := REGEXP_REPLACE(v, '(\*\*|//|__|~~|==+|\|=|\||\(%[^)]*%\))', ' ');
-    v := TRANSLATE(v, '<>', '  ');
+    -- TRANSLATE для CLOB длиннее 32 КБ даёт ORA-06502, REGEXP_REPLACE — нет.
+    v := REGEXP_REPLACE(v, '[<>]', ' ');
     v := REGEXP_REPLACE(v, '[ ' || CHR(9) || CHR(13) || ']+', ' ');
     v := REGEXP_REPLACE(v, '(' || CHR(10) || ' ?)+', CHR(10));
     RETURN v;
@@ -262,7 +263,7 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
   FUNCTION xwiki_skip(p_space VARCHAR2) RETURN NUMBER IS
   BEGIN
     IF p_space IN ('XWiki', 'Panels', 'Scheduler', 'Stats', 'BBCode', 'ColorThemes', 'GWT',
-                   'Invitation', 'MultiPageExport', 'SavedList', 'XAppManager', 'XAppResources')
+                   'Invitation', 'MultiPageExport', 'SavedList', 'Sandbox', 'XAppManager', 'XAppResources')
        OR REGEXP_LIKE(p_space, '(Code|Classes|Sheets|Templates)$') THEN
       RETURN 1;
     END IF;
@@ -568,7 +569,8 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
   EXCEPTION
     WHEN OTHERS THEN
       ROLLBACK;
-      done('XWIKI', 'error', SQLERRM, v_added, v_updated, v_removed, NULL, NULL, p_full);
+      done('XWIKI', 'error', SQLERRM || ' ' || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE,
+           v_added, v_updated, v_removed, NULL, NULL, p_full);
       RAISE;
   END refresh_xwiki;
 
@@ -652,7 +654,8 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
   EXCEPTION
     WHEN OTHERS THEN
       ROLLBACK;
-      done('OTRS', 'error', SQLERRM, v_added, v_updated, 0, NULL, NULL, p_full);
+      done('OTRS', 'error', SQLERRM || ' ' || DBMS_UTILITY.FORMAT_ERROR_BACKTRACE,
+           v_added, v_updated, 0, NULL, NULL, p_full);
       RAISE;
   END refresh_otrs;
 
