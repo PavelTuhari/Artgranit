@@ -47,12 +47,15 @@ def prepare_query(q: str | None) -> str:
     """Запрос для базы: без румынской диакритики, одной строкой, не длиннее MAX_QUERY."""
     if not q:
         return ""
-    s = q.translate(_RO)
-    # Остальная диакритика латиницы (é, ü…) — к базовой букве; кириллицу не трогаем.
-    s = "".join(c for c in unicodedata.normalize("NFKD", s)
-                if not (unicodedata.combining(c) and ord(unicodedata.normalize("NFC", c)[0]) < 0x400))
-    s = unicodedata.normalize("NFC", s)
+    s = unicodedata.normalize("NFC", q).translate(_RO)
+    # Остальная диакритика латиницы (é, ü…) — к базовой букве. Кириллицу не
+    # трогаем: й и ё в разложении тоже «буква + знак», а это другие буквы.
+    s = "".join(_latin_base(c) if "À" <= c <= "ɏ" else c for c in s)
     return " ".join(s.split())[:MAX_QUERY]
+
+
+def _latin_base(c: str) -> str:
+    return "".join(x for x in unicodedata.normalize("NFKD", c) if not unicodedata.combining(x))
 
 
 def _hit(row: dict) -> dict:
