@@ -48,6 +48,15 @@
 4. Ожидаемый результат проверки: `200 OK` на `/login` и корректный redirect на `/login` для защищённых страниц вроде `/UNA.md/orasldev/nufarul-operator`.
 5. Если после правок домен перестал отвечать, приоритет номер один: немедленно вернуть работоспособность `nufarul.eminescu.md`, а уже потом продолжать остальные задачи.
 
+## О продукте — проспект, целевые группы, продвижение
+
+Платформа в цифрах, модули, архитектура и внедрение одной страницей —
+[docs/Marketing/PROSPECT_ARTGRANIT.md](docs/Marketing/PROSPECT_ARTGRANIT.md)
+(HTML-брошюра: `static/marketing/artgranit-prospect.html`). Кому и что говорим —
+[PUBLIC_TINTA.md](docs/Marketing/PUBLIC_TINTA.md); каналы, KPI, бюджет —
+[STRATEGIA_PROMOVARE.md](docs/Marketing/STRATEGIA_PROMOVARE.md); готовые посты,
+письма и объявления — [KIT_CONTINUT.md](docs/Marketing/KIT_CONTINUT.md).
+
 ## 🚀 Основные возможности
 
 1.  **SQL Worksheet (Oracle SQL Developer):**
