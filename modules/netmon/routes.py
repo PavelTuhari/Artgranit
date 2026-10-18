@@ -537,3 +537,21 @@ def api_otrs():
     if (g := _guard()) is not None:
         return g
     return _reply(NetmonController.otrs_board(force=request.args.get("force") == "1"))
+
+
+@blueprint.route("/api/search")
+def api_search():
+    """Поиск по XWiki и OTRS. ?q= &src=OTRS|XWIKI &open=1|0 &off= &order=rank|date"""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.search(request.args.get("q", ""), source=request.args.get("src"),
+                                          open_=_int("open"), offset=_int("off", 0),
+                                          order=request.args.get("order", "rank")))
+
+
+@blueprint.route("/api/search/refresh", methods=["POST"])
+def api_search_refresh():
+    """Догрузить изменения в индекс поиска; ?full=1 — пересобрать с нуля."""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.search_refresh(full=request.args.get("full") == "1"))
