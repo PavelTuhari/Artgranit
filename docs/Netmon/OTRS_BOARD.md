@@ -63,3 +63,11 @@ Cloudbd — Oracle 11g, тонкий режим python-oracledb к нему не
 
 `GET /UNA.md/orasldev/netmon/api/otrs` (`?force=1` — мимо кэша), под входом,
 только внутренняя сеть.
+
+## Сводный документ
+
+`docs/Netmon/OTRS_HELPER.html` (18.10.2026) — брошюра, инструкция,
+техописание и акт тестирования доски, выгрузки для ИИ и просмотрщика,
+со снимками экрана на демо-базе (`modules/netmon/scripts/otrs_ai_demo.py`).
+Пересобрать снимки: демо-база → страница доски с подставленным
+`board_json()` → headless Chrome `--screenshot`.

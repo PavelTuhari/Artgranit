@@ -1277,3 +1277,23 @@ def test_sqlite_view_cell_and_csv(tmp_path):
     out = tmp_path / "o.csv"
     assert Db.to_csv(out, ["a", "б"], [(1, "Вайбер")]) == 1
     assert out.read_bytes().startswith(b"\xef\xbb\xbf"), "BOM — чтобы Excel открыл UTF-8"
+
+
+def test_otrs_ai_demo_is_deterministic_fictional_and_consistent(tmp_path):
+    """Демо-база для скриншотов: та же схема, вымышленные данные, цифры доски — из самой базы."""
+    import importlib.util, sqlite3
+    spec = importlib.util.spec_from_file_location("otrs_ai_demo", os.path.join(ROOT, "modules/netmon/scripts/otrs_ai_demo.py"))
+    demo = importlib.util.module_from_spec(spec); spec.loader.exec_module(demo)
+    a, b = tmp_path / "a.sqlite", tmp_path / "b.sqlite"
+    assert demo.build(a) == demo.build(b), "генерация детерминированная"
+    con = sqlite3.connect(a)
+    assert "ДЕМОНСТРАЦИОННЫЕ" in con.execute("SELECT value FROM meta WHERE key='source'").fetchone()[0]
+    mails = [r[0] for r in con.execute("SELECT a_from FROM articles WHERE a_from LIKE '%@%'")]
+    assert mails and all(m.endswith(".example") for m in mails), "ни одного настоящего адреса"
+    open_mine = con.execute("SELECT COUNT(*) FROM v_open WHERE owner = 'ptuhari'").fetchone()[0]
+    con.close()
+    j = demo.board_json(a)
+    c = j["counts"]
+    assert c["open_mine"] == open_mine, "карточка «всего открыто на мне» считается, а не вписана"
+    assert (c["review"], c["to_close"], c["returned"]) == tuple(len(j[k]) for k in ("review", "to_close", "returned"))
+    assert all(t["work_entries"] > 0 for t in j["to_close"]) and all(t["work_entries"] == 0 for t in j["returned"])
