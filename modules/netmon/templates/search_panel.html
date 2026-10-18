@@ -224,5 +224,9 @@
     inp.focus();
     if (!S.hits.length) run();
   };
+  // Ссылка …/netmon#search=слова открывает сразу эту вкладку с запросом.
+  window.addEventListener("load", () => {
+    if (/^#search/.test(location.hash)) document.querySelector('nav a[data-p="search"]')?.click();
+  });
 })();
 </script>
