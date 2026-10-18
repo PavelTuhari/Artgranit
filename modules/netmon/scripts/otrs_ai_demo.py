@@ -192,7 +192,7 @@ def board_json(db: Path) -> dict:
     con.close()
     return {"login": OWNER, "otrs_url": "https://otrs.una.md/otrs/index.pl", **out,
             "counts": {"review": len(out["review"]), "to_close": len(out["to_close"]), "returned": len(out["returned"]),
-                       "open_mine": 27, "stale_mine": 0, "stuck_new": 0},
+                       "open_mine": open_mine, "stale_mine": stale_mine, "stuck_new": 0},
             "windows": {"return_days": 90, "review_days": 30, "stale_days": 180},
             "checked_at": NOW.strftime("%Y-%m-%d %H:%M"), "cached_sec": 0}
 
