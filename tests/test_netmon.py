@@ -1297,3 +1297,138 @@ def test_otrs_ai_demo_is_deterministic_fictional_and_consistent(tmp_path):
     assert c["open_mine"] == open_mine, "карточка «всего открыто на мне» считается, а не вписана"
     assert (c["review"], c["to_close"], c["returned"]) == tuple(len(j[k]) for k in ("review", "to_close", "returned"))
     assert all(t["work_entries"] > 0 for t in j["to_close"]) and all(t["work_entries"] == 0 for t in j["returned"])
+
+
+# ------------------------------------------------- поиск по XWiki и OTRS
+
+_SRCH_SQL = ["modules/netmon/sql/cloudbd/300_nmon_srch_tables.sql",
+             "modules/netmon/sql/cloudbd/301_nmon_srch_pkg.sql"]
+
+
+def _code_only(sql):
+    return "\n".join(l for l in sql.splitlines() if not l.strip().startswith("--"))
+
+
+def test_search_sql_never_writes_otrs_or_xwiki_and_grants_nothing():
+    """Объекты поиска только читают OTRS и XWIKI: ни записи, ни индекса на их таблицах, ни прав."""
+    for f in _SRCH_SQL:
+        code = _code_only(_read(f)).lower()
+        assert not re.search(r"(insert\s+into|update|delete\s+from|merge\s+into|alter\s+table|"
+                             r"drop\s+\w+|truncate\s+table|create\s+index\s+\w+\s+on)\s+(otrs|xwiki)\.", code), f
+        assert not re.search(r"\b(create\s+user|grant\s|revoke\s)", code), f"{f}: учётки и права не трогаем"
+    tables = _code_only(_read(_SRCH_SQL[0])).lower()
+    assert re.search(r"create index nmon_srch_doc_ctx on nmon_srch_doc \(body\) indextype is ctxsys\.context",
+                     tables), "полнотекстовый индекс — только на своей копии текстов"
+
+
+def test_search_sql_plsql_blocks_are_delimited_both_sides():
+    """CLAUDE.md §2 п.5: «/» до и после каждого PL/SQL-блока, иначе установщик склеит блоки."""
+    from deploy_oracle_objects import _is_plsql_block, _sql_blocks
+    for f in _SRCH_SQL + ["modules/netmon/sql/cloudbd/399_nmon_srch_drop.sql"]:
+        for block in _sql_blocks(_read(f)):
+            code = _code_only(block).strip()
+            if not code:
+                continue
+            plsql = _is_plsql_block(block) or re.match(r"create\s+or\s+replace\s+type", code, re.I)
+            if plsql:
+                assert re.match(r"(create\s+or\s+replace|begin|declare)\b", code, re.I), \
+                    f"{f}: перед PL/SQL-блоком склеилось что-то ещё: {code[:80]}"
+                assert len(re.findall(r"create\s+or\s+replace", code, re.I)) <= 1, f"{f}: два объекта в блоке"
+            else:
+                assert not re.search(r"\bbegin\b", code, re.I), f"{f}: PL/SQL без «/»: {code[:80]}"
+                for line in block.splitlines():
+                    if line.strip().startswith("--"):
+                        assert ";" not in line, f"{f}: «;» в комментарии разрежет команду: {line}"
+
+
+def test_search_sql_fits_database_charset():
+    """База в CL8MSWIN1251: символ вне кодировки в исходнике пакета превратится в «?»."""
+    for f in _SRCH_SQL:
+        _code_only(_read(f)).encode("cp1251")
+
+
+def test_search_prepare_query_strips_romanian_but_keeps_cyrillic():
+    from modules.netmon.search import prepare_query, MAX_QUERY
+    assert prepare_query("Facturile  nu se încarcă în ședința") == "Facturile nu se incarca in sedinta"
+    assert prepare_query("Ţară şi Țară") == "Tara si Tara"
+    assert prepare_query("Йошкар-Ола, ёлка") == "Йошкар-Ола, ёлка", "й и ё — свои буквы, не диакритика"
+    assert prepare_query("café") == "cafe"
+    assert prepare_query(None) == "" and prepare_query("   ") == ""
+    assert len(prepare_query("x" * 1000)) == MAX_QUERY
+
+
+def test_search_find_shapes_rows_and_reports_match_kind(monkeypatch):
+    from modules.netmon import search as srch, otrs_board as ob
+    seen = {}
+
+    def fake_run(stmts, timeout=120):
+        seen["stmts"] = stmts
+        cols = ["SOURCE", "TITLE", "URL", "SNIPPET", "TN", "IS_OPEN", "MATCHED_BY", "USED_QUERY", "TOTAL", "RNK"]
+        data = [["OTRS", "Касса", "https://otrs.una.md/otrs/index.pl?Action=AgentTicketZoom;TicketID=1", None,
+                 "2026101810000123", 1, "номер заявки", "2026101810000123", 1, 1000],
+                ["XWIKI", "Касса: настройка", "https://xwiki.una.md/bin/view/UNA/Kassa", "\x01касса\x02 ...",
+                 None, 0, "раскладка", "касса", 5, 40]]
+        st = [["OTRS", "ok", 72000, None, None, 10, None, 1], ["XWIKI", "ok", 3400, None, None, 2, None, 1]]
+        return [{"columns": cols, "data": data},
+                {"columns": ["SOURCE", "STATUS", "DOCS", "LAST_RUN_AT", "LAST_FULL_AT", "SECONDS", "MESSAGE",
+                             "AGE_MIN"], "data": st}]
+    monkeypatch.setattr(ob, "_run", fake_run)
+    d = srch.find("rfccf", source="xwiki", open_=7, order="evil", offset=-5)
+    p = seen["stmts"][0]["params"]
+    assert p["src"] == "XWIKI" and p["op"] is None and p["ord"] == "rank" and p["off"] == 0
+    assert d["matched_by"] == "раскладка", "точное попадание по номеру не заслоняет вид совпадения"
+    assert d["hits"][0]["open"] is True and d["hits"][1]["source"] == "XWIKI"
+    assert d["index"]["OTRS"]["docs"] == 72000 and d["refreshing"] is False
+    assert d["mark"] == ["\x01", "\x02"]
+    seen.clear()
+    srch.find("")
+    assert len(seen["stmts"]) == 1, "пустой запрос — только состояние индекса"
+
+
+def test_search_refresh_only_when_stale_and_idle(monkeypatch):
+    from modules.netmon import search as srch
+    fresh = {"OTRS": {"status": "ok", "age_min": 3}, "XWIKI": {"status": "ok", "age_min": 3}}
+    old = {"OTRS": {"status": "ok", "age_min": 30}, "XWIKI": {"status": "ok", "age_min": 3}}
+    busy = {"OTRS": {"status": "running", "age_min": 30}}
+    assert not srch.is_stale(fresh) and srch.is_stale(old) and not srch.is_stale(busy) and not srch.is_stale({})
+    calls = []
+    monkeypatch.setattr(srch, "refresh", lambda full=False: calls.append(full))
+    monkeypatch.setattr(srch, "_last_spawn", 0.0)
+    assert srch.maybe_refresh(old) is True and calls == [False]
+    monkeypatch.setattr(srch, "_last_spawn", __import__("time").time())
+    assert srch.maybe_refresh(old) is False, "не чаще раза в SPAWN_PAUSE"
+
+
+def test_search_controller_explains_missing_install(monkeypatch):
+    from modules.netmon import search as srch
+    from modules.netmon.controller import NetmonController
+
+    def boom(*a, **k):
+        raise RuntimeError('база OTRS: ORA-00904: "NMON_SRCH"."SEARCH": invalid identifier')
+    monkeypatch.setattr(srch, "find", boom)
+    body, code = NetmonController.search("касса")
+    assert code == 503 and "netmon_search_deploy" in body["message"]
+
+
+def test_search_ui_is_asana_scoped_and_links_only_to_originals():
+    html = _read("modules/netmon/templates/search_panel.html")
+    assert ".asrch{" in html and "Asana" in html
+    assert "const apiSearch = () => API" in html, "API определяется ниже вставки — только лениво"
+    assert r"/^https:\/\/(xwiki\.una\.md|otrs\.una\.md)\//" in html, "ссылки — только на оригиналы"
+    assert 'rel="noopener noreferrer"' in html
+    assert "e(s).split(mark[0])" in html, "фрагмент сначала экранируется, потом подсветка"
+    page = _read("modules/netmon/templates/netmon.html")
+    assert 'data-p="search"' in page and '{% include "search_panel.html" %}' in page
+    assert "window.loadSearchPanel()" in page
+
+
+def test_zabbix_xwiki_checks_page_search_and_glassfish():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(
+        "zx", os.path.join(ROOT, "modules/netmon/scripts/netmon_zabbix_xwiki.py"))
+    zx = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(zx)
+    assert zx.STEPS[0]["required"] == 'name="wiki" content="xwiki"', "заглушка nginx не должна сойти за вики"
+    assert any("Search" in s["url"] for s in zx.STEPS), "поиск вики проверяет и базу"
+    assert zx.GLASSFISH_PORT == 8080 and zx.SERVER_IP == "192.168.0.15"
+    assert all(s["url"].startswith("https://xwiki.una.md/") for s in zx.STEPS)

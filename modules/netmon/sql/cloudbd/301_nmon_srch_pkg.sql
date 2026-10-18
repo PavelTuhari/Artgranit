@@ -142,7 +142,11 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
     IF v IS NULL OR LENGTH(v) <= 4 OR REGEXP_LIKE(v, '[0-9]') THEN
       RETURN v;
     END IF;
-    ends := CASE WHEN REGEXP_LIKE(v, '[а-я]') THEN c_ru_end ELSE c_lat_end END;
+    IF REGEXP_LIKE(v, '[а-я]') THEN
+      ends := c_ru_end;
+    ELSE
+      ends := c_lat_end;
+    END IF;
     FOR i IN 1 .. ends.COUNT LOOP
       IF LENGTH(v) - LENGTH(ends(i)) >= 4 AND SUBSTR(v, -LENGTH(ends(i))) = ends(i) THEN
         RETURN SUBSTR(v, 1, LENGTH(v) - LENGTH(ends(i)));
@@ -221,7 +225,7 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
     END IF;
     -- код скриптов не текст страницы
     v := REGEXP_REPLACE(v, '\{\{(velocity|groovy|python)[^}]*\}\}.*?\{\{/\1\}\}', ' ', 1, 0, 'n');
-    v := REGEXP_REPLACE(v, '\{(velocity|groovy|code)[^}]*\}.*?\{\1\}', ' ', 1, 0, 'n');
+    v := REGEXP_REPLACE(v, '\{(velocity|groovy)[^}]*\}.*?\{\1\}', ' ', 1, 0, 'n');
     v := REGEXP_REPLACE(v, '(^|' || CHR(10) || ')[ ]*#(set|if|elseif|else|end|foreach|macro|include)[^' || CHR(10) || ']*', ' ');
     -- ссылки: [[подпись>>адрес]] -> подпись
     v := REGEXP_REPLACE(v, '\[\[([^]>]*)>>[^]]*\]\]', '\1');
@@ -240,7 +244,7 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
   BEGIN
     RETURN REGEXP_REPLACE(p,
       '(([Пп][Аа][Рр][Оо][Лл][ЬьЯяИиЕе]?|[Pp][Aa][Ss][Ss]([Ww][Oo]?[Rr][Dd])?|[Pp][Ww][Dd]|[Pp][Aa][Rr][Oo][Ll][Aa])'
-      || '[ ]*[:=-]?[ ]*)[^ ' || CHR(9) || CHR(10) || CHR(13) || ']+',
+      || '([ ]*[:=][ ]*|[ ]+))[^ ' || CHR(9) || CHR(10) || CHR(13) || ']+',
       '\1[скрыто]');
   END mask_secrets;
 
@@ -345,11 +349,9 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
     v_tn    VARCHAR2(50) := REGEXP_SUBSTR(v_raw, '[0-9]{8,20}');
     v_alt   VARCHAR2(4000);
     v_q     VARCHAR2(4000);
-    v_q2    VARCHAR2(4000);
     v_used  VARCHAR2(400) := SUBSTR(v_norm, 1, 400);
     v_by    VARCHAR2(30);
     v_total NUMBER := 0;
-    v_n2    NUMBER;
     v_exact NUMBER := 0;
 
     PROCEDURE try_query(p_norm VARCHAR2, p_mode VARCHAR2, p_by VARCHAR2) IS
@@ -362,8 +364,6 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
         q := ctx_query(p_norm, p_mode, 0);
         n := GREATEST(hit_count(q, v_src, p_open), 0);
       END IF;
-      v_q2 := q;
-      v_n2 := n;
       IF n > 0 AND v_total = 0 THEN
         v_q := q;
         v_total := n;
@@ -533,8 +533,8 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
       v_title := CASE WHEN TRIM(d.xwd_title) IS NULL OR INSTR(d.xwd_title, '$') > 0
                         OR INSTR(d.xwd_title, '#') > 0 THEN d.xwd_name ELSE TRIM(d.xwd_title) END;
       SELECT SUBSTR(LISTAGG(f, ' ') WITHIN GROUP (ORDER BY f), 1, 3000) INTO v_files
-        FROM (SELECT a.xwa_filename f FROM xwiki.xwikiattachment a
-               WHERE a.xwa_doc_id = d.xwd_id AND ROWNUM <= 60);
+        FROM (SELECT SUBSTR(a.xwa_filename, 1, 200) f FROM xwiki.xwikiattachment a
+               WHERE a.xwa_doc_id = d.xwd_id AND ROWNUM <= 15);
 
       DBMS_LOB.CREATETEMPORARY(v_body, TRUE, DBMS_LOB.CALL);
       app(v_body, '<T>' || clean(v_title) || '</T><M>' || clean(d.xwd_web) || ' ' || clean(d.xwd_name)
@@ -581,6 +581,7 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
     v_parts   NUMBER;
     v_added   NUMBER := 0;
     v_updated NUMBER := 0;
+    v_removed NUMBER := 0;
     v_n       NUMBER := 0;
   BEGIN
     IF NOT take('OTRS') THEN
@@ -611,11 +612,13 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
       app(v_body, '<T>' || clean(t.title) || '</T><M>' || t.tn || ' ' || clean(t.customer_id) || ' '
                   || clean(t.queue) || ' ' || t.state || ' ' || t.owner || '</M><B>');
       v_parts := 0;
-      FOR a IN (SELECT a.a_subject, DBMS_LOB.SUBSTR(a.a_body, 8000, 1) body
+      -- Текст письма режем в PL/SQL: DBMS_LOB.SUBSTR в самом SQL ограничен 4000 байт.
+      FOR a IN (SELECT a.a_subject, a.a_body
                   FROM otrs.article a WHERE a.ticket_id = t.id ORDER BY a.id) LOOP
         v_parts := v_parts + 1;
         IF v_parts <= 200 THEN
-          app(v_body, clean(a.a_subject) || CHR(10) || mail_text(a.body) || CHR(10));
+          app(v_body, clean(a.a_subject) || CHR(10)
+                      || mail_text(DBMS_LOB.SUBSTR(a.a_body, 8000, 1)) || CHR(10));
         END IF;
       END LOOP;
       app(v_body, '</B>');
@@ -642,9 +645,10 @@ CREATE OR REPLACE PACKAGE BODY nmon_srch AS
        AND EXISTS (SELECT 1 FROM otrs.ticket t, otrs.ticket_state ts, otrs.ticket_state_type st
                     WHERE t.id = TO_NUMBER(s.src_key) AND ts.id = t.ticket_state_id
                       AND st.id = ts.type_id AND st.name IN ('removed', 'merged'));
+    v_removed := SQL%ROWCOUNT;
     COMMIT;
     CTX_DDL.SYNC_INDEX(c_index, '200M');
-    done('OTRS', 'ok', NULL, v_added, v_updated, SQL%ROWCOUNT, v_max, v_max_id, p_full);
+    done('OTRS', 'ok', NULL, v_added, v_updated, v_removed, v_max, v_max_id, p_full);
   EXCEPTION
     WHEN OTHERS THEN
       ROLLBACK;

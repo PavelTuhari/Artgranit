@@ -101,6 +101,7 @@
   <a href="#" data-p="fs">Файловые ресурсы</a>
   <a href="#" data-p="dbload">Нагрузка БД</a>
   <a href="#" data-p="otrs">Заявки OTRS</a>
+  <a href="#" data-p="search">Поиск: вики и OTRS</a>
   <a href="#" data-p="storage">Диски сервера БД</a>
 </nav>
 
@@ -476,6 +477,10 @@
 
   <section class="panel" id="p-otrs">
     {% include "otrs_board.html" %}
+  </section>
+
+  <section class="panel" id="p-search">
+    {% include "search_panel.html" %}
   </section>
 
   <section class="panel" id="p-storage">
@@ -1898,6 +1903,7 @@ document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
   if (a.dataset.p === "dbload" && !DL) loadDbload();
   if (a.dataset.p === "dbload") obRefresh(); else clearTimeout(OB.timer);
   if (a.dataset.p === "otrs" && window.loadOtrsBoard) window.loadOtrsBoard();
+  if (a.dataset.p === "search" && window.loadSearchPanel) window.loadSearchPanel();
 });
 ["f-kind","f-missing","f-find"].forEach(id =>
   document.getElementById(id).addEventListener("input", renderDevices));
