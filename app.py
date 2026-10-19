@@ -8001,6 +8001,8 @@ def _biro26_warm_site_config():
         _biro26_chrome_refresh()
     except Exception:                                        # noqa: BLE001
         pass
+    from models.biro26_public_cache import warm_catalog  # arbore + branduri (portat de pe nufarul)
+    warm_catalog()
 
 threading.Thread(target=_biro26_warm_site_config, daemon=True).start()
 
@@ -9221,12 +9223,14 @@ def api_biro26_shop_bestsellers():
 @app.route('/api/biro26/shop/tree', methods=['GET'])
 def api_biro26_shop_tree():
     # public read-only grupa->categorie facet tree (Amazon-style sidebar)
-    return jsonify(Biro26Controller.get_product_tree())
+    from models.biro26_public_cache import public_cached  # arbore ~400 KB: cache in browser 10 min
+    return public_cached(jsonify(Biro26Controller.get_product_tree()))
 
 @app.route('/api/biro26/shop/brands', methods=['GET'])
 def api_biro26_shop_brands():
     # public read-only brand facet with counts
-    return jsonify(Biro26Controller.get_product_brands())
+    from models.biro26_public_cache import public_cached
+    return public_cached(jsonify(Biro26Controller.get_product_brands()))
 
 @app.route('/api/biro26/shop/transport', methods=['GET'])
 def api_biro26_shop_transport():
