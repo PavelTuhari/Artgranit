@@ -31,6 +31,8 @@ class PlanogramController:
 
     LANGS = ('ru', 'ro', 'en')
     DEFAULT_LANG = 'ru'
+    SOURCES = ('demo', 'peco')
+    DEFAULT_SOURCE = 'demo'
 
     # ==================== Инфраструктура ====================
 
@@ -39,6 +41,16 @@ class PlanogramController:
         """Нормализует код языка. Неизвестный язык -> язык по умолчанию."""
         code = (value or '').strip().lower()[:2]
         return code if code in PlanogramController.LANGS else PlanogramController.DEFAULT_LANG
+
+    @staticmethod
+    def source(value: Optional[str]) -> str:
+        """Нормализует код источника данных. Неизвестный -> источник по умолчанию.
+
+        Контракт повторяет lang(): неизвестное значение не ошибка, а откат
+        на демо-набор, иначе ссылка с опечаткой роняла бы весь модуль.
+        """
+        code = (value or '').strip().lower()
+        return code if code in PlanogramController.SOURCES else PlanogramController.DEFAULT_SOURCE
 
     @staticmethod
     def _rows(result: Dict) -> List[Dict]:
@@ -59,19 +71,13 @@ class PlanogramController:
         на выбранном языке. Если перевода нет — подставляет русский вариант.
         Исходные языковые колонки сохраняются: они нужны формам редактирования,
         где оператор правит все три языка сразу.
+
+        Реализация — models.plg_datasource.localize_rows: её же использует
+        источник peco, и расходиться этим двум путям нельзя.
         """
-        suffixes = tuple('_' + code for code in PlanogramController.LANGS)
-        out = []
-        for row in rows:
-            bases = {k[:-3] for k in row if k.endswith(suffixes)}
-            new = dict(row)
-            for base in bases:
-                value = row.get(base + '_' + lang)
-                if value in (None, ''):
-                    value = row.get(base + '_ru')
-                new[base] = value
-            out.append(new)
-        return out
+        from models.plg_datasource import localize_rows
+        return localize_rows(rows, lang, PlanogramController.LANGS,
+                             PlanogramController.DEFAULT_LANG)
 
     @staticmethod
     def _localized(result: Dict, lang: str) -> List[Dict]:
@@ -176,7 +182,15 @@ class PlanogramController:
     # ==================== Магазины ====================
 
     @staticmethod
-    def get_stores(lang: str = DEFAULT_LANG, dataset_id: Optional[int] = None) -> Dict:
+    def get_stores(lang: str = DEFAULT_LANG, dataset_id: Optional[int] = None,
+                   source: str = DEFAULT_SOURCE) -> Dict:
+        from models.plg_datasource import get_data_source
+        return get_data_source(PlanogramController.source(source)).list_stores(
+            PlanogramController.lang(lang), dataset_id)
+
+    @staticmethod
+    def _stores_demo(lang: str, dataset_id: Optional[int] = None) -> Dict:
+        """Демо-источник: магазины из PLG_STORES."""
         lang = PlanogramController.lang(lang)
         sql = ("SELECT s.ID, s.CODE, s.NAME_RU, s.NAME_RO, s.NAME_EN, s.CITY, "
                "s.ADDRESS_RU, s.ADDRESS_RO, s.ADDRESS_EN, s.AREA_SQM, s.MAP_WIDTH, s.MAP_HEIGHT, "
@@ -271,8 +285,15 @@ class PlanogramController:
     # ==================== План магазина ====================
 
     @staticmethod
-    def get_store_map(store_id: Optional[int] = None, lang: str = DEFAULT_LANG) -> Dict:
-        """Зоны и оборудование магазина в координатах карты + габариты сетки."""
+    def get_store_map(store_id: Optional[int] = None, lang: str = DEFAULT_LANG,
+                      source: str = DEFAULT_SOURCE) -> Dict:
+        from models.plg_datasource import get_data_source
+        return get_data_source(PlanogramController.source(source)).store_map(
+            PlanogramController.lang(lang), store_id)
+
+    @staticmethod
+    def _store_map_demo(lang: str, store_id: Optional[int] = None) -> Dict:
+        """Демо-источник: зоны и оборудование из V_PLG_ZONES / V_PLG_FIXTURES."""
         lang = PlanogramController.lang(lang)
         try:
             with DatabaseModel() as db:
@@ -440,7 +461,15 @@ class PlanogramController:
 
     @staticmethod
     def get_products(category_id: Optional[int] = None, search: Optional[str] = None,
-                     lang: str = DEFAULT_LANG) -> Dict:
+                     lang: str = DEFAULT_LANG, source: str = DEFAULT_SOURCE) -> Dict:
+        from models.plg_datasource import get_data_source
+        return get_data_source(PlanogramController.source(source)).list_products(
+            PlanogramController.lang(lang), category_id, search)
+
+    @staticmethod
+    def _products_demo(lang: str, category_id: Optional[int] = None,
+                       search: Optional[str] = None) -> Dict:
+        """Демо-источник: товары из V_PLG_PRODUCTS."""
         lang = PlanogramController.lang(lang)
         sql = "SELECT * FROM V_PLG_PRODUCTS WHERE 1 = 1"
         params: Dict[str, Any] = {}

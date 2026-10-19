@@ -2744,6 +2744,8 @@ def api_tbc_services_sync():
 
 from controllers.tbc_infra_routes import tbc_infra_bp  # Proxmox + SSL: правило №2, логика в models/tbc_*.py
 app.register_blueprint(tbc_infra_bp)
+from controllers.peco_routes import peco_bp  # PECO statie: rutele ramurii feat/peco, logica in models/peco_*.py
+app.register_blueprint(peco_bp)
 
 
 @app.route('/api/tbc/cassa', methods=['GET'])
@@ -2881,6 +2883,28 @@ def _plg_lang():
     return PlanogramController.lang(request.args.get('lang'))
 
 
+def _plg_source():
+    """Источник данных модуля планограмм: ?source=demo|peco."""
+    return PlanogramController.source(request.args.get('source'))
+
+
+def _plg_require_demo_source():
+    """Источник peco — только чтение (см. models/plg_datasource.py).
+
+    Синтетический ROW_NUMBER()-id peco-товара (1..4) совпадает с id
+    настоящих строк PLG_PRODUCTS, поэтому без этой проверки запись,
+    отправленная с витрины сорта топлива, молча правила или удаляла бы
+    демо-товары. Возвращает готовый ответ 403, если источник не demo,
+    иначе None — маршрут продолжает работу как обычно.
+    """
+    if _plg_source() != 'demo':
+        return jsonify({
+            'success': False,
+            'error': 'Источник «PECO» доступен только для чтения',
+        }), 403
+    return None
+
+
 @app.route('/UNA.md/orasldev/planograms')
 @app.route('/UNA.md/orasldev/planograms/')
 def planograms():
@@ -3014,7 +3038,7 @@ def api_plg_refs():
 @app.route('/api/plg/stores', methods=['GET'])
 def api_plg_stores():
     return jsonify(PlanogramController.get_stores(
-        _plg_lang(), request.args.get('dataset_id', type=int)))
+        _plg_lang(), request.args.get('dataset_id', type=int), _plg_source()))
 
 
 # --- Дашборд и карта ---
@@ -3028,7 +3052,7 @@ def api_plg_dashboard():
 @app.route('/api/plg/map', methods=['GET'])
 def api_plg_map():
     return jsonify(PlanogramController.get_store_map(
-        request.args.get('store_id', type=int), _plg_lang()))
+        request.args.get('store_id', type=int), _plg_lang(), _plg_source()))
 
 
 @app.route('/api/plg/analytics', methods=['GET'])
@@ -3088,21 +3112,30 @@ def api_plg_delete_fixture(fixture_id):
 def api_plg_products():
     return jsonify(PlanogramController.get_products(
         request.args.get('category_id', type=int),
-        request.args.get('q'), _plg_lang()))
+        request.args.get('q'), _plg_lang(), _plg_source()))
 
 
 @app.route('/api/plg/products', methods=['POST'])
 def api_plg_create_product():
+    guard = _plg_require_demo_source()
+    if guard:
+        return guard
     return jsonify(PlanogramController.save_product(request.get_json() or {}))
 
 
 @app.route('/api/plg/products/<int:product_id>', methods=['PUT'])
 def api_plg_update_product(product_id):
+    guard = _plg_require_demo_source()
+    if guard:
+        return guard
     return jsonify(PlanogramController.save_product(request.get_json() or {}, product_id))
 
 
 @app.route('/api/plg/products/<int:product_id>', methods=['DELETE'])
 def api_plg_delete_product(product_id):
+    guard = _plg_require_demo_source()
+    if guard:
+        return guard
     return jsonify(PlanogramController.delete_product(product_id))
 
 

@@ -1,0 +1,125 @@
+-- ============================================================
+-- PECO: операционные таблицы — смены, показания счётчиков, транзакции.
+-- ============================================================
+
+CREATE SEQUENCE PECO_SHIFTS_SEQ       START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE PECO_SHIFT_METERS_SEQ START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE PECO_TXN_SEQ          START WITH 1 INCREMENT BY 1 NOCACHE;
+CREATE SEQUENCE PECO_SHIFT_TANKS_SEQ  START WITH 1 INCREMENT BY 1 NOCACHE;
+
+CREATE TABLE PECO_SHIFTS (
+  ID              NUMBER       NOT NULL,
+  STATION_ID      NUMBER       NOT NULL,
+  STATUS_CODE     VARCHAR2(15) DEFAULT 'OPEN' NOT NULL,
+  OPENED_AT       TIMESTAMP    DEFAULT SYSTIMESTAMP NOT NULL,
+  CLOSED_AT       TIMESTAMP,
+  OPENED_BY       NUMBER       NOT NULL,
+  CLOSED_BY       NUMBER,
+  -- заполняются при закрытии
+  CASH_DECLARED   NUMBER(12,2),
+  CASH_EXPECTED   NUMBER(12,2),
+  CASH_VARIANCE   NUMBER(12,2),
+  LITER_VARIANCE  NUMBER(14,3),
+  -- Станционный итог по всем резервуарам = SUM(PECO_SHIFT_TANKS.TANK_VARIANCE)
+  -- за эту смену. Разбивка по каждому резервуару и виду топлива живёт
+  -- в PECO_SHIFT_TANKS.
+  TANK_VARIANCE   NUMBER(14,3),
+  -- PIN менеджера, подтвердившего расхождение выше допуска
+  APPROVED_BY     NUMBER,
+  NOTE            VARCHAR2(500),
+  CONSTRAINT PK_PECO_SHIFTS PRIMARY KEY (ID),
+  -- Опорный UNIQUE для составных FK из PECO_SHIFT_METERS/PECO_TXN/PECO_SHIFT_TANKS:
+  -- смена обязана проверяться на ту же станцию, что и связанная строка
+  CONSTRAINT UQ_PECO_SHIFTS_ID_ST UNIQUE (ID, STATION_ID),
+  CONSTRAINT FK_PECO_SHIFTS_ST FOREIGN KEY (STATION_ID) REFERENCES PECO_STATIONS (ID),
+  CONSTRAINT FK_PECO_SHIFTS_OB FOREIGN KEY (OPENED_BY)  REFERENCES PECO_EMPLOYEES (ID),
+  CONSTRAINT FK_PECO_SHIFTS_CB FOREIGN KEY (CLOSED_BY)  REFERENCES PECO_EMPLOYEES (ID),
+  CONSTRAINT FK_PECO_SHIFTS_AB FOREIGN KEY (APPROVED_BY) REFERENCES PECO_EMPLOYEES (ID),
+  CONSTRAINT FK_PECO_SHIFTS_SS FOREIGN KEY (STATUS_CODE) REFERENCES PECO_REF_SHIFT_STATUS (CODE)
+);
+
+-- Опорная точка сверки: показания счётчика каждого пистолета за смену.
+CREATE TABLE PECO_SHIFT_METERS (
+  ID          NUMBER       NOT NULL,
+  SHIFT_ID    NUMBER       NOT NULL,
+  NOZZLE_ID   NUMBER       NOT NULL,
+  STATION_ID  NUMBER       NOT NULL,
+  METER_OPEN  NUMBER(14,3) NOT NULL,
+  METER_CLOSE NUMBER(14,3),
+  CONSTRAINT PK_PECO_SHIFT_METERS PRIMARY KEY (ID),
+  CONSTRAINT UQ_PECO_SHIFT_METERS UNIQUE (SHIFT_ID, NOZZLE_ID),
+  -- Составные FK: смена и пистолет обязаны принадлежать одной и той же станции
+  -- (иначе показания счётчика соседней АЗС попадают в чужую сверку)
+  CONSTRAINT FK_PECO_SM_SH FOREIGN KEY (SHIFT_ID, STATION_ID)  REFERENCES PECO_SHIFTS (ID, STATION_ID),
+  CONSTRAINT FK_PECO_SM_NO FOREIGN KEY (NOZZLE_ID, STATION_ID) REFERENCES PECO_NOZZLES (ID, STATION_ID)
+);
+
+CREATE TABLE PECO_TXN (
+  ID              NUMBER       NOT NULL,
+  SHIFT_ID        NUMBER       NOT NULL,
+  NOZZLE_ID       NUMBER       NOT NULL,
+  STATION_ID      NUMBER       NOT NULL,
+  GRADE_CODE      VARCHAR2(10) NOT NULL,
+  STATUS_CODE     VARCHAR2(15) DEFAULT 'AUTHORIZED' NOT NULL,
+  LITERS          NUMBER(14,3) DEFAULT 0 NOT NULL,
+  -- цена, по которой транзакция ФАКТИЧЕСКИ проведена. Смена цены
+  -- посреди смены не переписывает историю
+  PRICE           NUMBER(12,2) NOT NULL,
+  AMOUNT          NUMBER(12,2) DEFAULT 0 NOT NULL,
+  PAY_METHOD      VARCHAR2(10),
+  IS_SELF_SERVICE NUMBER(1)    DEFAULT 0 NOT NULL,
+  AUTHORIZED_BY   NUMBER,
+  MIA_REF         VARCHAR2(100),
+  METER_START     NUMBER(14,3) NOT NULL,
+  METER_END       NUMBER(14,3),
+  STARTED_AT      TIMESTAMP    DEFAULT SYSTIMESTAMP NOT NULL,
+  PAID_AT         TIMESTAMP,
+  CONSTRAINT PK_PECO_TXN PRIMARY KEY (ID),
+  -- Составные FK: смена и пистолет транзакции обязаны принадлежать одной станции
+  CONSTRAINT FK_PECO_TXN_SH FOREIGN KEY (SHIFT_ID, STATION_ID)  REFERENCES PECO_SHIFTS (ID, STATION_ID),
+  CONSTRAINT FK_PECO_TXN_NO FOREIGN KEY (NOZZLE_ID, STATION_ID) REFERENCES PECO_NOZZLES (ID, STATION_ID),
+  -- Составной FK: вид топлива транзакции обязан совпадать с видом топлива её пистолета
+  -- (иначе литры/сумма попадают не в тот резервуар при расчёте tank_variance)
+  CONSTRAINT FK_PECO_TXN_NO_GR FOREIGN KEY (NOZZLE_ID, GRADE_CODE) REFERENCES PECO_NOZZLES (ID, GRADE_CODE),
+  CONSTRAINT FK_PECO_TXN_GR FOREIGN KEY (GRADE_CODE)  REFERENCES PECO_REF_FUEL_GRADES (CODE),
+  CONSTRAINT FK_PECO_TXN_TS FOREIGN KEY (STATUS_CODE) REFERENCES PECO_REF_TXN_STATUS (CODE),
+  CONSTRAINT FK_PECO_TXN_PM FOREIGN KEY (PAY_METHOD)  REFERENCES PECO_REF_PAY_METHODS (CODE),
+  CONSTRAINT FK_PECO_TXN_AB FOREIGN KEY (AUTHORIZED_BY) REFERENCES PECO_EMPLOYEES (ID),
+  CONSTRAINT CK_PECO_TXN_SELF CHECK (IS_SELF_SERVICE IN (0,1))
+);
+
+-- Снимок резервуара на момент смены: без него tank_variance не из чего считать
+-- (PECO_TANKS.CURRENT_L — это только текущий "бегущий" остаток, а не значение
+-- на открытие смены), и на станции с несколькими резервуарами (по числу видов
+-- топлива) один скалярный TANK_VARIANCE на PECO_SHIFTS не позволяет понять,
+-- в каком именно резервуаре расхождение. Одна строка на пару (смена, резервуар).
+CREATE TABLE PECO_SHIFT_TANKS (
+  ID             NUMBER       NOT NULL,
+  SHIFT_ID       NUMBER       NOT NULL,
+  TANK_ID        NUMBER       NOT NULL,
+  STATION_ID     NUMBER       NOT NULL,
+  VOLUME_OPEN_L  NUMBER(14,3) NOT NULL,
+  DELIVERED_L    NUMBER(14,3) DEFAULT 0 NOT NULL,
+  DIP_CLOSE_L    NUMBER(14,3),
+  TANK_VARIANCE  NUMBER(14,3),
+  CONSTRAINT PK_PECO_SHIFT_TANKS PRIMARY KEY (ID),
+  CONSTRAINT UQ_PECO_SHIFT_TANKS UNIQUE (SHIFT_ID, TANK_ID),
+  -- Составные FK: смена и резервуар обязаны принадлежать одной и той же станции
+  CONSTRAINT FK_PECO_ST_SH FOREIGN KEY (SHIFT_ID, STATION_ID) REFERENCES PECO_SHIFTS (ID, STATION_ID),
+  CONSTRAINT FK_PECO_ST_TA FOREIGN KEY (TANK_ID, STATION_ID)  REFERENCES PECO_TANKS (ID, STATION_ID)
+);
+
+CREATE INDEX IX_PECO_TXN_SHIFT       ON PECO_TXN (SHIFT_ID, STATUS_CODE);
+CREATE INDEX IX_PECO_TXN_NOZZLE      ON PECO_TXN (NOZZLE_ID);
+CREATE INDEX IX_PECO_SHIFTS_ST       ON PECO_SHIFTS (STATION_ID, STATUS_CODE);
+-- IX_PECO_SHIFT_TANKS_SH намеренно не создаётся: UQ_PECO_SHIFT_TANKS
+-- (SHIFT_ID, TANK_ID) уже даёт индекс с SHIFT_ID первым столбцом, второй
+-- индекс с тем же ведущим столбцом был чистым дублированием.
+
+-- Не более одной активной (OPEN или CLOSING) смены на станцию.
+-- Функциональный индекс: для смен в статусах, отличных от OPEN/CLOSING, выражение
+-- даёт NULL и не участвует в уникальности — закрытых смен на станции может быть
+-- сколько угодно, а одновременно открытых/закрывающихся — только одна.
+CREATE UNIQUE INDEX UX_PECO_SHIFTS_ACTIVE ON PECO_SHIFTS (
+  CASE WHEN STATUS_CODE IN ('OPEN','CLOSING') THEN STATION_ID END
+);

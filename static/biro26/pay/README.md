@@ -13,14 +13,27 @@ Puneți aici fișierele **oficiale**, primite de la bancă / de la sistemele de 
 | `mastercard.svg` | Mastercard |
 | `maestro.svg` | Maestro |
 | `amex.svg` | American Express |
-| `mia.svg` | MIA |
+| `mia.png` | MIA (официальный, «plăți instant») |
 | `applepay.svg` | Apple Pay |
-| `easycredit.svg` | EasyCredit |
+| `googlepay.svg` | Google Pay |
+| `easycredit.png` | EasyCredit (пришёл в PNG — это допустимо) |
+| `microinvest.svg` | Microinvest |
 | `libercard.svg` | Liber Card |
 
 Numele fișierului = denumirea din pagina WP «site-plati», litere mici, fără
 spații și diacritice (vezi `paySlug()` în `static/biro26/site.js`).
-Se acceptă și `.png` — atunci schimbați extensia în `payBadgeHtml()`.
+
+`.png` se acceptă la fel ca `.svg` — extensia NU se mai scrie în cod: backendul
+trimite în `window.PAY_LOGOS` perechea `{slug: nume-fișier}`, iar dacă există
+ambele variante câștigă `.svg`. Deci e destul să puneți fișierul aici.
+
+Fișierele raster se pun redimensionate la ~96 px înălțime: în subsol se afișează
+la 24 px, iar originalele (MIA 1000×323, EasyCredit 2000×1983) cântăreau de
+5–10 ori mai mult degeaba.
+
+⚠️ Lista din pagina WP «site-plati» decide CE se afișează. Un fișier pus aici,
+dar absent din listă, nu apare în subsol — și invers, o denumire din listă fără
+fișier rămâne badge text.
 
 ## Două căi de administrare
 

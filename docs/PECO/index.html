@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PECO — Управление розничной продажей топлива</title>
+<style>
+:root{
+  --bg:#eef2fa;--card:#ffffff;--card2:#f7f9fd;--line:#d7e0f0;
+  --text:#132038;--muted:#5c6b85;
+  --primary:#1d4ed8;--accent:#1447b8;
+  --ok:#1f9d55;--danger:#dc2626;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);
+     line-height:1.6;padding:24px;max-width:1000px;margin:0 auto;}
+.lead{font-size:17px;margin-bottom:28px;padding:20px 24px;
+      background:linear-gradient(135deg,#e6ecfa 0%,#dbe5f8 100%);
+      border-radius:16px;border-left:4px solid var(--primary);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:32px;}
+@media (max-width:768px){.grid2{grid-template-columns:1fr;}}
+.choice-card{background:var(--card);border-radius:16px;padding:24px;
+             box-shadow:0 4px 16px rgba(19,32,56,.08);border:2px solid var(--line);
+             transition:border-color .2s,box-shadow .2s;}
+.choice-card:hover{border-color:var(--primary);box-shadow:0 6px 20px rgba(29,78,216,.15);}
+.choice-card h2{font-size:18px;margin-bottom:10px;color:var(--primary);
+                display:flex;align-items:center;gap:10px;}
+.choice-card p{font-size:14px;color:var(--muted);margin-bottom:16px;}
+.links{display:flex;flex-direction:column;gap:10px;}
+.btn{display:inline-block;padding:12px 20px;border-radius:10px;font-weight:600;
+     text-decoration:none;text-align:center;cursor:pointer;transition:opacity .2s,transform .05s;
+     border:none;font-size:14px;}
+.btn:active{transform:scale(.98);}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{opacity:.92;}
+.btn-ghost{background:var(--card2);color:var(--accent);border:1px solid var(--line);}
+.btn-ghost:hover{background:#e6ecfa;}
+.btn-block{width:100%;}
+h1{font-size:28px;margin-bottom:8px;font-weight:800;}
+h2{font-size:20px;margin-top:28px;margin-bottom:12px;color:var(--primary);
+   border-bottom:1px solid var(--line);padding-bottom:6px;}
+h3{font-size:16px;margin-top:16px;margin-bottom:8px;}
+p{margin-bottom:12px;}
+ul,ol{margin:0 0 12px 24px;}
+li{margin-bottom:6px;}
+.meta{font-size:14px;color:var(--muted);margin-bottom:24px;}
+.card{background:var(--card);border-radius:12px;padding:20px;margin-bottom:20px;
+      box-shadow:0 2px 8px rgba(19,32,56,.06);border:1px solid var(--line);}
+.hidden{display:none !important;}
+.badge{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;
+       background:var(--card2);border:1px solid var(--line);color:var(--muted);}
+.stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin:16px 0;}
+.stat{background:var(--card2);border:1px solid var(--line);border-radius:10px;padding:12px;text-align:center;}
+.stat-val{font-size:20px;font-weight:700;color:var(--primary);}
+.stat-label{font-size:11px;color:var(--muted);margin-top:4px;}
+.nav-tabs{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;}
+.nav-tabs button{padding:8px 16px;border:1px solid var(--line);background:var(--card2);
+                 border-radius:8px;cursor:pointer;font-weight:600;transition:all .2s;}
+.nav-tabs button.active{background:var(--primary);color:#fff;border-color:var(--primary);}
+.nav-tabs button:hover{border-color:var(--primary);color:var(--primary);}
+code{background:var(--card2);border:1px solid var(--line);padding:2px 6px;border-radius:4px;font-size:13px;}
+pre{background:#132038;color:#dbe5f8;padding:16px;border-radius:10px;overflow-x:auto;
+    font-size:13px;margin:12px 0;}
+pre code{background:none;border:none;color:inherit;padding:0;}
+table{width:100%;border-collapse:collapse;font-size:14px;margin:12px 0;}
+th,td{padding:10px 12px;text-align:left;border:1px solid var(--line);}
+th{background:var(--card2);font-weight:700;color:var(--muted);}
+.sub-link{font-size:13px;margin-top:6px;color:var(--muted);}
+.accent-box{background:linear-gradient(135deg,#fff8e6 0%,#fffbf0 100%);
+            border:1px solid #f3d98a;border-radius:10px;padding:14px 18px;
+            font-size:14px;margin:12px 0;}
+</style>
+</head>
+<body>
+<h1>⛽ PECO — Управление розничной продажей топлива</h1>
+<p class="meta">Регионная сеть АЗС · 46 станций · 4 вида топлива · полный ERP-контур</p>
+
+<p class="lead">
+<strong>Выберите, что делать:</strong> <strong>работать с системой</strong>
+(отпускать топливо, вести смену, управлять сетью) или <strong>изучить спецификацию</strong>
+(архитектура, модель данных, API).
+</p>
+
+<div class="grid2">
+  <div class="choice-card">
+    <h2>🚀 Работать</h2>
+    <p>Три рабочих интерфейса для операторов, менеджеров и администраторов.
+       Все маршруты требуют авторизации.</p>
+    <div class="links">
+      <a href="/UNA.md/orasldev/peco-pump" class="btn btn-primary btn-block">
+        ⛽ Фронт-офис колонки</a>
+      <p class="sub-link">Отпуск топлива, авторизация налива, оплата наличными и MIA QR.</p>
+      <a href="/UNA.md/orasldev/peco-shift" class="btn btn-primary btn-block">
+        📋 Консоль смены оператора</a>
+      <p class="sub-link">Открытие смены, показания счётчиков, приём цистерн, закрытие со сверкой.</p>
+      <a href="/UNA.md/orasldev/peco-admin" class="btn btn-primary btn-block">
+        📊 Бэк-офис сети</a>
+      <p class="sub-link">46 станций, остатки резервуаров, цены, отчёты по расхождениям.</p>
+    </div>
+  </div>
+
+  <div class="choice-card">
+    <h2>📖 Спецификация</h2>
+    <p>Архитектура, модель данных, потоки, интерфейсы и API.
+       Разделы на этой странице ниже.</p>
+    <div class="links">
+      <button onclick="showTab('intro')" class="btn btn-ghost btn-block">1. Общие сведения</button>
+      <button onclick="showTab('arch')" class="btn btn-ghost btn-block">2. Учёт по счётчику</button>
+      <button onclick="showTab('data')" class="btn btn-ghost btn-block">3. Модель данных</button>
+      <button onclick="showTab('flows')" class="btn btn-ghost btn-block">4. Потоки и интерфейсы</button>
+      <button onclick="showTab('tech')" class="btn btn-ghost btn-block">5. Реализация</button>
+    </div>
+  </div>
+</div>
+
+<div class="stat-row">
+  <div class="stat">
+    <div class="stat-val">46</div>
+    <div class="stat-label">АЗС в сети</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val">184</div>
+    <div class="stat-label">резервуаров</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val">4</div>
+    <div class="stat-label">вида топлива</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val">2–3</div>
+    <div class="stat-label">пересменок/сутки</div>
+  </div>
+</div>
+
+<!-- SPEC SECTIONS -->
+<div id="tab-intro" class="card">
+  <h2>1. Общие сведения</h2>
+  <p><strong>Система управления розничной продажей топлива в региональной сети АЗС.</strong></p>
+  <table>
+    <tr><th>Параметр</th><th>Значение</th></tr>
+    <tr><td>Количество АЗС</td><td>46</td></tr>
+    <tr><td>Виды топлива</td><td>A92, A95, A98, Дизель</td></tr>
+    <tr><td>Способы оплаты</td><td>наличные на кассе, MIA QR-код</td></tr>
+    <tr><td>Пересменок в сутки</td><td>2–3 по графику</td></tr>
+    <tr><td>Режимы отпуска</td><td>самообслуживание и отпуск сотрудником</td></tr>
+  </table>
+  <p><strong>Функциональность:</strong> приём цистерн, складской учёт по резервуарам,
+  закрытие смены со сверкой, расчёт трёх независимых расхождений, бэк-офис по всей сети.</p>
+</div>
+
+<div id="tab-arch" class="card hidden">
+  <h2>2. Ключевое решение: учёт по счётчику</h2>
+  <p>Источником истины является <strong>тотализатор раздаточного пистолета</strong>
+  (хранится в <code>PECO_NOZZLES</code>), а не сумма транзакций.</p>
+  <p><strong>Обоснование:</strong> при учёте «по транзакциям» отпуск топлива, не попавший в систему,
+  не оставляет следов вообще. При учёте по счётчику такой отпуск автоматически проявляется
+  как расхождение — счётчик прокрутился, а оплаченных литров меньше.</p>
+
+  <h3>Три независимых расхождения</h3>
+  <pre><code>liter_variance = meter_delta − txn_liters
+                 -- топливо вышло, но не оплачено
+
+cash_variance  = cash_declared − cash_expected
+                 -- недостача/излишек ящика (MIA QR НЕ входит)
+
+tank_variance  = dip_close − (volume_open + delivered − dispensed)
+                 -- считается ОТДЕЛЬНО по каждому резервуару</code></pre>
+
+  <h3>Допуски</h3>
+  <table>
+    <tr><th>Константа</th><th>Значение</th><th>Смысл</th></tr>
+    <tr><td><code>TOLERANCE_LITERS</code></td><td>0.5 л</td><td>допуск счётчик/транзакции</td></tr>
+    <tr><td><code>TOLERANCE_CASH</code></td><td>1.0 (ед.)</td><td>допуск кассы</td></tr>
+    <tr><td><code>TOLERANCE_TANK_LITERS</code></td><td>50.0 л</td><td>допуск резервуара (каждый отдельно)</td></tr>
+  </table>
+  <p>Превышение любого допуска переводит смену в <code>DISPUTED</code> и требует подтверждения PIN-кодом менеджера.</p>
+</div>
+
+<div id="tab-data" class="card hidden">
+  <h2>3. Модель данных</h2>
+  <p>Префикс всех объектов — <code>PECO_</code>. Схема нормализована: 18 таблиц, 4 представления.</p>
+
+  <h3>Справочники</h3>
+  <ul>
+    <li><code>PECO_REF_FUEL_GRADES</code> — A92, A95, A98, DIESEL</li>
+    <li><code>PECO_REF_PAY_METHODS</code> — CASH, MIA_QR</li>
+    <li><code>PECO_REF_SHIFT_STATUS</code> — OPEN, CLOSING, CLOSED, DISPUTED</li>
+    <li><code>PECO_REF_TXN_STATUS</code> — AUTHORIZED, DISPENSING, AWAITING_PAY, PAID, VOIDED</li>
+  </ul>
+
+  <h3>Мастер-данные</h3>
+  <ul>
+    <li><code>PECO_STATIONS</code> — 46 станций</li>
+    <li><code>PECO_TANKS</code> — резервуар на вид топлива на станцию</li>
+    <li><code>PECO_PUMPS</code> — колонки, некоторые с самообслуживанием</li>
+    <li><code>PECO_NOZZLES</code> — пистолеты; <strong>тотализатор хранится здесь</strong></li>
+    <li><code>PECO_EMPLOYEES</code> — сотрудники, роли ATTENDANT/MANAGER/ADMIN, PIN как PBKDF2-хеш</li>
+    <li><code>PECO_PRICES</code> — версионные цены с VALID_FROM/VALID_TO</li>
+  </ul>
+
+  <h3>Операционные таблицы</h3>
+  <ul>
+    <li><code>PECO_SHIFTS</code> — смены с расхождениями</li>
+    <li><code>PECO_SHIFT_METERS</code> — показания по каждому пистолету за смену</li>
+    <li><code>PECO_TXN</code> — продажи топлива</li>
+    <li><code>PECO_SHIFT_TANKS</code> — снимок резервуара на смену (остаток, приход, замер, расхождение)</li>
+    <li><code>PECO_DELIVERIES</code> + <code>PECO_DELIVERY_ITEMS</code> — приход цистерн</li>
+    <li><code>PECO_TANK_DIPS</code> — ручные замеры уровня</li>
+    <li><code>PECO_EVENT_LOG</code> — append-only журнал событий</li>
+  </ul>
+</div>
+
+<div id="tab-flows" class="card hidden">
+  <h2>4. Потоки и интерфейсы</h2>
+
+  <h3>Отпуск топлива (конечный автомат)</h3>
+  <pre><code>AUTHORIZED → DISPENSING → AWAITING_PAY → PAID
+                  ↓             ↓
+               VOIDED        VOIDED</code></pre>
+  <p>Один конечный автомат обслуживает оба режима. Самообслуживание требует MIA-ссылку
+  уже на авторизации. Отпуск сотрудником остаётся в AWAITING_PAY до оплаты на кассе.</p>
+
+  <h3>Пересменка (цикл на смену)</h3>
+  <ol>
+    <li>Оператор вводит закрывающие показания по каждому пистолету</li>
+    <li>Система рассчитывает расхождения (литры, касса, резервуар)</li>
+    <li>Оператор объявляет наличность в кассе</li>
+    <li>При превышении допуска смена → DISPUTED, требует PIN менеджера</li>
+    <li>Открывающие показания следующей смены = закрывающие предыдущей</li>
+  </ol>
+
+  <h3>UI-маршруты</h3>
+  <table>
+    <tr><th>Маршрут</th><th>Назначение</th></tr>
+    <tr><td><code>/UNA.md/orasldev/peco-pump</code></td><td>Фронт-офис колонки</td></tr>
+    <tr><td><code>/UNA.md/orasldev/peco-shift</code></td><td>Консоль смены оператора</td></tr>
+    <tr><td><code>/UNA.md/orasldev/peco-admin</code></td><td>Бэк-офис сети</td></tr>
+  </table>
+
+  <h3>API (все требуют авторизацию)</h3>
+  <table>
+    <tr><th>Метод</th><th>Маршрут</th><th>Назначение</th></tr>
+    <tr><td>GET</td><td><code>/api/peco/pump/state</code></td><td>состояние колонки</td></tr>
+    <tr><td>POST</td><td><code>/api/peco/txn/authorize</code></td><td>авторизация налива</td></tr>
+    <tr><td>POST</td><td><code>/api/peco/txn/start</code></td><td>старт налива</td></tr>
+    <tr><td>POST</td><td><code>/api/peco/txn/finish</code></td><td>завершение по счётчику</td></tr>
+    <tr><td>POST</td><td><code>/api/peco/txn/pay</code></td><td>оплата</td></tr>
+    <tr><td>POST</td><td><code>/api/peco/txn/void</code></td><td>аннулирование</td></tr>
+    <tr><td>POST</td><td><code>/api/peco/shift/open</code></td><td>открытие смены</td></tr>
+    <tr><td>POST</td><td><code>/api/peco/shift/close</code></td><td>закрытие смены</td></tr>
+    <tr><td>POST</td><td><code>/api/peco/shift/approve</code></td><td>подтверждение DISPUTED</td></tr>
+    <tr><td>POST</td><td><code>/api/peco/delivery</code></td><td>приём цистерны</td></tr>
+    <tr><td>GET</td><td><code>/api/peco/tanks</code></td><td>остатки резервуаров</td></tr>
+    <tr><td>GET</td><td><code>/api/peco/admin/overview</code></td><td>сводка по сети</td></tr>
+  </table>
+</div>
+
+<div id="tab-tech" class="card hidden">
+  <h2>5. Техническая реализация</h2>
+  <ul>
+    <li><strong>Язык:</strong> Python 3.12, Flask</li>
+    <li><strong>База данных:</strong> Oracle (одна схема на всю сеть, строки помечены STATION_ID)</li>
+    <li><strong>Архитектура:</strong>
+      <ul>
+        <li>Бизнес-логика (расхождения, пересменка, PIN) — чистые функции в <code>models/peco_shift.py</code>, <code>models/peco_txn.py</code>, <code>models/peco_inventory.py</code></li>
+        <li>Весь SQL — в <code>models/peco_oracle_store.py</code></li>
+        <li>HTTP-маршруты и контроль доступа — в <code>controllers/peco_controller.py</code> и <code>app.py</code></li>
+      </ul>
+    </li>
+    <li><strong>DDL:</strong> <code>sql/100_peco_tables.sql</code> … <code>sql/104_peco_demo_data.sql</code></li>
+    <li><strong>Развёртывание:</strong> <code>python deploy_oracle_objects.py</code></li>
+  </ul>
+
+  <h3>Безопасность</h3>
+  <ul>
+    <li>PIN хранится как PBKDF2-HMAC-SHA256 с солью, 600 000 итераций</li>
+    <li>Все SQL через параметризованные запросы</li>
+    <li>Таблицы защищены составными FK по станциям</li>
+    <li>Уникальные индексы (функциональные и обычные) предотвращают гонку смен</li>
+  </ul>
+</div>
+
+<!-- QUICK ACTIONS -->
+<div class="card">
+  <h2>🔗 Быстрые ссылки</h2>
+  <p>Прямой доступ к основным компонентам:</p>
+  <div class="grid2">
+    <div>
+      <h3>Рабочие интерфейсы</h3>
+      <ul>
+        <li><a href="/UNA.md/orasldev/peco-pump">Фронт-офис колонки</a></li>
+        <li><a href="/UNA.md/orasldev/peco-shift">Консоль смены</a></li>
+        <li><a href="/UNA.md/orasldev/peco-admin">Бэк-офис</a></li>
+      </ul>
+    </div>
+    <div>
+      <h3>Система</h3>
+      <ul>
+        <li><a href="/login">Вход в систему</a></li>
+        <li><a href="/UNA.md/orasldev/docs/peco/TZ.html">Полное ТЗ</a></li>
+        <li><a href="/test.html">Диагностика</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<script>
+function showTab(tabId) {
+  // Hide all tabs
+  document.querySelectorAll('[id^="tab-"]').forEach(el => el.classList.add('hidden'));
+  // Show selected tab
+  document.getElementById('tab-' + tabId)?.classList.remove('hidden');
+  // Scroll to content
+  window.scrollTo({top: document.getElementById('tab-' + tabId)?.offsetTop - 100, behavior: 'smooth'});
+}
+// Show intro by default
+window.addEventListener('DOMContentLoaded', () => {
+  const hash = window.location.hash.slice(1);
+  if (hash && hash.match(/^(intro|arch|data|flows|tech)$/)) {
+    showTab(hash);
+  } else {
+    showTab('intro');
+  }
+});
+// Hash-based navigation
+window.addEventListener('hashchange', () => {
+  const hash = window.location.hash.slice(1);
+  if (hash && hash.match(/^(intro|arch|data|flows|tech)$/)) {
+    showTab(hash);
+  }
+});
+</script>
+</body>
+</html>

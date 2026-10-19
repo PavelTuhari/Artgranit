@@ -642,3 +642,7 @@ git -C /Users/pt/Projects.AI/Artgranit-core worktree list                       
 3. `restart` → `curl 127.0.0.1:8000/login` = 200 → `journalctl … | grep -c
    Traceback` = 0 → `curl https://…/login` = 200; при любом отклонении —
    немедленно `cp app.py.bak-ДАТА app.py && restart`, потом разбираться.
+
+4. Если после запуска соединения нет — тогда сообщить владельцу; сам пароль
+   к VPN в Keychain не лежит и подбирать его не нужно.
+
