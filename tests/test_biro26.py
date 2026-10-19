@@ -528,7 +528,11 @@ def test_get_products_stock_barcode_column_and_search():
     # (~300s vs ~3s live)
     assert ".COD IN (" in _sql(fake) and "UNION" in _sql(fake)
     assert "SELECT COD FROM TMS_MPT_BARCODE WHERE BARCODE LIKE :s" in _sql(fake)
-    assert "OR EXISTS" not in fake.last_sql
+    # RO: in WHERE nu exista OR/EXISTS (scanarea row-by-row); in ORDER BY
+    #     relevanta (fix/search-relevance, 10.2026) foloseste CASE … EXISTS pe
+    #     codul de bare — doar pe pagina deja filtrata, nu pe tot join-ul.
+    _where = fake.last_sql.split("ORDER BY")[0]
+    assert "OR EXISTS" not in _where
     # feed join must be deduplicated (a few products have duplicate feed rows)
     # Один товар — одна строка. Раньше это держал ROW_NUMBER с
     # PARTITION BY, теперь — устройство запроса: выборка идёт по

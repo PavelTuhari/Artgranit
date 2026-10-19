@@ -100,17 +100,21 @@ def test_catalog_queries_expose_supplier_stock():
 def test_jivochat_renders_only_when_configured():
     """Пустой SHOP_JIVO_ID = чата нет вовсе.
 
-    Шаблон обязан прятать скрипт целиком, а не выводить пустой адрес
-    //code.jivosite.com/widget/ — такой запрос уходил бы на их CDN с каждой
-    страницы и возвращал 404.
+    С 09.10.2026 (согласие на cookie) шаблон НЕ грузит скрипт Jivo напрямую:
+    он лишь передаёт ID в window.OP_JIVO_ID — внутри условия, — а запускает
+    чат static/biro26/cookie-consent.js после согласия на «Funcționale».
+    Пустой ID → ни переменной, ни запроса на их CDN.
     """
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     with open(os.path.join(root, "templates/biro26/site_base.html"), encoding="utf-8") as fh:
         tpl = fh.read()
-    assert "{% if jivo_id %}" in tpl, "скрипт не закрыт условием"
-    i = tpl.index("code.jivosite.com")
+    assert "code.jivosite.com/widget" not in tpl, "скрипт Jivo не должен грузиться напрямую (cookie-consent)"
+    assert "{% if jivo_id %}" in tpl, "ID не закрыт условием"
+    i = tpl.index("window.OP_JIVO_ID")
     assert tpl.rindex("{% if jivo_id %}", 0, i) > tpl.rindex("{% endif %}", 0, i), \
-        "тег чата должен быть ВНУТРИ условия"
+        "ID чата должен быть ВНУТРИ условия"
+    with open(os.path.join(root, "static/biro26/cookie-consent.js"), encoding="utf-8") as fh:
+        assert "code.jivosite.com/widget/" in fh.read()
 
 
 def test_jivochat_is_off_outside_the_public_shop():
