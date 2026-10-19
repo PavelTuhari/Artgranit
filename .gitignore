@@ -103,3 +103,8 @@ wordpress/servouts26/db/
 
 # Снимки оборудования офиса: операционные данные, не исходный код
 modules/netmon/photos/
+
+# TBControl Mobile: генерируется xcodegen из project.yml
+ios/TBControlMobile/TBControlMobile.xcodeproj/
+ios/TBControlMobile/Info.plist
+

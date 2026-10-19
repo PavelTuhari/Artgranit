@@ -46,6 +46,11 @@
   const paid = q.get('pay') === 'ok';
   const cod = parseInt(q.get('cod') || '0', 10);
 
+  // RO: cosul se goleste DOAR aici (plata cu cardul confirmata), nu la
+  //     crearea facturii. EN: empty the cart only after card payment
+  //     is confirmed — not when the invoice was created.
+  if (paid && typeof saveCartLS === 'function') saveCartLS([]);
+
   document.getElementById('pay-title').textContent = paid
     ? '✅ Plata a fost efectuată · Оплата прошла'
     : '⚠️ Plata nu a fost finalizată · Оплата не завершена';

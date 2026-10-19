@@ -156,3 +156,22 @@ curl -I https://nufarul.eminescu.md/login          # → HTTP/2 200
 `sql/79b…79e`), контроллер содержит только вызовы в одну строку. Подробности,
 что выяснилось и как проверять — [INFRA_RESTORE_20260902.md](INFRA_RESTORE_20260902.md);
 паспорт шлюза и ключей — [MTLS_SOURCE.md](MTLS_SOURCE.md).
+
+## 7. Состояние кода после 01.09.2026 — что утеряно
+
+Проверка по правилу №2 CLAUDE.md показала: часть работы предыдущих сессий
+**затёрта и не восстанавливается** (ни в git, ни на проде, ни в транскриптах):
+
+| Утеряно | Что осталось |
+|---|---|
+| `models/zabbix_svc.py` (mTLS-источник сервисов Zabbix unisim-soft.com) | таблица `TBC_SERVICES` в ADB |
+| `models/proxmox_svc.py` (источник Proxmox под сертификатом) | таблица `TBC_PVE_OBJECTS`, события `source=proxmox` в `TBC_EVENTS` |
+| `sql/79b…79e_*.sql` (mTLS-колонки, типы досье, Proxmox, `TBC_CERTS`) | таблица `TBC_CERTS` в ADB |
+| методы контроллера `get_services/sync_services/sync_proxmox/get_proxmox/get_certs/check_certs` | маршрут `/api/tbc/services` в `app.py` остался и отдаёт **500** |
+| панели `services/proxmox` в `templates/tbcontrol.html`, `docs/TBControl/MTLS_SOURCE.md` | — |
+
+Работающими остались: источники `emulator`/`zabbix`/`unisim_cassa`, Cassa
+Monitor, AI-досье, инвайты, отчёты. Восстанавливать — заново и **только
+изолированными файлами** (`models/tbc_*.py` + вызов в одну строку), как велит
+правило №2.
+

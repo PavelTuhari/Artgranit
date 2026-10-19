@@ -645,7 +645,7 @@ function crTiles(base, orgId) {
         const cp = cp0;
         const monthly = cp / m + cp * (pl.annual_pct || 0) / 12 / 100 +
           cp * (pl.monthly_fee_pct || 0) / 100;
-        tiles.push({plan: pl, org: o, m, monthly, credit_price: cp});
+        tiles.push({plan: pl, org: o, m, monthly, credit_price: cp, eff});
       }
     });
   });
@@ -684,7 +684,8 @@ function renderTiles() {
     box.innerHTML = TILES.map((t, i) =>
       '<div class="cr-tile' + (i === tileSel ? ' on' : '') + '" onclick="tileSel=' + i +
       ';renderTiles()">' + (crIs0(t.plan) ? '<span style="color:#58ba13;font-weight:800">0%</span> ' : '') +
-      '<b>' + t.m + ' ' + plWord(t.m) + '</b><span>' + Math.ceil(t.monthly) + ' ' + bl('lei/lună', 'лей/мес') + '</span></div>').join('');
+      '<b>' + t.m + ' ' + plWord(t.m) + '</b><span>' + Math.ceil(t.monthly) + ' ' + bl('lei/lună', 'лей/мес') + '</span>' +
+      '</div>').join('');
     // RO: in rezumat se arata pretul IN RATE (albastru), nu cel standard —
     //     clientul plateste exact aceasta suma. La fel pentru TOATE pachetele,
     //     nu doar la cele «0%».

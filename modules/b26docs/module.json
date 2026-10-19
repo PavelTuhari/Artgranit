@@ -1,0 +1,15 @@
+{
+  "title": {"ro": "Documentația proiectului", "ru": "Документация проекта",
+            "en": "Project documentation"},
+  "icon": "📚",
+  "order": 64,
+  "url": "/UNA.md/orasldev/b26docs/",
+  "descr": {
+    "ro": "Toate documentele proiectului (docs/Biro26, docs/Partner) citite direct din repository, cu index și căutare.",
+    "ru": "Все документы проекта (docs/Biro26, docs/Partner) прямо из репозитория, с индексом и поиском.",
+    "en": "All project documents rendered from the repository, with an index and search."
+  },
+  "pages": {
+    "b26docs.index": {"ro": "Index documente", "ru": "Указатель документов", "en": "Document index"}
+  }
+}

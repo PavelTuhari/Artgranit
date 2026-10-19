@@ -1,0 +1,400 @@
+{# Autopark -- панель «Настройки по периодам»: всё, что заказчик правит сам.
+
+   Отдельный файл, подключается одной строкой в autopark.html. Наружу нужна
+   одна функция -- loadPeriodsPanel(), её зовёт onPanelShown().
+
+   Принцип интерфейса: любая настройка имеет дату начала и (необязательно)
+   дату окончания. Новый открытый период автоматически закрывает
+   предыдущий -- заказчику не надо помнить про закрытие вручную. #}
+
+<section class="panel" id="panel-periods">
+  <h1>Настройки по периодам</h1>
+  <div class="crumbs">Ставка, потолок запаса, лимиты резервуаров, отсеки цистерн и состав групп АЗС — с датами действия</div>
+  <div class="note">
+    Настройка не перезаписывается «поверх», а действует с даты. Зарплата за
+    август остаётся посчитанной по августовской ставке, даже если сегодня
+    ставку изменили, а план прошлой недели объясняется теми отсеками и той
+    группой, что действовали тогда. Пересечение периодов по одному объекту
+    система не принимает: в один день должна действовать ровно одна настройка.
+  </div>
+
+  <div class="toolbar">
+    <label>Показать, что действует на дату
+      <input type="date" id="perOnDate" onchange="loadPeriodsEffective()">
+    </label>
+    <span id="perEffective" class="hint"></span>
+  </div>
+
+  <div class="card">
+    <h2>Ставка водителя</h2>
+    <div class="hint">Зарплата = нормативный пробег × ставка. Доплата за внутренний рейс по редакции ТЗ от 18.09.2026 не начисляется — оставлена настройкой для старых периодов.</div>
+    <div class="toolbar">
+      <label>с <input type="date" id="perRateFrom"></label>
+      <label>по <input type="date" id="perRateTo" title="пусто = бессрочно"></label>
+      <label>ставка, лей/км <input type="number" id="perRateValue" step="0.01" min="0" style="width:90px"></label>
+      <label>доплата за рейс <input type="number" id="perRateBonus" step="10" min="0" value="0" style="width:90px"></label>
+      <label>примечание <input type="text" id="perRateNote" style="width:180px"></label>
+      <button class="btn btn-primary btn-sm" onclick="savePeriod('rates')">Добавить период</button>
+    </div>
+    <div class="table-wrap" id="perRatesTable"></div>
+  </div>
+
+  <div class="card">
+    <h2>Параметры планирования</h2>
+    <div class="hint">Потолок запаса в днях (обычно 7), горизонт расчёта, сколько АЗС собирать в один рейс, порог существенного расхождения план/факт.</div>
+    <div class="toolbar">
+      <label>с <input type="date" id="perParamFrom"></label>
+      <label>по <input type="date" id="perParamTo"></label>
+      <label>запас, дней <input type="number" id="perParamCover" step="0.5" min="0.5" style="width:80px"></label>
+      <label>горизонт <input type="number" id="perParamHorizon" step="1" min="0" style="width:70px"></label>
+      <label>АЗС от <input type="number" id="perParamMin" step="1" min="1" style="width:60px"></label>
+      <label>до <input type="number" id="perParamMax" step="1" min="1" style="width:60px"></label>
+      <label>порог, % <input type="number" id="perParamDiff" step="0.5" min="0" style="width:70px"></label>
+      <button class="btn btn-primary btn-sm" onclick="savePeriod('params')">Добавить период</button>
+    </div>
+    <div class="table-wrap" id="perParamsTable"></div>
+  </div>
+
+  <div class="card">
+    <h2>Лимиты резервуара</h2>
+    <div class="hint">Минимальный остаток и допустимый залив — по каждому резервуару и на период. Пустое поле означает «брать общее значение».</div>
+    <div class="toolbar">
+      <label>резервуар <select id="perTankSel" onchange="loadTankLimits()"></select></label>
+      <label>с <input type="date" id="perTankFrom"></label>
+      <label>по <input type="date" id="perTankTo"></label>
+      <label>мин. остаток, л <input type="number" id="perTankMin" step="100" min="0" style="width:110px"></label>
+      <label>допустимый залив, л <input type="number" id="perTankFill" step="100" min="0" style="width:120px"></label>
+      <label>запас, дней <input type="number" id="perTankCover" step="0.5" min="0" style="width:90px"></label>
+      <button class="btn btn-primary btn-sm" onclick="savePeriod('tank_limits')">Добавить период</button>
+    </div>
+    <div class="table-wrap" id="perTankTable"></div>
+  </div>
+
+  <div class="card">
+    <h2>Отсеки цистерн</h2>
+    <div class="hint">Реальные объёмы отсеков: номер 1 у кабины, последний — хвостовой, слив идёт с хвоста. Новая конфигурация действует с даты, прежняя остаётся в истории.</div>
+    <div class="toolbar">
+      <label>цистерна <select id="perTruckSel" onchange="loadTruckSections()"></select></label>
+      <label>действует с <input type="date" id="perSecFrom" title="пусто = заменить текущую конфигурацию"></label>
+      <label>объёмы отсеков, через запятую
+        <input type="text" id="perSecVolumes" placeholder="6000, 6000, 6500, 6500" style="width:220px">
+      </label>
+      <button class="btn btn-primary btn-sm" onclick="saveSections()">Сохранить конфигурацию</button>
+    </div>
+    <div class="table-wrap" id="perSectionsTable"></div>
+  </div>
+
+  <div class="card">
+    <h2>Группы АЗС</h2>
+    <div class="hint">Состав группы, которую обслуживает один рейс. Меняется на период: АЗС переходит из северного круга в центральный на время ремонта дороги.</div>
+    <div class="toolbar">
+      <label>группа <select id="perGroupSel" onchange="renderGroupPeriods()"></select></label>
+      <label>действует с <input type="date" id="perGroupFrom"></label>
+      <label>по <input type="date" id="perGroupTo"></label>
+      <button class="btn btn-primary btn-sm" onclick="saveGroupPeriod()">Сохранить состав</button>
+      <button class="btn btn-secondary btn-sm" onclick="newGroup()">Новая группа</button>
+    </div>
+    <div class="table-wrap" id="perGroupStations"></div>
+    <div class="table-wrap" id="perGroupTable"></div>
+  </div>
+</section>
+
+<script>
+'use strict';
+
+var PER_GROUPS = [];
+
+function perNum(v, d) {
+  if (v === null || v === undefined || v === '') { return '—'; }
+  var n = Number(v);
+  return isNaN(n) ? '—' : n.toFixed(d === undefined ? 0 : d);
+}
+
+function perVal(id) {
+  var el = document.getElementById(id);
+  return el && el.value !== '' ? el.value : null;
+}
+
+function loadPeriodsPanel() {
+  clearMsgs();
+  if (!document.getElementById('perOnDate').value) {
+    document.getElementById('perOnDate').value = todayIso();
+  }
+  ensureRefsThen(function () {
+    // Резервуары собираем из справочника АЗС: отдельного списка нет,
+    // а резервуар без станции смысла не имеет.
+    var tankSel = document.getElementById('perTankSel');
+    clearNode(tankSel);
+    var stations = (REFS && REFS.stations) || [];
+    for (var i = 0; i < stations.length; i++) {
+      var tanks = stations[i].tanks || [];
+      for (var j = 0; j < tanks.length; j++) {
+        var opt = txt('option', '', stations[i].code + ' · ' + tanks[j].product_code +
+                      ' · ' + perNum(tanks[j].capacity_l) + ' л');
+        opt.value = tanks[j].id;
+        tankSel.appendChild(opt);
+      }
+    }
+    fillSelect(document.getElementById('perTruckSel'), REFS.trucks, 'id', 'plate');
+    loadTankLimits();
+    loadTruckSections();
+    loadGroupPeriods();
+  });
+  loadPeriodList('rates', 'perRatesTable');
+  loadPeriodList('params', 'perParamsTable');
+  loadPeriodsEffective();
+}
+
+function loadPeriodsEffective() {
+  var d = document.getElementById('perOnDate').value;
+  apiGet('/api/periods-effective?date=' + d).then(function (res) {
+    if (!res || !res.success) { return; }
+    var rate = res.data.rate, params = res.data.params;
+    document.getElementById('perEffective').textContent =
+      'На эту дату: ставка ' + (rate ? perNum(rate.rate_per_km, 2) + ' лей/км (' +
+        rate.period_label + ')' : 'из общих настроек') +
+      ' · потолок запаса ' + (params ? perNum(params.max_cover_days, 1) + ' дн (' +
+        params.period_label + ')' : 'из общих настроек');
+  });
+}
+
+function loadPeriodList(kind, hostId, ownerId) {
+  var q = ownerId ? '?owner_id=' + ownerId : '';
+  apiGet('/api/periods/' + kind + q).then(function (res) {
+    if (!checkOk(res, 'Периоды')) { return; }
+    var host = document.getElementById(hostId);
+    clearNode(host);
+    var rows = res.data || [];
+    if (!rows.length) {
+      host.appendChild(txt('div', 'hint', 'Периодов не заведено — действуют общие настройки.'));
+      return;
+    }
+    var headers, cellFn;
+    if (kind === 'rates') {
+      headers = ['Период', {label: 'Ставка, лей/км'}, {label: 'Доплата, лей'},
+                 'Примечание', 'Кто', ''];
+      cellFn = function (r) {
+        return [{text: r.period_label}, {cls: 'num', text: perNum(r.rate_per_km, 2)},
+                {cls: 'num', text: perNum(r.trip_bonus)}, {text: r.note || ''},
+                {text: r.created_by || ''}, {node: perDeleteBtn(kind, r.id, hostId, ownerId)}];
+      };
+    } else if (kind === 'params') {
+      headers = ['Период', {label: 'Запас, дн'}, {label: 'Горизонт'},
+                 {label: 'АЗС в рейсе'}, {label: 'Порог, %'}, 'Примечание', ''];
+      cellFn = function (r) {
+        return [{text: r.period_label}, {cls: 'num', text: perNum(r.max_cover_days, 1)},
+                {cls: 'num', text: r.plan_horizon_days},
+                {cls: 'num', text: r.group_min_stations + '–' + r.group_max_stations},
+                {cls: 'num', text: perNum(r.volume_diff_pct, 1)},
+                {text: r.note || ''}, {node: perDeleteBtn(kind, r.id, hostId, ownerId)}];
+      };
+    } else {
+      headers = ['Период', {label: 'Мин. остаток, л'}, {label: 'Залив, л'},
+                 {label: 'Запас, дн'}, 'Примечание', ''];
+      cellFn = function (r) {
+        return [{text: r.period_label}, {cls: 'num', text: perNum(r.min_stock_l)},
+                {cls: 'num', text: perNum(r.max_fill_l)},
+                {cls: 'num', text: perNum(r.max_cover_days, 1)},
+                {text: r.note || ''}, {node: perDeleteBtn(kind, r.id, hostId, ownerId)}];
+      };
+    }
+    host.appendChild(buildTable(headers, rows, cellFn));
+  });
+}
+
+function perDeleteBtn(kind, id, hostId, ownerId) {
+  var btn = txt('button', 'btn btn-secondary btn-sm', 'Удалить');
+  btn.onclick = function () {
+    apiPost('/api/periods/' + kind + '/' + id + '/delete', {}).then(function (res) {
+      if (!checkOk(res, 'Удаление периода')) { return; }
+      showOk('Период удалён');
+      loadPeriodList(kind, hostId, ownerId);
+      loadPeriodsEffective();
+    });
+  };
+  return btn;
+}
+
+function savePeriod(kind) {
+  clearMsgs();
+  var body;
+  if (kind === 'rates') {
+    body = {valid_from: perVal('perRateFrom'), valid_to: perVal('perRateTo'),
+            rate_per_km: perVal('perRateValue'), trip_bonus: perVal('perRateBonus'),
+            note: perVal('perRateNote')};
+  } else if (kind === 'params') {
+    body = {valid_from: perVal('perParamFrom'), valid_to: perVal('perParamTo'),
+            max_cover_days: perVal('perParamCover'),
+            plan_horizon_days: perVal('perParamHorizon'),
+            group_min_stations: perVal('perParamMin'),
+            group_max_stations: perVal('perParamMax'),
+            volume_diff_pct: perVal('perParamDiff')};
+  } else {
+    body = {valid_from: perVal('perTankFrom'), valid_to: perVal('perTankTo'),
+            tank_id: document.getElementById('perTankSel').value,
+            min_stock_l: perVal('perTankMin'), max_fill_l: perVal('perTankFill'),
+            max_cover_days: perVal('perTankCover')};
+  }
+  apiPost('/api/periods/' + kind, body).then(function (res) {
+    if (!checkOk(res, 'Сохранение периода')) { return; }
+    showOk(res.message || 'Период сохранён');
+    if (kind === 'tank_limits') { loadTankLimits(); }
+    else { loadPeriodList(kind, kind === 'rates' ? 'perRatesTable' : 'perParamsTable'); }
+    loadPeriodsEffective();
+  });
+}
+
+function loadTankLimits() {
+  var tankId = document.getElementById('perTankSel').value;
+  if (!tankId) { return; }
+  loadPeriodList('tank_limits', 'perTankTable', tankId);
+}
+
+// ---- отсеки --------------------------------------------------------------
+
+function loadTruckSections() {
+  var truckId = document.getElementById('perTruckSel').value;
+  apiGet('/api/sections-periods' + (truckId ? '?truck_id=' + truckId : ''))
+    .then(function (res) {
+      if (!checkOk(res, 'Отсеки')) { return; }
+      var host = document.getElementById('perSectionsTable');
+      clearNode(host);
+      var rows = res.data || [];
+      if (!rows.length) {
+        host.appendChild(txt('div', 'hint', 'Отсеки не заведены.'));
+        return;
+      }
+      host.appendChild(buildTable(
+        ['Цистерна', 'Период', {label: 'Отсек №'}, {label: 'Объём, л'}],
+        rows,
+        function (r) {
+          return [{text: r.plate}, {text: r.period_label},
+                  {cls: 'num', text: r.seq_no}, {cls: 'num', text: perNum(r.volume_l)}];
+        },
+        function (r) { return r.valid_to ? 'muted' : ''; }));
+      // Подставляем текущую конфигурацию в поле ввода: править удобнее,
+      // чем набирать заново.
+      var current = rows.filter(function (r) { return !r.valid_to; })
+                        .map(function (r) { return Number(r.volume_l); });
+      if (current.length) {
+        document.getElementById('perSecVolumes').value = current.join(', ');
+      }
+    });
+}
+
+function saveSections() {
+  clearMsgs();
+  var raw = (document.getElementById('perSecVolumes').value || '').split(',');
+  var sections = [];
+  for (var i = 0; i < raw.length; i++) {
+    var v = raw[i].trim();
+    if (!v) { continue; }
+    sections.push({volume_l: v});
+  }
+  if (!sections.length) { showErr('Укажите объёмы отсеков через запятую'); return; }
+  apiPost('/api/sections-periods', {
+    truck_id: document.getElementById('perTruckSel').value,
+    valid_from: perVal('perSecFrom'),
+    sections: sections
+  }).then(function (res) {
+    if (!checkOk(res, 'Отсеки')) { return; }
+    showOk(res.message || 'Конфигурация сохранена');
+    loadTruckSections();
+  });
+}
+
+// ---- группы --------------------------------------------------------------
+
+function loadGroupPeriods() {
+  apiGet('/api/group-periods').then(function (res) {
+    if (!checkOk(res, 'Группы')) { return; }
+    PER_GROUPS = res.data || [];
+    var sel = document.getElementById('perGroupSel');
+    var cur = sel.value;
+    clearNode(sel);
+    for (var i = 0; i < PER_GROUPS.length; i++) {
+      var opt = txt('option', '', PER_GROUPS[i].code + ' · ' + PER_GROUPS[i].name);
+      opt.value = PER_GROUPS[i].id;
+      sel.appendChild(opt);
+    }
+    if (cur) { sel.value = cur; }
+    renderGroupPeriods();
+  });
+}
+
+function renderGroupPeriods() {
+  var groupId = Number(document.getElementById('perGroupSel').value);
+  var group = null;
+  for (var i = 0; i < PER_GROUPS.length; i++) {
+    if (PER_GROUPS[i].id === groupId) { group = PER_GROUPS[i]; }
+  }
+  var picker = document.getElementById('perGroupStations');
+  clearNode(picker);
+  var active = {};
+  if (group) {
+    for (var j = 0; j < group.items.length; j++) {
+      if (!group.items[j].valid_to) { active[group.items[j].station_id] = true; }
+    }
+  }
+  var stations = (REFS && REFS.stations) || [];
+  var wrap = txt('div', 'toolbar');
+  for (var k = 0; k < stations.length; k++) {
+    var label = txt('label', '', '');
+    var cb = txt('input');
+    cb.type = 'checkbox';
+    cb.className = 'per-group-station';
+    cb.value = stations[k].id;
+    cb.checked = !!active[stations[k].id];
+    label.appendChild(cb);
+    label.appendChild(txt('span', '', ' ' + stations[k].code));
+    wrap.appendChild(label);
+  }
+  picker.appendChild(wrap);
+
+  var host = document.getElementById('perGroupTable');
+  clearNode(host);
+  if (!group || !group.items.length) {
+    host.appendChild(txt('div', 'hint', 'Состав не заведён.'));
+    return;
+  }
+  host.appendChild(buildTable(
+    ['Период', 'АЗС', {label: 'Порядок'}],
+    group.items,
+    function (r) {
+      return [{text: r.period_label}, {text: r.station_code + ' ' + (r.station_name || '')},
+              {cls: 'num', text: r.seq_no}];
+    },
+    function (r) { return r.valid_to ? 'muted' : ''; }));
+}
+
+function saveGroupPeriod() {
+  clearMsgs();
+  var boxes = document.querySelectorAll('.per-group-station');
+  var ids = [];
+  for (var i = 0; i < boxes.length; i++) {
+    if (boxes[i].checked) { ids.push(Number(boxes[i].value)); }
+  }
+  apiPost('/api/group-periods/' + document.getElementById('perGroupSel').value, {
+    station_ids: ids,
+    valid_from: perVal('perGroupFrom'),
+    valid_to: perVal('perGroupTo')
+  }).then(function (res) {
+    if (!checkOk(res, 'Состав группы')) { return; }
+    showOk('Состав группы сохранён');
+    loadGroupPeriods();
+  });
+}
+
+function newGroup() {
+  var code = window.prompt('Код группы (латиницей, например NORD):');
+  if (!code) { return; }
+  var name = window.prompt('Наименование группы:');
+  if (!name) { return; }
+  apiPost('/api/supply/groups', {code: code, name: name, station_ids: []})
+    .then(function (res) {
+      if (!checkOk(res, 'Новая группа')) { return; }
+      showOk('Группа создана — отметьте АЗС и сохраните состав');
+      loadGroupPeriods();
+    });
+}
+</script>
