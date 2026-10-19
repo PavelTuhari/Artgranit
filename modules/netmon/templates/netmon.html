@@ -1,0 +1,1953 @@
+{# Мониторинг офиса: сеть и Telegram-каналы Zabbix.
+   Одностраничная панель модуля netmon. Базу адреса берём через url_for —
+   модуль не привязан к точке монтирования (CLAUDE.md, правило №1). #}
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Мониторинг офиса — сеть и Telegram</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --line:#30363d; --txt:#e6edf3; --dim:#8b949e;
+    --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --crit:#f85149; --mid:#db6d28;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+       background:var(--bg);color:var(--txt)}
+  header{position:sticky;top:0;z-index:20;background:#0d1117ee;backdrop-filter:blur(8px);
+         border-bottom:1px solid var(--line);padding:12px 18px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  header h1{font-size:17px;margin:0;font-weight:650}
+  header .sub{color:var(--dim);font-size:12px}
+  .spacer{flex:1}
+  button{background:#21262d;color:var(--txt);border:1px solid var(--line);border-radius:7px;
+         padding:7px 13px;cursor:pointer;font-size:13px}
+  button:hover{border-color:var(--acc);color:var(--acc)}
+  button.primary{background:var(--acc);color:#0d1117;border-color:var(--acc);font-weight:600}
+  button:disabled{opacity:.5;cursor:wait}
+  nav{display:flex;gap:4px;padding:10px 18px 0;flex-wrap:wrap}
+  nav a{padding:7px 14px;border-radius:7px 7px 0 0;color:var(--dim);text-decoration:none;
+        border:1px solid transparent;font-size:13px}
+  nav a.on{background:var(--panel);color:var(--txt);border-color:var(--line);border-bottom-color:var(--panel)}
+  main{padding:0 18px 40px}
+  .panel{display:none;background:var(--panel);border:1px solid var(--line);border-radius:0 10px 10px 10px;padding:16px}
+  .panel.on{display:block}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:16px}
+  .tile{background:#0d1117;border:1px solid var(--line);border-radius:10px;padding:13px}
+  .tile .v{font-size:25px;font-weight:700;line-height:1.1}
+  .tile .l{color:var(--dim);font-size:12px;margin-top:3px}
+  .ok{color:var(--ok)} .warn{color:var(--warn)} .crit{color:var(--crit)} .mid{color:var(--mid)} .dim{color:var(--dim)}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.4px;
+     position:sticky;top:0;background:var(--panel)}
+  tr:hover td{background:#1c2128}
+  .tbl-wrap{overflow-x:auto;max-height:66vh;overflow-y:auto}
+  .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;white-space:nowrap}
+  .b-ok{background:#23863622;color:var(--ok);border:1px solid #2386364d}
+  .b-no{background:#f8514922;color:var(--crit);border:1px solid #f851494d}
+  .b-dim{background:#8b949e22;color:var(--dim);border:1px solid #8b949e4d}
+  .b-warn{background:#d2992222;color:var(--warn);border:1px solid #d299224d}
+  .chan{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:12px;margin-bottom:18px}
+  .card{background:#0d1117;border:1px solid var(--line);border-radius:11px;padding:15px}
+  .card.live{border-color:#2386364d;box-shadow:0 0 0 1px #23863622}
+  .card h3{margin:0 0 3px;font-size:15px;display:flex;gap:8px;align-items:center}
+  .card .cid{font-family:ui-monospace,SFMono-Regular,monospace;font-size:11px;color:var(--dim)}
+  .card .row{display:flex;gap:16px;margin-top:11px;flex-wrap:wrap}
+  .card .row div{font-size:12px;color:var(--dim)}
+  .card .row b{display:block;font-size:17px;color:var(--txt);font-weight:650}
+  .bar{display:flex;gap:2px;align-items:flex-end;height:52px;margin-top:12px}
+  .bar span{flex:1;background:var(--acc);border-radius:2px 2px 0 0;min-height:2px;opacity:.75}
+  .bar span:hover{opacity:1}
+  .feed{max-height:62vh;overflow-y:auto}
+  .msg{display:flex;gap:10px;padding:8px 10px;border-bottom:1px solid var(--line)}
+  .msg:hover{background:#1c2128}
+  .msg .em{font-size:15px;width:24px;flex:0 0 24px;text-align:center}
+  .msg .body{flex:1;min-width:0}
+  .msg .subj{font-size:13px;word-break:break-word}
+  .msg .meta{color:var(--dim);font-size:11px;margin-top:2px}
+  .filters{display:flex;gap:7px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+  select,input[type=search]{background:#0d1117;color:var(--txt);border:1px solid var(--line);
+    border-radius:7px;padding:6px 10px;font-size:13px}
+  .note{color:var(--dim);font-size:12px;margin-top:12px}
+  code{font-family:ui-monospace,SFMono-Regular,monospace;font-size:12px;color:var(--acc)}
+  @media(max-width:640px){th{position:static}.tiles{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<header>
+  <h1>📡 Мониторинг офиса</h1>
+  <span class="sub" id="hdr">загрузка…</span>
+  <span class="spacer"></span>
+  <button id="btn-sync-tg">↻ Telegram</button>
+  <button id="btn-sync-dev">↻ Скан сети</button>
+  <button id="btn-sync-pve">↻ Proxmox</button>
+  <button id="btn-sync-as">↻ Домены</button>
+  <button class="primary" id="btn-reload">Обновить</button>
+</header>
+
+<nav>
+  <a href="#" class="on" data-p="dash">Сводка</a>
+  <a href="#" data-p="devices">Устройства</a>
+  <a href="#" data-p="channels">Telegram-каналы</a>
+  <a href="#" data-p="feed">Лента сообщений</a>
+  <a href="#" data-p="zabbix">Обзор Zabbix</a>
+  <a href="#" data-p="pve">Proxmox: машины</a>
+  <a href="#" data-p="assets">Домены и стойка</a>
+  <a href="#" data-p="vault">Доступы</a>
+  <a href="#" data-p="fac">Оборудование офиса</a>
+  <a href="#" data-p="vpn">OpenVPN</a>
+  <a href="#" data-p="mikrotik">MikroTik</a>
+  <a href="#" data-p="fs">Файловые ресурсы</a>
+  <a href="#" data-p="dbload">Нагрузка БД</a>
+  <a href="#" data-p="otrs">Заявки OTRS</a>
+  <a href="#" data-p="search">Поиск: вики и OTRS</a>
+  <a href="#" data-p="storage">Диски сервера БД</a>
+</nav>
+
+<main>
+  <section class="panel on" id="p-dash">
+    <div class="tiles" id="dash-tiles"></div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Состав сети по классам устройств</h3>
+    <div class="tbl-wrap"><table id="kind-tbl"><thead>
+      <tr><th>Класс устройства</th><th style="width:90px">Штук</th><th>Доля</th></tr>
+    </thead><tbody></tbody></table></div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Кто чаще всего попадает в Telegram</h3>
+    <div class="tbl-wrap"><table id="top-tbl"><thead>
+      <tr><th>Хост</th><th style="width:110px">Сообщений</th></tr>
+    </thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-devices">
+    <div class="filters">
+      <select id="f-kind"><option value="">Все классы</option></select>
+      <label style="font-size:13px;color:var(--dim)">
+        <input type="checkbox" id="f-missing"> только вне мониторинга</label>
+      <input type="search" id="f-find" placeholder="поиск по IP, имени, порту…" style="flex:1;min-width:160px">
+      <span class="dim" id="dev-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="dev-tbl"><thead><tr>
+      <th style="width:120px">IP</th><th>Класс</th><th>Имя / заголовок</th>
+      <th style="width:150px">Порты</th><th style="width:100px">Важность</th>
+      <th style="width:150px">Zabbix</th><th style="width:90px">Статус</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-channels">
+    <div class="chan" id="chan-cards"></div>
+    <div class="note">Канал считается включённым, когда в Zabbix активны и тип media, и сам адресат
+      у пользователя. Выключенный канал оставлен в списке намеренно: по нему видно, что адресат
+      заведён, но сообщения туда не идут.</div>
+  </section>
+
+  <section class="panel" id="p-feed">
+    <div class="filters">
+      <select id="f-chan"><option value="">Все каналы</option></select>
+      <select id="f-sev">
+        <option value="">Любая важность</option>
+        <option value="disaster">🔴🔴 Disaster</option>
+        <option value="high">🔴 High</option>
+        <option value="average">🟠 Average</option>
+        <option value="warning">🟡 Warning</option>
+        <option value="resolved">🟢 Resolved</option>
+      </select>
+      <input type="search" id="f-msg" placeholder="поиск по тексту…" style="flex:1;min-width:160px">
+      <span class="dim" id="feed-count"></span>
+    </div>
+    <div class="feed" id="feed"></div>
+  </section>
+
+  <section class="panel" id="p-zabbix">
+    <div class="tiles" id="zbx-tiles"></div>
+    <div class="filters">
+      <input type="search" id="f-zbx" placeholder="поиск по хосту, IP, группе, шаблону…" style="flex:1;min-width:200px">
+      <label style="font-size:13px;color:var(--dim)"><input type="checkbox" id="f-zbx-bad"> только с проблемами</label>
+      <span class="dim" id="zbx-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="zbx-tbl"><thead><tr>
+      <th style="width:150px">Хост</th><th style="width:110px">IP</th><th>Группы</th>
+      <th style="width:90px">Элементов</th><th style="width:90px">Сломано</th>
+      <th style="width:90px">Проблем</th><th style="width:120px">Агент</th><th style="width:90px">Статус</th>
+    </tr></thead><tbody></tbody></table></div>
+    <div class="note">Данные читаются напрямую из Zabbix в момент открытия — это его текущее состояние, а не снимок из базы.</div>
+  </section>
+
+  <section class="panel" id="p-pve">
+    <div class="tiles" id="pve-tiles"></div>
+    <div class="filters">
+      <select id="f-pve-dec"><option value="">Любое решение</option></select>
+      <select id="f-pve-st">
+        <option value="">Все состояния</option>
+        <option value="running">запущенные</option>
+        <option value="stopped">выключенные</option>
+      </select>
+      <label style="font-size:13px;color:var(--dim)"><input type="checkbox" id="f-pve-risk"> только с рисками</label>
+      <input type="search" id="f-pve" placeholder="поиск по имени, VMID, роли, IP…" style="flex:1;min-width:180px">
+      <span class="dim" id="pve-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="pve-tbl"><thead><tr>
+      <th style="width:64px">VMID</th><th style="width:160px">Имя</th><th style="width:64px">Тип</th>
+      <th style="width:90px">Состояние</th><th style="width:110px">CPU / RAM</th>
+      <th style="width:80px">Диск</th><th style="width:100px">Бэкап</th>
+      <th>Роль</th><th style="width:150px">Решение</th>
+    </tr></thead><tbody></tbody></table></div>
+    <div class="note">Строка кликается — откроется полный паспорт машины. Учётные данные из описаний на гипервизоре
+      намеренно не показываются.</div>
+  </section>
+
+  <section class="panel" id="p-assets">
+    <div class="tiles" id="as-tiles"></div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Домены: сроки и кому платить</h3>
+    <div class="tbl-wrap"><table id="dom-tbl"><thead><tr>
+      <th style="width:150px">Домен</th><th style="width:110px">Истекает</th>
+      <th style="width:110px">Осталось</th><th style="width:170px">Регистратор</th>
+      <th>Назначение</th><th style="width:120px">Владелец</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Перерасход электроэнергии</h3>
+    <div id="energy-box"></div>
+    <div class="tbl-wrap" style="margin-top:10px"><table id="night-tbl"><thead><tr>
+      <th style="width:170px">Устройство</th><th style="width:120px">Тип</th>
+      <th style="width:140px">Доступен ночью</th><th>Вывод</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Серверы в стойке: статус и инструкции</h3>
+    <div id="rack-box"></div>
+  </section>
+
+  <section class="panel" id="p-vault">
+    <div class="tiles" id="v-tiles"></div>
+    <div id="vault-box"></div>
+    <div class="note" id="vault-note"></div>
+  </section>
+
+  <section class="panel" id="p-fac">
+    <div class="tiles" id="fac-tiles"></div>
+
+    <h3 style="margin:18px 0 8px;font-size:14px">Умные розетки — дистанционное управление</h3>
+    <div id="plug-box"></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Инженерное оборудование и регламент обслуживания</h3>
+    <div class="filters">
+      <select id="f-fac-kind"><option value="">Все типы</option></select>
+      <input type="search" id="f-fac" placeholder="поиск по коду, названию, комнате…" style="flex:1;min-width:180px">
+      <span class="dim" id="fac-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="fac-tbl"><thead><tr>
+      <th style="width:96px">Код</th><th style="width:180px">Тип</th>
+      <th>Название</th><th style="width:150px">Помещение</th>
+      <th style="width:170px">Обслуживание</th><th style="width:110px">Действие</th>
+    </tr></thead><tbody></tbody></table></div>
+    <div class="note">Строка кликается — откроется паспорт с журналом работ и фотографиями.
+      Кондиционеры: фильтры раз в 90 дней, фреон раз в 2 года. Лифт — осмотр ежемесячно.</div>
+  </section>
+
+  <section class="panel" id="p-vpn">
+    <div class="tiles" id="vpn-tiles"></div>
+    <div id="vpn-server"></div>
+
+    <h3 style="margin:20px 0 8px;font-size:14px">Кто в сети сейчас</h3>
+    <div class="tbl-wrap"><table id="vpn-online"><thead><tr>
+      <th style="width:180px">Клиент</th><th style="width:120px">Адрес в VPN</th>
+      <th style="width:190px">Откуда подключён</th><th style="width:120px">Принято</th>
+      <th style="width:120px">Отдано</th><th>С какого времени</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Выдать новый доступ</h3>
+    <div class="card" style="max-width:640px">
+      <div class="filters" style="margin-bottom:6px">
+        <input type="text" id="vpn-name" placeholder="имя сотрудника, латиницей"
+               style="flex:1;min-width:200px">
+        <button class="primary" id="vpn-add">Создать профиль</button>
+      </div>
+      <div class="filters" style="margin-bottom:6px;font-size:13px">
+        <label><input type="checkbox" id="vpn-share-on" checked>
+          сразу сделать ссылку для получателя на</label>
+        <input type="number" id="vpn-share-min" value="15" min="1" max="1440" style="width:70px"> мин,
+        язык <select id="vpn-share-lang">
+          <option value="ru">русский</option><option value="ro">română</option><option value="en">English</option>
+        </select>
+      </div>
+      <div class="note">Ссылка открывает инструкцию на трёх языках со ссылками на программу для
+        Windows и macOS, кнопкой скачивания файла и самим текстом профиля внутри — получатель
+        или его помощник с ИИ сделает всё сам. Открывается снаружи, без входа в портал, и
+        перестаёт работать по истечении срока.</div>
+      <div class="note">Имя: латиница, цифры, точка, дефис. После создания браузер скачает
+        файл <code>.ovpn</code> — в нём закрытый ключ, поэтому передавайте его лично,
+        не через общие папки и не в переписке.</div>
+      {% if vpn_guide_url %}
+      <div class="note">Вместе с файлом дайте человеку ссылку на инструкцию по установке —
+        она открывается и на nufarul:
+        <a href="{{ vpn_guide_url }}" target="_blank">как подключиться к офису через OpenVPN</a>.</div>
+      {% endif %}
+      <div id="vpn-result" style="margin-top:10px"></div>
+    </div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Ссылки для получателей</h3>
+    <div class="tbl-wrap"><table id="vpn-shares"><thead><tr>
+      <th style="width:180px">Кому</th><th style="width:140px">Создана</th>
+      <th style="width:140px">Действует до</th><th style="width:110px">Состояние</th>
+      <th style="width:150px">Открыта / скачан файл</th><th style="width:140px">Последнее открытие</th>
+      <th>Действие</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Выданные сертификаты</h3>
+    <div class="filters">
+      <label style="font-size:13px;color:var(--dim)">
+        <input type="checkbox" id="vpn-revoked"> показать отозванные</label>
+      <input type="search" id="vpn-find" placeholder="поиск по имени" style="flex:1;min-width:160px">
+      <span class="dim" id="vpn-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="vpn-certs"><thead><tr>
+      <th style="width:220px">Имя</th><th style="width:130px">Действует до</th>
+      <th style="width:120px">Состояние</th><th style="width:150px">Сейчас в сети</th>
+      <th style="width:200px">Действие</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-mikrotik">
+    <div class="tiles" id="mt-tiles"></div>
+    <div id="mt-server"></div>
+    <h3 style="margin:20px 0 8px;font-size:14px">Что требует внимания</h3>
+    <div id="mt-findings"></div>
+
+    <h3 style="margin:20px 0 8px;font-size:14px">Кто в сети сейчас</h3>
+    <div class="tbl-wrap"><table id="mt-online"><thead><tr>
+      <th style="width:200px">Учётка</th><th style="width:90px">Протокол</th>
+      <th style="width:160px">Откуда</th><th style="width:140px">Адрес в VPN</th><th>В сети</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Выдать новый доступ L2TP/IPsec</h3>
+    <div class="card" style="max-width:640px">
+      <div class="filters" style="margin-bottom:6px">
+        <input type="text" id="mt-name" placeholder="имя сотрудника, латиницей" style="flex:1;min-width:200px">
+        <button class="primary" id="mt-add">Создать учётку</button>
+      </div>
+      <div class="filters" style="margin-bottom:6px;font-size:13px">
+        <label><input type="checkbox" id="mt-share-on" checked> сразу сделать ссылку для получателя на</label>
+        <input type="number" id="mt-share-min" value="15" min="1" max="1440" style="width:70px"> мин,
+        язык <select id="mt-share-lang">
+          <option value="ru">русский</option><option value="ro">română</option><option value="en">English</option>
+        </select>
+      </div>
+      <div class="note">Только L2TP/IPsec: PPTP новым пользователям не выдаётся. Пароль генерируется
+        и показывается один раз. Ссылка открывает инструкцию на трёх языках с готовой настройкой
+        для Windows (скрипт PowerShell) и для macOS и iPhone (профиль), а также все значения для
+        ручной настройки.</div>
+      <div id="mt-result" style="margin-top:10px"></div>
+    </div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Учётки VPN на маршрутизаторе</h3>
+    <div class="filters">
+      <label style="font-size:13px;color:var(--dim)"><input type="checkbox" id="mt-off"> показать выключенные</label>
+      <select id="mt-svc"><option value="">все протоколы</option><option>l2tp</option><option>pptp</option><option>any</option></select>
+      <input type="search" id="mt-find" placeholder="поиск по имени и комментарию" style="flex:1;min-width:160px">
+      <span class="dim" id="mt-count"></span>
+    </div>
+    <div class="tbl-wrap"><table id="mt-users"><thead><tr>
+      <th style="width:200px">Учётка</th><th style="width:80px">Протокол</th>
+      <th style="width:120px">Профиль</th><th style="width:110px">Последний вход</th>
+      <th style="width:100px">Состояние</th><th>Комментарий</th><th style="width:250px">Действие</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-fs">
+    <div class="tiles" id="fs-tiles"></div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Что требует внимания</h3>
+    <div id="fs-findings"></div>
+
+    <h3 style="margin:20px 0 8px;font-size:14px">Ресурсы: как сейчас и как должно быть</h3>
+    <div class="tbl-wrap"><table id="fs-shares"><thead><tr>
+      <th style="width:60px">Диск</th><th style="width:110px">Ресурс</th><th style="width:150px">Папка</th>
+      <th style="width:190px">Кто входит сейчас</th><th style="width:200px">Работают как root</th>
+      <th style="width:80px">Подкл.</th><th>Должно быть</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Выдать доступ сотруднику</h3>
+    <div class="card" style="max-width:760px">
+      <div class="filters" style="margin-bottom:6px">
+        <input type="email" id="fs-email" placeholder="почта, имя@unisim-soft.com" style="flex:1;min-width:220px">
+        <input type="text" id="fs-name" placeholder="ФИО" style="flex:1;min-width:160px">
+        <select id="fs-role"></select>
+        <button class="primary" id="fs-add">Выдать доступ</button>
+      </div>
+      <div class="filters" style="margin-bottom:6px;font-size:13px">
+        <label><input type="checkbox" id="fs-share-on" checked> сразу сделать ссылку для сотрудника на</label>
+        <input type="number" id="fs-share-min" value="15" min="1" max="1440" style="width:70px"> мин,
+        язык <select id="fs-share-lang"><option value="ru">русский</option><option value="ro">română</option><option value="en">English</option></select>
+      </div>
+      <div class="note">Учётка заводится на файловом сервере без входа в систему, только для дисков.
+        Имя входа берётся из почты (<code>ivan.petrov@…</code> → <code>ivan-petrov</code>), пароль
+        генерируется. Ссылка открывает инструкцию на трёх языках с файлом <code>.cmd</code>, который
+        сам подключает диски, положенные роли.</div>
+      <div id="fs-result" style="margin-top:10px"></div>
+    </div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Сотрудники с личными учётками</h3>
+    <div class="tbl-wrap"><table id="fs-people"><thead><tr>
+      <th style="width:230px">Почта / ФИО</th><th style="width:120px">Вход</th><th style="width:220px">Роль</th>
+      <th style="width:110px">Диски</th><th style="width:110px">Состояние</th><th style="width:150px">Подключён с</th>
+      <th>Действие</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Учётки вне учёта (общие)</h3>
+    <div class="tbl-wrap"><table id="fs-unmanaged"><thead><tr>
+      <th style="width:160px">Учётка</th><th style="width:110px">Состояние</th><th>С каких компьютеров работают сейчас</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Применить политику к серверу</h3>
+    <div class="card">
+      <div class="note" style="margin-top:0">Сначала — пробный расчёт: он ничего не меняет, а показывает,
+        кто потеряет и кто получит доступ и какие компьютеры отрежет. <b>Переходный режим</b>: входят
+        роли и общие учётки (netuser, netadmin, ptuhari) — никто из работающих не отключится.
+        <b>Финальный</b>: только роли, общие учётки и root-права убраны — включать, когда все переведены
+        на личные учётки. Перед заменой smb.conf делается резервная копия, новый файл проверяется
+        <code>testparm</code>, служба перечитывает конфигурацию без перезапуска.</div>
+      <div class="filters" style="margin-top:10px">
+        <button onclick="fsPlan('transition')">Рассчитать переходный режим</button>
+        <button onclick="fsPlan('final')">Рассчитать финальный режим</button>
+      </div>
+      <div id="fs-plan"></div>
+      <div id="fs-backups" style="margin-top:10px"></div>
+    </div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Журнал изменений</h3>
+    <div class="tbl-wrap"><table id="fs-log"><thead><tr>
+      <th style="width:140px">Когда</th><th style="width:110px">Кто</th><th style="width:140px">Действие</th>
+      <th style="width:140px">Кого</th><th>Подробно</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <section class="panel" id="p-dbload">
+    <div class="filters">
+      <button class="primary" id="dl-refresh">Обновить</button>
+      <span class="dim" id="dl-when">сбор занимает около 12 секунд: два замера по 2 секунды и запросы к обеим базам</span>
+    </div>
+    <div class="card" id="ob-card" style="margin-top:12px">
+      <div class="filters" style="margin:0">
+        <button class="primary" id="ob-toggle">Серьёзное наблюдение</button>
+        <span id="ob-state" class="dim">…</span>
+      </div>
+      <div class="filters" style="margin:10px 0 0;font-size:13px">
+        Замер каждые <input type="number" id="ob-interval" min="3" max="300" style="width:64px"> с,
+        останавливать через <input type="number" id="ob-hours" min="1" max="72" style="width:56px"> ч,
+        хранить <input type="number" id="ob-days" min="1" max="90" style="width:56px"> дн.
+        <button id="ob-save">Сохранить</button> <span id="ob-saved" class="dim"></span>
+      </div>
+      <div class="note">Пока наблюдение включено, фоновый процесс на этой машине раз в N секунд снимает
+        процессор, нагрузку, память, диски, сеть сервера и по обеим базам — работающие сессии,
+        блокировки, процессор базы, чтения, выполнения и фиксации, и пишет в локальный кэш
+        <code id="ob-path">~/.netmon/observe.sqlite</code>. Один замер — около секунды: одно SSH-соединение
+        и открытый sqlplus к каждой базе. Закрытая страница наблюдение не останавливает.</div>
+    </div>
+
+    <div id="ob-charts-wrap" style="display:none">
+      <div class="filters" style="margin:16px 0 8px">
+        <b style="font-size:14px">В реальном времени</b>
+        <select id="ob-window">
+          <option value="5">5 минут</option><option value="30" selected>30 минут</option>
+          <option value="120">2 часа</option><option value="720">12 часов</option><option value="1440">сутки</option>
+        </select>
+        <span class="dim" id="ob-meta"></span>
+      </div>
+      <div id="ob-charts" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:12px"></div>
+      <div id="ob-at" style="margin-top:12px"></div>
+    </div>
+
+    <div class="tiles" id="dl-tiles" style="margin-top:10px"></div>
+    <h3 style="margin:18px 0 8px;font-size:14px">Что требует внимания</h3>
+    <div id="dl-findings"></div>
+
+    <h3 style="margin:20px 0 8px;font-size:14px">Кто грузит процессор прямо сейчас</h3>
+    <div class="note" style="margin:0 0 6px">Замер top за 2 секунды; процесс сопоставлен с сессией Oracle
+      по номеру процесса. 100 % — одно ядро из 16.</div>
+    <div class="tbl-wrap"><table id="dl-top"><thead><tr>
+      <th style="width:70px">PID</th><th style="width:70px">ЦП</th><th style="width:80px">База</th>
+      <th style="width:130px">Схема</th><th style="width:200px">Откуда</th><th>Что выполняет</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:20px 0 8px;font-size:14px">Диски сервера</h3>
+    <div class="tbl-wrap"><table id="dl-disks"><thead><tr>
+      <th style="width:70px">Диск</th><th style="width:220px">Что на нём</th><th style="width:90px">Загрузка</th>
+      <th style="width:100px">Задержка</th><th style="width:110px">Чтение</th><th style="width:110px">Запись</th><th>Операций/с</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <div id="dl-dbs"></div>
+  </section>
+
+  <section class="panel" id="p-otrs">
+    {% include "otrs_board.html" %}
+  </section>
+
+  <section class="panel" id="p-search">
+    {% include "search_panel.html" %}
+  </section>
+
+  <section class="panel" id="p-storage">
+    <div class="tiles" id="st-tiles"></div>
+    <div id="st-note"></div>
+
+    <h3 style="margin:20px 0 8px;font-size:14px">Что требует внимания</h3>
+    <div id="st-findings"></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Тома контроллера — то, что система видит как диск</h3>
+    <div class="tbl-wrap"><table id="st-vols"><thead><tr>
+      <th style="width:70px">Том</th><th style="width:100px">Уровень</th>
+      <th style="width:110px">Размер</th><th style="width:110px">Состояние</th>
+      <th style="width:90px">Дисков</th><th>Политика кэша</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Физические диски — то, что может умереть</h3>
+    <div class="tbl-wrap"><table id="st-disks"><thead><tr>
+      <th style="width:70px">Слот</th><th style="width:110px">Размер</th>
+      <th style="width:170px">Состояние</th><th style="width:110px">Температура</th>
+      <th style="width:150px">Ошибки чтения</th><th style="width:150px">Предсказание отказа</th>
+      <th>Модель</th>
+    </tr></thead><tbody></tbody></table></div>
+
+    <h3 style="margin:22px 0 8px;font-size:14px">Заполнение разделов</h3>
+    <div class="tbl-wrap"><table id="st-mounts"><thead><tr>
+      <th style="width:120px">Раздел</th><th style="width:110px">Занято</th>
+      <th style="width:120px">Свободно</th><th style="width:110px">Всего</th>
+      <th>Что там лежит</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
+</main>
+
+<script>
+// Базу адреса берём у сервера: модуль не привязан к точке монтирования
+const API = "{{ url_for('netmon.api_overview') }}".replace(/\/api\/overview$/, "/api");
+const PHOTO_BASE = "{{ url_for('netmon.photo_file', photo_id=0) }}".replace(/\/0$/, "");
+const EM = {disaster:"🔴🔴", high:"🔴", average:"🟠", warning:"🟡",
+            information:"🔵", resolved:"🟢", other:"⚪"};
+let DEV = [], FEED = [], CH = [];
+
+const esc = s => (s ?? "").toString().replace(/[&<>"]/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function get(path){
+  const r = await fetch(API + path, {headers:{"Accept":"application/json"}});
+  const j = await r.json();
+  if (!j.success) throw new Error(j.message || "ошибка запроса");
+  return j.data;
+}
+// Тело запроса отправляется JSON-ом. Раньше функция принимала только адрес и
+// молча выбрасывала второй аргумент: выдача доступа OpenVPN и запись работ по
+// оборудованию уходили на сервер пустыми и падали с ошибкой валидации.
+async function post(path, body){
+  const opt = {method: "POST", headers: {"Accept": "application/json"}};
+  if (body !== undefined) {
+    opt.headers["Content-Type"] = "application/json";
+    opt.body = JSON.stringify(body);
+  }
+  const r = await fetch(API + path, opt);
+  let j;
+  try { j = await r.json(); }
+  catch (e) { throw new Error(`сервер ответил ${r.status} не в формате JSON`); }
+  if (!j.success) throw new Error(j.message || `ошибка запроса (${r.status})`);
+  return j.data;
+}
+
+function tile(v, l, cls){
+  return `<div class="tile"><div class="v ${cls||''}">${v}</div><div class="l">${l}</div></div>`;
+}
+
+function renderDash(o){
+  const d = o.devices, a = o.alerts, cov = o.coverage_pct;
+  document.getElementById("dash-tiles").innerHTML =
+    tile(d.total, "устройств в сети") +
+    tile(d.in_zabbix, "на мониторинге Zabbix", cov >= 99 ? "ok" : "warn") +
+    tile(cov + "%", "покрытие мониторингом", cov >= 99 ? "ok" : "warn") +
+    tile(d.critical, "критичных узлов", d.critical ? "mid" : "dim") +
+    tile(o.channels.length, "Telegram-каналов") +
+    tile(a.total, "сообщений за 30 дней") +
+    tile(a.last_24h, "за последние сутки") +
+    tile(a.failed, "ошибок доставки", a.failed ? "crit" : "ok");
+  document.getElementById("hdr").textContent =
+    `${d.total} устройств · покрытие ${cov}% · последний скан ${d.last_scan || "—"}`;
+
+  document.querySelector("#kind-tbl tbody").innerHTML = d.by_kind.map(k =>
+    `<tr><td>${esc(k.kind)}</td><td>${k.count}</td>
+     <td><div style="background:var(--acc);height:8px;border-radius:4px;opacity:.7;
+       width:${Math.round(k.count*100/Math.max(d.total,1))}%"></div></td></tr>`).join("");
+
+  document.querySelector("#top-tbl tbody").innerHTML =
+    a.top_hosts.map(h => `<tr><td>${esc(h.host)}</td><td>${h.count}</td></tr>`).join("")
+    || `<tr><td colspan="2" class="dim">нет данных</td></tr>`;
+
+  document.getElementById("f-kind").innerHTML = `<option value="">Все классы</option>` +
+    d.by_kind.map(k => `<option value="${esc(k.kind)}">${esc(k.kind)} (${k.count})</option>`).join("");
+}
+
+function renderChannels(list, byDay){
+  CH = list;
+  const max = Math.max(1, ...(byDay || []).map(x => x.count));
+  document.getElementById("chan-cards").innerHTML = list.map(c => {
+    const live = c.is_enabled === "Y";
+    const bars = live ? `<div class="bar">${(byDay||[]).map(x =>
+        `<span style="height:${Math.round(x.count*100/max)}%" title="${x.day}: ${x.count}"></span>`).join("")}</div>
+        <div class="dim" style="font-size:11px;margin-top:4px">сообщений по дням, 14 дней</div>` : "";
+    return `<div class="card ${live ? "live" : ""}">
+      <h3>${live ? "🟢" : "⚪"} ${esc(c.title)}</h3>
+      <div class="cid">${esc(c.chat_id)} · ${esc(c.chat_type)} · бот @${esc(c.bot_username || "—")}</div>
+      <div class="row">
+        <div>Статус<b class="${live ? "ok" : "dim"}">${live ? "активен" : "выключен"}</b></div>
+        <div>Участников<b>${c.members_cnt ?? "—"}</b></div>
+        <div>Сообщений<b>${c.alerts_total}</b></div>
+        <div>За сутки<b>${c.alerts_24h}</b></div>
+        <div>Ошибок<b class="${c.alerts_failed ? "crit" : "ok"}">${c.alerts_failed}</b></div>
+      </div>
+      <div class="row"><div>Media в Zabbix<b style="font-size:13px">${esc(c.mediatype || "—")}</b></div>
+        <div>Последнее<b style="font-size:13px">${esc(c.last_alert_at || "—")}</b></div></div>
+      ${bars}</div>`;
+  }).join("");
+  document.getElementById("f-chan").innerHTML = `<option value="">Все каналы</option>` +
+    list.map(c => `<option value="${c.id}">${esc(c.title)}</option>`).join("");
+}
+
+function renderDevices(){
+  const kind = document.getElementById("f-kind").value;
+  const miss = document.getElementById("f-missing").checked;
+  const q = document.getElementById("f-find").value.toLowerCase().trim();
+  const rows = DEV.filter(d =>
+    (!kind || d.kind === kind) && (!miss || d.in_zabbix === "N") &&
+    (!q || [d.ip, d.kind, d.title, d.dns_name, d.ports, d.zabbix_host]
+      .some(v => (v || "").toString().toLowerCase().includes(q))));
+  document.getElementById("dev-count").textContent = `${rows.length} из ${DEV.length}`;
+  const crit = {high:["b-no","высокая"], medium:["b-warn","средняя"], low:["b-dim","обычная"]};
+  document.querySelector("#dev-tbl tbody").innerHTML = rows.map(d => {
+    const c = crit[d.criticality] || crit.low;
+    return `<tr>
+      <td><code>${esc(d.ip)}</code></td>
+      <td>${esc(d.kind)}</td>
+      <td>${esc(d.title || d.dns_name || d.ssh_banner || d.server_banner || "—")}</td>
+      <td class="dim">${esc(d.ports || "—")}</td>
+      <td><span class="badge ${c[0]}">${c[1]}</span></td>
+      <td>${d.in_zabbix === "Y"
+            ? `<span class="badge b-ok">${esc(d.zabbix_host || "да")}</span>`
+            : `<span class="badge b-no">не заведён</span>`}</td>
+      <td>${d.status === "up"
+            ? `<span class="badge b-ok">онлайн</span>`
+            : `<span class="badge b-dim">пропал</span>`}</td></tr>`;
+  }).join("") || `<tr><td colspan="7" class="dim">ничего не найдено</td></tr>`;
+}
+
+function renderFeed(){
+  const ch = document.getElementById("f-chan").value;
+  const sev = document.getElementById("f-sev").value;
+  const q = document.getElementById("f-msg").value.toLowerCase().trim();
+  const rows = FEED.filter(a =>
+    (!ch || String(a.channel_id) === ch) && (!sev || a.severity === sev) &&
+    (!q || (a.subject || "").toLowerCase().includes(q)));
+  document.getElementById("feed-count").textContent = `${rows.length} из ${FEED.length}`;
+  document.getElementById("feed").innerHTML = rows.map(a => `
+    <div class="msg"><div class="em">${EM[a.severity] || "⚪"}</div>
+      <div class="body"><div class="subj">${esc(a.subject)}</div>
+        <div class="meta">${esc(a.sent_at)} · ${esc(a.channel_title)} ·
+          ${a.send_status === "sent" ? "доставлено" : esc(a.send_status)}
+          ${a.error_text ? " · " + esc(a.error_text) : ""}</div></div></div>`).join("")
+    || `<div class="note">сообщений не найдено</div>`;
+}
+
+
+// ---------------------------------------------------------------- Обзор Zabbix
+let ZBX = null;
+function renderZabbix(){
+  if (!ZBX) return;
+  const tt = ZBX.totals;
+  document.getElementById("zbx-tiles").innerHTML =
+    tile(tt.hosts, "хостов в Zabbix") +
+    tile(tt.enabled, "активных", "ok") +
+    tile(tt.disabled, "выключенных", tt.disabled ? "dim" : "ok") +
+    tile(tt.unavailable, "агент недоступен", tt.unavailable ? "crit" : "ok") +
+    tile(tt.items, "элементов данных") +
+    tile(tt.items_broken, "не поддерживается", tt.items_broken ? "warn" : "ok") +
+    tile(tt.problems, "активных проблем", tt.problems ? "mid" : "ok");
+  const q = document.getElementById("f-zbx").value.toLowerCase().trim();
+  const bad = document.getElementById("f-zbx-bad").checked;
+  const rows = ZBX.hosts.filter(h =>
+    (!bad || h.problems > 0 || h.items_broken > 0 || h.available === "недоступен") &&
+    (!q || [h.host, h.name, h.ip, (h.groups||[]).join(" "), (h.templates||[]).join(" ")]
+      .some(v => (v||"").toLowerCase().includes(q))));
+  document.getElementById("zbx-count").textContent = `${rows.length} из ${ZBX.hosts.length}`;
+  document.querySelector("#zbx-tbl tbody").innerHTML = rows.map(h => `<tr>
+    <td><b>${esc(h.host)}</b>${h.name !== h.host ? `<div class="dim" style="font-size:11px">${esc(h.name)}</div>` : ""}</td>
+    <td><code>${esc(h.ip)}</code></td>
+    <td class="dim" style="font-size:12px">${esc((h.groups||[]).join(", "))}</td>
+    <td>${h.items}</td>
+    <td class="${h.items_broken ? "warn" : "dim"}">${h.items_broken || "—"}</td>
+    <td class="${h.problems ? "crit" : "dim"}">${h.problems || "—"}</td>
+    <td><span class="badge ${h.available === "доступен" ? "b-ok" : h.available === "недоступен" ? "b-no" : "b-dim"}">${esc(h.available)}</span>
+        ${h.error ? `<div class="dim" style="font-size:11px" title="${esc(h.error)}">${esc(h.error.slice(0,40))}…</div>` : ""}</td>
+    <td>${h.enabled ? `<span class="badge b-ok">включён</span>` : `<span class="badge b-dim">выключен</span>`}</td>
+  </tr>`).join("") || `<tr><td colspan="8" class="dim">ничего не найдено</td></tr>`;
+}
+
+// ---------------------------------------------------------------- Proxmox
+let PVE = {guests: [], stats: null};
+const DEC_CLS = {"списать":"b-dim", "переносить":"b-ok",
+                 "пересоздать на новой ОС":"b-no", "нужно решение":"b-warn",
+                 "оставить как есть":"b-dim"};
+
+function renderPve(){
+  const s = PVE.stats;
+  if (s) document.getElementById("pve-tiles").innerHTML =
+    tile(s.total, "машин на гипервизоре") +
+    tile(s.running, "запущено", "ok") +
+    tile(s.stopped, "выключено", s.stopped ? "dim" : "ok") +
+    tile(s.legacy_os, "на снятых с поддержки ОС", s.legacy_os ? "crit" : "ok") +
+    tile(s.no_backup, "без резервной копии", s.no_backup ? "crit" : "ok") +
+    tile(s.disk_gb + " ГБ", "суммарно дисков") +
+    tile(Math.round(s.memory_mb/1024) + " ГБ", "выделено памяти");
+  const dec = document.getElementById("f-pve-dec").value;
+  const st = document.getElementById("f-pve-st").value;
+  const onlyRisk = document.getElementById("f-pve-risk").checked;
+  const q = document.getElementById("f-pve").value.toLowerCase().trim();
+  const rows = PVE.guests.filter(g =>
+    (!dec || g.decision === dec) &&
+    (!st || (st === "running" ? g.status === "running" : g.status !== "running")) &&
+    (!onlyRisk || g.risk_level !== "low") &&
+    (!q || [g.name, g.vmid, g.role_hint, g.ip_hint, g.os_hint, g.ostype]
+      .some(v => (v ?? "").toString().toLowerCase().includes(q))));
+  document.getElementById("pve-count").textContent = `${rows.length} из ${PVE.guests.length}`;
+  document.querySelector("#pve-tbl tbody").innerHTML = rows.map(g => `
+    <tr style="cursor:pointer" onclick="showPassport(${g.vmid})">
+      <td><code>${g.vmid}</code></td>
+      <td><b>${esc(g.name)}</b>${g.legacy_os === "Y" ? ' <span class="badge b-no">старая ОС</span>' : ""}</td>
+      <td class="dim">${g.kind === "qemu" ? "ВМ" : "CT"}</td>
+      <td>${g.status === "running"
+            ? `<span class="badge b-ok">работает</span>`
+            : `<span class="badge b-dim">выключена</span>`}</td>
+      <td class="dim">${g.cores || "—"} / ${g.memory_mb ? Math.round(g.memory_mb/1024*10)/10 + " ГБ" : "—"}</td>
+      <td class="dim">${g.disk_gb || "—"}</td>
+      <td class="${g.last_backup ? (g.last_backup < "2025" ? "warn" : "ok") : "crit"}">${esc(g.last_backup || "нет")}</td>
+      <td class="dim" style="font-size:12px">${esc((g.role_hint || "").slice(0, 52))}</td>
+      <td><span class="badge ${DEC_CLS[g.decision] || "b-dim"}">${esc(g.decision || "—")}</span></td>
+    </tr>`).join("") || `<tr><td colspan="9" class="dim">ничего не найдено</td></tr>`;
+  const sel = document.getElementById("f-pve-dec");
+  if (s && sel.options.length <= 1)
+    sel.innerHTML = `<option value="">Любое решение</option>` +
+      s.by_decision.map(d => `<option value="${esc(d.decision)}">${esc(d.decision)} (${d.count})</option>`).join("");
+}
+
+// Паспорт машины — в один клик по строке
+async function showPassport(vmid){
+  const m = document.getElementById("modal"), b = document.getElementById("modal-body");
+  b.innerHTML = "<div class='dim'>загрузка паспорта…</div>";
+  m.style.display = "block";
+  let g;
+  try { g = await get("/pve/" + vmid); }
+  catch (e) { b.innerHTML = `<div class="crit">Ошибка: ${esc(e.message)}</div>`; return; }
+  const nets = (() => { try { return JSON.parse(g.nets || "[]"); } catch { return []; } })();
+  const disks = (() => { try { return JSON.parse(g.disks || "[]"); } catch { return []; } })();
+  const row = (k, v) => v ? `<tr><td class="dim" style="width:190px">${k}</td><td>${v}</td></tr>` : "";
+  b.innerHTML = `
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <div style="flex:1">
+        <h2 style="margin:0 0 4px;font-size:20px">${esc(g.name)}
+          <span class="dim" style="font-size:14px">VMID ${g.vmid} · ${g.kind === "qemu" ? "виртуальная машина" : "контейнер"}</span></h2>
+        <div><span class="badge ${g.status === "running" ? "b-ok" : "b-dim"}">${g.status === "running" ? "работает" : "выключена"}</span>
+          <span class="badge ${DEC_CLS[g.decision] || "b-dim"}">${esc(g.decision || "")}</span>
+          ${g.legacy_os === "Y" ? '<span class="badge b-no">ОС снята с поддержки</span>' : ""}</div>
+      </div>
+      <button onclick="document.getElementById('modal').style.display='none'">Закрыть</button>
+    </div>
+    ${g.risks ? `<div style="margin:14px 0;padding:11px 14px;border-left:4px solid var(--crit);
+        background:#f8514911;border-radius:0 8px 8px 0">
+        <b class="crit">Риски для миграции</b><div style="margin-top:5px">${esc(g.risks)}</div></div>` : ""}
+    ${g.notes ? `<div style="margin:12px 0;padding:10px 14px;border-left:4px solid var(--warn);
+        background:#d2992211;border-radius:0 8px 8px 0"><b class="warn">Замечания</b>
+        <div style="margin-top:5px">${esc(g.notes)}</div></div>` : ""}
+    <h3 style="margin:16px 0 6px;font-size:15px">Паспорт</h3>
+    <table>
+      ${row("Узел гипервизора", esc(g.node_name))}
+      ${row("Тип гостя", g.kind === "qemu" ? "KVM (своё ядро)" : "LXC (ядро хоста)")}
+      ${row("Процессор", g.cores ? g.cores + " ядер" : "")}
+      ${row("Память", g.memory_mb ? g.memory_mb + " МБ" : "")}
+      ${row("Диски", disks.map(d => `${d.slot}: ${d.size || "?"} на «${d.storage}»`).join("<br>") ||
+             (g.disk_gb ? g.disk_gb + " ГБ" : ""))}
+      ${row("Сеть", nets.map(n => `${n.slot}: ${n.bridge || "?"}${n.ip ? " · " + n.ip : ""}${n.mac ? " · " + n.mac : ""} (${n.model})`).join("<br>"))}
+      ${row("Тип ОС в Proxmox", esc(g.ostype))}
+      ${row("ОС по описанию", esc(g.os_hint))}
+      ${row("IP по описанию", esc(g.ip_hint))}
+      ${row("Роль", esc(g.role_hint))}
+      ${row("Автозапуск", g.onboot === "Y" ? "включён" : "<span class='warn'>выключен</span>")}
+      ${row("Снимков", g.snapshots || "0")}
+      ${row("Последняя резервная копия", g.last_backup
+            ? `<span class="${g.last_backup < "2025" ? "warn" : "ok"}">${esc(g.last_backup)}</span>`
+            : "<span class='crit'>нет ни одной</span>")}
+      ${row("Время работы", g.uptime_s ? Math.floor(g.uptime_s/86400) + " дней" : "")}
+      ${row("Данные обновлены", esc(g.synced_at))}
+    </table>
+    ${g.descr ? `<h3 style="margin:16px 0 6px;font-size:15px">Описание с гипервизора</h3>
+      <pre style="white-space:pre-wrap;background:#0d1117;border:1px solid var(--line);
+        border-radius:8px;padding:12px;font-size:12px;margin:0">${esc(g.descr)}</pre>` : ""}
+    <div class="note">Учётные данные, если они были записаны в описании, скрыты намеренно:
+      панель видят все, у кого есть вход в портал.</div>`;
+}
+
+
+// ---------------------------------------------------------------- Домены, стойка, энергия
+let AS = null;
+const DOM_CLS = {critical:"crit", warning:"warn", notice:"mid", ok:"ok", unknown:"dim"};
+const DOM_WORD = {critical:"срочно платить", warning:"скоро продление",
+                  notice:"в этом полугодии", ok:"в порядке", unknown:"проверить вручную"};
+
+function renderAssets(){
+  if (!AS) return;
+  const crit = AS.domains.filter(d => d.level === "critical").length;
+  const e = AS.energy;
+  document.getElementById("as-tiles").innerHTML =
+    tile(AS.domains.length, "доменов под контролем") +
+    tile(crit, "требуют оплаты сейчас", crit ? "crit" : "ok") +
+    tile(AS.always_on_workstations.length, "ПК работают круглосуточно",
+         AS.always_on_workstations.length ? "warn" : "ok") +
+    tile(e.mdl_month + " лей", "перерасход в месяц", e.mdl_month ? "warn" : "ok") +
+    tile(e.mdl_year + " лей", "перерасход в год", e.mdl_year ? "crit" : "ok") +
+    tile(AS.rack.length, "сервера в стойке");
+
+  document.querySelector("#dom-tbl tbody").innerHTML = AS.domains
+    .slice().sort((a,b) => (a.days_left ?? 99999) - (b.days_left ?? 99999))
+    .map(d => `<tr>
+      <td><b>${esc(d.domain)}</b></td>
+      <td>${esc(d.expires || "—")}</td>
+      <td class="${DOM_CLS[d.level]}"><b>${d.days_left ?? "?"}</b> дн
+        <div style="font-size:11px">${DOM_WORD[d.level]}</div></td>
+      <td class="dim">${esc(d.registrar || "—")}</td>
+      <td style="font-size:12px">${esc(d.role)}</td>
+      <td class="dim" style="font-size:12px">${esc(d.owner || "—")}</td></tr>`).join("");
+
+  document.getElementById("energy-box").innerHTML = `
+    <div class="card"><div class="row">
+      <div>Машин впустую<b class="warn">${e.machines}</b></div>
+      <div>Лишних часов в неделю<b>${e.idle_hours_week}</b></div>
+      <div>кВт·ч в месяц<b>${e.kwh_month}</b></div>
+      <div>Лей в месяц<b class="warn">${e.mdl_month}</b></div>
+      <div>Лей в год<b class="crit">${e.mdl_year}</b></div>
+    </div>
+    <div class="note" style="margin-top:8px">Расчёт: ${e.watt_per_machine} Вт на машину в простое,
+      тариф ${e.tariff_mdl} лей/кВт·ч, рабочее время 10 ч × 5 дней. Учитываются только часы вне
+      рабочего времени. Выключение на ночь возвращает всю сумму.</div></div>`;
+
+  document.querySelector("#night-tbl tbody").innerHTML = (AS.night || [])
+    .filter(n => n.always_on)
+    .map(n => `<tr>
+      <td><code>${esc(n.host)}</code></td>
+      <td>${n.is_workstation ? '<span class="badge b-warn">рабочая станция</span>'
+                             : '<span class="badge b-dim">оборудование</span>'}</td>
+      <td>${n.night_uptime_pct}% <span class="dim">(${n.samples} замеров)</span></td>
+      <td class="dim" style="font-size:12px">${n.is_workstation
+          ? "не выключается — прямой перерасход" : "работает постоянно, так и задумано"}</td>
+    </tr>`).join("") || `<tr><td colspan="4" class="dim">нет данных</td></tr>`;
+
+  document.getElementById("rack-box").innerHTML = AS.rack.map(s => `
+    <div class="card" style="margin-bottom:10px">
+      <h3>🖥 ${esc(s.name)} <span class="dim" style="font-size:12px">${esc(s.ip)}</span></h3>
+      <div class="dim" style="font-size:12px;margin-bottom:4px">${esc(s.role)} · ${esc(s.cpu)}</div>
+      <div class="badge b-no" style="margin-bottom:8px">${esc(s.criticality)}</div>
+      <ul style="margin:6px 0 0;padding-left:20px;font-size:13px">
+        ${s.runbook.map(r => `<li>${esc(r)}</li>`).join("")}</ul></div>`).join("");
+}
+
+// ---------------------------------------------------------------- Доступы
+let VAULT = null;
+function renderVault(){
+  if (!VAULT) return;
+  const all = VAULT.groups.flatMap(g => g.items);
+  document.getElementById("v-tiles").innerHTML =
+    tile(VAULT.total, "учётных записей") +
+    (VAULT.keychain_here
+      ? tile(all.filter(i => i.present).length, "есть в Keychain", "ok") +
+        tile(all.filter(i => !i.present).length, "отсутствуют",
+             all.some(i => !i.present) ? "crit" : "ok")
+      : tile("—", "Keychain доступен только на рабочей машине", "dim")) +
+    tile(VAULT.groups.length, "групп объектов");
+  document.getElementById("vault-box").innerHTML = VAULT.groups.map(g => `
+    <h3 style="margin:18px 0 8px;font-size:14px">${esc(g.group)}
+      <span class="dim" style="font-weight:400">— ${g.items.length}</span></h3>
+    <div class="tbl-wrap"><table><thead><tr>
+      <th style="width:34%">Система</th><th style="width:150px">Где</th>
+      <th style="width:110px">Логин</th><th style="width:90px">Статус</th>
+      <th>Как достать пароль</th></tr></thead><tbody>
+      ${g.items.map(i => `<tr>
+        <td>${esc(i.what)}</td>
+        <td class="dim"><code>${esc(i.where)}</code></td>
+        <td><code>${esc(i.login)}</code></td>
+        <td>${!VAULT.keychain_here ? '<span class="badge b-dim">—</span>'
+              : (i.present ? '<span class="badge b-ok">есть</span>'
+                           : '<span class="badge b-no">нет</span>')}</td>
+        <td><code style="font-size:11px">${esc(i.howto)}</code></td></tr>`).join("")}
+    </tbody></table></div>`).join("");
+  document.getElementById("vault-note").textContent = VAULT.note;
+}
+
+
+// ---------------------------------------------------------------- Оборудование офиса
+let FAC = null, PLUGS = null;
+const SRV_CLS = {overdue:"crit", soon:"warn", unknown:"mid", ok:"ok"};
+
+function renderFac(){
+  if (!FAC) return;
+  const s = FAC.stats;
+  document.getElementById("fac-tiles").innerHTML =
+    tile(s.total, "объектов на учёте") +
+    tile(FAC.overdue, "просрочено обслуживание", FAC.overdue ? "crit" : "ok") +
+    tile(s.by_kind.aircon || 0, "кондиционеров") +
+    tile(s.by_kind.smartplug || 0, "умных розеток") +
+    tile(s.works, "записей в журнале") +
+    tile(s.photos, "фотографий");
+
+  const sel = document.getElementById("f-fac-kind");
+  if (sel.options.length <= 1)
+    sel.innerHTML = '<option value="">Все типы</option>' +
+      Object.entries(FAC.kinds).map(([k, v]) =>
+        `<option value="${k}">${esc(v)} (${s.by_kind[k] || 0})</option>`).join("");
+
+  const kind = sel.value, q = document.getElementById("f-fac").value.toLowerCase().trim();
+  const rows = FAC.facilities.filter(f =>
+    (!kind || f.kind === kind) &&
+    (!q || [f.code, f.name, f.room, f.ip].some(v => (v || "").toLowerCase().includes(q))));
+  document.getElementById("fac-count").textContent = `${rows.length} из ${FAC.facilities.length}`;
+  document.querySelector("#fac-tbl tbody").innerHTML = rows.map(f => `
+    <tr style="cursor:pointer" onclick="showFacility('${esc(f.code)}')">
+      <td><code>${esc(f.code)}</code></td>
+      <td>${esc(f.kind_title)}</td>
+      <td><b>${esc(f.name)}</b>${f.ip ? ` <span class="dim">${esc(f.ip)}</span>` : ""}</td>
+      <td class="dim">${esc(f.room || "—")}</td>
+      <td class="${SRV_CLS[f.service.level]}">${esc(f.service.text)}
+        ${f.service.work ? `<div style="font-size:11px" class="dim">${esc(f.service.work)}</div>` : ""}</td>
+      <td><button onclick="event.stopPropagation();showFacility('${esc(f.code)}')">паспорт</button></td>
+    </tr>`).join("") || `<tr><td colspan="6" class="dim">ничего не найдено</td></tr>`;
+}
+
+function renderPlugs(){
+  if (!PLUGS) return;
+  document.getElementById("plug-box").innerHTML = `
+    <div class="chan">${PLUGS.plugs.map(p => `
+      <div class="card ${p.online ? "live" : ""}">
+        <h3>🔌 ${esc(p.ip)}
+          <span class="badge ${p.online ? "b-ok" : "b-no"}">${p.online ? "в сети" : "недоступна"}</span></h3>
+        <div class="row">
+          <div>Отклик<b>${p.latency_ms ?? "—"} мс</b></div>
+          <div>Состояние<b class="${p.switch_on ? "ok" : "dim"}">${
+            p.controllable ? (p.switch_on ? "включена" : "выключена") : "неизвестно"}</b></div>
+          ${p.power_w != null ? `<div>Мощность<b>${p.power_w} Вт</b></div>` : ""}
+        </div>
+        ${p.controllable ? `
+          <div style="margin-top:10px;display:flex;gap:6px">
+            <button onclick="switchPlug('${esc(p.ip)}','on')">Включить</button>
+            <button onclick="switchPlug('${esc(p.ip)}','off')">Выключить</button>
+          </div>` : `
+          <div class="note" style="margin-top:8px">${esc(p.reason || "управление недоступно")}</div>`}
+      </div>`).join("")}</div>
+    ${PLUGS.controllable === 0 ? `<div class="note">${esc(PLUGS.hint)}</div>` : ""}`;
+}
+
+async function switchPlug(ip, state){
+  try {
+    await post(`/plugs/${ip}/${state}`);
+    PLUGS = await get("/plugs"); renderPlugs();
+  } catch (e) { alert("Не удалось переключить розетку: " + e.message); }
+}
+
+async function showFacility(code){
+  const m = document.getElementById("modal"), b = document.getElementById("modal-body");
+  b.innerHTML = "<div class='dim'>загрузка паспорта…</div>";
+  m.style.display = "block";
+  let f;
+  try { f = await get("/facilities/" + encodeURIComponent(code)); }
+  catch (e) { b.innerHTML = `<div class="crit">Ошибка: ${esc(e.message)}</div>`; return; }
+  const row = (k, v) => v ? `<tr><td class="dim" style="width:180px">${k}</td><td>${v}</td></tr>` : "";
+  b.innerHTML = `
+    <div style="display:flex;gap:12px;align-items:flex-start">
+      <div style="flex:1">
+        <h2 style="margin:0 0 4px;font-size:20px">${esc(f.name)}
+          <span class="dim" style="font-size:14px">${esc(f.code)}</span></h2>
+        <div><span class="badge b-dim">${esc(f.kind_title)}</span>
+          <span class="badge ${SRV_CLS[f.service.level] === "ok" ? "b-ok" : "b-warn"}">
+            ${esc(f.service.text)}${f.service.work ? " · " + esc(f.service.work) : ""}</span></div>
+      </div>
+      <button onclick="document.getElementById('modal').style.display='none'">Закрыть</button>
+    </div>
+    <table style="margin-top:12px">
+      ${row("Помещение", esc(f.room || ""))}
+      ${row("Производитель", esc(f.vendor || ""))}
+      ${row("Модель", esc(f.model || ""))}
+      ${row("Серийный номер", esc(f.serial_no || ""))}
+      ${row("Адрес в сети", f.ip ? `<code>${esc(f.ip)}</code> ${esc(f.protocol || "")}` : "")}
+      ${row("Ответственный", esc(f.responsible || ""))}
+      ${row("Регламент", f.service_days + " дней между работами")}
+      ${row("Примечание", esc(f.note || ""))}
+    </table>
+
+    <h3 style="margin:18px 0 8px;font-size:15px">Журнал работ — ${f.log.length}</h3>
+    <div class="tbl-wrap" style="max-height:none"><table><thead><tr>
+      <th style="width:100px">Дата</th><th style="width:170px">Вид работ</th>
+      <th>Что сделано</th><th style="width:140px">Исполнитель</th>
+      <th style="width:110px">Повтор</th></tr></thead><tbody>
+      ${f.log.map(w => `<tr>
+        <td>${esc(w.done_at)}</td><td>${esc(w.work_title)}</td>
+        <td>${esc(w.description || "")}${w.cost_mdl ? ` <span class="dim">(${w.cost_mdl} лей)</span>` : ""}</td>
+        <td class="dim">${esc(w.performer || "")}</td>
+        <td class="dim">${esc(w.next_due || "—")}</td></tr>`).join("") ||
+        `<tr><td colspan="5" class="dim">работ пока не заносили</td></tr>`}
+    </tbody></table></div>
+
+    <h3 style="margin:18px 0 8px;font-size:15px">Фотографии состояния — ${f.photos.length}</h3>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px">
+      ${f.photos.map(p => `
+        <div class="card" style="padding:8px">
+          <a href="${PHOTO_BASE}/${p.id}" target="_blank">
+            <img src="${PHOTO_BASE}/${p.id}" style="width:100%;border-radius:6px;display:block"
+                 alt="${esc(p.caption || "")}"></a>
+          <div style="font-size:11px;margin-top:5px">${esc(p.caption || "без подписи")}</div>
+          <div class="dim" style="font-size:11px">${esc(p.taken_by || "")} · ${esc(p.taken_at)}</div>
+        </div>`).join("") || `<div class="dim">снимков пока нет</div>`}
+    </div>
+
+    <h3 style="margin:20px 0 8px;font-size:15px">Добавить запись</h3>
+    <div class="filters">
+      <select id="w-kind">${Object.entries(FAC.work_kinds).map(([k, v]) =>
+        `<option value="${k}">${esc(v)}</option>`).join("")}</select>
+      <input type="text" id="w-descr" placeholder="что сделано" style="flex:1;min-width:200px">
+      <input type="text" id="w-perf" placeholder="исполнитель" style="width:150px">
+      <button class="primary" onclick="addWork('${esc(f.code)}')">Записать</button>
+    </div>
+    <div class="filters">
+      <input type="file" id="w-photo" accept="image/*" capture="environment">
+      <input type="text" id="w-cap" placeholder="подпись к снимку" style="flex:1;min-width:180px">
+      <button onclick="addPhoto('${esc(f.code)}')">Загрузить фото</button>
+    </div>
+    <div class="note">Снимок можно сделать телефоном прямо на месте: поле открывает камеру.</div>`;
+}
+
+async function addWork(code){
+  const body = {work_kind: document.getElementById("w-kind").value,
+                description: document.getElementById("w-descr").value,
+                performer: document.getElementById("w-perf").value};
+  if (!body.description.trim()) { alert("Опишите, что сделано"); return; }
+  try { await post(`/facilities/${encodeURIComponent(code)}/work`, body);
+        FAC = await get("/facilities"); renderFac(); await showFacility(code); }
+  catch (e) { alert("Не записалось: " + e.message); }
+}
+
+async function addPhoto(code){
+  const input = document.getElementById("w-photo");
+  if (!input.files.length) { alert("Выберите снимок"); return; }
+  const fd = new FormData();
+  fd.append("photo", input.files[0]);
+  fd.append("caption", document.getElementById("w-cap").value);
+  try {
+    const r = await fetch(`${API}/facilities/${encodeURIComponent(code)}/photo`,
+                          {method: "POST", body: fd});
+    const j = await r.json();
+    if (!j.success) throw new Error(j.message || "ошибка");
+    FAC = await get("/facilities"); renderFac(); await showFacility(code);
+  } catch (e) { alert("Снимок не загрузился: " + e.message); }
+}
+
+
+// ---------------------------------------------------------------- OpenVPN
+let VPN = null;
+
+function renderVpn(){
+  if (!VPN) return;
+  const s = VPN.summary;
+  document.getElementById("vpn-tiles").innerHTML =
+    tile(s.running ? "работает" : "ОСТАНОВЛЕН", "служба", s.running ? "ok" : "crit") +
+    tile(s.online, "подключено сейчас", s.online ? "ok" : "dim") +
+    tile(s.revocation_works === false ? "НЕ ДЕЙСТВУЕТ" : "работает", "отзыв доступа",
+         s.revocation_works === false ? "crit" : "ok") +
+    tile(s.certs_valid, "действующих доступов") +
+    tile(s.certs_revoked, "отозванных", "dim") +
+    tile(s.mb_out + " МБ", "отдано клиентам") +
+    tile(s.mb_in + " МБ", "принято от клиентов");
+
+  const crl = VPN.crl || {};
+  const crlWarn = crl.works === false ? `
+    <div class="card" style="margin-bottom:10px;border-left:3px solid var(--crit)">
+      <h3><span class="crit">Опасно</span> Отзыв доступа не действует</h3>
+      <div style="font-size:13px;margin-top:5px">
+        Служба не может прочитать список отзыва
+        <code>${esc(crl.path || "путь не задан")}</code> под пользователем
+        <code>${esc(crl.user || "nobody")}</code> и работает со списком, загруженным
+        при своём запуске (${esc(VPN.service_started || "дата неизвестна")}).
+        Все отзывы, сделанные после этого, <b>никого не отключили</b>: сертификат
+        помечен отозванным, а человек продолжает подключаться.
+        Отозвано на бумаге: ${crl.serials ?? "?"}.</div>
+      <div class="note" style="margin-top:6px">Как чинить — раздел «Отзыв доступа»
+        в документации модуля.</div></div>` : "";
+
+  document.getElementById("vpn-server").innerHTML = crlWarn + `
+    <div class="card"><div class="row">
+      <div>Сервер<b>${esc(VPN.host)}</b></div>
+      <div>Виртуальная машина<b>${VPN.vm_id}</b></div>
+      <div>Точка подключения<b>${esc(VPN.endpoint)}</b></div>
+      <div>Время работы<b style="font-size:13px">${esc(VPN.uptime || "—")}</b></div>
+    </div>
+    <div class="note" style="margin-top:8px">${esc(VPN.version || "")}</div></div>`;
+
+  document.querySelector("#vpn-online tbody").innerHTML = VPN.clients.map(c => `<tr>
+      <td><b>${esc(c.name)}</b></td>
+      <td><code>${esc(c.vpn_address)}</code></td>
+      <td class="dim">${esc(c.real_address)}</td>
+      <td>${c.mb_received} МБ</td><td>${c.mb_sent} МБ</td>
+      <td class="dim">${esc(c.connected_since)}</td></tr>`).join("")
+    || `<tr><td colspan="6" class="dim">сейчас никто не подключён</td></tr>`;
+
+  const showRevoked = document.getElementById("vpn-revoked").checked;
+  const q = document.getElementById("vpn-find").value.toLowerCase().trim();
+  const rows = VPN.certificates.filter(c =>
+    (showRevoked || !c.revoked) && (!q || c.name.toLowerCase().includes(q)));
+  document.getElementById("vpn-count").textContent =
+    `${rows.length} из ${VPN.certificates.length}`;
+  document.querySelector("#vpn-certs tbody").innerHTML = rows.map(c => `<tr>
+      <td><b>${esc(c.name)}</b></td>
+      <td class="dim">${esc(c.expires || "—")}</td>
+      <td>${c.revoked ? `<span class="badge b-dim">отозван</span>`
+                      : `<span class="badge b-ok">действует</span>`}</td>
+      <td>${c.online ? `<span class="badge b-ok">в сети</span>` : `<span class="dim">—</span>`}</td>
+      <td>${c.revoked ? "" :
+        `<a href="${API}/vpn/clients/${encodeURIComponent(c.name)}/profile"
+            title="Повторно скачать профиль .ovpn без нового выпуска"><button>Профиль</button></a>
+         <button onclick="shareVpn('${esc(c.name)}')"
+            title="Ссылка с инструкцией и файлом для получателя">Ссылка</button>
+         <button onclick="revokeVpn('${esc(c.name)}')">Отозвать</button>
+         <div class="vpn-share-box" id="share-${esc(c.name)}"></div>`}</td>
+    </tr>`).join("") || `<tr><td colspan="5" class="dim">ничего не найдено</td></tr>`;
+}
+
+// Ссылка для получателя: показываем адрес и кнопку копирования. Сам адрес в
+// панели не хранится — после перезагрузки страницы его не достать, только
+// сделать новый. Так задумано: токен существует только у того, кому его дали.
+function shareHtml(s){
+  const id = "sh" + s.id;
+  return `<div class="card" style="margin-top:8px;padding:10px 12px">
+    <div style="font-size:13px">Ссылка на <b>${s.ttl_min} мин</b>, до <b>${esc(s.expires_local)}</b>:</div>
+    <div class="filters" style="margin:6px 0 0">
+      <input type="text" id="${id}" value="${esc(s.url)}" readonly style="flex:1;min-width:240px;font-size:12px">
+      <button onclick="copyShare('${id}', this)">Копировать</button>
+      <a href="${esc(s.url)}" target="_blank" rel="noreferrer"><button>Открыть</button></a>
+    </div>
+    <div class="note" style="margin-top:6px">Отправьте ссылку получателю. После срока она перестанет
+      открываться; отозвать раньше — в таблице «Ссылки для получателей».</div></div>`;
+}
+
+async function copyShare(id, btn){
+  const el = document.getElementById(id);
+  try { await navigator.clipboard.writeText(el.value); }
+  catch (e) { el.select(); document.execCommand("copy"); }
+  btn.textContent = "Скопировано ✓";
+}
+
+async function shareVpn(name){
+  const m = prompt(`Ссылка для «${name}»: на сколько минут?`, "15");
+  if (m === null) return;
+  const box = document.getElementById("share-" + name);
+  box.innerHTML = `<span class="dim">делаю ссылку…</span>`;
+  try {
+    const s = await post(`/vpn/clients/${encodeURIComponent(name)}/share`,
+                         {minutes: m, lang: document.getElementById("vpn-share-lang").value});
+    box.innerHTML = shareHtml(s);
+    loadShares();
+  } catch (e) { box.innerHTML = `<span class="crit">Не получилось: ${esc(e.message)}</span>`; }
+}
+
+const SHARE_STATE = {active: ["действует", "b-ok"], expired: ["истекла", "b-dim"],
+                     revoked: ["отозвана", "b-no"]};
+async function loadShares(){
+  let rows = [];
+  try { rows = await get("/vpn/shares"); } catch (e) { console.warn("shares:", e.message); return; }
+  document.querySelector("#vpn-shares tbody").innerHTML = rows.map(s => {
+    const [label, cls] = SHARE_STATE[s.state] || [s.state, "b-dim"];
+    return `<tr>
+      <td><b>${esc(s.client_name)}</b> <span class="badge b-dim">${s.kind === "l2tp" ? "L2TP" : "OpenVPN"}</span>
+        <div class="dim" style="font-size:11px">${esc(s.created_by || "")}</div></td>
+      <td class="dim">${esc(s.created_local)}</td>
+      <td class="dim">${esc(s.expires_local)} <span style="font-size:11px">(${s.ttl_min} мин)</span></td>
+      <td><span class="badge ${cls}" title="${esc(s.revoke_reason || "")}">${label}</span></td>
+      <td>${s.page_hits} / ${s.downloads}</td>
+      <td class="dim">${esc(s.last_hit_local || "—")}</td>
+      <td>${s.state === "active" ? `<button onclick="revokeShare(${s.id})">Отозвать ссылку</button>` : ""}</td>
+    </tr>`; }).join("") || `<tr><td colspan="7" class="dim">ссылок ещё не было</td></tr>`;
+}
+
+async function revokeShare(id){
+  if (!confirm("Отозвать ссылку? Сертификат останется действующим, перестанет открываться только ссылка.")) return;
+  try { await post(`/vpn/shares/${id}/revoke`); loadShares(); }
+  catch (e) { alert("Не удалось: " + e.message); }
+}
+
+async function addVpnClient(){
+  const input = document.getElementById("vpn-name");
+  const name = input.value.trim();
+  const box = document.getElementById("vpn-result");
+  if (!name) { box.innerHTML = `<span class="crit">Введите имя</span>`; return; }
+  const btn = document.getElementById("vpn-add");
+  btn.disabled = true;
+  box.innerHTML = `<span class="dim">создаю сертификат, это занимает несколько секунд…</span>`;
+  const body = {name};
+  if (document.getElementById("vpn-share-on").checked) {
+    body.share_minutes = document.getElementById("vpn-share-min").value || 15;
+    body.share_lang = document.getElementById("vpn-share-lang").value;
+  }
+  try {
+    const r = await post("/vpn/clients", body);
+    // профиль сразу отдаём файлом, на сервере он не хранится
+    const blob = new Blob([r.profile], {type: "application/x-openvpn-profile"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name + ".ovpn";
+    a.click();
+    URL.revokeObjectURL(a.href);
+    box.innerHTML = `<span class="ok">Профиль <b>${esc(name)}.ovpn</b> создан и скачан
+      (${r.size_kb} КБ). Подключение: <code>${esc(r.endpoint)}</code></span>
+      <div class="note">${esc(r.hint)}</div>`
+      + (r.share ? shareHtml(r.share) : "")
+      + (r.share_error ? `<div class="crit" style="margin-top:6px">Сертификат выпущен, но ссылку
+          сделать не удалось: ${esc(r.share_error)}. Сделайте её кнопкой «Ссылка» в таблице.</div>` : "");
+    input.value = "";
+    VPN = await get("/vpn"); renderVpn(); loadShares();
+  } catch (e) {
+    box.innerHTML = `<span class="crit">Не получилось: ${esc(e.message)}</span>`;
+  } finally { btn.disabled = false; }
+}
+
+async function revokeVpn(name){
+  if (!confirm(`Отозвать доступ «${name}»? Он перестанет подключаться.`)) return;
+  try {
+    await post(`/vpn/clients/${encodeURIComponent(name)}/revoke`);
+    VPN = await get("/vpn"); renderVpn();
+  } catch (e) { alert("Не удалось отозвать: " + e.message); }
+}
+
+let MT = null;
+
+function renderMikrotik(){
+  if (!MT) return;
+  const s = MT.summary;
+  document.getElementById("mt-tiles").innerHTML =
+    tile(s.online, "в сети сейчас", s.online ? "ok" : "dim") +
+    tile(s.online_pptp, "из них по PPTP", s.online_pptp ? "crit" : "ok") +
+    tile(s.online_l2tp, "по L2TP/IPsec") +
+    tile(s.enabled, "включённых учёток") +
+    tile(s.users - s.enabled, "выключенных", "dim") +
+    tile((s.cpu_load ?? "—") + " %", "загрузка ЦП", s.cpu_load >= 80 ? "warn" : "ok");
+  document.getElementById("mt-server").innerHTML = `
+    <div class="card"><div class="row">
+      <div>Маршрутизатор<b>${esc(MT.board)}</b></div>
+      <div>RouterOS<b>${esc(MT.version)}</b></div>
+      <div>Адрес<b>${esc(MT.host)}</b></div>
+      <div>Снаружи<b>${esc(MT.endpoint)}</b></div>
+      <div>Время работы<b style="font-size:13px">${esc(MT.uptime)}</b></div>
+      <div>Память свободна<b>${MT.memory_free_pct ?? "—"} %</b></div>
+    </div>
+    <div class="note">Серверы VPN: L2TP ${MT.servers.l2tp ? "включён" : "выключен"},
+      PPTP ${MT.servers.pptp ? "<span class='crit'>включён</span>" : "выключен"},
+      SSTP ${MT.servers.sstp ? "включён" : "выключен"}.
+      Проверка L2TP: ${esc(MT.l2tp_auth)}.</div></div>`;
+  const lv = {crit: ["Опасно", "crit"], warn: ["Внимание", "warn"], info: ["К сведению", "dim"]};
+  document.getElementById("mt-findings").innerHTML = MT.findings.map(f => {
+    const [label, cls] = lv[f.level] || lv.info;
+    return `<div class="card" style="margin-bottom:8px;border-left:3px solid var(--${cls === "dim" ? "line" : cls})">
+      <h3><span class="${cls}">${label}</span> ${esc(f.title)}</h3>
+      <div style="font-size:13px;margin-top:5px">${esc(f.text)}</div></div>`; }).join("");
+  document.querySelector("#mt-online tbody").innerHTML = MT.active.map(a => `<tr>
+      <td><b>${esc(a.name)}</b></td>
+      <td>${a.service === "pptp" ? `<span class="badge b-no">PPTP</span>` : `<span class="badge b-ok">${esc(a.service.toUpperCase())}</span>`}</td>
+      <td class="dim">${esc(a.from)}</td><td><code>${esc(a.address)}</code></td>
+      <td class="dim">${esc(a.uptime)}</td></tr>`).join("")
+    || `<tr><td colspan="5" class="dim">сейчас никто не подключён</td></tr>`;
+  renderMikrotikUsers();
+}
+
+function renderMikrotikUsers(){
+  if (!MT) return;
+  const off = document.getElementById("mt-off").checked;
+  const svc = document.getElementById("mt-svc").value;
+  const q = document.getElementById("mt-find").value.toLowerCase().trim();
+  const rows = MT.users.filter(u => (off || !u.disabled) && (!svc || u.service === svc)
+    && (!q || u.name.toLowerCase().includes(q) || (u.comment || "").toLowerCase().includes(q)));
+  document.getElementById("mt-count").textContent = `${rows.length} из ${MT.users.length}`;
+  document.querySelector("#mt-users tbody").innerHTML = rows.map(u => {
+    const n = esc(u.name);
+    const acts = u.disabled
+      ? `<button onclick="mtSetDisabled('${n}', false)">Включить</button>`
+      : `${u.service !== "pptp" ? `<button onclick="mtReset('${n}')" title="Новый пароль и ссылка для получателя">Новый пароль + ссылка</button>` : ""}
+         <button onclick="mtSetDisabled('${n}', true)">Выключить</button>`;
+    return `<tr>
+      <td><b>${n}</b>${u.ours ? ` <span class="badge b-ok" title="заведена из панели">панель</span>` : ""}</td>
+      <td>${u.service === "pptp" ? `<span class="badge b-no">PPTP</span>` : esc(u.service)}</td>
+      <td class="dim">${esc(u.profile)}</td>
+      <td class="dim">${esc(u.last_login || "ни разу")}</td>
+      <td>${u.online ? `<span class="badge b-ok">в сети</span>` : u.disabled ? `<span class="badge b-dim">выключена</span>` : `<span class="dim">включена</span>`}</td>
+      <td class="dim" style="font-size:12px">${esc(u.comment || "")}</td>
+      <td>${acts}<div id="mt-share-${n}"></div></td></tr>`; }).join("")
+    || `<tr><td colspan="7" class="dim">ничего не найдено</td></tr>`;
+}
+
+function credsHtml(r){
+  return `<div class="card" style="margin-top:8px;padding:10px 12px;font-size:13px">
+    Учётка <b>${esc(r.name)}</b>, L2TP/IPsec, сервер <code>${esc(r.server)}</code>,
+    пароль <code>${esc(r.password)}</code>
+    <div class="note" style="margin-top:4px">Пароль показан один раз. Общий ключ IPsec в панели не
+      показывается — он есть в ссылке для получателя.</div></div>`;
+}
+
+async function mtCreate(){
+  const input = document.getElementById("mt-name");
+  const name = input.value.trim();
+  const box = document.getElementById("mt-result");
+  if (!name) { box.innerHTML = `<span class="crit">Введите имя</span>`; return; }
+  const btn = document.getElementById("mt-add"); btn.disabled = true;
+  box.innerHTML = `<span class="dim">завожу учётку на маршрутизаторе…</span>`;
+  const body = {name};
+  if (document.getElementById("mt-share-on").checked) {
+    body.share_minutes = document.getElementById("mt-share-min").value || 15;
+    body.share_lang = document.getElementById("mt-share-lang").value;
+  }
+  try {
+    const r = await post("/mikrotik/users", body);
+    box.innerHTML = `<span class="ok">Учётка <b>${esc(r.name)}</b> создана.</span>` + credsHtml(r)
+      + (r.share ? shareHtml(r.share) : "")
+      + (r.share_error ? `<div class="crit" style="margin-top:6px">Учётка создана, но ссылку сделать не
+          удалось: ${esc(r.share_error)}. Сделайте её кнопкой «Новый пароль + ссылка».</div>` : "");
+    input.value = "";
+    MT = await get("/mikrotik"); renderMikrotik(); loadShares();
+  } catch (e) { box.innerHTML = `<span class="crit">Не получилось: ${esc(e.message)}</span>`; }
+  finally { btn.disabled = false; }
+}
+
+async function mtReset(name){
+  const m = prompt(`«${name}»: сменить пароль и сделать ссылку для получателя.\n` +
+                   `Старый пароль перестанет работать. На сколько минут ссылка?`, "15");
+  if (m === null) return;
+  const box = document.getElementById("mt-share-" + name);
+  box.innerHTML = `<span class="dim">меняю пароль…</span>`;
+  try {
+    const r = await post(`/mikrotik/users/${encodeURIComponent(name)}/reset`,
+                         {minutes: m, lang: document.getElementById("mt-share-lang").value});
+    box.innerHTML = credsHtml(r) + (r.share ? shareHtml(r.share) : "")
+      + (r.share_error ? `<div class="crit">Пароль сменён, ссылка не создалась: ${esc(r.share_error)}</div>` : "");
+    loadShares();
+  } catch (e) { box.innerHTML = `<span class="crit">Не получилось: ${esc(e.message)}</span>`; }
+}
+
+async function mtSetDisabled(name, disabled){
+  if (disabled && !confirm(`Выключить учётку «${name}»? Текущая сессия будет разорвана, ` +
+                           `живые ссылки на неё погаснут. Учётка не удаляется, её можно включить обратно.`)) return;
+  try {
+    await post(`/mikrotik/users/${encodeURIComponent(name)}/${disabled ? "disable" : "enable"}`);
+    MT = await get("/mikrotik"); renderMikrotik(); loadShares();
+  } catch (e) { alert("Не удалось: " + e.message); }
+}
+
+let FS = null, FSPLAN = null;
+
+function renderFs(){
+  if (!FS) return;
+  const legacyN = FS.unmanaged.reduce((n, u) => n + u.machines.length, 0);
+  const open = FS.shares.filter(s => s.open_to_all).length;
+  const storage = FS.disks.find(d => d.mount === "/storage");
+  document.getElementById("fs-tiles").innerHTML =
+    tile(open, "ресурсов открыто всем", open ? "crit" : "ok") +
+    tile(legacyN, "компьютеров под общими учётками", legacyN ? "crit" : "ok") +
+    tile(FS.people.filter(p => p.status === "active").length, "сотрудников с личной учёткой") +
+    tile(FS.domain_ok ? "есть" : "НЕТ", "связь с доменом", FS.domain_ok ? "ok" : "crit") +
+    (storage ? tile(storage.percent + " %", "/storage занят", storage.percent >= 97 ? "crit" : storage.percent >= 90 ? "warn" : "ok") : "");
+  const lv = {crit: ["Опасно", "crit"], warn: ["Внимание", "warn"], info: ["К сведению", "dim"]};
+  document.getElementById("fs-findings").innerHTML = FS.findings.map(f => {
+    const [label, cls] = lv[f.level] || lv.info;
+    return `<div class="card" style="margin-bottom:8px;border-left:3px solid var(--${cls === "dim" ? "line" : cls})">
+      <h3><span class="${cls}">${label}</span> ${esc(f.title)}</h3>
+      <div style="font-size:13px;margin-top:5px">${esc(f.text)}</div></div>`; }).join("");
+  document.querySelector("#fs-shares tbody").innerHTML = FS.shares.map(s => `<tr>
+      <td><b style="font-size:16px">${esc(s.letter)}:</b></td><td><code>${esc(s.name)}</code></td>
+      <td class="dim" style="font-size:12px">${esc(s.path)}</td>
+      <td>${s.open_to_all ? `<span class="badge b-no">все ${FS.domain_users} пользователей домена</span>`
+                          : esc(s.local_enter.join(", ") || "—")}</td>
+      <td class="${s.local_root.length ? "warn" : "dim"}">${esc(s.local_root.join(", ") || "—")}</td>
+      <td>${s.sessions}</td><td>${esc(s.target_title)}</td></tr>`).join("");
+  const roles = FS.policy.roles;
+  document.getElementById("fs-role").innerHTML = Object.values(roles).map(r =>
+    `<option value="${r.code}">${esc(r.title)}</option>`).join("");
+  document.querySelector("#fs-people tbody").innerHTML = FS.people.map(p => {
+    const l = esc(p.login);
+    const sel = `<select onchange="fsRole('${l}', this.value)">` + Object.values(roles).map(r =>
+      `<option value="${r.code}" ${r.code === p.role ? "selected" : ""}>${esc(r.title)}</option>`).join("") + `</select>`;
+    const state = !p.on_server ? `<span class="badge b-no">нет на сервере</span>`
+      : p.status === "disabled" ? `<span class="badge b-dim">выключен</span>` : `<span class="badge b-ok">действует</span>`;
+    const acts = p.status === "disabled"
+      ? `<button onclick="fsDisable('${l}', false)">Включить</button>`
+      : `<button onclick="fsReset('${l}')">Новый пароль + ссылка</button> <button onclick="fsDisable('${l}', true)">Выключить</button>`;
+    return `<tr><td><b>${esc(p.email)}</b><div class="dim" style="font-size:12px">${esc(p.full_name || "")}</div></td>
+      <td><code>${l}</code></td><td>${sel}</td><td>${p.drives.map(d => d + ":").join(" ")}</td>
+      <td>${state}</td><td class="dim" style="font-size:12px">${esc(p.machines.join(", ") || "—")}</td>
+      <td>${acts}<div id="fs-share-${l}"></div></td></tr>`; }).join("")
+    || `<tr><td colspan="7" class="dim">личных учёток ещё нет — выдайте первую формой выше</td></tr>`;
+  document.querySelector("#fs-unmanaged tbody").innerHTML = FS.unmanaged.map(u => `<tr>
+      <td><b>${esc(u.login)}</b>${FS.legacy.includes(u.login) ? ` <span class="badge b-no">общая</span>` : ""}</td>
+      <td>${u.disabled ? "выключена" : "действует"}</td>
+      <td class="dim">${esc(u.machines.join(", ") || "сейчас никто")}</td></tr>`).join("");
+  document.querySelector("#fs-log tbody").innerHTML = FS.log.map(x => `<tr>
+      <td class="dim">${esc(x.at)}</td><td>${esc(x.actor)}</td><td>${esc(x.action)}</td>
+      <td>${esc(x.target || "")}</td><td class="dim" style="font-size:12px">${esc(x.details || "")}</td></tr>`).join("")
+    || `<tr><td colspan="5" class="dim">изменений ещё не было</td></tr>`;
+  fsBackups();
+}
+
+function fsCreds(r){
+  return `<div class="card" style="margin-top:8px;padding:10px 12px;font-size:13px">
+    <b>${esc(r.email)}</b>: вход <code>${esc(r.login)}</code>, пароль <code>${esc(r.password)}</code>,
+    диски ${r.drives.map(d => esc(d.drive) + ":").join(" ")}
+    <div class="note" style="margin-top:4px">Пароль показан один раз.</div></div>`;
+}
+
+async function fsAdd(){
+  const box = document.getElementById("fs-result");
+  const body = {email: document.getElementById("fs-email").value.trim(),
+                full_name: document.getElementById("fs-name").value.trim(),
+                role: document.getElementById("fs-role").value};
+  if (!body.email) { box.innerHTML = `<span class="crit">Введите почту</span>`; return; }
+  if (document.getElementById("fs-share-on").checked) {
+    body.share_minutes = document.getElementById("fs-share-min").value || 15;
+    body.share_lang = document.getElementById("fs-share-lang").value;
+  }
+  const btn = document.getElementById("fs-add"); btn.disabled = true;
+  box.innerHTML = `<span class="dim">завожу учётку на сервере…</span>`;
+  try {
+    const r = await post("/fs/people", body);
+    box.innerHTML = `<span class="ok">Доступ выдан.</span>` + fsCreds(r) + (r.share ? shareHtml(r.share) : "")
+      + (r.share_error ? `<div class="crit">Учётка создана, ссылка не создалась: ${esc(r.share_error)}</div>` : "");
+    document.getElementById("fs-email").value = ""; document.getElementById("fs-name").value = "";
+    FS = await get("/fs"); renderFs(); loadShares();
+  } catch (e) { box.innerHTML = `<span class="crit">Не получилось: ${esc(e.message)}</span>`; }
+  finally { btn.disabled = false; }
+}
+
+async function fsRole(login, role){
+  try { const r = await post(`/fs/people/${encodeURIComponent(login)}/role`, {role});
+        FS = await get("/fs"); renderFs(); }
+  catch (e) { alert("Не удалось сменить роль: " + e.message); FS = await get("/fs"); renderFs(); }
+}
+
+async function fsReset(login){
+  const m = prompt(`«${login}»: новый пароль и ссылка. Старый пароль перестанет работать.\nНа сколько минут ссылка?`, "15");
+  if (m === null) return;
+  const box = document.getElementById("fs-share-" + login);
+  box.innerHTML = `<span class="dim">меняю пароль…</span>`;
+  try {
+    const r = await post(`/fs/people/${encodeURIComponent(login)}/reset`,
+                         {minutes: m, lang: document.getElementById("fs-share-lang").value});
+    box.innerHTML = fsCreds(r) + (r.share ? shareHtml(r.share) : "");
+    loadShares();
+  } catch (e) { box.innerHTML = `<span class="crit">Не получилось: ${esc(e.message)}</span>`; }
+}
+
+async function fsDisable(login, disabled){
+  if (disabled && !confirm(`Выключить «${login}»? Его текущие подключения к дискам будут разорваны, ссылки погаснут.`)) return;
+  try { await post(`/fs/people/${encodeURIComponent(login)}/${disabled ? "disable" : "enable"}`);
+        FS = await get("/fs"); renderFs(); loadShares(); }
+  catch (e) { alert("Не удалось: " + e.message); }
+}
+
+async function fsPlan(mode){
+  const box = document.getElementById("fs-plan");
+  box.innerHTML = `<span class="dim">считаю, сервер не меняется…</span>`;
+  try {
+    FSPLAN = await get(`/fs/plan?mode=${mode}`);
+    const cut = FSPLAN.impact.reduce((n, i) => n + i.machines_cut.length, 0);
+    box.innerHTML = `
+      <h3 style="margin:14px 0 6px;font-size:14px">Пробный расчёт: ${mode === "final" ? "финальный" : "переходный"} режим</h3>
+      ${FSPLAN.role_groups_missing.length ? `<div class="note">Группы ролей будут созданы на сервере:
+        ${FSPLAN.role_groups_missing.join(", ")}.</div>` : ""}
+      <div class="tbl-wrap"><table><thead><tr><th style="width:60px">Диск</th><th>Роли</th>
+        <th>Останутся</th><th>Потеряют доступ</th><th>Получат</th><th>Отрежет компьютеров</th></tr></thead><tbody>
+      ${FSPLAN.impact.map(i => `<tr><td><b>${esc(i.drive)}:</b></td><td>${esc(i.roles.join(", "))}</td>
+        <td class="dim">${esc(i.keep.join(", ") || "—")}</td>
+        <td class="${i.lose.length ? "warn" : "dim"}">${esc(i.lose.join(", ") || "—")}
+          ${i.open_to_all_now ? `<div style="font-size:11px">и все ${i.domain_users_now} пользователей домена</div>` : ""}</td>
+        <td class="ok">${esc(i.gain.join(", ") || "—")}</td>
+        <td class="${i.machines_cut.length ? "crit" : "ok"}">${esc(i.machines_cut.join(", ") || "ни одного")}</td></tr>`).join("")}
+      </tbody></table></div>
+      <details style="margin:8px 0"><summary class="dim">Изменения в smb.conf</summary>
+        <pre style="font-size:11px;max-height:360px;overflow:auto">${esc(FSPLAN.diff)}</pre></details>
+      <div class="${cut ? "crit" : "ok"}" style="margin:8px 0">${cut
+        ? `Внимание: будут отрезаны ${cut} компьютеров с открытыми подключениями.`
+        : "Ни один работающий сейчас компьютер не отрежет."}</div>
+      <button class="primary" onclick="fsApply()">Применить к серверу…</button>`;
+  } catch (e) { box.innerHTML = `<span class="crit">Не удалось рассчитать: ${esc(e.message)}</span>`; }
+}
+
+async function fsApply(){
+  if (!FSPLAN) return;
+  const word = prompt("Это изменит доступ к дискам для всей компании.\n" +
+    "Резервная копия smb.conf будет сделана, откат — одной кнопкой.\n\nНапечатайте ПРИМЕНИТЬ:");
+  if (word !== "ПРИМЕНИТЬ") return;
+  const box = document.getElementById("fs-plan");
+  try {
+    const r = await post("/fs/apply", {mode: FSPLAN.mode, md5: FSPLAN.md5, confirm: "ПРИМЕНИТЬ"});
+    box.innerHTML = `<div class="ok" style="margin-top:8px">Применено. Резервная копия: <code>${esc(r.backup)}</code></div>`;
+    FSPLAN = null; FS = await get("/fs"); renderFs();
+  } catch (e) { box.innerHTML += `<div class="crit">Не применено: ${esc(e.message)}</div>`; }
+}
+
+async function fsBackups(){
+  try {
+    const list = await get("/fs/backups");
+    document.getElementById("fs-backups").innerHTML = list.length ? `<div class="note">Резервные копии smb.conf,
+      сделанные панелью: ${list.map(b => `<div><code>${esc(b)}</code>
+      <button onclick="fsRollback('${esc(b)}')">Вернуть эту</button></div>`).join("")}</div>` : "";
+  } catch (e) { console.warn("backups:", e.message); }
+}
+
+async function fsRollback(b){
+  if (!confirm(`Вернуть smb.conf из ${b}? Текущий файл тоже будет сохранён.`)) return;
+  try { await post("/fs/rollback", {backup: b}); FS = await get("/fs"); renderFs(); alert("Возвращено."); }
+  catch (e) { alert("Откат не выполнен: " + e.message); }
+}
+
+let DL = null;
+
+function fmtSec(s){
+  s = +s || 0;
+  if (s < 60) return s + " с";
+  if (s < 3600) return Math.floor(s / 60) + " мин " + (s % 60) + " с";
+  return Math.floor(s / 3600) + " ч " + Math.floor(s % 3600 / 60) + " мин";
+}
+
+function sqlCell(id, text){
+  if (!id) return `<span class="dim">—</span>`;
+  return `<code>${esc(id)}</code><div class="dim" style="font-size:11px;max-width:520px;overflow:hidden;
+    text-overflow:ellipsis;white-space:nowrap" title="${esc(text || "")}">${esc(text || "")}</div>`;
+}
+
+function renderDbload(){
+  if (!DL) return;
+  const s = DL.summary, o = DL.os;
+  const perCore = s.load1 / Math.max(s.cores, 1);
+  document.getElementById("dl-tiles").innerHTML =
+    tile(`${s.load1}`, `нагрузка на ${s.cores} ядер`, perCore >= 1.2 ? "crit" : perCore >= .8 ? "warn" : "ok") +
+    tile(s.cpu_busy + " %", "процессор занят", s.cpu_busy >= 85 ? "crit" : s.cpu_busy >= 60 ? "warn" : "ok") +
+    tile(s.iowait + " %", "ожидание диска", s.iowait >= 15 ? "warn" : "ok") +
+    tile((s.mem_available_pct ?? "—") + " %", "памяти доступно", s.mem_available_pct < 10 ? "warn" : "ok") +
+    tile(Math.round(s.disk_util_max) + " %", "самый загруженный диск", s.disk_util_max >= 85 ? "warn" : "ok") +
+    tile(s.cloudbd_active, `cloudbd: работают из ${s.cloudbd_sessions}`) +
+    tile(s.cloudbd_blocked, "cloudbd: ждут блокировку", s.cloudbd_blocked ? "crit" : "ok") +
+    tile(fmtSec(s.cloudbd_longest_call), "cloudbd: самый долгий запрос", s.cloudbd_longest_call >= 1800 ? "crit" : s.cloudbd_longest_call >= 300 ? "warn" : "ok");
+  const lv = {crit: ["Опасно", "crit"], warn: ["Внимание", "warn"]};
+  document.getElementById("dl-findings").innerHTML = DL.findings.map(f => {
+    const [label, cls] = lv[f.level] || ["К сведению", "dim"];
+    return `<div class="card" style="margin-bottom:8px;border-left:3px solid var(--${cls})">
+      <h3><span class="${cls}">${label}</span> ${esc(f.title)}</h3>
+      <div style="font-size:13px;margin-top:5px">${esc(f.text)}</div></div>`; }).join("")
+    || `<div class="card"><span class="ok">Замечаний нет.</span>
+        <div class="note">Нагрузка в норме, блокировок и долгих запросов нет.</div></div>`;
+  document.querySelector("#dl-top tbody").innerHTML = o.top.filter(p => p.cpu_pct >= 1).map(p => {
+    const x = p.session;
+    return `<tr><td><code>${esc(p.pid)}</code></td>
+      <td class="${p.cpu_pct >= 80 ? "crit" : p.cpu_pct >= 40 ? "warn" : ""}"><b>${p.cpu_pct}%</b></td>
+      <td>${x ? esc(x.db) : `<span class="dim">${p.background ? "фоновый" : esc(p.command)}</span>`}</td>
+      <td>${x ? `<b>${esc(x.username || "")}</b> <span class="dim">sid ${x.sid}</span>` : ""}</td>
+      <td class="dim" style="font-size:12px">${x ? esc(x.machine || "") + "<br>" + esc(x.program || "") : ""}</td>
+      <td>${x ? sqlCell(x.sql_id, x.sql_text) : ""}</td></tr>`; }).join("")
+    || `<tr><td colspan="6" class="dim">ничего заметного</td></tr>`;
+  document.querySelector("#dl-disks tbody").innerHTML = o.disks.map(d => `<tr>
+      <td><code>${esc(d.device)}</code></td><td class="dim">${esc(d.role)}</td>
+      <td class="${d.util_pct >= 85 ? "warn" : ""}">${Math.round(d.util_pct)} %</td>
+      <td class="${d.await_ms >= 50 ? "warn" : ""}">${d.await_ms.toFixed(1)} мс</td>
+      <td>${d.read_mb_s.toFixed(1)} МБ/с</td><td>${d.write_mb_s.toFixed(1)} МБ/с</td>
+      <td class="dim">${Math.round(d.r_s)} чт / ${Math.round(d.w_s)} зап</td></tr>`).join("");
+  const mk = (d, name) => d.metrics[name] ?? "—";
+  document.getElementById("dl-dbs").innerHTML = DL.databases.map(d => `
+    <h3 style="margin:24px 0 8px;font-size:15px">База ${esc(d.name)}</h3>
+    <div class="card"><div class="row">
+      <div>Сессий<b>${d.sessions}</b></div>
+      <div>Работают сейчас<b>${d.active.length}</b></div>
+      <div>Средняя активность<b>${mk(d, "Average Active Sessions")}</b></div>
+      <div>Транзакций/с<b>${mk(d, "User Transaction Per Sec")}</b></div>
+      <div>Выполнений/с<b>${mk(d, "Executions Per Sec")}</b></div>
+      <div>Чтений с диска/с<b>${mk(d, "Physical Reads Per Sec")}</b></div>
+      <div>Записей/с<b>${mk(d, "Physical Writes Per Sec")}</b></div>
+    </div><div class="note">Средняя активность — сколько сессий в среднем одновременно работают или ждут
+      за последнюю минуту. Больше ${d.cpu_count} (ядер) — база перегружена.</div></div>
+
+    <h4 style="margin:14px 0 6px;font-size:13px">Работают сейчас — дольше всех сверху</h4>
+    <div class="tbl-wrap"><table><thead><tr>
+      <th style="width:110px">Сессия</th><th style="width:130px">Схема</th><th style="width:190px">Откуда</th>
+      <th style="width:100px">Запрос идёт</th><th style="width:200px">Чем занята</th><th>SQL</th><th style="width:90px">Блокирует</th>
+    </tr></thead><tbody>${d.active.map(a => `<tr>
+      <td><code>${a.sid},${a.serial}</code><div class="dim" style="font-size:11px">процесс ${esc(a.spid)}</div></td>
+      <td><b>${esc(a.username || "фоновая")}</b></td>
+      <td class="dim" style="font-size:12px">${esc(a.machine)}<br>${esc(a.program)}</td>
+      <td class="${a.call_seconds >= 1800 ? "crit" : a.call_seconds >= 300 ? "warn" : ""}">${fmtSec(a.call_seconds)}</td>
+      <td style="font-size:12px">${a.on_cpu ? `<span class="badge b-ok">на процессоре</span>` : esc(a.event)}
+        ${a.wait_class && !a.on_cpu ? `<div class="dim" style="font-size:11px">${esc(a.wait_class)}, ${a.seconds_in_wait} с</div>` : ""}</td>
+      <td>${sqlCell(a.sql_id, a.sql_text)}</td>
+      <td>${a.blocking_session ? `<span class="badge b-no">ждёт ${a.blocking_session}</span>` : ""}</td></tr>`).join("")
+      || `<tr><td colspan="7" class="dim">сейчас никто не работает</td></tr>`}</tbody></table></div>
+
+    <h4 style="margin:14px 0 6px;font-size:13px">Тяжелее всех с момента входа</h4>
+    <div class="tbl-wrap"><table><thead><tr>
+      <th style="width:50%">По процессору</th><th>По чтениям с диска</th></tr></thead><tbody><tr>
+      <td style="vertical-align:top">${d.top_cpu.map(x => `<div style="margin-bottom:6px"><b>${esc(x.username)}</b>
+        <span class="dim">sid ${x.sid}, ${esc(x.machine)}</span> — <b>${fmtSec(x.cpu_seconds)}</b>
+        <span class="dim">за ${fmtSec(x.logon_min * 60)}</span></div>`).join("")}</td>
+      <td style="vertical-align:top">${d.top_io.map(x => `<div style="margin-bottom:6px"><b>${esc(x.username)}</b>
+        <span class="dim">sid ${x.sid}, ${esc(x.machine)}</span> — <b>${(x.value / 1e6).toFixed(1)} млн</b> блоков</div>`).join("")}</td>
+    </tr></tbody></table></div>
+    ${d.longops.length ? `<h4 style="margin:14px 0 6px;font-size:13px">Длинные операции</h4>
+      <div class="tbl-wrap"><table><tbody>${d.longops.map(l => `<tr><td>sid ${l.sid}</td><td>${esc(l.opname)}</td>
+        <td class="dim">${esc(l.target)}</td><td>${l.pct ?? "—"} %</td><td>идёт ${fmtSec(l.elapsed)}, осталось ${fmtSec(l.remaining)}</td></tr>`).join("")}
+      </tbody></table></div>` : ""}
+    ${d.blocked.length ? `<div class="note">Снять блокировщика может DBA:
+      ${d.blocked.map(b => `<code>ALTER SYSTEM KILL SESSION '${b.blocking_session},…'</code>`).join(" ")} — панель сама сессии не убивает.</div>` : ""}
+  `).join("");
+  document.getElementById("dl-when").textContent = "снято только что";
+}
+
+async function loadDbload(){
+  const btn = document.getElementById("dl-refresh");
+  btn.disabled = true; document.getElementById("dl-when").textContent = "снимаю, около 12 секунд…";
+  try { DL = await get("/dbload"); renderDbload(); }
+  catch (e) { document.getElementById("dl-when").innerHTML = `<span class="crit">Не удалось: ${esc(e.message)}</span>`; }
+  finally { btn.disabled = false; }
+}
+
+// ---------------------------------------------------------- наблюдение
+let OB = {state: null, series: null, timer: null};
+const OB_COLORS = ["#58a6ff", "#3fb950", "#d29922", "#f85149", "#bc8cff", "#39c5cf", "#db6d28"];
+
+function obCharts(){
+  const s = OB.series; if (!s) return [];
+  const h = s.host, out = [];
+  out.push({title: "Процессор сервера", unit: "%", max: 100, stacked: true, t: h.t,
+            lines: [["пользователь", h.cpu_user], ["система", h.cpu_system], ["ожидание диска", h.cpu_iowait]]});
+  out.push({title: "Нагрузка (load average)", unit: "", t: h.t, ref: 16, refLabel: "16 ядер",
+            lines: [["среднее", h.load1], ["пик", h.load1_max]]});
+  out.push({title: "Память сервера", unit: "%", max: 100, t: h.t, lines: [["занято", h.mem_used_pct]]});
+  out.push({title: "Сеть сервера", unit: " КБ/с", t: h.t, lines: [["приём", h.net_rx_kbs], ["отдача", h.net_tx_kbs]]});
+  const devs = Object.keys(s.disks);
+  if (devs.length) {
+    out.push({title: "Загрузка дисков", unit: "%", max: 100, t: s.disks[devs[0]].t,
+              lines: devs.map(d => [d + (d === "sdb" ? " (/db)" : ""), s.disks[d].util_pct])});
+    out.push({title: "Диск sdb — файлы данных Oracle", unit: " МБ/с", t: (s.disks.sdb || s.disks[devs[0]]).t,
+              lines: [["чтение", (s.disks.sdb || {}).read_mb_s || []], ["запись", (s.disks.sdb || {}).write_mb_s || []]]});
+  }
+  for (const [db, d] of Object.entries(s.dbs)) {
+    out.push({title: `${db}: сессии`, unit: "", t: d.t, click: true,
+              lines: [["работают", d.active], ["на процессоре", d.on_cpu], ["ждут блокировку", d.blocked]]});
+    out.push({title: `${db}: процессор базы`, unit: "%", t: d.t, lines: [["доля всех ядер", d.db_cpu_pct]]});
+    if (db === "cloudbd") {
+      out.push({title: `${db}: чтения с диска`, unit: "/с", t: d.t, lines: [["блоков", d.phys_reads_s]]});
+      out.push({title: `${db}: логические чтения`, unit: "/с", t: d.t, lines: [["блоков", d.logical_reads_s]]});
+      out.push({title: `${db}: выполнения и фиксации`, unit: "/с", t: d.t,
+                lines: [["выполнений", d.executions_s], ["фиксаций", d.commits_s]]});
+      out.push({title: `${db}: самый долгий запрос`, unit: " с", t: d.t, ref: 300, refLabel: "5 мин",
+                lines: [["секунд", d.longest_call]]});
+    }
+  }
+  return out;
+}
+
+function fmtNum(v){
+  if (v == null) return "—";
+  return Math.abs(v) >= 10000 ? (v / 1000).toFixed(0) + "k" : Math.abs(v) >= 100 ? Math.round(v) : (+v).toFixed(1);
+}
+
+function drawChart(cv, c){
+  const dpr = window.devicePixelRatio || 1, W = cv.clientWidth, H = 150;
+  cv.width = W * dpr; cv.height = H * dpr; cv.style.height = H + "px";
+  const g = cv.getContext("2d"); g.scale(dpr, dpr);
+  const css = getComputedStyle(document.documentElement);
+  const line = css.getPropertyValue("--line").trim() || "#30363d", dim = css.getPropertyValue("--dim").trim() || "#8b949e";
+  const pl = 44, pr = 8, pt = 8, pb = 18, w = W - pl - pr, h = H - pt - pb;
+  const n = c.t.length;
+  let max = c.max;
+  if (!max) {
+    let m = c.ref || 0;
+    c.lines.forEach(([, d]) => d.forEach((v, i) => {
+      const sv = c.stacked ? c.lines.reduce((a, [, dd]) => a + (dd[i] || 0), 0) : v;
+      if (sv > m) m = sv; }));
+    max = m > 0 ? m * 1.15 : 1;
+  }
+  g.font = "10px -apple-system, sans-serif"; g.fillStyle = dim; g.strokeStyle = line; g.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = pt + h - h * i / 4;
+    g.globalAlpha = .5; g.beginPath(); g.moveTo(pl, y); g.lineTo(pl + w, y); g.stroke(); g.globalAlpha = 1;
+    g.fillText(fmtNum(max * i / 4), 2, y + 3);
+  }
+  if (n) {
+    const t0 = c.t[0], t1 = c.t[n - 1], span = Math.max(t1 - t0, 1);
+    const X = i => pl + (n === 1 ? w : (c.t[i] - t0) / span * w);
+    const Y = v => pt + h - Math.min(v, max) / max * h;
+    g.fillText(new Date(t0 * 1000).toLocaleTimeString().slice(0, 5), pl, H - 4);
+    g.fillText(new Date(t1 * 1000).toLocaleTimeString().slice(0, 5), pl + w - 28, H - 4);
+    let base = new Array(n).fill(0);
+    c.lines.forEach(([, d], li) => {
+      const col = OB_COLORS[li % OB_COLORS.length];
+      const top = d.map((v, i) => (c.stacked ? base[i] : 0) + (v || 0));
+      g.beginPath();
+      top.forEach((v, i) => i ? g.lineTo(X(i), Y(v)) : g.moveTo(X(i), Y(v)));
+      g.strokeStyle = col; g.lineWidth = 1.5; g.stroke();
+      if (c.stacked || li === 0) {
+        for (let i = n - 1; i >= 0; i--) g.lineTo(X(i), Y(c.stacked ? base[i] : 0));
+        g.closePath(); g.fillStyle = col; g.globalAlpha = .18; g.fill(); g.globalAlpha = 1;
+      }
+      if (c.stacked) base = top;
+    });
+    if (c.ref && c.ref <= max) {
+      g.setLineDash([4, 4]); g.strokeStyle = "#f85149"; g.beginPath();
+      g.moveTo(pl, Y(c.ref)); g.lineTo(pl + w, Y(c.ref)); g.stroke(); g.setLineDash([]);
+      g.fillStyle = "#f85149"; g.fillText(c.refLabel || "", pl + w - 50, Y(c.ref) - 3);
+    }
+    cv._map = {t: c.t, pl, w, t0, span};
+  }
+}
+
+function renderObserveCharts(){
+  const box = document.getElementById("ob-charts");
+  const charts = obCharts();
+  box.innerHTML = charts.map((c, i) => {
+    const last = c.lines.map(([name, d], li) => `<span style="color:${OB_COLORS[li % OB_COLORS.length]}">
+      ${esc(name)} <b>${fmtNum(d[d.length - 1])}${esc(c.unit)}</b></span>`).join(" &nbsp; ");
+    return `<div class="card" style="padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;gap:8px;font-size:13px;flex-wrap:wrap">
+        <b>${esc(c.title)}</b><span style="font-size:12px">${last}</span></div>
+      <canvas id="obc-${i}" style="width:100%;margin-top:6px;cursor:${c.click ? "pointer" : "crosshair"}"></canvas></div>`;
+  }).join("") || `<div class="dim">замеров пока нет — первый появится через один интервал</div>`;
+  charts.forEach((c, i) => {
+    const cv = document.getElementById("obc-" + i);
+    drawChart(cv, c);
+    cv.onclick = e => {
+      const m = cv._map; if (!m) return;
+      const x = e.offsetX - m.pl; if (x < 0) return;
+      obSessionsAt(m.t0 + x / m.w * m.span);
+    };
+  });
+  const s = OB.series;
+  document.getElementById("ob-meta").textContent = s.host.t.length
+    ? `${s.host.t.length} точек${s.bucket_sec > 1.5 ? `, каждая — ${Math.round(s.bucket_sec)} с (сессии и блокировки — по максимуму)` : ""}. Щелчок по графику — кто работал в тот момент.`
+    : "";
+}
+
+async function obSessionsAt(ts){
+  const box = document.getElementById("ob-at");
+  try {
+    const rows = await get(`/observe/sessions?ts=${ts}`);
+    const when = rows.length ? new Date(rows[0].ts * 1000).toLocaleTimeString() : new Date(ts * 1000).toLocaleTimeString();
+    box.innerHTML = `<h3 style="margin:0 0 6px;font-size:14px">Работали в ${esc(when)}</h3>
+      <div class="tbl-wrap"><table><thead><tr><th>База</th><th>Сессия</th><th>Схема</th><th>Откуда</th>
+        <th>Запрос идёт</th><th>Чем занята</th><th>SQL</th><th>Блокирует</th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td>${esc(r.db)}</td><td><code>${r.sid},${r.serial}</code></td><td><b>${esc(r.username)}</b></td>
+        <td class="dim" style="font-size:12px">${esc(r.machine)}<br>${esc(r.program)}</td><td>${fmtSec(r.call_seconds)}</td>
+        <td style="font-size:12px">${r.on_cpu ? `<span class="badge b-ok">на процессоре</span>` : esc(r.event)}</td>
+        <td><code>${esc(r.sql_id || "—")}</code></td>
+        <td>${r.blocking_session ? `<span class="badge b-no">ждёт ${r.blocking_session}</span>` : ""}</td></tr>`).join("")
+        || `<tr><td colspan="8" class="dim">в этот момент никто не работал</td></tr>`}</tbody></table></div>`;
+  } catch (e) { box.innerHTML = `<span class="crit">${esc(e.message)}</span>`; }
+}
+
+function renderObserveState(){
+  const st = OB.state; if (!st) return;
+  const btn = document.getElementById("ob-toggle");
+  btn.textContent = st.alive ? "Остановить наблюдение" : "Серьёзное наблюдение";
+  btn.className = st.alive ? "" : "primary";
+  const age = st.heartbeat_age != null ? `последний замер ${Math.round(st.heartbeat_age)} с назад` : "";
+  document.getElementById("ob-state").innerHTML = st.alive
+    ? `<span class="ok">● идёт</span> с ${new Date(st.started_at * 1000).toLocaleTimeString()},
+       замеров ${st.samples}, ${age}, процесс ${st.pid}` 
+    : `<span class="dim">○ выключено</span>${st.store.samples ? ` · в кэше ${st.store.samples} замеров, ${st.store.size_mb} МБ` : ""}`;
+  if (st.last_error) document.getElementById("ob-state").innerHTML += `<div class="${st.alive ? "warn" : "dim"}" style="font-size:12px">${esc(st.last_error)}</div>`;
+  const cfg = st.settings;
+  for (const [id, k] of [["ob-interval", "interval_sec"], ["ob-hours", "max_hours"], ["ob-days", "retention_days"]]) {
+    const el = document.getElementById(id);
+    if (document.activeElement !== el) el.value = cfg[k];
+  }
+  document.getElementById("ob-path").textContent = st.store.path;
+  document.getElementById("ob-charts-wrap").style.display = st.store.samples ? "" : "none";
+}
+
+async function obRefresh(){
+  try {
+    const minutes = document.getElementById("ob-window").value;
+    OB.series = await get(`/observe/series?minutes=${minutes}`);
+    OB.state = OB.series.state;
+    renderObserveState();
+    if (OB.state.store.samples) renderObserveCharts();
+  } catch (e) { document.getElementById("ob-state").innerHTML = `<span class="crit">${esc(e.message)}</span>`; }
+  obSchedule();
+}
+
+function obSchedule(){
+  clearTimeout(OB.timer);
+  const tabOn = document.getElementById("p-dbload").classList.contains("on");
+  if (!tabOn || document.hidden) return;              // невидимую вкладку не дёргаем
+  const iv = OB.state ? OB.state.settings.interval_sec : 30;
+  OB.timer = setTimeout(obRefresh, (OB.state && OB.state.alive ? Math.max(iv, 3) : 30) * 1000);
+}
+
+async function obToggle(){
+  const btn = document.getElementById("ob-toggle"); btn.disabled = true;
+  try {
+    OB.state = await post(OB.state && OB.state.alive ? "/observe/stop" : "/observe/start");
+    renderObserveState();
+    setTimeout(obRefresh, 2500);
+  } catch (e) { alert("Не удалось: " + e.message); }
+  finally { btn.disabled = false; }
+}
+
+async function obSave(){
+  try {
+    const cfg = await post("/observe/settings", {
+      interval_sec: +document.getElementById("ob-interval").value,
+      max_hours: +document.getElementById("ob-hours").value,
+      retention_days: +document.getElementById("ob-days").value});
+    document.getElementById("ob-saved").innerHTML = `<span class="ok">сохранено: каждые ${cfg.interval_sec} с</span>`;
+    if (OB.state) OB.state.settings = cfg;
+    obSchedule();
+  } catch (e) { document.getElementById("ob-saved").innerHTML = `<span class="crit">${esc(e.message)}</span>`; }
+}
+
+let ST = null;
+
+function renderStorage(){
+  if (!ST) return;
+  const s = ST.summary;
+  document.getElementById("st-tiles").innerHTML =
+    tile(s.redundancy ? "есть" : "НЕТ", "избыточность дисков", s.redundancy ? "ok" : "crit") +
+    tile(`${s.volumes_ok}/${s.volumes}`, "томов в норме", s.volumes_ok === s.volumes ? "ok" : "crit") +
+    tile(`${s.disks_ok}/${s.disks}`, "дисков в строю", s.disks_ok === s.disks ? "ok" : "crit") +
+    tile(s.bbu, "батарея кэша", s.bbu === "Optimal" ? "ok" : "warn") +
+    tile(s.temp_max ? s.temp_max + " °C" : "—", "самый горячий диск",
+         s.temp_max >= 55 ? "crit" : s.temp_max >= 45 ? "warn" : "ok") +
+    tile(s.fullest + " %", "самый полный раздел",
+         s.fullest >= 92 ? "crit" : s.fullest >= 85 ? "warn" : "ok");
+
+  const c = ST.controller;
+  document.getElementById("st-note").innerHTML = `
+    <div class="card"><div class="row">
+      <div>Сервер<b>${esc(ST.host_name)}</b></div>
+      <div>Контроллер<b>${esc(c.product || "—")}</b></div>
+      <div>Кэш<b>${esc(c.memory || "—")}</b></div>
+      <div>Температура контроллера<b>${c.roc_temp ? c.roc_temp + " °C" : "—"}</b></div>
+    </div>
+    <div class="note">Система видит только тома контроллера, поэтому
+      <code>smartctl /dev/sda</code> отвечает «OK» даже при сдохшем диске в зеркале,
+      а <code>/proc/mdstat</code> пуст. Данные на этой вкладке сняты с самого
+      контроллера через <code>MegaCli64</code>. Имена <code>/mnt/md3</code> и
+      <code>/mnt/md4</code> — исторические, программных массивов за ними нет.</div></div>`;
+
+  const f = ST.findings;
+  document.getElementById("st-findings").innerHTML = f.length
+    ? f.map(x => `<div class="card" style="margin-bottom:8px;border-left:3px solid
+        var(--${x.level === "crit" ? "crit" : "warn"})">
+        <h3><span class="${x.level === "crit" ? "crit" : "warn"}">
+          ${x.level === "crit" ? "Опасно" : "Внимание"}</span> ${esc(x.title)}</h3>
+        <div style="font-size:13px;margin-top:5px">${esc(x.text)}</div>
+        <div class="note" style="margin-top:6px">источник: ${esc(x.ref)}</div></div>`).join("")
+    : `<div class="card"><span class="ok">Замечаний нет.</span>
+        <div class="note">Все тома целы, диски в строю, места хватает.</div></div>`;
+
+  document.querySelector("#st-vols tbody").innerHTML = ST.volumes.map(v => `<tr>
+      <td><b>VD${v.id}</b>${v.name ? ` <span class="dim">${esc(v.name)}</span>` : ""}</td>
+      <td>${esc(v.level)}</td><td>${esc(v.size)}</td>
+      <td>${v.ok ? `<span class="badge b-ok">${esc(v.state)}</span>`
+                 : `<span class="badge b-no">${esc(v.state)}</span>`}</td>
+      <td>${v.drives}</td><td class="dim">${esc(v.cache || "—")}</td></tr>`).join("")
+    || `<tr><td colspan="6" class="dim">контроллер не ответил</td></tr>`;
+
+  document.querySelector("#st-disks tbody").innerHTML = ST.physical.map(d => `<tr>
+      <td><b>${d.slot}</b></td><td>${esc(d.size)}</td>
+      <td>${d.ok ? `<span class="badge b-ok">${esc(d.state)}</span>`
+                 : `<span class="badge b-no">${esc(d.state)}</span>`}</td>
+      <td class="${d.temp >= 55 ? "crit" : d.temp >= 45 ? "warn" : ""}">${d.temp ? d.temp + " °C" : "—"}</td>
+      <td class="${d.media_errors ? "warn" : "dim"}">${d.media_errors}</td>
+      <td class="${d.predictive ? "crit" : "dim"}">${d.predictive}</td>
+      <td class="dim">${esc(d.model)}</td></tr>`).join("")
+    || `<tr><td colspan="7" class="dim">контроллер не ответил</td></tr>`;
+
+  document.querySelector("#st-mounts tbody").innerHTML = ST.mounts.map(m => `<tr>
+      <td><code>${esc(m.mount)}</code></td>
+      <td class="${m.level === "crit" ? "crit" : m.level === "warn" ? "warn" : ""}">
+        ${m.used_gb} ГБ (${m.percent} %)</td>
+      <td>${m.free_gb} ГБ</td><td class="dim">${m.total_gb} ГБ</td>
+      <td class="dim">${esc(m.what)}</td></tr>`).join("");
+}
+
+async function loadAll(){
+  const o = await get("/overview");
+  renderDash(o);
+  renderChannels(o.channels, o.alerts.by_day);
+  DEV = await get("/devices");            renderDevices();
+  FEED = await get("/alerts?limit=400");  renderFeed();
+  try { PVE = await get("/pve"); renderPve(); } catch (e) { console.warn("proxmox:", e.message); }
+  try { ZBX = await get("/zabbix"); renderZabbix(); } catch (e) { console.warn("zabbix:", e.message); }
+  try { AS = await get("/assets"); renderAssets(); } catch (e) { console.warn("assets:", e.message); }
+  try { VAULT = await get("/vault"); renderVault(); } catch (e) { console.warn("vault:", e.message); }
+  try { FAC = await get("/facilities"); renderFac(); } catch (e) { console.warn("facilities:", e.message); }
+  try { PLUGS = await get("/plugs"); renderPlugs(); } catch (e) { console.warn("plugs:", e.message); }
+  try { VPN = await get("/vpn"); renderVpn(); } catch (e) { console.warn("vpn:", e.message); }
+  loadShares();
+  try { MT = await get("/mikrotik"); renderMikrotik(); } catch (e) { console.warn("mikrotik:", e.message); }
+  try { FS = await get("/fs"); renderFs(); } catch (e) { console.warn("fs:", e.message); }
+  try { ST = await get("/storage"); renderStorage(); } catch (e) { console.warn("storage:", e.message); }
+}
+
+document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
+  e.preventDefault();
+  document.querySelectorAll("nav a").forEach(x => x.classList.remove("on"));
+  document.querySelectorAll(".panel").forEach(x => x.classList.remove("on"));
+  a.classList.add("on");
+  document.getElementById("p-" + a.dataset.p).classList.add("on");
+  if (a.dataset.p === "dbload" && !DL) loadDbload();
+  if (a.dataset.p === "dbload") obRefresh(); else clearTimeout(OB.timer);
+  if (a.dataset.p === "otrs" && window.loadOtrsBoard) window.loadOtrsBoard();
+  if (a.dataset.p === "search" && window.loadSearchPanel) window.loadSearchPanel();
+});
+["f-kind","f-missing","f-find"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderDevices));
+["f-chan","f-sev","f-msg"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderFeed));
+["f-zbx","f-zbx-bad"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderZabbix));
+["f-pve","f-pve-dec","f-pve-st","f-pve-risk"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderPve));
+["f-fac","f-fac-kind"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderFac));
+["vpn-find","vpn-revoked"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderVpn));
+document.getElementById("vpn-add").onclick = addVpnClient;
+["mt-find","mt-off","mt-svc"].forEach(id =>
+  document.getElementById(id).addEventListener("input", renderMikrotikUsers));
+document.getElementById("mt-add").onclick = mtCreate;
+document.getElementById("fs-add").onclick = fsAdd;
+document.getElementById("dl-refresh").onclick = loadDbload;
+document.getElementById("ob-toggle").onclick = obToggle;
+document.getElementById("ob-save").onclick = obSave;
+document.getElementById("ob-window").onchange = obRefresh;
+document.addEventListener("visibilitychange", () => { if (!document.hidden) obRefresh(); });
+window.addEventListener("resize", () => { if (OB.series && OB.state && OB.state.store.samples) renderObserveCharts(); });
+
+async function withBusy(btn, fn){
+  const old = btn.textContent; btn.disabled = true; btn.textContent = "…";
+  try { await fn(); await loadAll(); }
+  catch (e) { alert("Ошибка: " + e.message); }
+  finally { btn.disabled = false; btn.textContent = old; }
+}
+document.getElementById("btn-reload").onclick = e => withBusy(e.target, async () => {});
+document.getElementById("btn-sync-tg").onclick = e => withBusy(e.target, async () => {
+  await post("/sync/channels"); await post("/sync/alerts"); });
+document.getElementById("btn-sync-dev").onclick = e => withBusy(e.target, () => post("/sync/devices"));
+document.getElementById("btn-sync-pve").onclick = e => withBusy(e.target, () => post("/sync/pve"));
+document.getElementById("btn-sync-as").onclick = e => withBusy(e.target, () => post("/sync/assets"));
+
+loadAll().catch(e => document.getElementById("hdr").textContent = "Ошибка: " + e.message);
+</script>
+<div id="modal" style="display:none;position:fixed;inset:0;background:#000a;z-index:50;
+     padding:20px;overflow:auto" onclick="if(event.target===this)this.style.display='none'">
+  <div style="max-width:820px;margin:20px auto;background:var(--panel);border:1px solid var(--line);
+       border-radius:12px;padding:20px" id="modal-body"></div>
+</div>
+</body>
+</html>

@@ -1,0 +1,20 @@
+{
+  "title": {
+    "ru": "Мониторинг офиса: сеть и Telegram",
+    "ro": "Мониторинг офиса: сеть и Telegram",
+    "en": "Мониторинг офиса: сеть и Telegram"
+  },
+  "icon": "📡",
+  "order": 200,
+  "url": "/UNA.md/orasldev/netmon",
+  "sql_prefix": "NMON_",
+  "descr": "Модуль Мониторинг офиса: сеть и Telegram",
+  "docs": "Netmon",
+  "pages": {
+    "netmon": {
+      "ru": "Мониторинг офиса: сеть и Telegram",
+      "ro": "Мониторинг офиса: сеть и Telegram",
+      "en": "Мониторинг офиса: сеть и Telegram"
+    }
+  }
+}

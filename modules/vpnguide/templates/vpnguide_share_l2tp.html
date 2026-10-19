@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<title>VPN — {{ client_name }}</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#fff; --line:#dfe3e8; --txt:#1c2128; --dim:#5b6573;
+    --acc:#0a66c2; --ok:#1a7f37; --warn:#9a6700; --crit:#cf222e; --code:#eef1f4;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0d1117; --panel:#161b22; --line:#30363d; --txt:#e6edf3; --dim:#8b949e;
+      --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --crit:#f85149; --code:#1f252d;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1117; --panel:#161b22; --line:#30363d; --txt:#e6edf3; --dim:#8b949e;
+    --acc:#58a6ff; --ok:#3fb950; --warn:#d29922; --crit:#f85149; --code:#1f252d;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);
+       font:15px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  main{max-width:820px;margin:0 auto;padding:20px 16px 60px}
+  header{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+  h1{font-size:23px;margin:0 0 4px} h2{font-size:17px;margin:0 0 8px}
+  .who{color:var(--dim);margin:0}
+  .langs{display:flex;gap:4px}
+  .langs button{border:1px solid var(--line);background:var(--panel);color:var(--txt);
+    padding:5px 11px;border-radius:16px;cursor:pointer;font:inherit;font-size:13px;text-transform:uppercase}
+  .langs button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+  .card.warn{border-left:4px solid var(--warn)} .card.crit{border-left:4px solid var(--crit)}
+  .dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:8px;margin-top:8px}
+  .dl a{display:block;padding:10px 12px;border:1px solid var(--line);border-radius:9px;
+        text-decoration:none;color:var(--txt);background:var(--bg)}
+  .dl a:hover{border-color:var(--acc)}
+  .btn{display:inline-block;background:var(--acc);color:#fff;text-decoration:none;
+       padding:11px 18px;border-radius:9px;font-weight:600;border:0;cursor:pointer;font:inherit}
+  ol,ul{padding-left:22px;margin:6px 0} li{margin:5px 0}
+  pre{background:var(--code);padding:12px 14px;border-radius:8px;overflow:auto;max-height:340px;
+      font:12px/1.45 ui-monospace,SFMono-Regular,Menlo,monospace;margin:8px 0;white-space:pre}
+  code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;word-break:break-all}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .dim{color:var(--dim);font-size:13px}
+  [data-l]{display:none} [data-l].on{display:block} span[data-l].on{display:inline}
+  table.cfg{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+  table.cfg td{border-bottom:1px solid var(--line);padding:8px 6px;vertical-align:middle}
+  table.cfg td:first-child{color:var(--dim);width:44%}
+  table.cfg code{font-size:13px}
+  .mini{border:1px solid var(--line);background:var(--bg);color:var(--txt);border-radius:6px;
+        padding:2px 8px;font-size:12px;cursor:pointer;margin-left:6px}
+</style>
+</head>
+<body>
+<main>
+<header>
+  <div>
+    {% for lg in langs %}<h1 data-l="{{ lg }}">{{ t('l2tp_title', lg) }}</h1>{% endfor %}
+    <p class="who">{% for lg in langs %}<span data-l="{{ lg }}">{{ t('for', lg) }}</span>{% endfor %}
+      <b>{{ client_name }}</b></p>
+  </div>
+  <div class="langs">
+    {% for lg in langs %}<button data-lang="{{ lg }}">{{ lg }}</button>{% endfor %}
+  </div>
+</header>
+
+<div class="card warn">
+  {% for lg in langs %}<div data-l="{{ lg }}">{{ t('expires', lg, at=expires_local, left=minutes_left) }}</div>{% endfor %}
+</div>
+
+<div class="card">
+  {% for lg in langs %}<p data-l="{{ lg }}" style="margin:0 0 12px">{{ t('l2tp_lead', lg) }}</p>{% endfor %}
+  {% for lg in langs %}<h2 data-l="{{ lg }}">{{ t('l2tp_auto', lg) }}</h2>{% endfor %}
+
+  <div class="dl">
+    <a href="{{ ps1_url }}" download="office-vpn.ps1">🪟 {% for lg in langs %}<span data-l="{{ lg }}">{{ t('l2tp_win_btn', lg) }}</span>{% endfor %}</a>
+    <a href="{{ apple_url }}">🍎 {% for lg in langs %}<span data-l="{{ lg }}">{{ t('l2tp_apple_btn', lg) }}</span>{% endfor %}</a>
+  </div>
+  {% for lg in langs %}<p data-l="{{ lg }}" class="dim" style="margin:10px 0 4px">🪟 {{ t('l2tp_win_how', lg) }}</p>{% endfor %}
+  <pre style="max-height:none">powershell -ExecutionPolicy Bypass -File office-vpn.ps1</pre>
+  {% for lg in langs %}<p data-l="{{ lg }}" class="dim" style="margin:10px 0 4px">🍎 {{ t('l2tp_apple_how', lg) }}</p>{% endfor %}
+  {% for lg in langs %}<p data-l="{{ lg }}" class="dim" style="margin:10px 0 0">🤖 {{ t('l2tp_android', lg) }}</p>{% endfor %}
+</div>
+
+<div class="card">
+  {% for lg in langs %}<h2 data-l="{{ lg }}">{{ t('l2tp_manual', lg) }}</h2>{% endfor %}
+  {% for lg in langs %}<div data-l="{{ lg }}">{{ t('l2tp_manual_text', lg) }}</div>{% endfor %}
+  <table class="cfg">
+    {% for key, label in [('server','f_server'),('username','f_user'),('password','f_password'),('psk','f_psk')] %}
+    <tr><td>{% for lg in langs %}<span data-l="{{ lg }}">{{ t(label, lg) }}</span>{% endfor %}</td>
+        <td><code id="v-{{ key }}">{{ cfg[key] }}</code><button class="mini" data-copy="v-{{ key }}">📋</button></td></tr>
+    {% endfor %}
+    <tr><td>{% for lg in langs %}<span data-l="{{ lg }}">{{ t('f_auth', lg) }}</span>{% endfor %}</td>
+        <td><code>MS-CHAP v2</code></td></tr>
+  </table>
+  <div class="dim" style="margin-top:10px">{% for lg in langs %}<span data-l="{{ lg }}">{{ t('l2tp_ai', lg) }}</span>{% endfor %}
+    <a href="{{ md_url }}">instructions.md</a></div>
+</div>
+
+<div class="card crit">
+  {% for lg in langs %}<h2 data-l="{{ lg }}">{{ t('rules', lg) }}</h2>{% endfor %}
+  {% for lg in langs %}<ul data-l="{{ lg }}">{% for s in t('rules_list', lg) %}<li>{{ s }}</li>{% endfor %}</ul>{% endfor %}
+</div>
+</main>
+
+{# Машиночитаемые настройки для ИИ-агента. #}
+<script type="application/json" id="vpn-data">{{ {"type": "L2TP/IPsec PSK", "authentication": "MS-CHAPv2", "server": cfg.server, "username": cfg.username, "password": cfg.password, "psk": cfg.psk, "windows_script": ps1_url, "apple_profile": apple_url} | tojson }}</script>
+<script>
+function setLang(lg){
+  document.documentElement.lang = lg;
+  document.querySelectorAll("[data-l]").forEach(e => e.classList.toggle("on", e.dataset.l === lg));
+  document.querySelectorAll(".langs button").forEach(b => b.classList.toggle("on", b.dataset.lang === lg));
+  try { localStorage.setItem("vpnguide-lang", lg); } catch (e) {}
+}
+document.querySelectorAll(".langs button").forEach(b => b.onclick = () => setLang(b.dataset.lang));
+(function(){
+  let lg = null;
+  try { lg = localStorage.getItem("vpnguide-lang"); } catch (e) {}
+  setLang(new URLSearchParams(location.search).get("lang") || lg || "{{ lang }}");
+})();
+document.querySelectorAll("[data-copy]").forEach(b => b.onclick = async () => {
+  const v = document.getElementById(b.dataset.copy).textContent;
+  try { await navigator.clipboard.writeText(v); } catch (e) {}
+  b.textContent = "✓";
+});
+</script>
+</body>
+</html>

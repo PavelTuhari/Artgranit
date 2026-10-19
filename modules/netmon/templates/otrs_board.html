@@ -1,0 +1,229 @@
+{# Доска заявок OTRS в стиле Asana — вкладка панели мониторинга.
+   Решение владельца 11.10.2026: все интерфейсы, связанные с OTRS, — в стиле
+   Asana. Стили ограничены классом .asana, чтобы не задеть остальную панель.
+   Данные — /api/otrs (modules/netmon/otrs_board.py), только чтение. #}
+<style>
+  .asana{
+    --a-bg:#f6f8f9; --a-card:#ffffff; --a-line:#edeae9; --a-line2:#e0e0e0; --a-txt:#1e1f21;
+    --a-dim:#6d6e6f; --a-hover:#f9f8f8; --a-accent:#f06a6a; --a-blue:#4573d2; --a-green:#5da283;
+    --a-yellow:#f1bd6c; --a-shadow:0 1px 3px rgba(21,27,38,.08);
+    background:var(--a-bg); color:var(--a-txt); border-radius:12px; padding:20px 22px 28px;
+    font:14px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    .asana{ --a-bg:#1e1f21; --a-card:#2a2b2d; --a-line:#3a3b3d; --a-line2:#424244; --a-txt:#f5f4f3;
+            --a-dim:#a2a0a2; --a-hover:#303133; --a-shadow:none; }
+  }
+  .asana a{color:inherit;text-decoration:none}
+  .asana .a-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+  .asana .a-icon{width:36px;height:36px;border-radius:9px;background:var(--a-accent);display:flex;
+    align-items:center;justify-content:center;color:#fff;font-size:18px;flex:none}
+  .asana h2{font-size:20px;font-weight:600;margin:0}
+  .asana .a-sub{color:var(--a-dim);font-size:13px}
+  .asana .a-tabs{display:flex;gap:18px;border-bottom:1px solid var(--a-line);margin:14px 0 16px}
+  .asana .a-tabs button{background:none;border:0;padding:8px 0;color:var(--a-dim);font:inherit;
+    cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px}
+  .asana .a-tabs button.on{color:var(--a-txt);border-bottom-color:var(--a-txt);font-weight:500}
+  .asana .a-tools{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .asana .a-btn{background:var(--a-card);border:1px solid var(--a-line2);color:var(--a-txt);border-radius:6px;
+    padding:6px 12px;font:inherit;font-size:13px;cursor:pointer}
+  .asana .a-btn:hover{background:var(--a-hover)}
+  .asana .a-btn.primary{background:var(--a-blue);border-color:var(--a-blue);color:#fff}
+  .asana .a-stats{display:flex;gap:10px;flex-wrap:wrap;margin:4px 0 16px}
+  .asana .a-stat{background:var(--a-card);border:1px solid var(--a-line);border-radius:10px;padding:10px 14px;
+    min-width:150px;box-shadow:var(--a-shadow)}
+  .asana .a-stat b{display:block;font-size:22px;font-weight:600}
+  .asana .a-stat span{color:var(--a-dim);font-size:12px}
+  /* список */
+  .asana .a-section{margin-bottom:18px}
+  .asana .a-sechead{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px;cursor:pointer;
+    padding:6px 2px;user-select:none}
+  .asana .a-sechead .a-caret{transition:transform .15s;color:var(--a-dim);font-size:11px}
+  .asana .a-section.closed .a-caret{transform:rotate(-90deg)}
+  .asana .a-section.closed .a-rows{display:none}
+  .asana .a-count{color:var(--a-dim);font-weight:400;font-size:13px}
+  .asana .a-hint{color:var(--a-dim);font-weight:400;font-size:12px;margin-left:4px}
+  .asana .a-rows{background:var(--a-card);border:1px solid var(--a-line);border-radius:8px;overflow:hidden}
+  .asana .a-colhead,.asana .a-row{display:grid;grid-template-columns:minmax(260px,1fr) 170px 150px 150px 110px;
+    align-items:center;gap:10px;padding:0 14px}
+  .asana .a-colhead{color:var(--a-dim);font-size:12px;height:32px;border-bottom:1px solid var(--a-line)}
+  .asana .a-row{min-height:46px;border-bottom:1px solid var(--a-line);cursor:pointer}
+  .asana .a-row:last-child{border-bottom:0}
+  .asana .a-row:hover{background:var(--a-hover)}
+  .asana .a-title{display:flex;gap:10px;align-items:flex-start;padding:9px 0;min-width:0}
+  .asana .a-check{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--a-dim);flex:none;margin-top:2px}
+  .asana .a-row:hover .a-check{border-color:var(--a-green)}
+  .asana .a-name{font-weight:400;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .asana .a-note{color:var(--a-dim);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
+  .asana .a-cell{color:var(--a-dim);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .asana .a-pill{display:inline-block;padding:2px 9px;border-radius:12px;font-size:12px;white-space:nowrap;
+    overflow:hidden;text-overflow:ellipsis;max-width:100%;vertical-align:middle}
+  .asana .a-user{display:flex;align-items:center;gap:6px;min-width:0}
+  .asana .a-ava{width:24px;height:24px;border-radius:50%;color:#fff;font-size:11px;font-weight:600;flex:none;
+    display:flex;align-items:center;justify-content:center}
+  .asana .a-due.late{color:var(--a-accent)}
+  .asana .a-empty{padding:14px;color:var(--a-dim);font-size:13px}
+  /* доска */
+  .asana .a-board{display:grid;grid-template-columns:repeat(3,minmax(260px,1fr));gap:14px;align-items:start}
+  .asana .a-col{background:transparent}
+  .asana .a-colname{font-weight:600;font-size:14px;padding:4px 2px 10px;display:flex;gap:6px;align-items:center}
+  .asana .a-card{background:var(--a-card);border:1px solid var(--a-line);border-radius:10px;padding:12px;
+    margin-bottom:10px;box-shadow:var(--a-shadow);cursor:pointer;display:block}
+  .asana .a-card:hover{border-color:var(--a-line2)}
+  .asana .a-card .a-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px}
+  @media (max-width:820px){
+    .asana .a-colhead{display:none}
+    .asana .a-row{grid-template-columns:1fr;padding:8px 14px;gap:4px}
+    .asana .a-board{grid-template-columns:1fr}
+  }
+</style>
+
+<div class="asana" id="otrs-board">
+  <div class="a-head">
+    <div class="a-icon">✓</div>
+    <div>
+      <h2>Мои заявки OTRS</h2>
+      <div class="a-sub" id="ob-sub">загружаю…</div>
+    </div>
+    <div class="a-tools">
+      <button class="a-btn" id="ob-reload">Обновить</button>
+      <a class="a-btn primary" href="https://otrs.una.md/otrs/index.pl" target="_blank" rel="noopener">Открыть OTRS</a>
+    </div>
+  </div>
+  <div class="a-tabs">
+    <button data-view="list" class="on">Список</button>
+    <button data-view="board">Доска</button>
+  </div>
+  <div class="a-stats" id="ob-stats"></div>
+  <div id="ob-view"></div>
+</div>
+
+<script>
+(function(){
+  // API и esc определяет основной скрипт панели НИЖЕ этой вставки — поэтому
+  // только лениво, внутри функций, а не при загрузке.
+  const apiOtrs = () => API + "/otrs";
+  const SECTIONS = [
+    {key: "review", title: "Требуют рассмотрения", color: "#4573d2",
+     hint: "клиент ждёт ответа, новые без исполнителя"},
+    {key: "to_close", title: "На закрытие", color: "#5da283",
+     hint: "исполнитель записал работу и вернул"},
+    {key: "returned", title: "Вернулись — не успели", color: "#f06a6a",
+     hint: "исполнитель вернул без записи работы"},
+  ];
+  const PALETTE = ["#f06a6a", "#4573d2", "#5da283", "#f1bd6c", "#aa62e3", "#4ecbc4", "#e8384f", "#fd9a00", "#8d84e8"];
+  let DATA = null, VIEW = "list", closed = {};
+  try { closed = JSON.parse(localStorage.getItem("otrs-closed") || "{}"); } catch (e) {}
+
+  const hash = s => [...String(s || "")].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7);
+  const color = s => PALETTE[hash(s) % PALETTE.length];
+  const initials = (name, login) => {
+    const p = String(name || login || "?").trim().split(/\s+/);
+    return ((p[0] || "")[0] || "") + ((p[1] || "")[0] || "");
+  };
+  const pill = (text) => text ? `<span class="a-pill" style="background:${color(text)}22;color:${color(text)}">${esc(text)}</span>` : "";
+  const ava = (login, name) => login ? `<span class="a-user"><span class="a-ava" style="background:${color(login)}"
+      title="${esc(name || login)}">${esc(initials(name, login).toUpperCase())}</span><span class="a-cell">${esc(name || login)}</span></span>` : `<span class="a-cell">—</span>`;
+  function ago(iso){
+    if (!iso) return "";
+    const d = Math.floor((Date.now() - new Date(iso)) / 86400000);
+    if (d <= 0) return "сегодня"; if (d === 1) return "вчера";
+    if (d < 7) return d + " дн назад"; if (d < 60) return Math.round(d / 7) + " нед назад";
+    return new Date(iso).toLocaleDateString("ru-RU", {day: "numeric", month: "short", year: d > 330 ? "numeric" : undefined});
+  }
+
+  function note(key, r){
+    if (key === "review") {
+      // тема письма клиента почти всегда повторяет название заявки — тогда она ничего не добавляет
+      const norm = s => String(s || "").replace(/^\s*((re|fwd?|aw|ответ)\s*:\s*)+/i, "").trim().toLowerCase();
+      const subj = r.last_customer_subject;
+      return subj && norm(subj) !== norm(r.title) ? "Клиент: " + subj : (r.reason_titles || []).join(" · ");
+    }
+    if (key === "to_close") return (r.work_comment || "").replace(/\s+/g, " ") || `${r.work_entries} записей работы`;
+    return r.held_days != null ? `была у исполнителя ${r.held_days} дн, работы не записано` : "работы не записано";
+  }
+  function who(key, r){
+    return key === "review" ? (r.owner_login && r.owner_login !== DATA.login ? ava(r.owner_login) : ava(DATA.login, "я"))
+                            : ava(r.executor_login, r.executor_name);
+  }
+  function when(key, r){
+    const iso = key === "review" ? (r.last_customer_at || r.created) : r.returned_at;
+    const late = key === "review" && r.last_customer_at && (Date.now() - new Date(r.last_customer_at)) > 3 * 86400000;
+    return `<span class="a-cell a-due ${late ? "late" : ""}">${esc(ago(iso))}</span>`;
+  }
+
+  function rowHtml(key, r){
+    return `<a class="a-row" href="${esc(r.url)}" target="_blank" rel="noopener" title="Открыть #${esc(r.tn)} в OTRS">
+      <div class="a-title"><span class="a-check"></span><div style="min-width:0">
+        <div class="a-name">${esc((r.title || "(без темы)").trim())}</div>
+        <div class="a-note">#${esc(r.tn)} · ${esc(note(key, r))}</div></div></div>
+      <div class="a-cell">${esc(r.customer_id || "—")}</div>
+      <div>${pill(r.queue)}</div>
+      <div>${who(key, r)}</div>
+      <div>${when(key, r)}</div></a>`;
+  }
+
+  function cardHtml(key, r){
+    return `<a class="a-card" href="${esc(r.url)}" target="_blank" rel="noopener">
+      <div class="a-name" style="white-space:normal">${esc((r.title || "(без темы)").trim())}</div>
+      <div class="a-note" style="white-space:normal">#${esc(r.tn)} · ${esc(r.customer_id || "")}</div>
+      <div class="a-note" style="white-space:normal;margin-top:6px">${esc(note(key, r))}</div>
+      <div class="a-foot">${pill(r.queue)}${when(key, r)}</div>
+      <div class="a-foot" style="margin-top:6px">${who(key, r)}</div></a>`;
+  }
+
+  function render(){
+    const box = document.getElementById("ob-view");
+    if (!DATA) return;
+    const c = DATA.counts;
+    document.getElementById("ob-stats").innerHTML = [
+      [c.review, "требуют рассмотрения"], [c.to_close, "на закрытие"], [c.returned, "вернулись — не успели"],
+      [c.open_mine, "всего открыто на мне"], [c.stale_mine, `без движения > ${DATA.windows.stale_days} дн`],
+      ...(c.stuck_new ? [[c.stuck_new, "зависших «new» старше " + DATA.windows.return_days + " дн"]] : []),
+    ].map(([n, l]) => `<div class="a-stat"><b>${n}</b><span>${esc(l)}</span></div>`).join("");
+    if (VIEW === "board") {
+      box.innerHTML = `<div class="a-board">${SECTIONS.map(s => `<div class="a-col">
+        <div class="a-colname"><span style="width:10px;height:10px;border-radius:3px;background:${s.color}"></span>
+          ${esc(s.title)} <span class="a-count">${DATA[s.key].length}</span></div>
+        ${DATA[s.key].map(r => cardHtml(s.key, r)).join("") || `<div class="a-empty">пусто</div>`}</div>`).join("")}</div>`;
+      return;
+    }
+    box.innerHTML = SECTIONS.map(s => `<div class="a-section ${closed[s.key] ? "closed" : ""}" data-key="${s.key}">
+      <div class="a-sechead"><span class="a-caret">▼</span>${esc(s.title)}
+        <span class="a-count">${DATA[s.key].length}</span><span class="a-hint">— ${esc(s.hint)}</span></div>
+      <div class="a-rows">
+        <div class="a-colhead"><div>Заявка</div><div>Клиент</div><div>Очередь</div>
+          <div>${s.key === "review" ? "Владелец" : "Исполнитель"}</div>
+          <div>${s.key === "review" ? "Клиент писал" : "Вернул"}</div></div>
+        ${DATA[s.key].map(r => rowHtml(s.key, r)).join("") || `<div class="a-empty">Пусто — здесь всё разобрано.</div>`}
+      </div></div>`).join("");
+    box.querySelectorAll(".a-sechead").forEach(h => h.onclick = () => {
+      const sec = h.parentElement, k = sec.dataset.key;
+      sec.classList.toggle("closed"); closed[k] = sec.classList.contains("closed");
+      try { localStorage.setItem("otrs-closed", JSON.stringify(closed)); } catch (e) {}
+    });
+  }
+
+  async function load(force){
+    const sub = document.getElementById("ob-sub");
+    sub.textContent = "загружаю из базы OTRS, около 10 секунд…";
+    try {
+      const r = await fetch(apiOtrs() + (force ? "?force=1" : ""), {headers: {Accept: "application/json"}});
+      const j = await r.json();
+      if (!j.success) throw new Error(j.message || "ошибка");
+      DATA = j.data;
+      sub.textContent = `${DATA.login} · снято ${DATA.checked_at}` +
+        (j.data.cached_sec ? ` (из кэша, ${j.data.cached_sec} с назад)` : "") +
+        ` · вернувшиеся за ${DATA.windows.return_days} дн, ответы клиентов за ${DATA.windows.review_days} дн`;
+      render();
+    } catch (e) { sub.innerHTML = `<span style="color:var(--a-accent)">Не удалось: ${esc(e.message)}</span>`; }
+  }
+
+  document.querySelectorAll("#otrs-board .a-tabs button").forEach(b => b.onclick = () => {
+    document.querySelectorAll("#otrs-board .a-tabs button").forEach(x => x.classList.toggle("on", x === b));
+    VIEW = b.dataset.view; render();
+  });
+  document.getElementById("ob-reload").onclick = () => load(true);
+  window.loadOtrsBoard = () => { if (!DATA) load(false); };
+})();
+</script>
