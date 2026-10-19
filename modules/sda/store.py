@@ -1,0 +1,950 @@
+"""SDA — хранилище модуля поверх таблиц SDA_* в облачной базе портала.
+
+Слой знает про SQL и ничего не знает про HTTP. Наружу отдаёт контракт
+портала: {"success": bool, "data": ..., "message": str}.
+
+Режим точки здесь не принимают на веру из формы: он всегда считается
+заново функцией sda_rules.classify_regime и сохраняется вместе с датой
+оценки. Иначе оператор однажды впишет «исключение» магазину в 300 м²,
+и это всплывёт при проверке, а не при вводе.
+"""
+from __future__ import annotations
+
+from datetime import date, datetime
+from typing import Any, Dict, List, Optional
+
+from models.database import DatabaseModel
+from modules.sda import rules as sda_rules
+
+
+def _rows(r: Dict[str, Any]) -> List[Dict[str, Any]]:
+    if not r.get("success") or not r.get("data"):
+        return []
+    cols = [c.lower() for c in r["columns"]]
+    return [dict(zip(cols, row)) for row in r["data"]]
+
+
+def _as_date(value):
+    """DATE из Oracle приходит как datetime — сравнивать с date нельзя.
+
+    Живой прогон уронил дашборд на `TypeError: can't compare datetime.datetime
+    to datetime.date`: в тестах даты подставлялись мокой как `date`, и разница
+    не проявлялась. Все колонки периодов здесь дневной точности, время в них
+    несёт ноль информации, поэтому приводим к `date` на границе слоя.
+    """
+    if isinstance(value, datetime):
+        return value.date()
+    return value
+
+
+def _fail(message: str) -> Dict[str, Any]:
+    return {"success": False, "data": None, "message": message}
+
+
+def _done(data: Any = None, message: str = "") -> Dict[str, Any]:
+    return {"success": True, "data": data, "message": message}
+
+
+class SDAStore:
+    """Все обращения к Oracle для модуля SDA."""
+
+    # ── участники ───────────────────────────────────────────────────
+
+    @staticmethod
+    def list_partic() -> Dict[str, Any]:
+        """Участники SDA. Без них единицу сети создать нельзя: PARTIC_ID
+        в SDA_UNIT — NOT NULL с внешним ключом сюда."""
+        with DatabaseModel() as db:
+            r = db.execute_query(
+                "SELECT PARTIC_ID, IDNO, DENUMIRE, DATA_INREG, NR_CONTRACT, "
+                "DATA_CONTRACT, CONTACT_NUME, CONTACT_TEL, CONTACT_EMAIL, "
+                "STARE, VANDUT_AN_ANT, ESTIMARE_AN FROM SDA_PARTIC "
+                "ORDER BY DENUMIRE")
+        if not r.get("success"):
+            return _fail(r.get("message") or "Eroare la citirea participantilor")
+        return _done(_rows(r))
+
+    @staticmethod
+    def save_partic(payload: Dict[str, Any], username: str) -> Dict[str, Any]:
+        def _num(key):
+            raw = payload.get(key)
+            return int(raw) if raw not in (None, "") else None
+
+        params = {
+            "partic_id": payload.get("partic_id"),
+            "idno": payload.get("idno"),
+            "denumire": payload.get("denumire"),
+            "nr_contract": payload.get("nr_contract") or None,
+            "contact_nume": payload.get("contact_nume") or None,
+            "contact_tel": payload.get("contact_tel") or None,
+            "contact_email": payload.get("contact_email") or None,
+            "stare": (payload.get("stare") or "ACTIV").upper(),
+            "vandut_an_ant": _num("vandut_an_ant"),
+            "estimare_an": _num("estimare_an"),
+        }
+
+        partic_id = payload.get("partic_id")
+        has_id = partic_id not in (None, "")
+
+        if has_id:
+            sql = ("UPDATE SDA_PARTIC SET IDNO = :idno, DENUMIRE = :denumire, "
+                   "NR_CONTRACT = :nr_contract, CONTACT_NUME = :contact_nume, "
+                   "CONTACT_TEL = :contact_tel, CONTACT_EMAIL = :contact_email, "
+                   "STARE = :stare, VANDUT_AN_ANT = :vandut_an_ant, "
+                   "ESTIMARE_AN = :estimare_an WHERE PARTIC_ID = :partic_id")
+        else:
+            params.pop("partic_id")
+            sql = ("INSERT INTO SDA_PARTIC (IDNO, DENUMIRE, NR_CONTRACT, "
+                   "CONTACT_NUME, CONTACT_TEL, CONTACT_EMAIL, STARE, "
+                   "VANDUT_AN_ANT, ESTIMARE_AN) VALUES (:idno, :denumire, "
+                   ":nr_contract, :contact_nume, :contact_tel, :contact_email, "
+                   ":stare, :vandut_an_ant, :estimare_an)")
+
+        with DatabaseModel() as db:
+            r = db.execute_query(sql, params)
+            if not r.get("success"):
+                return _fail(r.get("message")
+                             or "Eroare la salvarea participantului")
+            if has_id and not r.get("rowcount"):
+                return _fail(
+                    f"Participantul {partic_id} nu mai exista")
+            new_id = partic_id
+            if not has_id:
+                # ID-ul e generat de trigger la INSERT; CURRVAL e valabil doar
+                # in aceeasi sesiune, imediat dupa insert, pe aceeasi conexiune.
+                idr = db.execute_query(
+                    "SELECT SEQ_SDA_PARTIC.CURRVAL FROM DUAL")
+                if not idr.get("success") or not idr.get("data"):
+                    return _fail(idr.get("message")
+                                 or "Eroare la citirea id-ului nou creat")
+                new_id = idr["data"][0][0]
+            jr = db.execute_query(
+                "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
+                "UTILIZATOR, DETALII) VALUES ('PARTIC_SAVE', 'SDA_PARTIC', "
+                ":entitate_id, :utilizator, :detalii)",
+                {"entitate_id": new_id,
+                 "utilizator": username,
+                 "detalii": (f"{params['idno']} {params['denumire']}")[:1000]})
+            if not jr.get("success"):
+                return _fail(jr.get("message")
+                             or "Eroare la scrierea in jurnal")
+            db.connection.commit()
+        return _done({"partic_id": new_id, "idno": params["idno"],
+                      "denumire": params["denumire"]})
+
+    # ── сеть ────────────────────────────────────────────────────────
+
+    @staticmethod
+    def list_units(partic_id: Optional[int] = None,
+                   regim: Optional[str] = None) -> Dict[str, Any]:
+        sql = ("SELECT UNIT_ID, PARTIC_ID, COD_ERP, DENUMIRE, ADRESA, "
+               "LOCALITATE, RAION, SUPRAFATA_MP, TIP_AMPLASAMENT, REGIM, "
+               "REGIM_MOTIV, DATA_EVALUARE FROM SDA_UNIT WHERE 1=1")
+        params: Dict[str, Any] = {}
+        if partic_id is not None:
+            sql += " AND PARTIC_ID = :partic_id"
+            params["partic_id"] = partic_id
+        if regim:
+            sql += " AND REGIM = :regim"
+            params["regim"] = regim
+        sql += " ORDER BY DENUMIRE"
+
+        with DatabaseModel() as db:
+            r = db.execute_query(sql, params or None)
+        if not r.get("success"):
+            return _fail(r.get("message") or "Eroare la citirea unitatilor")
+        return _done(_rows(r))
+
+    @staticmethod
+    def save_unit(payload: Dict[str, Any], username: str) -> Dict[str, Any]:
+        suprafata = payload.get("suprafata_mp")
+        suprafata = float(suprafata) if suprafata not in (None, "") else None
+        tip = (payload.get("tip_amplasament") or "MAGAZIN").upper()
+        unit_id = payload.get("unit_id")
+        if unit_id == "":
+            unit_id = None
+
+        # Признака HoReCa нет отдельной колонкой: он живёт только в REGIM.
+        # Если форма его не прислала, при правке существующей точки его
+        # надо унести вперёд, иначе редактирование адреса молча разжалует
+        # заведение из C_HORECA в обычный магазин.
+        is_horeca = payload.get("is_horeca")
+        if is_horeca is None and unit_id is not None:
+            with DatabaseModel() as db:
+                cur = db.execute_query(
+                    "SELECT REGIM FROM SDA_UNIT WHERE UNIT_ID = :unit_id",
+                    {"unit_id": unit_id})
+            if not cur.get("success"):
+                return _fail(cur.get("message")
+                             or "Eroare la citirea regimului curent")
+            rows = _rows(cur)
+            is_horeca = bool(rows) and rows[0].get("regim") == "C_HORECA"
+
+        regim, motiv = sda_rules.classify_regime(suprafata, tip, bool(is_horeca))
+
+        params = {
+            "unit_id": unit_id,
+            "partic_id": payload.get("partic_id"),
+            "cod_erp": payload.get("cod_erp"),
+            "denumire": payload.get("denumire"),
+            "adresa": payload.get("adresa"),
+            "localitate": payload.get("localitate"),
+            "raion": payload.get("raion"),
+            "suprafata_mp": suprafata,
+            "tip_amplasament": tip,
+            "regim": regim,
+            "regim_motiv": motiv,
+            "data_evaluare": date.today(),
+        }
+
+        if unit_id is not None:
+            sql = ("UPDATE SDA_UNIT SET COD_ERP = :cod_erp, "
+                   "DENUMIRE = :denumire, ADRESA = :adresa, "
+                   "LOCALITATE = :localitate, RAION = :raion, "
+                   "SUPRAFATA_MP = :suprafata_mp, "
+                   "TIP_AMPLASAMENT = :tip_amplasament, REGIM = :regim, "
+                   "REGIM_MOTIV = :regim_motiv, "
+                   "DATA_EVALUARE = :data_evaluare, PARTIC_ID = :partic_id "
+                   "WHERE UNIT_ID = :unit_id")
+        else:
+            params.pop("unit_id")
+            sql = ("INSERT INTO SDA_UNIT (PARTIC_ID, COD_ERP, DENUMIRE, "
+                   "ADRESA, LOCALITATE, RAION, SUPRAFATA_MP, "
+                   "TIP_AMPLASAMENT, REGIM, REGIM_MOTIV, DATA_EVALUARE) "
+                   "VALUES (:partic_id, :cod_erp, :denumire, :adresa, "
+                   ":localitate, :raion, :suprafata_mp, :tip_amplasament, "
+                   ":regim, :regim_motiv, :data_evaluare)")
+
+        with DatabaseModel() as db:
+            r = db.execute_query(sql, params)
+            if not r.get("success"):
+                message = r.get("message") or "Eroare la salvarea unitatii"
+                # FK-ul e adevăratul garant, dar restul modulului traduce
+                # fiecare constrângere într-o frază — nu lăsăm un ORA brut
+                # în banner-ul operatorului.
+                if "ORA-02291" in message:
+                    message = "Participantul indicat nu exista"
+                return _fail(message)
+            if unit_id is not None and not r.get("rowcount"):
+                return _fail(f"Unitatea {unit_id} nu mai exista")
+            new_id = unit_id
+            if unit_id is None:
+                idr = db.execute_query(
+                    "SELECT SEQ_SDA_UNIT.CURRVAL FROM DUAL")
+                if not idr.get("success") or not idr.get("data"):
+                    return _fail(idr.get("message")
+                                 or "Eroare la citirea id-ului nou creat")
+                new_id = idr["data"][0][0]
+            jr = db.execute_query(
+                "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
+                "UTILIZATOR, DETALII) VALUES ('UNIT_SAVE', 'SDA_UNIT', "
+                ":entitate_id, :utilizator, :detalii)",
+                {"entitate_id": new_id,
+                 "utilizator": username,
+                 "detalii": (f"{payload.get('denumire')} -> "
+                             f"{regim or 'FARA REGIM'}")[:1000]})
+            if not jr.get("success"):
+                return _fail(jr.get("message") or "Eroare la scrierea in jurnal")
+            db.connection.commit()
+        return _done({"unit_id": new_id, "regim": regim, "regim_motiv": motiv})
+
+    @staticmethod
+    def reclassify_all(username: str) -> Dict[str, Any]:
+        listed = SDAStore.list_units()
+        if not listed["success"]:
+            return listed
+        changed = 0
+        with DatabaseModel() as db:
+            for unit in listed["data"]:
+                is_horeca = unit.get("regim") == "C_HORECA"
+                regim, motiv = sda_rules.classify_regime(
+                    unit.get("suprafata_mp"), unit.get("tip_amplasament") or "MAGAZIN",
+                    is_horeca)
+                # Сравнивать только режим мало: исправленная площадь внутри
+                # той же полосы или уточнённая формулировка оставили бы
+                # REGIM_MOTIV и DATA_EVALUARE от прошлой оценки, а модуль
+                # предъявляет их как основание досье.
+                if (regim, motiv) == (unit.get("regim"),
+                                      unit.get("regim_motiv")):
+                    continue
+                ur = db.execute_query(
+                    "UPDATE SDA_UNIT SET REGIM = :regim, "
+                    "REGIM_MOTIV = :regim_motiv, DATA_EVALUARE = :data_evaluare "
+                    "WHERE UNIT_ID = :unit_id",
+                    {"regim": regim, "regim_motiv": motiv,
+                     "data_evaluare": date.today(),
+                     "unit_id": unit.get("unit_id")})
+                if not ur.get("success"):
+                    # Un rând eșuat nu trebuie contorizat drept succes, iar
+                    # lotul întreg nu se comite peste un update ratat.
+                    return _fail(ur.get("message")
+                                 or "Eroare la reclasificarea unitatilor")
+                changed += 1
+            if changed:
+                # Intrarea de jurnal se scrie pe ACEEASI conexiune/tranzactie ca
+                # UPDATE-urile de mai sus, inainte de commit: altfel un jurnal
+                # scris separat ar putea reusi sau esua independent de lot,
+                # iar cele doua nu ar mai fi atomice. Fara nicio unitate
+                # schimbata nu exista nimic de jurnalizat sau de comis.
+                jr = db.execute_query(
+                    "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
+                    "UTILIZATOR, DETALII) VALUES ('RECLASSIFY', 'SDA_UNIT', "
+                    ":entitate_id, :utilizator, :detalii)",
+                    {"entitate_id": None, "utilizator": username,
+                     "detalii": (f"reclasificate {changed} unitati")[:1000]})
+                if not jr.get("success"):
+                    return _fail(jr.get("message")
+                                 or "Eroare la scrierea in jurnal")
+                db.connection.commit()
+        return _done({"changed": changed})
+
+    @staticmethod
+    def compliance_map(partic_id: Optional[int] = None) -> Dict[str, Any]:
+        sql = ("SELECT REGIM, COUNT(*) AS N FROM SDA_UNIT WHERE 1=1")
+        params: Dict[str, Any] = {}
+        if partic_id is not None:
+            sql += " AND PARTIC_ID = :partic_id"
+            params["partic_id"] = partic_id
+        sql += " GROUP BY REGIM"
+
+        with DatabaseModel() as db:
+            r = db.execute_query(sql, params or None)
+        if not r.get("success"):
+            return _fail(r.get("message") or "Eroare la harta de conformitate")
+
+        by_regime: Dict[str, int] = {}
+        unknown = 0
+        total = 0
+        for row in _rows(r):
+            n = int(row["n"])
+            total += n
+            if row["regim"]:
+                by_regime[row["regim"]] = n
+            else:
+                unknown += n
+        return _done({"total": total, "by_regime": by_regime, "unknown": unknown})
+
+    # ── реестр упаковки ─────────────────────────────────────────────
+
+    @staticmethod
+    def list_packs(search: Optional[str] = None) -> Dict[str, Any]:
+        sql = ("SELECT PACK_ID, EAN, DENUMIRE, PRODUCATOR, MATERIAL, CULOARE, "
+               "BARIERA_O2, REUTILIZABIL, VOLUM_L, GREUTATE_G, CAT_ADMIN, "
+               "CAT_GEST, SURSA FROM SDA_PACK WHERE 1=1")
+        params: Dict[str, Any] = {}
+        if search:
+            sql += " AND (UPPER(DENUMIRE) LIKE :q OR EAN LIKE :q)"
+            params["q"] = f"%{search.upper()}%"
+        sql += " ORDER BY DENUMIRE"
+
+        with DatabaseModel() as db:
+            r = db.execute_query(sql, params or None)
+        if not r.get("success"):
+            return _fail(r.get("message") or "Eroare la citirea registrului")
+        return _done(_rows(r))
+
+    @staticmethod
+    def save_pack(payload: Dict[str, Any], username: str) -> Dict[str, Any]:
+        material = (payload.get("material") or "").upper()
+        volum = float(payload.get("volum_l") or 0)
+        pack_id = payload.get("pack_id")
+        if pack_id == "":
+            pack_id = None
+        params = {
+            "pack_id": pack_id,
+            "ean": payload.get("ean"),
+            "denumire": payload.get("denumire"),
+            "producator": payload.get("producator"),
+            "material": material,
+            "culoare": (payload.get("culoare") or None),
+            "bariera_o2": (payload.get("bariera_o2") or "N").upper(),
+            "reutilizabil": (payload.get("reutilizabil") or "N").upper(),
+            "volum_l": volum,
+            "greutate_g": float(payload.get("greutate_g") or 0),
+            "cat_admin": sda_rules.admin_category(
+                material, payload.get("culoare"),
+                (payload.get("bariera_o2") or "N"), volum),
+            "cat_gest": sda_rules.gest_category(material, volum),
+            "sursa": (payload.get("sursa") or "MANUAL").upper(),
+        }
+
+        if pack_id is not None:
+            sql = ("UPDATE SDA_PACK SET EAN = :ean, DENUMIRE = :denumire, "
+                   "PRODUCATOR = :producator, MATERIAL = :material, "
+                   "CULOARE = :culoare, BARIERA_O2 = :bariera_o2, "
+                   "REUTILIZABIL = :reutilizabil, VOLUM_L = :volum_l, "
+                   "GREUTATE_G = :greutate_g, CAT_ADMIN = :cat_admin, "
+                   "CAT_GEST = :cat_gest, SURSA = :sursa "
+                   "WHERE PACK_ID = :pack_id")
+        else:
+            params.pop("pack_id")
+            sql = ("INSERT INTO SDA_PACK (EAN, DENUMIRE, PRODUCATOR, MATERIAL, "
+                   "CULOARE, BARIERA_O2, REUTILIZABIL, VOLUM_L, GREUTATE_G, "
+                   "CAT_ADMIN, CAT_GEST, SURSA) VALUES (:ean, :denumire, "
+                   ":producator, :material, :culoare, :bariera_o2, "
+                   ":reutilizabil, :volum_l, :greutate_g, :cat_admin, "
+                   ":cat_gest, :sursa)")
+
+        with DatabaseModel() as db:
+            r = db.execute_query(sql, params)
+            if not r.get("success"):
+                return _fail(r.get("message") or "Eroare la salvarea ambalajului")
+            if pack_id is not None and not r.get("rowcount"):
+                return _fail(f"Ambalajul {pack_id} nu mai exista")
+            new_id = pack_id
+            if pack_id is None:
+                idr = db.execute_query(
+                    "SELECT SEQ_SDA_PACK.CURRVAL FROM DUAL")
+                if not idr.get("success") or not idr.get("data"):
+                    return _fail(idr.get("message")
+                                 or "Eroare la citirea id-ului nou creat")
+                new_id = idr["data"][0][0]
+            jr = db.execute_query(
+                "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
+                "UTILIZATOR, DETALII) VALUES ('PACK_SAVE', 'SDA_PACK', "
+                ":entitate_id, :utilizator, :detalii)",
+                {"entitate_id": new_id, "utilizator": username,
+                 "detalii": (f"{params['ean']} "
+                             f"{params['cat_admin']}/{params['cat_gest']}")[:1000]})
+            if not jr.get("success"):
+                return _fail(jr.get("message") or "Eroare la scrierea in jurnal")
+            db.connection.commit()
+        return _done({"pack_id": new_id, "cat_admin": params["cat_admin"],
+                      "cat_gest": params["cat_gest"]})
+
+    @staticmethod
+    def deposit_for_ean(ean: str, on_date: Optional[date] = None) -> Dict[str, Any]:
+        """Величина депозита для штрихкода на дату.
+
+        Неизвестный EAN — это ошибка, а не ноль. Молчаливый ноль означал бы,
+        что сеть недобирает депозит и обнаруживает это при сверке.
+        """
+        on_date = on_date or date.today()
+        with DatabaseModel() as db:
+            r = db.execute_query(
+                "SELECT PACK_ID, EAN, CAT_ADMIN, REUTILIZABIL FROM SDA_PACK "
+                "WHERE EAN = :ean", {"ean": ean})
+            packs = _rows(r)
+            if not r.get("success"):
+                return _fail(r.get("message") or "Eroare la citirea registrului")
+            if not packs:
+                return _fail(f"EAN {ean} nu exista in registrul ambalajelor SD")
+
+            # Периоды тарифа не должны пересекаться (см. sda_rules.validate_periods),
+            # но если это всё же произошло, результат обязан быть детерминирован:
+            # без ORDER BY Oracle не гарантирует порядок строк. Правило разрешения
+            # конфликта: побеждает период с более поздней датой начала.
+            t = db.execute_query(
+                "SELECT T.TARIFF_ID, L.CATEGORIE, L.METODA, L.REUTILIZABIL, "
+                "L.VALOARE_LEI "
+                "FROM SDA_TARIFF T JOIN SDA_TARIFF_LINE L "
+                "ON L.TARIFF_ID = T.TARIFF_ID "
+                "WHERE T.TIP = 'DEPOZIT' AND T.DATA_START <= :d "
+                "AND (T.DATA_END IS NULL OR T.DATA_END >= :d) "
+                "ORDER BY T.DATA_START DESC, T.TARIFF_ID DESC",
+                {"d": on_date})
+            if not t.get("success"):
+                return _fail(t.get("message") or "Eroare la citirea tarifului")
+            lines = _rows(t)
+
+        if not lines:
+            return _fail("Nu exista tarif de depozit valabil la data ceruta")
+
+        pack = packs[0]
+        # Сначала период, потом категория внутри него. Иначе точное совпадение
+        # категории из старого периода перебило бы «*» из нового: pick_value
+        # перебирает категории снаружи, и порядок строк ему тут не помог бы.
+        winner = lines[0].get("tariff_id")
+        lines = [l for l in lines if l.get("tariff_id") == winner]
+        value = sda_rules.pick_value(
+            [{"categorie": l["categorie"], "metoda": l["metoda"],
+              "reutilizabil": l["reutilizabil"], "valoare_lei": l["valoare_lei"]}
+             for l in lines],
+            pack.get("cat_admin") or "*",
+            reutilizabil=pack.get("reutilizabil"))
+        if value is None:
+            return _fail("Nu exista tarif de depozit pentru aceasta categorie")
+        return _done({"ean": pack["ean"], "pack_id": pack["pack_id"],
+                      "valoare_lei": float(value)})
+
+    # ── досье регистрации (пункт 78) ────────────────────────────────
+
+    @staticmethod
+    def registration_dossier(partic_id: int,
+                             on_date: Optional[date] = None) -> Dict[str, Any]:
+        """Восемь блоков уведомления о регистрации у Администратора.
+
+        Блок «unitati» несёт площадь каждой точки: именно он решает,
+        нужен ли сети собственный пункт возврата. Точки без площади
+        считаются отдельно — досье с ними подавать нельзя.
+        """
+        on_date = on_date or date.today()
+        with DatabaseModel() as db:
+            p = db.execute_query(
+                "SELECT PARTIC_ID, IDNO, DENUMIRE, CONTACT_NUME, CONTACT_TEL, "
+                "CONTACT_EMAIL, VANDUT_AN_ANT, ESTIMARE_AN FROM SDA_PARTIC "
+                "WHERE PARTIC_ID = :partic_id",
+                {"partic_id": partic_id})
+            if not p.get("success"):
+                return _fail(p.get("message")
+                             or "Eroare la citirea participantului")
+            partics = _rows(p)
+            if not partics:
+                return _fail(f"Participantul {partic_id} nu exista")
+
+            u = db.execute_query(
+                "SELECT UNIT_ID, DENUMIRE, ADRESA, SUPRAFATA_MP, "
+                "TIP_AMPLASAMENT, REGIM FROM SDA_UNIT "
+                "WHERE PARTIC_ID = :partic_id ORDER BY DENUMIRE",
+                {"partic_id": partic_id})
+            if not u.get("success"):
+                return _fail(u.get("message") or "Eroare la citirea unitatilor")
+            units = _rows(u)
+
+            r = db.execute_query(
+                "SELECT PT.POINT_ID, PT.UNIT_ID, PT.ADRESA, PT.ORAR, PT.TIP "
+                "FROM SDA_RETURN_POINT PT JOIN SDA_UNIT UN "
+                "ON UN.UNIT_ID = PT.UNIT_ID WHERE UN.PARTIC_ID = :partic_id "
+                "AND (PT.ACTIV_PANA IS NULL OR PT.ACTIV_PANA >= :d) "
+                "AND (PT.ACTIV_DIN IS NULL OR PT.ACTIV_DIN <= :d)",
+                {"partic_id": partic_id, "d": on_date})
+            if not r.get("success"):
+                return _fail(r.get("message")
+                             or "Eroare la citirea punctelor de preluare")
+            points = _rows(r)
+
+        partic = partics[0]
+        incomplet = sum(1 for x in units if not x.get("regim"))
+        # Без пунктов возврата способ приёма не «MANUAL по умолчанию»,
+        # а неизвестен: это юридическое заявление, а не значение по вкусу.
+        metode = sorted({x["tip"] for x in points})
+
+        # Единица в режиме A_PUNCT_PROPRIU обязана содержать собственный
+        # пункт возврата (регламент). Если ни один пункт сети за ней не
+        # заявлен, досье формально «полное» (у всех точек есть режим), но
+        # подавать его нельзя — статутарное поле способа приёма пустое
+        # именно для той точки, которая обязана его иметь.
+        units_with_points = {p.get("unit_id") for p in points}
+        missing_own_point = any(
+            x.get("regim") == "A_PUNCT_PROPRIU"
+            and x.get("unit_id") not in units_with_points
+            for x in units)
+
+        return _done({
+            "identificare": {"idno": partic["idno"], "denumire": partic["denumire"]},
+            "contact": {"nume": partic.get("contact_nume"),
+                        "telefon": partic.get("contact_tel"),
+                        "email": partic.get("contact_email")},
+            "unitati": units,
+            "punct_preluare": points,
+            "modalitate_preluare": metode,
+            "vandut_an_anterior": partic.get("vandut_an_ant"),
+            "estimare_an_curent": partic.get("estimare_an"),
+            "exceptii": [x for x in units if x.get("regim") == "B_EXCEPTIE_APL"],
+            "incomplet": incomplet,
+            # Досье с точками без площади подавать нельзя (см. docstring):
+            # это правило должно быть в данных, а не только в тексте.
+            "poate_fi_depus": incomplet == 0 and not missing_own_point,
+        })
+
+    # ── tablou de bord (pregătirea rețelei pentru 25.01.2027) ─────────
+
+    DEADLINE = date(2027, 1, 25)
+
+    @staticmethod
+    def dashboard(partic_id: Optional[int] = None) -> Dict[str, Any]:
+        """Un singur agregat pentru consola de bord.
+
+        Pagina pune o singură întrebare: cât de pregătită e rețeaua pentru
+        25.01.2027 și ce anume o blochează. Un apel — nu șase — pentru că
+        fiecare bloc citește tabele diferite, dar operatorul are nevoie de
+        toate deodată, nu de șase spinnere separate.
+        """
+        today = date.today()
+        days_remaining = (SDAStore.DEADLINE - today).days
+
+        unit_filter = ""
+        params: Dict[str, Any] = {}
+        if partic_id is not None:
+            unit_filter = " AND PARTIC_ID = :partic_id"
+            params["partic_id"] = partic_id
+
+        with DatabaseModel() as db:
+            # Pregătire + repartizare pe regimuri, într-o singură trecere:
+            # unitățile fără regim nu sunt o categorie, ci lucrul rămas.
+            r = db.execute_query(
+                "SELECT REGIM, COUNT(*) AS N FROM SDA_UNIT WHERE 1=1"
+                + unit_filter + " GROUP BY REGIM", params or None)
+            if not r.get("success"):
+                return _fail(r.get("message") or "Eroare la citirea rețelei")
+            by_regime: Dict[str, int] = {}
+            unknown = 0
+            total_units = 0
+            for row in _rows(r):
+                n = int(row["n"])
+                total_units += n
+                if row["regim"]:
+                    by_regime[row["regim"]] = n
+                else:
+                    unknown += n
+            with_regim = total_units - unknown
+            readiness_pct = (round(with_regim * 100.0 / total_units, 1)
+                             if total_units else 0.0)
+
+            # Acoperirea cu punct propriu de returnare: unitățile obligate
+            # (regim A) fără niciun punct activ AZI blochează depunerea
+            # dosarului, deci sunt numite pe nume, nu doar numărate.
+            ru = db.execute_query(
+                "SELECT UNIT_ID, DENUMIRE FROM SDA_UNIT "
+                "WHERE REGIM = 'A_PUNCT_PROPRIU'" + unit_filter,
+                params or None)
+            if not ru.get("success"):
+                return _fail(ru.get("message")
+                             or "Eroare la citirea unitatilor in regim propriu")
+            regim_a_units = _rows(ru)
+
+            rp = db.execute_query(
+                "SELECT DISTINCT UNIT_ID FROM SDA_RETURN_POINT WHERE "
+                "ACTIV_DIN <= :d AND (ACTIV_PANA IS NULL OR ACTIV_PANA >= :d)",
+                {"d": today})
+            if not rp.get("success"):
+                return _fail(rp.get("message")
+                             or "Eroare la citirea punctelor de returnare")
+            active_unit_ids = {row["unit_id"] for row in _rows(rp)}
+
+            blocking = [u for u in regim_a_units
+                       if u["unit_id"] not in active_unit_ids]
+            coverage_total = len(regim_a_units)
+            coverage_covered = coverage_total - len(blocking)
+
+            # Registru: total și pe material și pe categoria de tarif de
+            # administrare — registrul nu e specific unui participant.
+            pm = db.execute_query(
+                "SELECT MATERIAL, COUNT(*) AS N FROM SDA_PACK GROUP BY MATERIAL")
+            if not pm.get("success"):
+                return _fail(pm.get("message") or "Eroare la citirea registrului")
+            by_material = {row["material"]: int(row["n"]) for row in _rows(pm)}
+            total_packs = sum(by_material.values())
+
+            pc = db.execute_query(
+                "SELECT CAT_ADMIN, COUNT(*) AS N FROM SDA_PACK GROUP BY CAT_ADMIN")
+            if not pc.get("success"):
+                return _fail(pc.get("message") or "Eroare la citirea registrului")
+            by_cat_admin = {row["cat_admin"]: int(row["n"])
+                            for row in _rows(pc) if row["cat_admin"]}
+
+            # Stare tarife: perioade fără gol/suprapunere (rules.py verifică),
+            # plus valoarea depozitului în vigoare azi, dacă există.
+            tp = db.execute_query(
+                "SELECT TARIFF_ID, TIP, DATA_START, DATA_END FROM SDA_TARIFF")
+            if not tp.get("success"):
+                return _fail(tp.get("message") or "Eroare la citirea tarifelor")
+            tariff_rows = _rows(tp)
+
+            for t in tariff_rows:
+                t["data_start"] = _as_date(t["data_start"])
+                t["data_end"] = _as_date(t["data_end"])
+            periods = [{"tariff_id": t["tariff_id"], "tip": t["tip"],
+                       "data_start": t["data_start"], "data_end": t["data_end"]}
+                      for t in tariff_rows]
+            period_problems = sda_rules.validate_periods(periods) if periods else []
+
+            deposit_match = next(
+                (t for t in tariff_rows
+                 if t["tip"] == "DEPOZIT" and t["data_start"] <= today
+                 and (t["data_end"] is None or t["data_end"] >= today)), None)
+            deposit_state = None
+            if deposit_match:
+                dl = db.execute_query(
+                    "SELECT VALOARE_LEI FROM SDA_TARIFF_LINE WHERE "
+                    "TARIFF_ID = :t AND CATEGORIE = '*'",
+                    {"t": deposit_match["tariff_id"]})
+                if not dl.get("success"):
+                    return _fail(dl.get("message")
+                                 or "Eroare la citirea valorii depozitului")
+                lines = _rows(dl)
+                deposit_state = {
+                    "valoare_lei": (float(lines[0]["valoare_lei"])
+                                   if lines else None),
+                    # ISO-строки, а не объекты: Flask сериализует date в
+                    # HTTP-формат («Mon, 01 Jun 2026 00:00:00 GMT»), и он
+                    # так и выводился на дашборде.
+                    "data_start": (deposit_match["data_start"].isoformat()
+                                   if deposit_match["data_start"] else None),
+                    "data_end": (deposit_match["data_end"].isoformat()
+                                 if deposit_match["data_end"] else None),
+                }
+
+            pp = db.execute_query(
+                "SELECT PARTIC_ID, DENUMIRE FROM SDA_PARTIC"
+                + (" WHERE PARTIC_ID = :partic_id" if partic_id is not None else ""),
+                params or None)
+            if not pp.get("success"):
+                return _fail(pp.get("message")
+                             or "Eroare la citirea participantilor")
+            partics = _rows(pp)
+
+        dossiers = []
+        for p in partics:
+            d = SDAStore.registration_dossier(p["partic_id"], today)
+            if not d.get("success"):
+                return d
+            dossiers.append({
+                "partic_id": p["partic_id"], "denumire": p["denumire"],
+                "poate_fi_depus": d["data"]["poate_fi_depus"],
+                "incomplet": d["data"]["incomplet"],
+            })
+
+        return _done({
+            "deadline": SDAStore.DEADLINE.isoformat(),
+            "days_remaining": days_remaining,
+            "readiness": {"with_regim": with_regim, "total": total_units,
+                         "pct": readiness_pct},
+            "by_regime": by_regime,
+            "unknown_regime": unknown,
+            "return_point_coverage": {
+                "total": coverage_total, "covered": coverage_covered,
+                "blocking_units": blocking,
+            },
+            "registry": {"total": total_packs, "by_material": by_material,
+                        "by_cat_admin": by_cat_admin},
+            "tariff_state": {"deposit": deposit_state,
+                             "period_problems": period_problems},
+            "dossiers": dossiers,
+        })
+
+    # ── retur si decontare ────────────────────────────────────────────
+
+    @staticmethod
+    def register_return(payload: Dict[str, Any], username: str) -> Dict[str, Any]:
+        """Inregistreaza o sesiune de retur si liniile ei.
+
+        Metoda (MANUAL/AUTOMAT) e o dimensiune a probei, nu se deduce din
+        SDA_RETURN_POINT.TIP: un punct MIXT accepta ambalaj pe ambele cai,
+        iar un punct trece de la manual la automat in timp — a deduce
+        metoda ulterior din punct ar rescrie sumele deja pretinse. De aceea
+        fiecare linie primeste propria metoda din payload, iar tariful de
+        gestiune se rezolva la data returului pentru exact combinatia
+        (metoda, reutilizabil, categorie) a acelei linii, si se
+        instantaneaza (valoare + TARIFF_ID), la fel ca depozitul pe vanzare.
+
+        Un tarif de gestiune lipsa e eroare, nu zero: un retur inregistrat
+        cu pretentie zero ar disparea din decontare fara urma.
+        """
+        point_id = payload.get("point_id")
+        if point_id in (None, ""):
+            return _fail("Punctul de retur este obligatoriu")
+        return_date = payload.get("data_retur") or date.today()
+        if isinstance(return_date, str):
+            return_date = date.fromisoformat(return_date)
+        rvm_id = payload.get("rvm_id")
+        if rvm_id in (None, ""):
+            rvm_id = None
+        mod_ramburs = (payload.get("mod_ramburs") or "NUMERAR").upper()
+        lines_in = payload.get("lines") or []
+        if not lines_in:
+            return _fail("Returul trebuie sa aiba cel putin o linie")
+
+        with DatabaseModel() as db:
+            # Tarifele de gestiune valabile la data returului, o singura
+            # citire pentru intreaga sesiune: liniile pot avea categorii si
+            # metode diferite, dar toate cad in aceeasi fereastra de timp.
+            t = db.execute_query(
+                "SELECT T.TARIFF_ID, T.DATA_START, L.CATEGORIE, L.METODA, "
+                "L.REUTILIZABIL, L.VALOARE_LEI "
+                "FROM SDA_TARIFF T JOIN SDA_TARIFF_LINE L "
+                "ON L.TARIFF_ID = T.TARIFF_ID "
+                "WHERE T.TIP = 'GESTIUNE' AND T.DATA_START <= :d "
+                "AND (T.DATA_END IS NULL OR T.DATA_END >= :d) "
+                "ORDER BY T.DATA_START DESC, T.TARIFF_ID DESC",
+                {"d": return_date})
+            if not t.get("success"):
+                return _fail(t.get("message") or "Eroare la citirea tarifului de gestiune")
+            tariff_rows = _rows(t)
+            if not tariff_rows:
+                return _fail(
+                    "Nu exista tarif de gestiune valabil la data returului")
+            winner = tariff_rows[0]["tariff_id"]
+            tariff_rows = [r for r in tariff_rows if r["tariff_id"] == winner]
+
+            # Ambalajele referite in linii — pentru REUTILIZABIL/CAT_GEST
+            # implicite, atunci cand payload-ul nu le trimite explicit.
+            pack_ids = [ln.get("pack_id") for ln in lines_in]
+            packs_by_id: Dict[int, Dict[str, Any]] = {}
+            if pack_ids:
+                placeholders = ", ".join(f":p{i}" for i in range(len(pack_ids)))
+                pp = db.execute_query(
+                    "SELECT PACK_ID, REUTILIZABIL, CAT_GEST FROM SDA_PACK "
+                    f"WHERE PACK_ID IN ({placeholders})",
+                    {f"p{i}": pid for i, pid in enumerate(pack_ids)})
+                if not pp.get("success"):
+                    return _fail(pp.get("message") or "Eroare la citirea ambalajelor")
+                for row in _rows(pp):
+                    packs_by_id[int(row["pack_id"])] = row
+
+            rvm_proprietar = None
+            if rvm_id is not None:
+                rv = db.execute_query(
+                    "SELECT PROPRIETAR FROM SDA_RVM WHERE RVM_ID = :rvm_id",
+                    {"rvm_id": rvm_id})
+                if not rv.get("success"):
+                    return _fail(rv.get("message") or "Eroare la citirea instalatiei")
+                rv_rows = _rows(rv)
+                if rv_rows:
+                    rvm_proprietar = rv_rows[0].get("proprietar")
+
+            resolved_lines = []
+            total_buc = 0
+            total_kg = 0.0
+            total_lei = 0.0
+            for ln in lines_in:
+                pack_id = ln.get("pack_id")
+                if pack_id in (None, ""):
+                    return _fail("Fiecare linie de retur trebuie sa aiba un ambalaj")
+                pack_id = int(pack_id)
+                pack = packs_by_id.get(pack_id)
+                metoda = (ln.get("metoda") or payload.get("metoda") or "").upper()
+                if metoda not in ("MANUAL", "AUTOMAT"):
+                    return _fail(
+                        f"Metoda de preluare lipseste sau este invalida pentru "
+                        f"ambalajul {pack_id}")
+                reutilizabil = (ln.get("reutilizabil")
+                                or (pack or {}).get("reutilizabil") or "N").upper()
+                cat_gest = (ln.get("cat_gest")
+                            or (pack or {}).get("cat_gest") or "").lower()
+                if cat_gest not in ("a", "b", "c", "d", "e"):
+                    return _fail(
+                        f"Categoria de gestiune lipseste pentru ambalajul {pack_id}")
+
+                value = sda_rules.pick_value(
+                    [{"categorie": r["categorie"], "metoda": r["metoda"],
+                      "reutilizabil": r["reutilizabil"],
+                      "valoare_lei": r["valoare_lei"]} for r in tariff_rows],
+                    cat_gest, metoda=metoda, reutilizabil=reutilizabil)
+                if value is None:
+                    return _fail(
+                        "Nu exista tarif de gestiune pentru combinatia "
+                        f"metoda={metoda}, reutilizabil={reutilizabil}, "
+                        f"categorie={cat_gest} (ambalaj {pack_id})")
+
+                cant_buc = int(ln.get("cant_buc") or 0)
+                cant_kg = float(ln.get("cant_kg") or 0)
+                depozit_lei = float(ln.get("depozit_lei") or 0)
+                rezultat = (ln.get("rezultat") or "ACCEPTAT").upper()
+                motiv_refuz = ln.get("motiv_refuz") or None
+                if rezultat == "REFUZAT" and not motiv_refuz:
+                    return _fail(
+                        f"Refuzul liniei pentru ambalajul {pack_id} trebuie sa "
+                        "aiba un motiv (art. 54^1 alin. (9)-(10))")
+
+                gestiune_lei = round(float(value) * cant_buc, 2)
+                resolved_lines.append({
+                    "pack_id": pack_id, "cant_buc": cant_buc, "cant_kg": cant_kg,
+                    "depozit_lei": depozit_lei, "metoda": metoda,
+                    "reutilizabil": reutilizabil, "cat_gest": cat_gest,
+                    "rvm_proprietar": rvm_proprietar, "tariff_id": winner,
+                    "gestiune_unitar": float(value), "gestiune_lei": gestiune_lei,
+                    "rezultat": rezultat, "motiv_refuz": motiv_refuz,
+                })
+                total_buc += cant_buc
+                total_kg += cant_kg
+                total_lei += depozit_lei
+
+            hr = db.execute_query(
+                "INSERT INTO SDA_RETURN (POINT_ID, RVM_ID, DATA_RETUR, METODA, "
+                "OPERATOR_NUME, TOTAL_BUC, TOTAL_KG, TOTAL_LEI, MOD_RAMBURS) "
+                "VALUES (:point_id, :rvm_id, :data_retur, :metoda, "
+                ":operator_nume, :total_buc, :total_kg, :total_lei, :mod_ramburs)",
+                {"point_id": point_id, "rvm_id": rvm_id,
+                 "data_retur": return_date,
+                 "metoda": (payload.get("metoda")
+                            or resolved_lines[0]["metoda"]).upper(),
+                 "operator_nume": payload.get("operator_nume") or username,
+                 "total_buc": total_buc, "total_kg": total_kg,
+                 "total_lei": round(total_lei, 2), "mod_ramburs": mod_ramburs})
+            if not hr.get("success"):
+                message = hr.get("message") or "Eroare la inregistrarea returului"
+                if "ORA-02291" in message:
+                    message = "Punctul de retur sau instalatia indicata nu exista"
+                return _fail(message)
+            rid = db.execute_query("SELECT SEQ_SDA_RETURN.CURRVAL FROM DUAL")
+            if not rid.get("success") or not rid.get("data"):
+                return _fail(rid.get("message") or "Eroare la citirea id-ului nou creat")
+            return_id = rid["data"][0][0]
+
+            for rl in resolved_lines:
+                lr = db.execute_query(
+                    "INSERT INTO SDA_RETURN_LINE (RETURN_ID, PACK_ID, CANT_BUC, "
+                    "CANT_KG, DEPOZIT_LEI, METODA, REUTILIZABIL, CAT_GEST, "
+                    "RVM_PROPRIETAR, TARIFF_ID, GESTIUNE_UNITAR, GESTIUNE_LEI, "
+                    "REZULTAT, MOTIV_REFUZ) VALUES (:return_id, :pack_id, "
+                    ":cant_buc, :cant_kg, :depozit_lei, :metoda, :reutilizabil, "
+                    ":cat_gest, :rvm_proprietar, :tariff_id, :gestiune_unitar, "
+                    ":gestiune_lei, :rezultat, :motiv_refuz)",
+                    {**rl, "return_id": return_id})
+                if not lr.get("success"):
+                    return _fail(lr.get("message") or "Eroare la salvarea liniei de retur")
+
+            jr = db.execute_query(
+                "INSERT INTO SDA_EVENT_LOG (TIP, ENTITATE, ENTITATE_ID, "
+                "UTILIZATOR, DETALII) VALUES ('RETURN_REGISTER', 'SDA_RETURN', "
+                ":entitate_id, :utilizator, :detalii)",
+                {"entitate_id": return_id, "utilizator": username,
+                 "detalii": (f"{len(resolved_lines)} linii, {total_buc} buc, "
+                             f"gestiune {sum(l['gestiune_lei'] for l in resolved_lines):.2f} lei")[:1000]})
+            if not jr.get("success"):
+                return _fail(jr.get("message") or "Eroare la scrierea in jurnal")
+            db.connection.commit()
+
+        return _done({"return_id": return_id, "total_buc": total_buc,
+                      "total_kg": total_kg, "total_lei": round(total_lei, 2),
+                      "gestiune_lei": round(
+                          sum(l["gestiune_lei"] for l in resolved_lines), 2),
+                      "lines": resolved_lines})
+
+    @staticmethod
+    def settlement_breakdown(partic_id: int, date_from: date,
+                             date_to: date) -> Dict[str, Any]:
+        """Proba analitica a pretentiei fata de Administrator.
+
+        O singura interogare, grupata pe (METODA, REUTILIZABIL, CAT_GEST) —
+        exact forma in care sectorul 14.14 diferentiaza tariful de gestiune,
+        deci exact forma in care reteaua trebuie sa poata prezenta pretentia.
+        """
+        with DatabaseModel() as db:
+            r = db.execute_query(
+                "SELECT RL.METODA, RL.REUTILIZABIL, RL.CAT_GEST, "
+                "SUM(RL.CANT_BUC) AS BUC, SUM(RL.CANT_KG) AS KG, "
+                "SUM(RL.GESTIUNE_LEI) AS SUMA_LEI "
+                "FROM SDA_RETURN_LINE RL JOIN SDA_RETURN R "
+                "ON R.RETURN_ID = RL.RETURN_ID "
+                "JOIN SDA_RETURN_POINT PT ON PT.POINT_ID = R.POINT_ID "
+                "JOIN SDA_UNIT U ON U.UNIT_ID = PT.UNIT_ID "
+                "WHERE U.PARTIC_ID = :partic_id "
+                "AND R.DATA_RETUR >= :date_from AND R.DATA_RETUR <= :date_to "
+                "AND RL.REZULTAT = 'ACCEPTAT' "
+                "GROUP BY RL.METODA, RL.REUTILIZABIL, RL.CAT_GEST "
+                "ORDER BY RL.METODA, RL.REUTILIZABIL, RL.CAT_GEST",
+                {"partic_id": partic_id, "date_from": date_from,
+                 "date_to": date_to})
+        if not r.get("success"):
+            return _fail(r.get("message") or "Eroare la calculul decontarii")
+
+        rows = _rows(r)
+        breakdown = []
+        total_lei = 0.0
+        for row in rows:
+            suma = float(row["suma_lei"] or 0)
+            total_lei += suma
+            breakdown.append({
+                "metoda": row["metoda"], "reutilizabil": row["reutilizabil"],
+                "cat_gest": row["cat_gest"], "cant_buc": int(row["buc"] or 0),
+                "cant_kg": float(row["kg"] or 0), "suma_lei": round(suma, 2),
+            })
+        return _done({"partic_id": partic_id,
+                      "perioada_start": date_from.isoformat()
+                      if hasattr(date_from, "isoformat") else date_from,
+                      "perioada_end": date_to.isoformat()
+                      if hasattr(date_to, "isoformat") else date_to,
+                      "breakdown": breakdown, "total_lei": round(total_lei, 2)})
+

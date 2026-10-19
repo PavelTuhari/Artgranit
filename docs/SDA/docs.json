@@ -1,0 +1,20 @@
+{
+  "PREZENTARE_ROGOB.md": {
+    "slug": "prezentare", "public": true, "icon": "◆", "cls": "g", "order": 10,
+    "title": "SDA la Rogob — dosar de prezentare",
+    "audience": "pentru conducerea clientului",
+    "descr": "Ce se schimbă din ianuarie 2027 pentru o rețea de retail: de ce Rogob nu are obligații de producător, ce îi revine ca comerciant și HoReCa, harta de conformitate a celor 85+ magazine pe pragul de suprafață, calendarul până la punerea în funcțiune și ce date cerem pentru pasul următor."
+  },
+  "LEGE_SDA_SINTEZA.md": {
+    "slug": "lege", "public": true, "icon": "§", "cls": "v", "order": 20,
+    "title": "Sinteza normativă SDA",
+    "audience": "pentru juriști și responsabili de conformitate",
+    "descr": "Regulamentul de implementare a Sistemului de depozit pentru ambalaje, rezumat pe puncte: ce ambalaje intră, marcajul și codul EAN, obligațiile producătorilor și comercianților, punctele de returnare și excepția pentru magazinele mici, tarifele de administrare și de gestionare, fluxul banilor, ce nu este încă stabilit."
+  },
+  "SPEC_SDA.md": {
+    "slug": "spec", "public": false, "icon": "⚙", "cls": "", "order": 30,
+    "title": "Specificația tehnică a modulului",
+    "audience": "pentru dezvoltatori",
+    "descr": "Model de date Oracle cu prefix SDA_, tarife versionate pe perioade, registrul tichetelor cu expirare, integrarea cu nomenclatorul OfficePlus, rutele interfeței, regulile impuse în bază și etapele de implementare."
+  }
+}

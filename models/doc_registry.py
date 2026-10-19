@@ -72,8 +72,14 @@ def scan(docs_dir: str) -> List[Dict[str, Any]]:
         except Exception:                                        # noqa: BLE001
             manifest = {}
 
+    # Служебные файлы — не документы. macOS кладёт рядом с каждым файлом
+    # AppleDouble-двойник `._имя`, и он приезжает на сервер вместе с
+    # архивом деплоя: в хабе появлялись карточки «._SPEC_SDA.md — без
+    # описания в docs.json». Точка в начале имени отсекает и их, и любые
+    # прочие скрытые файлы.
     files = sorted(f for f in os.listdir(docs_dir)
-                   if f.lower().endswith('.md')) if os.path.isdir(docs_dir) else []
+                   if f.lower().endswith('.md')
+                   and not f.startswith('.')) if os.path.isdir(docs_dir) else []
 
     out: List[Dict[str, Any]] = []
     described = [f for f in manifest if f in files]
