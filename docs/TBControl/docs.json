@@ -88,5 +88,20 @@
     "title": "Восстановление панелей Инфраструктуры (02.09.2026)",
     "audience": "для разработчиков",
     "descr": "Что было утеряно, какие файлы добавлены по правилу №2, что выяснилось, как проверить."
+  },
+  "DEPLOY_20261019_47_ZILE_PE_RAMURA.md": {
+    "order": 15,
+    "icon": "🚨",
+    "audience": "владелец · агенты",
+    "title": {
+      "ru": "Код TBControl 47 дней на несли́той ветке — слито и выкачено 19.10.2026",
+      "ro": "Codul TBControl 47 de zile pe o ramură neîmbinată — îmbinat și desfășurat 19.10.2026",
+      "en": "TBControl code sat 47 days on an unmerged branch — merged and deployed 19.10.2026"
+    },
+    "descr": {
+      "ru": "Что случилось, как выкатили поверх prod/nufarul-live, инцидент 502 на минуту, правило №6.",
+      "ro": "Ce s-a întîmplat, desfășurarea peste prod/nufarul-live, incidentul 502 de un minut, regula №6.",
+      "en": "What happened, the deploy over prod/nufarul-live, the one-minute 502, rule #6."
+    }
   }
 }
