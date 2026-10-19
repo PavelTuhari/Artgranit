@@ -290,6 +290,149 @@ plicul nostru.
 Din 31.08.2026 butonul «Verifică contul» arata si **IP-ul de iesire al
 serverului** — exact numarul care trebuie trimis la SFS.
 
+### Accesul a fost acordat (tichet SFS TT1651472, 02.09.2026)
+
+Raspunsul CTIF: accesul deschis conform cererii; portal de test
+`https://preproductie.sfs.md/` (autentificare cu semnatura electronica, ca pe
+sfs.md); platforma API de test `https://apiefactura-pre.sfs.md/`; utilizatorul
+API se creeaza din SIA e-Factura → Setări → Utilizatorii companiei → «Creați
+utilizator API»; ghidurile — la rubrica Ajutor.
+
+Masurat imediat dupa, de pe AMBELE adrese de iesire (93.115.136.18 si
+92.5.3.187):
+
+| Proba | Rezultat |
+|---|---|
+| `GET /Service.svc`, `?wsdl` pe mediul de proba | **200**, WSDL de 19.630 B (inainte: 403) |
+| contractul de proba vs cel real | **identic**: aceleasi 19 operatii, aceleasi tipuri (`PostInvocesRequest`, `SignRequest`, …), acelasi namespace DataContract |
+| `POST` gol | 400 (raspunsul WCF) |
+| `POST` cu `Content-Type: application/soap+xml` (SOAP 1.2) | 415 (raspunsul WCF) |
+| `POST` cu actiune inexistenta | 500, **pagina HTML** |
+| `POST Test` cu utilizator/parola invalide | 500, **pagina HTML** (`Server: nginx/1.30.1`) |
+
+Concluzia, importanta pentru depanare: cererile AJUNG la serviciu (400 si
+415 sint ale WCF), dar **orice fault SOAP — pe care WCF il trimite cu status
+500 — este inlocuit de nginx-ul SFS cu pagina lor HTML**. Textul erorii
+(autentificare gresita, XML respins de contract etc.) nu se poate citi de la
+SFS; doar apelul reusit (200) intoarce SOAP. De aceea clientul spune acum:
+**403 + HTML = IP-ul nu e pe lista; 500 + HTML = eroare SOAP mascata**, cel
+mai des utilizator/parola API gresite sau cont creat pe alt mediu decit
+adresa aleasa.
+
+**Ce urmeaza, din partea proprietarului** (cere semnatura electronica, nu se
+poate automatiza): intrare pe `https://preproductie.sfs.md/` cu semnatura →
+Cabinetul personal → SIA e-Factura → Setări → Utilizatorii companiei →
+«Creați utilizator API» — o data pentru primul semnatar (Tuhari Pavel) si o
+data pentru al doilea (Tuhari Oxana). Perechile utilizator/parola se scriu in
+pagina probei (`/UNA.md/orasldev/efactura/test`), adresa = «mediu de probă»,
+apoi «🔌 Verifică contul». Un ✅ acolo inseamna ca lantul e intreg; abia apoi
+se trimite prima factura de proba si se compara XML-ul cu XSD-ul din Ajutor.
+
+### Prima proba reala: respinsa — si de ce nu s-a vazut (02.09.2026, seara)
+
+Cu conturile `ptuhari` / `otuhari` create pe portalul de proba, «Verifică
+contul» a dat ✅ pe ambele cozi. «Trimite proba» de doua ori (20:52, 20:57):
+SIA e-Factura a RASPUNS (SOAP 200), cu `Status 3` si
+
+> Validation failed: The 'Invoices' element is not declared. The 'Invoice'
+> element is not declared. The 'Seria' element is not declared. …
+
+Adica XML-ul nostru era inventat: radacina si toate nodurile. Nimic nu s-a
+inregistrat in e-Factura. Pe pagina s-a vazut doar un JSON taiat, iar
+`EFA_LOG` tine 2000 de caractere — de aici «непонятно что происходит».
+
+**Ce s-a schimbat:**
+
+1. **XML-ul dupa XSD-ul oficial** — `TaxInvoiceSchema.xsd` si
+   `ModelFacturafiscala.xml` din e-Factura → Ajutor, copiate in
+   `docs/Partner/sfs/`. Structura: `Documents/Document/SupplierInfo` cu
+   `Seria?, Number?, IssuedDate?, DeliveryDate!, Supplier@, Buyer@, Total?,
+   TotalTVA?, Merchandises/Row@, CreationMotiv!` — in aceasta ordine, fara
+   namespace; rechizitele sint ATRIBUTE (`IDNO`, `Title`, `Address`,
+   `TaxpayerType` 1=juridic/2=fizic/3=nerezident; `BankAccount@Account
+   @BranchTitle @BranchCode`); rindul cere si valorile FARA TVA. Validat
+   local cu `xmllint --schema` (test in `tests/test_efactura.py`).
+2. **Jurnal complet, `EFA_CALL`** (`sql/02_efa_call.sql`, instalat): fiecare
+   apel SOAP — plicul cu parola mascata, raspunsul brut, HTTP, durata,
+   verdict (`ok / rejected / fault / html / network`). `journal.py`, un
+   singur apel din `sfs.call()`. Pagina probei il arata jos; click pe rind =
+   cererea si raspunsul intregi. Ruta `GET /test/log`.
+3. **Rezultatul trimiterii, in cuvinte**: «Acceptată» + unde apare in
+   e-Factura (facturile de semnat, Order 1) sau «Respinsă» + lista erorilor
+   SFS, una pe rind.
+4. **Parolele in Keychain, nu in pagina**: cimpurile au `autocomplete`
+   standard in doua formulare, deci Safari/Chrome ofera salvarea; iar pentru
+   proba automata de pe Mac — `modules/efactura/scripts/efactura_smoke.py`
+   cu parolele din macOS Keychain (`security add-generic-password -s
+   efactura-api-pre -a ptuhari -w`, la fel `otuhari`). Scriptul face cap-coada:
+   Test pe ambele conturi → factura de 1 leu → PostInvoices → cozile Order
+   1/2 → jurnalul. Fara `--send` nu trimite nimic; `--real` = mediul real.
+
+### ✅ Prima factura ACCEPTATA de SIA e-Factura (02.09.2026, 21:19, mediu de proba)
+
+Proba automata de pe Mac (`efactura_smoke.py`, parolele din Keychain), 1 leu,
+furnizor = cumparator = UNISIM-SOFT. Trei raspunsuri reale, in ordine, au dus
+la forma corecta a XML-ului — fiecare e in jurnalul `EFA_CALL`:
+
+| Trimitere | Raspunsul SFS | Ce s-a corectat |
+|---|---|---|
+| 20:52, 20:57 (pagina) | `Validation failed: The 'Invoices' element is not declared…` | XML dupa `TaxInvoiceSchema.xsd` |
+| 21:18 | `Motivul Crearii este indicat incorect trebue sa fie 4 sau 5` | `CreationMotiv` = 4 (Livrare) |
+| 21:18 | `Object reference not set to an instance of an object` | nodurile din exportul real: `VehicleLogbook`, `Redirections`, `NResident`/`IsSupplierOnly`, `BankAccount` si la cumparator, date cu ora si fus `+03:00` |
+| **21:19** | **`Status 2, TotalInvoices 1, TotalInvoicesPosted 1`** | — |
+
+Nr. **TEST-09022119**, seria TST. Imediat dupa: coada primei semnaturi
+(`GetInvoicesForSigning`, Order 1, contul `ptuhari`) — **1 factura**; coada a
+doua (Order 2, `otuhari`) — 0, corect: pina la prima semnatura nu are ce
+astepta. Documentul se vede pe `https://preproductie.sfs.md/` → SIA
+e-Factura → facturile de semnat, si se semneaza acolo (semnatura ramine la
+oameni).
+
+**Ce face SFS cu documentul primit** (vazut in raspunsul cozii, `XmlInvoice/Xml`):
+`Seria` si `Number` vin GOALE — le atribuie sistemul la semnare (XSD-ul o
+spune: «se importă … dacă factura este semnată»); `Title` si `Address` ale
+furnizorului si cumparatorului sint INLOCUITE cu cele din registrul fiscal,
+dupa IDNO («"UNISIM-SOFT" S.R.L.», «SEC.BUIUCANI Alba-Iulia nr.75 bl.B»);
+`InvoiceStatus 0` = nesemnata. Deci ce trimitem noi ca denumire/adresa e
+doar orientativ — decide registrul. Pagina arata acum, la cozi, exact ce e IN
+sistem: total, prima pozitie, cumparatorul, starea.
+
+Lectia de metoda: fiecare din cele trei erori s-a citit din raspunsul SOAP
+intreg, pastrat in `EFA_CALL` — fara jurnalul complet, «Object reference not
+set» nu s-ar fi putut lega de nodurile lipsa.
+
+### Drumul din back-office, verificat pe un document REAL (fara trimitere)
+
+`EfaController.preview_xml(402)` — contul A-88 din ERP (cumparator persoana
+fizica, un laptop de 19.999 lei) — produce un XML **valid fata de XSD**
+(`xmllint`). Trei corectii au iesit din el, toate in cod acum:
+
+1. banca vinzatorului (`BranchTitle`) si banca cumparatorului lipseau, desi
+   ERP-ul le stie (`firm.bank`, `client.iban/bank/bic`) — se pun;
+2. cumparatorul cu IDNP `2003…` era marcat `TaxpayerType=1` (juridic) — acum
+   se deduce: IDNO pe 1 = juridic, IDNP pe 2 = persoana fizica;
+3. cota TVA era 20 fix, iar documentul avea `tva = 0` la 20.149 lei — am fi
+   raportat 3.358 lei TVA care nu exista in document. Acum cota se deduce din
+   document (tva / baza, rotunjita la 20/12/8/0), iar fara TVA in document se
+   ia setarea noua `tva_rate` (implicit 20). **De verificat cu contabilul**:
+   pentru contul A-88 ERP-ul chiar nu calculeaza TVA sau e o lipsa a
+   raportului? Raspunsul decide valoarea setarii.
+
+Ce ramine pentru mediul real: contul API real (creat pe `sfs.md`, nu pe
+portalul de test) si adresa `efactura-api.sfs.md` in Setari e-Factura.
+
+### Mediul real NU cere acces suplimentar (raspuns CTIF, 03.09.2026)
+
+Intrebat (raspuns la TT1651472), suportul SFS a confirmat: pentru mediul de
+productie **nu se acorda acces suplimentar si nu se inscriu adrese IP** intr-o
+lista permisa. Utilizatorii API pentru mediul real se creeaza direct din
+SIA e-Factura de pe portalul real `sfs.md` -> Cabinetul personal -> SIA
+e-Factura / Setari -> Utilizatorii companiei -> «Creati utilizator API».
+Deci lista de IP din §«Accesul se da pe lista de IP» e o regula DOAR a
+mediului de test; scrisoarea `SCRISOARE_ACCES_EFACTURA_PROD.md` nu mai
+trebuie trimisa (pastrata ca istoric). Un 403 pe `efactura-api.sfs.md`
+nu mai poate insemna «IP nedeschis» — de verificat contul si parola.
+
 ### Plicul SOAP a fost aliniat la contractul VIU al serviciului
 
 Citind `?wsdl` si `?xsd=xsd2` au iesit la iveala patru greseli pe care nicio
