@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contragenti → una.md — jurnal</title>
+<style>
+  body{margin:0;font:13px/1.5 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8fafc;color:#1e293b;padding:18px}
+  h1{font-size:19px;margin:0 0 4px}.hint{color:#64748b;font-size:12.5px;max-width:960px;margin-bottom:12px}
+  .bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+  .bar a,.bar button,.bar input,.bar select{padding:7px 12px;border:1px solid #cbd5e1;border-radius:8px;background:#fff;font-size:12.5px;color:#1e293b;text-decoration:none}
+  table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
+  th,td{padding:7px 9px;border-bottom:1px solid #e2e8f0;text-align:left;vertical-align:top}
+  th{background:#f1f5f9;font-size:11.5px;text-transform:uppercase;color:#475569}
+  .r-ok{color:#15803d}.r-repaired,.r-created{color:#1d4ed8;font-weight:700}.r-conflict,.r-warn{color:#b45309;font-weight:700}.r-error{color:#b91c1c;font-weight:700}
+  .muted{color:#94a3b8}
+</style>
+</head>
+<body>
+<div class="bar"><a href="/UNA.md/orasldev/biro26-clients">← Clienți magazin</a><a href="/UNA.md/orasldev/modules">Portal</a></div>
+<h1>🏛 Contragenti → una.md — jurnalul lanțului</h1>
+<p class="hint">Fiecare pas al preluării din registrul de stat (date.gov.md) prin utilitarul Contragenti:
+  verificarea utilitarului și căutarea (din browser), cardul primit, potrivirea în nomenclator
+  (după IDNO: <code>TMS_UNIVERS.CODVECHI</code> → <code>TMS_ORG.CODFISCAL</code> → <code>YBIRO_CLIENT.IDNO</code>, apoi după denumire),
+  ce s-a completat (<b>repaired</b>), ce s-a creat (<b>created</b>), conflictele și erorile. Tabela <code>CTG_EVENT_LOG</code>.</p>
+<div class="bar">
+  <input id="idno" placeholder="IDNO" style="width:160px" onkeydown="if(event.key==='Enter')load()">
+  <select id="page"><option value="">toate paginile</option><option value="biro26-clients">biro26-clients</option><option value="crm">crm</option><option value="backfill">backfill</option><option value="api">api</option></select>
+  <button onclick="load()">Arată</button><span id="cnt" class="muted"></span>
+</div>
+<table><thead><tr><th>Cînd</th><th>Utilizator</th><th>Pagina</th><th>Pas</th><th>Filtru</th><th>IDNO</th><th>COD</th><th>Rezultat</th><th>Detalii</th></tr></thead>
+<tbody id="rows"><tr><td colspan="9" class="muted">…</td></tr></tbody></table>
+<script>
+const BASE = '{{ url_for("contragenti.journal_page") }}'.replace(/\/$/, '');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+async function load(){
+  const p = new URLSearchParams({limit: 200, idno: document.getElementById('idno').value.trim(), page: document.getElementById('page').value});
+  const r = await fetch(BASE + '/api/events?' + p, {credentials: 'include'}).then(x => x.json()).catch(() => ({}));
+  const rows = (r && r.success) ? r.data : [];
+  document.getElementById('cnt').textContent = rows.length + ' evenimente';
+  document.getElementById('rows').innerHTML = rows.map(e => `<tr><td class="muted">${esc(e.ts)}</td><td>${esc(e.username)}</td><td>${esc(e.page)}</td><td><b>${esc(e.step)}</b></td><td>${esc(e.q)}</td><td>${esc(e.idno)}</td><td>${esc(e.univers_cod)}</td><td class="r-${esc(e.result)}">${esc(e.result)}</td><td>${esc(e.detail)}</td></tr>`).join('') || '<tr><td colspan="9" class="muted">niciun eveniment</td></tr>';
+}
+load();
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+{
+  "README.md": {"slug": "readme", "public": true, "icon": "🏛", "cls": "g", "order": 10,
+    "title": "Contragenti → una.md", "audience": "pentru proprietar și dezvoltatori",
+    "descr": "Ce face puntea, rutele, instalarea și cine o folosește."},
+  "CONTRAGENTI_INSERARE_UNA.md": {"slug": "inserare-una", "public": false, "icon": "🧩", "cls": "v", "order": 20,
+    "title": "Cum intră IDNO în TMS_UNIVERS.CODVECHI și TMS_ORG.CODFISCAL", "audience": "pentru dezvoltatori și operator",
+    "descr": "Ce era greșit, algoritmul de potrivire (IDNO → denumire), repararea înregistrărilor vechi (cazul 518172), jurnalul lanțului CTG_EVENT_LOG, backfill-ul."}
+}

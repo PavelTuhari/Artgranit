@@ -1,0 +1,12 @@
+[Unit]
+Description=CRM Telegram alerts, hourly check (each tenant gets it at its own hour)
+
+[Timer]
+# RO: la fiecare ora fixa, +3 minute ca sa nu cada peste alte lucrari;
+#     ora sumarului fiecarui chirias e in CRM_ALERT_CFG.SEND_HOUR.
+OnCalendar=*-*-* *:03:00
+Persistent=true
+Unit=crm-alerts.service
+
+[Install]
+WantedBy=timers.target
