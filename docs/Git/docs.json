@@ -1,0 +1,7 @@
+{
+  "GIT_CONSOLIDARE_2026-10-19.md": {
+    "order": 1, "icon": "🧷", "audience": "все агенты и разработчики",
+    "title": {"ru": "Консолидация 19.10.2026: все ветки в main, main на серверах", "ro": "Consolidarea din 19.10.2026: toate ramurile în main, main pe servere", "en": "19.10.2026 consolidation: every branch into main, main on every server"},
+    "descr": {"ru": "Что было потеряно и почему, как слиты 13 веток без потерь, выкатка на три сервера, правило №6 для агентов в других ветках.", "ro": "Ce s-a pierdut și de ce, cum s-au îmbinat 13 ramuri fără pierderi, desfășurarea pe trei servere, regula №6 pentru agenții din alte ramuri.", "en": "What was lost and why, how 13 branches were merged losslessly, the three-server rollout, rule #6 for agents on other branches."}
+  }
+}

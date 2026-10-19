@@ -144,4 +144,4 @@ git worktree list --porcelain | awk '/^worktree/{print $2}' | while read d; do n
 - Снимки серверов до консолидации: ветки `prod/office-2026-10-01`, `prod/cloud-2026-10-01`, `prod/nufarul-2026-09-28`, `prod/nufarul-live`; отчёт `docs/SERVERE_COD_VS_GIT_2026-10-01.md` (на `prod/office-2026-10-01`)
 - TBControl: `docs/TBControl/DEPLOY_20261019_47_ZILE_PE_RAMURA.md`
 - Живые проверки: <https://nufarul.eminescu.md/api/tbc/services> · <https://nufarul.eminescu.md/login> · <https://officeplus.md/login> · <https://officeplus.md/UNA.md/orasldev/sitepause/>
-- Этот документ: <https://nufarul.eminescu.md/UNA.md/orasldev/b26docs/GIT_CONSOLIDARE_2026-10-19.md>
+- Этот документ: <https://nufarul.eminescu.md/UNA.md/orasldev/b26docs/Git/GIT_CONSOLIDARE_2026-10-19.md>
