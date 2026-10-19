@@ -11,6 +11,6 @@
   "descr": "Сайты, кампании, бюджет план/факт, ROI по каналам",
   "docs": "SEOForge",
   "pages": {
-    "seoforge": {"ru": "SEOForge", "ro": "SEOForge", "en": "SEOForge"}
+    "seoforge": "SEOForge"
   }
 }

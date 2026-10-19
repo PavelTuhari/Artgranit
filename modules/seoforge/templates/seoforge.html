@@ -1252,7 +1252,14 @@ async function loadEvents() {
     document.getElementById('planPeriod').value = today.slice(0, 7);
     document.getElementById('planfactPeriod').value = today.slice(0, 7);
 
-    await loadShared();
+    // Портфель — первый экран, и он должен нарисоваться даже если общие
+    // справочники не загрузились: иначе пользователь видит вечное
+    // «Загрузка…» и не понимает, сломан модуль или просто медленный.
+    try {
+        await loadShared();
+    } catch (e) {
+        console.error('справочники не загрузились:', e);
+    }
     loadPortfolio();
 })();
 </script>
