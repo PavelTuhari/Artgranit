@@ -2742,6 +2742,10 @@ def api_tbc_services_sync():
     return jsonify(TBControlController.sync_services(data.get('source_code')))
 
 
+from controllers.tbc_infra_routes import tbc_infra_bp  # Proxmox + SSL: правило №2, логика в models/tbc_*.py
+app.register_blueprint(tbc_infra_bp)
+
+
 @app.route('/api/tbc/cassa', methods=['GET'])
 def api_tbc_cassa():
     return jsonify(TBControlController.get_cassa(
