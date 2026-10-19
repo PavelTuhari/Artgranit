@@ -284,4 +284,3 @@ configuration is valid (0 warnings, 110 keys used in the sources)
 ## 6. Известные грабли
 
 ## 7. Чего в приложении пока нет
-
