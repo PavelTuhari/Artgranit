@@ -48,3 +48,29 @@ def toggle():
     if request.is_json:
         return jsonify(r), (200 if r.get("success") else 500)
     return redirect("/UNA.md/orasldev/sitepause/")
+
+
+# ── WordPress (wp-login.php, /wp-admin/) pe pauza — 22.10.2026 ─────────────
+# RO: WordPress-ul officeplus.md ruleaza pe 92.5.130.1, in afara Flask; nginx-ul de
+#     acolo intreaba aceasta adresa la fiecare cerere spre wp-login.php si /wp-admin/
+#     (auth_request, deploy/officeplus/wp-pause.inc). 204 = deschis, 403 = pauza ->
+#     nginx arata pagina de mai jos cu 503. Acelasi parametru SITE_PAUSE ca vitrina:
+#     un singur comutator pentru tot punctul de intrare officeplus.md.
+#     Cererea vine de la nginx local, fara host-ul magazinului — de aceea nu se
+#     verifica domeniul aici. EN: nginx auth_request gate for the WordPress admin.
+
+@blueprint.route("/gate")
+def wp_gate():
+    try:
+        on = bool(store.state().get("on"))
+    except Exception:                                        # noqa: BLE001
+        on = False                            # eroarea pauzei nu inchide nimic
+    return ("", 403 if on else 204, {"Cache-Control": "no-store"})
+
+
+@blueprint.route("/page")
+def wp_pause_page():
+    st = store.state()
+    return render_template("sitepause/pause.html", msg_ro=st.get("ro") or "",
+                           msg_ru=st.get("ru") or ""), 503, {
+        "Retry-After": "3600", "Cache-Control": "no-store", "X-Robots-Tag": "noindex"}
