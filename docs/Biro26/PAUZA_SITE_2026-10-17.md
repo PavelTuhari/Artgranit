@@ -65,3 +65,31 @@ nufarul **nu** s-a instalat nimic.
 - Comutatorul: <https://officeplus.md/UNA.md/orasldev/sitepause/>
 - Site-ul (pe pauză): <https://officeplus.md/>
 - nufarul (neschimbat): <https://nufarul.eminescu.md/login>
+
+## Добавлено 22.10.2026: WordPress (wp-login.php, /wp-admin/) — тоже на паузе
+
+Владелец: «https://officeplus.md/wp-login.php?redirect_to=…wp-admin%2Fexport.php&reauth=1 —
+это тоже на паузу, типа тех работы ведутся».
+
+WordPress officeplus.md работает на облаке 92.5.130.1 вне Flask, поэтому пауза там
+стоит в nginx и спрашивает **тот же параметр `SITE_PAUSE`**:
+
+| Кусок | Где |
+|---|---|
+| `GET /UNA.md/orasldev/sitepause/gate` → 204 (открыто) / 403 (пауза); ошибка → 204 | `modules/sitepause/routes.py` |
+| `GET /UNA.md/orasldev/sitepause/page` → та же страница «lucrări tehnice», 503 | `modules/sitepause/routes.py` |
+| `auth_request` → `@op_wp_pause` | `ubuntu@92.5.130.1:/etc/nginx/conf.d/officeplus-wp-pause.inc` (копия: `deploy/officeplus/wp-pause.inc`) |
+| подключено в `location = /wp-login.php` и `^~ /wp-admin/` | `/etc/nginx/snippets/wp-harden.conf`, `/etc/nginx/conf.d/officeplus-wp-gate.inc` (резервные копии `*.bak-2026-10-22`) |
+
+Проверено вживую: без секретного cookie `wp-login.php`/`/wp-admin/` — по-прежнему 404
+(секретный вход не раскрыт); с cookie — 503 со страницей паузы; `/wp-admin/export.php`
+раньше открывался без cookie (302 на форму входа), теперь — 503; `admin-ajax.php`,
+`/login` бэк-офиса и nufarul не затронуты. Снятие паузы тем же переключателем
+<https://officeplus.md/UNA.md/orasldev/sitepause/> открывает и WordPress (≤ 20 с).
+
+Инцидент при установке: первая версия `wp-pause.inc` не прошла `nginx -t`
+(`proxy_pass` с путём в именованном location), а проверка в скрипте шла через
+`| tail` и не увидела ошибки — reload выполнился, работающий nginx остался на старой
+конфигурации (сайт не падал), но файлы на диске были невалидны ~2 минуты. Исправлено
+(`rewrite … break` + `proxy_pass` без пути), `nginx -t` OK. Вывод: код возврата
+`nginx -t` проверять напрямую, не через конвейер.
