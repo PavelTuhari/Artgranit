@@ -87,6 +87,9 @@ const T = {
   sendComment:{ro: 'Trimite', ru: 'Отправить'},
   yourComment:{ro: 'Comentariul dvs.…', ru: 'Ваш комментарий…'},
   ratePrice:  {ro: 'Preț ofertă în rate', ru: 'Цена в рассрочку'},
+  creditMin:  {ro: 'În rate / credit — la comenzi de la',
+               ru: 'В рассрочку / кредит — при заказе от'},
+  more:       {ro: 'mai mult ›', ru: 'подробнее ›'},
   rateFrom:   {ro: 'în rate de la', ru: 'в рассрочку от'},
   perMonth:   {ro: 'lei/lună', ru: 'лей/мес'},
   creditH:    {ro: 'Rate și credit', ru: 'Рассрочка и кредит'},
@@ -286,11 +289,23 @@ function rateBest(price) {
   }
   return best;
 }
+/* RO: pretul in rate + CONDITIA de suma minima a comenzii. Conditia se scrie
+   cu ROSU (cerinta proprietar 18.08.2026): la un toner de 160 lei clientul
+   vedea pretul in rate, dar la plata rata nu se putea alege — acum vede de ce.
+   Pragul vine din YBIRO_SETTINGS.CREDIT_MIN_ORDER si se compara cu SUMA
+   COMENZII, deci textul spune «de la ... lei», nu «acest produs nu se poate».
+   EN: instalment price plus the minimum-order condition, written in red. */
 function liberHtml(price, small) {
   const v = rateBest(price);
   if (!v) return '';
+  const m = window.CREDIT_MIN_ORDER || 0;
+  // conditia sta pe ACEEASI linie cu pretul in rate — cardul ramine compact
+  const note = (m && price < m)
+    ? ' <span class="credit-min">· ' + tr('creditMin') + ' ' + fmtLei(m) + '</span>'
+    : '';
   return '<div style="font-size:' + (small ? 11.5 : 13) + 'px;color:#1d4ed8;' +
-    'font-weight:700">' + tr('ratePrice') + ': ' + fmtLei(v) + '</div>';
+    'font-weight:700;line-height:1.35">' + tr('ratePrice') + ': ' + fmtLei(v) +
+    note + '</div>';
 }
 /* RO: familii de variante (culoare/marime — BIRO26_VARIANTS): selectorul
    apare pe card cind produsul are variante; lista se incarca lenes la
@@ -310,6 +325,47 @@ async function loadVariants(cod) {
     (String(v.cod_univers) === String(cur) ? ' selected' : '') + '>' +
     esc(v.variant || v.full_name || ('#' + v.cod_univers)) + '</option>').join('');
 }
+/* RO: «mai mult» apare DOAR unde numele chiar s-a taiat — altfel eticheta ar
+   atirna sub fiecare denumire scurta. Se cheama dupa fiecare redesenare a
+   grilei. EN: reveal the «more» label only where the name is truncated. */
+function markTruncatedNames(root) {
+  (root || document).querySelectorAll('.product-name').forEach(function (h) {
+    const card = h.closest('.product-card');
+    const btn = card && card.querySelector('.name-more');
+    if (!btn) return;
+    btn.classList.toggle('show', h.scrollHeight - h.clientHeight > 2);
+  });
+}
+window.markTruncatedNames = markTruncatedNames;
+
+/* RO: grilele se redeseneaza prin innerHTML pe patru pagini (acasa, catalog,
+   produs, favorite) — in loc sa chemam functia din fiecare, urmarim aparitia
+   cardurilor. La redimensionare coloanele isi schimba latimea, deci numele
+   care incapea poate sa nu mai incapa — recalculam si atunci.
+   EN: watch for new cards instead of calling from every page; recheck on resize. */
+(function () {
+  let t = null;
+  const soon = () => { clearTimeout(t); t = setTimeout(() => markTruncatedNames(), 30); };
+  const start = () => {
+    if (!document.body) return;
+    new MutationObserver(muts => {
+      for (const m of muts) {
+        for (const n of m.addedNodes) {
+          if (n.nodeType === 1 &&
+              (n.classList?.contains('product-card') || n.querySelector?.('.product-name'))) {
+            soon(); return;
+          }
+        }
+      }
+    }).observe(document.body, {childList: true, subtree: true});
+    window.addEventListener('resize', soon);
+    soon();
+  };
+  if (document.readyState === 'loading')
+    document.addEventListener('DOMContentLoaded', start);
+  else start();
+})();
+
 function cardBuy(cod) {
   const p = PMAP[cod] || {};
   let realCod = cod, name = p.denumirea || '';
@@ -362,8 +418,10 @@ function cardHtml(p) {
       esc(pname(p)) + '</a></h3>' +
     // RO: articolul (CODVECHI) + codul de bare direct pe card — clientii le
     //     cauta ca sa compare oferta. EN: article + barcode on the card.
-    '<div class="product-code">' + esc(p.codvechi || p.cod) +
-      (p.barcode ? ' · ' + esc(p.barcode) : '') + '</div>' +
+    '<div class="product-code"><span>' + esc(p.codvechi || p.cod) +
+      (p.barcode ? ' · ' + esc(p.barcode) : '') + '</span>' +
+      '<button type="button" class="name-more" onclick="openProd(' + p.cod + ')">' +
+      tr('more') + '</button></div>' +
     varSel +
     '<div class="product-prices"><span class="price">' + fmtLei(price) + '</span></div>' +
     liberHtml(price, true) +
@@ -435,11 +493,17 @@ function payBadgeHtml(name) {
   //     consola si fara sigle „aproximative" (marcile sint protejate).
   // EN: only request the logo when the file really exists; otherwise show the
   //     text badge — no 404 noise, no look-alike trademarks.
+  // PAY_LOGOS = {slug: nume-fisier}; forma veche (lista) ramine suportata
   const have = window.PAY_LOGOS;
-  if (Array.isArray(have) && have.indexOf(slug) === -1)
+  let file = slug + '.svg';
+  if (have && !Array.isArray(have) && typeof have === 'object') {
+    if (!have[slug]) return '<span class="paybadge">' + alt + '</span>';
+    file = have[slug];
+  } else if (Array.isArray(have) && have.indexOf(slug) === -1) {
     return '<span class="paybadge">' + alt + '</span>';
+  }
   // onerror: fisierul lipseste -> inlocuim <img> cu badge-ul text
-  return '<img class="paylogo" src="/static/biro26/pay/' + slug + '.svg" alt="' + alt +
+  return '<img class="paylogo" src="/static/biro26/pay/' + encodeURIComponent(file) + '" alt="' + alt +
          '" title="' + alt + '" loading="lazy"' +
          ' onerror="this.onerror=null;this.outerHTML=\'<span class=&quot;paybadge&quot;>' +
          alt.replace(/'/g, '') + '</span>\'">';

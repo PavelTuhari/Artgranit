@@ -35,6 +35,13 @@
 #opAsistPanel.open{display:block}
 #opAsistPanel iframe{border:0;width:100%;height:100%;display:block}
 body.opAsistOpen jdiv{display:none!important}
+/* RO: pe telefon jos sta bara de navigare (site-mobile.css, 60px) si fituica e ridicata
+   la 68px deasupra ei — asistentul urca deasupra fituicii; pe fisa produsului mai e
+   si bara «Adauga in cos». EN: clear the bottom tab bar and the guide button. */
+@media(max-width:640px){
+  #opAsistBtn{right:12px;bottom:calc(136px + env(safe-area-inset-bottom,0px))}
+  body:has(.pdp-qty) #opAsistBtn{bottom:calc(200px + env(safe-area-inset-bottom,0px))}
+}
 @media(max-width:500px){
   #opAsistPanel{left:0;right:0;top:0;bottom:0;width:100vw;height:100%;border-radius:0}
   #opAsistBtn .opAsistTip{display:none}
