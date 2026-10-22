@@ -92,6 +92,19 @@ def build_gset_block(profile: Dict[str, Any]) -> str:
 #     off this number, so the store needs to know nothing about the cache.
 SETTINGS_EPOCH = 0
 
+
+def _one_word(q: str) -> bool:
+    """RO: un singur cuvint, fara semne speciale — DOAR pentru asemenea
+    interogari s-a dovedit ca indexul de text da EXACT acelasi rezultat ca
+    scanarea. La mai multe cuvinte semantica difera (Oracle Text cauta
+    cuvintele, nu subsirul: '50%' ar da 8.091 in loc de 139), deci acolo
+    ramine scanarea — mai lenta, dar identica cu ce vedea clientul pina acum.
+    EN: single word, no special chars — only there CONTAINS matches INSTR.
+    (restaurat 22.10.2026: pierdut la imbinarea feat/autopark-module, comit d330a2b1)"""
+    return bool(_re.fullmatch(r"[0-9A-Za-zА-Яа-яЁёĂÂÎȘȚăâîșț]+", (q or "").strip()))
+
+
+
 # ── RO: cache in memorie pentru interogarile GRELE si RAR schimbatoare ──
 #    Fiecare interogare Oracle trece printr-un subproces thick (~0,4 s doar
 #    pornirea), iar arborele de grupe costa ~1,6 s si se schimba o data pe zi,
@@ -586,7 +599,7 @@ class Biro26Store:
             if search:
                 inner += " WHERE UPPER(u.DENUMIREA) LIKE UPPER(:s)"
                 params["s"] = f"%{search}%"
-            inner += " ORDER BY u.DENUMIREA"
+            inner += " ORDER BY u.DENUMIREA, u.COD"
             r = Biro26DB().execute_query(_page(inner, limit, offset), params)
             return _result(r)
         except Exception as e:
@@ -799,6 +812,33 @@ class Biro26Store:
         except Exception as e:
             return {"success": False, "error": str(e)}
 
+    # ── cautarea in descrieri: index Oracle Text sau scanare ──────────
+    @staticmethod
+    def _text_index_ok() -> bool:
+        """RO: exista indexul de text si e valid? Raspunsul se tine 10 min —
+        daca indexul dispare (recreare, mutare de baza), cautarea revine
+        automat la scanare, fara eroare pentru client.
+        EN: is the Text index present and valid? Cached, with graceful
+        fallback to the scan when it is not."""
+        rows = _cached("txtidx", 600, lambda: _rows(Biro26DB().execute_query(
+            "SELECT COUNT(*) CNT FROM USER_INDEXES "
+            "WHERE INDEX_NAME = 'IX_WEBATTR_DESCR_RO' AND STATUS = 'VALID'")))
+        try:
+            return bool(rows) and int(rows[0]["cnt"]) > 0
+        except (KeyError, ValueError, TypeError):
+            return False
+
+    @staticmethod
+    def _descr_predicate(q_norm: str) -> str:
+        """RO: predicatul pentru cautarea in descrieri (CLOB). Cu index de
+        text: 0,02-0,18 s in loc de 2,2-2,8 s, rezultat identic (verificat
+        pe hp/toner/ergonomic/creion/plastic/birou/a4).
+        EN: description-search predicate — Text index when applicable."""
+        if _one_word(q_norm) and Biro26Store._text_index_ok():
+            return "CONTAINS(DESCRIERE_NON_DIACR_RO, :ct) > 0"
+        return ("DBMS_LOB.INSTR(UPPER(DESCRIERE_NON_DIACR_RO), "
+                "                UPPER(:sq)) > 0")
+
     @staticmethod
     def get_products_stock(search: Optional[str] = None, gr1: Optional[str] = None,
                            brand: Optional[str] = None, categorie: Optional[str] = None,
@@ -943,10 +983,12 @@ class Biro26Store:
                           "SELECT COD FROM TMS_MPT_WEBATTR WHERE "
                           "  UPPER(DENUMIRE_FULL_RO) LIKE UPPER(:s) "
                           "  OR UPPER(DENUMIRE_FULL_RU) LIKE UPPER(:s) "
-                          "  OR DBMS_LOB.INSTR(UPPER(DESCRIERE_NON_DIACR_RO), "
-                          "                    UPPER(:sq)) > 0)")
+                          f"  OR {Biro26Store._descr_predicate(q_norm)})")
                 params["s"] = f"%{q_norm}%"
-                params["sq"] = q_norm
+                if _one_word(q_norm) and Biro26Store._text_index_ok():
+                    params["ct"] = f"%{q_norm}%"
+                else:
+                    params["sq"] = q_norm
             if cod:
                 # RO: fisa unui singur produs (pagina PDP a noului site)
                 inner += " AND u.COD=:cod"; params["cod"] = int(cod)
@@ -1051,6 +1093,36 @@ class Biro26Store:
                 "  GROUP BY d.CTSC) rz ON rz.SC = c.COD "
                 "LEFT JOIN BIRO26_VARIANTS vr ON vr.COD_UNIVERS = c.COD "
                 "ORDER BY c.rn")
+            # RO: raspunsul CAUTARII se tine in cache 5 minute, cu tot cu
+            #     pagina. Cautarea costa ~4-6 s pentru ca descrierile sint in
+            #     CLOB fara index de text, iar Oracle le citeste pe toate la
+            #     fiecare cerere. Nu putem sari peste ele fara sa PIERDEM
+            #     rezultate (verificat: "ergonomic" scade de la 406 la 143
+            #     produse), deci pastram cautarea completa si o facem sa se
+            #     plateasca o singura data: paginile urmatoare, revenirile si
+            #     ceilalti vizitatori o primesc gata. Solutia definitiva ar fi
+            #     un index Oracle Text pe descrieri — decizie separata, cere
+            #     DDL pe baza de productie.
+            # EN: cache the full search response (page included) for 5 minutes;
+            #     skipping the CLOB scan would silently drop results.
+            if search:
+                import hashlib as _hh
+                skey = "srch:" + _hh.md5(
+                    (outer + repr(sorted(params.items())) + str(with_count))
+                    .encode()).hexdigest()
+                hit = _cached(skey, 300, lambda: _result(
+                    Biro26DB().execute_query(outer, params)))
+                if hit.get("success"):
+                    res = dict(hit)
+                    if with_count:
+                        import hashlib as _h2
+                        ck2 = "cnt:" + _h2.md5(
+                            (count_sql + repr(sorted(params.items()))).encode()
+                        ).hexdigest()
+                        res["total"] = _cached(ck2, 300, lambda: (
+                            lambda rc: int(rc[0]["cnt"]) if rc else 0)(
+                                _rows(Biro26DB().execute_query(count_sql, params))))
+                    return res
             r = Biro26DB().execute_query(outer, params)
             res = _result(r)
             # RO: sursele fara HTTPS (impreso.md) trec prin proxy, altfel browserul

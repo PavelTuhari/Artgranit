@@ -4,7 +4,8 @@
 
 ## Главный принцип
 
-Новые модули должны сразу проектироваться как Oracle-first и normalized-first.
+Новые модули проектируются как **изолированные пакеты поверх общего ядра**,
+Oracle-first и normalized-first.
 
 Это означает:
 
@@ -187,7 +188,27 @@ grep -rn "<ключевое имя из твоей задачи>" --include=*.py
 1. Добавить SQL-файл в `sql/`.
 2. Включить этот файл в порядок выполнения в `deploy_oracle_objects.py`.
 3. Проверить, что `deploy_to_remote.sh` недостаточно для новых Oracle-объектов: он переносит код, но по умолчанию не запускает DDL.
-4. Если релиз модуля меняет Oracle-схему, отдельно выполнить `python deploy_oracle_objects.py` или remote deploy с `DEPLOY_ORACLE_ON_REMOTE=1`.
+4. Если релиз модуля меняет Oracle-схему, отдельно выполнить установщик.
+   Для модулей нового образца это **свой** скрипт модуля
+   (`modules/<ключ>/scripts/<ключ>_deploy.py`), для старых — общий
+   `python deploy_oracle_objects.py` или remote deploy с
+   `DEPLOY_ORACLE_ON_REMOTE=1`.
+5. **`--dry-run` не доказывает, что схема встанет.** Он показывает только,
+   что файл правильно разбит на команды. 25.08.2026 DDL модуля SDA пережил
+   четыре круга ревью и не устанавливался вовсе: строка `/` стояла только
+   ПОСЛЕ триггера, разделитель блоков режет только по `/`, и каждый блок
+   выходил как `CREATE INDEX; CREATE TABLE; CREATE SEQUENCE; CREATE OR
+   REPLACE TRIGGER ... END;` — то есть один PL/SQL-оператор.
+   `cursor.execute` на многооператорном тексте даёт ORA-00911.
+   Правило: `/` ставить и ПЕРЕД, и ПОСЛЕ каждого PL/SQL-блока, а установщик
+   один раз прогнать вживую.
+6. **В комментариях DDL не должно быть `;` и апострофов.** Разделитель
+   операторов режет по `;` и не отбрасывает комментарии. 03.09.2026 строка
+   `-- ... cash or ticket; automatic` обрубила `CREATE TABLE SDA_RETURN`
+   пополам: ORA-00931, следом ORA-00900 на хвосте `automatic`, дальше
+   каскад из 12 объектов, ссылающихся на несозданную таблицу. Апостроф
+   ломает то же самое через подсчёт кавычек (найдено в 117). Оба случая
+   стоит закрывать тестом на самом файле — см. `tests/test_sda.py`.
 
 ### 2a. Oracle wallet на remote
 
@@ -267,7 +288,11 @@ grep -rn "<ключевое имя из твоей задачи>" --include=*.py
 
 Перед тем как считать модуль готовым, проверить:
 
-0. модуль виден в `/UNA.md/orasldev/modules` и в боковой панели портала,
+0. **изоляция:** `git diff --name-only main HEAD` не показывает ни одного
+   общего файла; в `tests/test_<ключ>.py` есть два теста изоляции;
+   ядро подключило модуль (`app.extensions["module_loader"].as_dict()` —
+   ключ в `loaded`, не в `skipped`/`failed`);
+0a. модуль виден в `/UNA.md/orasldev/modules` и в боковой панели портала,
    у него есть `modules/<ключ>/module.json`;
 1. в коде нет SQLite/file-based authoritative state;
 2. в коде нет generic runtime-table names вроде `APP_RUNTIME_KV`;
@@ -304,14 +329,21 @@ grep -rn "<ключевое имя из твоей задачи>" --include=*.py
 
 ```bash
 cd /Users/pt/Projects.AI/Artgranit
-tar -czf /tmp/patch.tar.gz <только изменённые файлы>
+COPYFILE_DISABLE=1 tar -czf /tmp/patch.tar.gz --exclude='__pycache__' --exclude='.DS_Store' <только изменённые файлы>
 scp -i <ключ> /tmp/patch.tar.gz <user@host>:/tmp/patch.tar.gz
 ssh -i <ключ> <user@host> 'cd /home/ubuntu/artgranit && tar -xzf /tmp/patch.tar.gz \
   && rm -f /tmp/patch.tar.gz && sudo systemctl restart artgranit'
 ```
 
 Распаковка поверх каталога не трогает `venv/`, `.env` и wallet — их сохранять
-отдельно не нужно. После КАЖДОГО обновления любого контура —
+отдельно не нужно.
+
+**`COPYFILE_DISABLE=1` обязателен.** Без него macOS кладёт в архив
+AppleDouble-двойники `._имя` для каждого файла, и они приезжают на сервер.
+25.08.2026 в хабе документации SDA из-за этого появились карточки-призраки
+«._SPEC_SDA.md — без описания в docs.json»: реестр собирает хаб из самой
+папки и честно показывал всё, что там лежало. Реестр с тех пор отсекает
+файлы с точкой в начале имени, но плодить мусор на сервере всё равно не надо. После КАЖДОГО обновления любого контура —
 `curl -I https://nufarul.eminescu.md/login` и `curl -s -o /dev/null -w '%{http_code}' https://officeplus.md/cos`.
 
 ## VPN во внутреннюю сеть — поднимать самому
