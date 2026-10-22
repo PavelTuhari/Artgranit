@@ -26,7 +26,9 @@ location = /_op_wp_pause {
 }
 
 location @op_wp_pause {
-    proxy_pass http://127.0.0.1:8000/UNA.md/orasldev/sitepause/page;
+    # in location numit proxy_pass nu poate avea cale — o punem prin rewrite
+    rewrite ^ /UNA.md/orasldev/sitepause/page break;
+    proxy_pass http://127.0.0.1:8000;
     proxy_set_header Host officeplus.md;
     proxy_intercept_errors off;
 }
