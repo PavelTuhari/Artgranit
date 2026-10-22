@@ -1,7 +1,32 @@
 {
   "GIT_CONSOLIDARE_2026-10-19.md": {
-    "order": 1, "icon": "🧷", "audience": "все агенты и разработчики",
-    "title": {"ru": "Консолидация 19.10.2026: все ветки в main, main на серверах", "ro": "Consolidarea din 19.10.2026: toate ramurile în main, main pe servere", "en": "19.10.2026 consolidation: every branch into main, main on every server"},
-    "descr": {"ru": "Что было потеряно и почему, как слиты 13 веток без потерь, выкатка на три сервера, правило №6 для агентов в других ветках.", "ro": "Ce s-a pierdut și de ce, cum s-au îmbinat 13 ramuri fără pierderi, desfășurarea pe trei servere, regula №6 pentru agenții din alte ramuri.", "en": "What was lost and why, how 13 branches were merged losslessly, the three-server rollout, rule #6 for agents on other branches."}
+    "order": 1,
+    "icon": "🧷",
+    "audience": "все агенты и разработчики",
+    "title": {
+      "ru": "Консолидация 19.10.2026: все ветки в main, main на серверах",
+      "ro": "Consolidarea din 19.10.2026: toate ramurile în main, main pe servere",
+      "en": "19.10.2026 consolidation: every branch into main, main on every server"
+    },
+    "descr": {
+      "ru": "Что было потеряно и почему, как слиты 13 веток без потерь, выкатка на три сервера, правило №6 для агентов в других ветках.",
+      "ro": "Ce s-a pierdut și de ce, cum s-au îmbinat 13 ramuri fără pierderi, desfășurarea pe trei servere, regula №6 pentru agenții din alte ramuri.",
+      "en": "What was lost and why, how 13 branches were merged losslessly, the three-server rollout, rule #6 for agents on other branches."
+    }
+  },
+  "RESTAURARE_2026-10-22.md": {
+    "order": 2,
+    "icon": "🩹",
+    "audience": "все агенты и разработчики",
+    "title": {
+      "ru": "Восстановление 22.10.2026: потерянное при слиянии 19.10",
+      "ro": "Restaurarea din 22.10.2026: ce s-a pierdut la îmbinarea din 19.10",
+      "en": "22.10.2026 restore: what the 19.10 merge lost"
+    },
+    "descr": {
+      "ru": "Ошибка «файл целиком», как нашли 29 файлов, что вернули по датам, buyable_only, правило 3-way по блокам.",
+      "ro": "Greșeala «fișier întreg», cum s-au găsit 29 de fișiere, ce s-a readus după dată, buyable_only, regula 3-way pe blocuri.",
+      "en": "The whole-file mistake, how 29 files were found, what came back by date, buyable_only, the per-hunk 3-way rule."
+    }
   }
 }
