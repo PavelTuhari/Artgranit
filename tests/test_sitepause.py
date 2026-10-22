@@ -114,3 +114,37 @@ def test_hook_end_to_end_with_test_client(monkeypatch):
     flag["on"] = True
     monkeypatch.setattr(r.AuthController, "is_authenticated", staticmethod(lambda: True))
     assert c.get("/UNA.md/orasldev/biro26-site", headers={"Host": "officeplus.md"}).get_data(as_text=True) == "SHOP"
+
+
+def test_wp_gate_answers_204_open_and_403_paused(monkeypatch):
+    from flask import Flask
+    from modules.sitepause import blueprint, store
+    flag = {"on": False}
+    monkeypatch.setattr(store, "state", lambda: {"on": flag["on"], "ro": "", "ru": ""})
+    app = Flask(__name__)
+    app.register_blueprint(blueprint, url_prefix="/UNA.md/orasldev/sitepause")
+    c = app.test_client()
+    assert c.get("/UNA.md/orasldev/sitepause/gate").status_code == 204
+    flag["on"] = True
+    assert c.get("/UNA.md/orasldev/sitepause/gate").status_code == 403
+    r = c.get("/UNA.md/orasldev/sitepause/page")
+    assert r.status_code == 503 and "lucrări tehnice" in r.get_data(as_text=True)
+    assert r.headers["Retry-After"] == "3600"
+
+
+def test_wp_gate_fails_open_on_error(monkeypatch):
+    from flask import Flask
+    from modules.sitepause import blueprint, store
+
+    def boom():
+        raise RuntimeError("baza cazuta")
+    monkeypatch.setattr(store, "state", boom)
+    app = Flask(__name__)
+    app.register_blueprint(blueprint, url_prefix="/UNA.md/orasldev/sitepause")
+    assert app.test_client().get("/UNA.md/orasldev/sitepause/gate").status_code == 204
+
+
+def test_nginx_include_targets_the_gate():
+    inc = open(os.path.join(ROOT, "deploy", "officeplus", "wp-pause.inc"), encoding="utf-8").read()
+    assert "location = /_op_wp_pause" in inc and "internal;" in inc
+    assert "/UNA.md/orasldev/sitepause/gate" in inc and "/UNA.md/orasldev/sitepause/page" in inc
