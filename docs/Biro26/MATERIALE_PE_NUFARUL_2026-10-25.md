@@ -33,7 +33,7 @@
 - Маркетинг: https://nufarul.eminescu.md/static/proiect-tip/01_MARKETING.html
 - Покупателю: https://nufarul.eminescu.md/static/proiect-tip/04_INSTRUCTIUNI_CUMPARATOR.html
 - Брошюра: https://nufarul.eminescu.md/static/marketing/artgranit-prospect.html
-- Хаб (после входа): https://nufarul.eminescu.md/UNA.md/orasldev/b26docs/ProiectTip/
+- Хаб (после входа): https://nufarul.eminescu.md/UNA.md/orasldev/b26docs/ProiectTip/00_INDEX.html · все разделы: https://nufarul.eminescu.md/UNA.md/orasldev/b26docs/
 - Демо-магазин: https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site
 
 ## Проверка
