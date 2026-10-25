@@ -30,6 +30,15 @@ def test_storefront_paused_backoffice_and_login_open():
         assert not rules.path_is_paused(p), p
 
 
+def test_public_materials_closed_on_paused_shop_host():
+    """RO: materialele se dau doar de pe nufarul — pe officeplus.md in pauza sint 503."""
+    from modules.sitepause import rules
+    for p in ("/static/proiect-tip/index.html", "/static/proiect-tip/01_MARKETING.html",
+              "/static/marketing/artgranit-prospect.html"):
+        assert rules.path_is_paused(p), p
+    assert not rules.path_is_paused("/static/biro26/cookie-consent.js")
+
+
 def test_flag_values():
     from modules.sitepause import rules
     assert rules.flag_on("1") and rules.flag_on(" ON ") and rules.flag_on("da")

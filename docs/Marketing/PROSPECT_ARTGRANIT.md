@@ -29,7 +29,7 @@
 | Тесты | **1355** автотестов; правила модулей — без Oracle wallet, за 2 секунды |
 | Базы | Oracle 11.2 (ERP UNA.md, кодировка CL8MSWIN1251) **и** Oracle Autonomous DB 23ai (OCI) одновременно |
 | Языки интерфейса | RO · RU · EN |
-| Боевые контуры | officeplus.md (магазин + бэк-офис), nufarul.eminescu.md (производство, тест) |
+| Контуры | nufarul.eminescu.md — все материалы, демо-магазин и портал модулей; officeplus.md — боевой магазин (сейчас на паузе) |
 
 ---
 
@@ -92,7 +92,7 @@ Python 3.12 · Flask · python-oracledb (thin + thick-воркер) · Oracle 11
 ## Контакты
 
 **GRECU OFFICE GROUP SRL** · mun. Bălți, str. Libertății 96, of. 1 · +373 620 07 211 · officeplussrl@gmail.com
-Живая демонстрация: <https://officeplus.md/> (магазин) · <https://nufarul.eminescu.md/login> (портал модулей)
+Живая демонстрация: <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site> (магазин) · <https://nufarul.eminescu.md/login> (портал модулей)
 Документация для разработчиков: <https://nufarul.eminescu.md/UNA.md/orasldev/docs/>
 
 ---

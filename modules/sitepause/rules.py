@@ -12,6 +12,9 @@ SHOP_PREFIXES = (
     "/UNA.md/orasldev/biro26-site", "/UNA.md/orasldev/biro26-1shop",
     "/UNA.md/orasldev/biro26-shop",
 )
+# RO: materialele publice (pachetul «proiect tip», prospectul) se dau DOAR de pe
+# nufarul.eminescu.md — pe domeniul magazinului in pauza sint inchise si ele (25.10.2026).
+PAUSED_STATIC = ("/static/proiect-tip/", "/static/marketing/")
 
 
 def flag_on(value) -> bool:
@@ -28,6 +31,8 @@ def is_shop_host(host: str, shop_hosts: Iterable[str]) -> bool:
 def path_is_paused(path: str) -> bool:
     p = path or "/"
     if any(p == s or p.startswith(s + "/") or p.startswith(s + "?") for s in SHOP_PREFIXES):
+        return True
+    if p.startswith(PAUSED_STATIC):
         return True
     if p.startswith("/UNA.md/orasldev/sitepause"):
         return False

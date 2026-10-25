@@ -1,6 +1,6 @@
 # 4a. Instrucțiunea cumpărătorului · Инструкция покупателя
 
-*Pentru clienții magazinului online. Exemplul: <https://officeplus.md/>.
+*Pentru clienții magazinului online. Exemplul: <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site>.
 Для клиентов интернет-магазина. Ниже — та же инструкция на русском.*
 
 ---
@@ -12,8 +12,8 @@
 | Cum | Unde |
 |---|---|
 | **Căutare** — scrieți denumirea, codul sau codul de bare în bara de sus | orice pagină |
-| **Catalog** — alegeți grupa, apoi categoria din panoul lateral | <https://officeplus.md/catalog> |
-| **Branduri** | <https://officeplus.md/branduri> |
+| **Catalog** — alegeți grupa, apoi categoria din panoul lateral | <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/catalog> |
+| **Branduri** | <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/brands> |
 | **Filtre** — preț, brand, sortare (pe telefon: butonul «Filtre») | pagina catalogului |
 
 Rezultatele căutării sînt ordonate după relevanță: întîi produsele al căror nume
@@ -24,13 +24,13 @@ Rezultatele căutării sînt ordonate după relevanță: întîi produsele al c�
 
 ### 2. Fișa produsului
 
-Pagina unui produs (`https://officeplus.md/produs/<cod>`) arată fotografiile, descrierea,
+Pagina unui produs (`https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/product/<cod>`) arată fotografiile, descrierea,
 codul, codul de bare, prețul obișnuit și prețul în rate. Butoanele: **Adaugă în coș**,
 inimioara (**Favorite**), **Compară**.
 
 ### 3. Coșul și plata
 
-Coșul: <https://officeplus.md/cos>. Modificați cantitățile, apoi alegeți modul de plată:
+Coșul: <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/cart>. Modificați cantitățile, apoi alegeți modul de plată:
 
 | Mod | Ce se întîmplă |
 |---|---|
@@ -44,7 +44,7 @@ plata Standard rămîne disponibilă. La plata în rate transportul nu se adaug�
 
 ### 4. Contul (cabinetul) clientului
 
-<https://officeplus.md/cont> — înregistrare (nume, telefon, email, parolă; pentru firme —
+<https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/account> — înregistrare (nume, telefon, email, parolă; pentru firme —
 IDNO și adresa), istoricul comenzilor, documentele. Firmele primesc prețul pentru
 persoane juridice.
 
@@ -62,7 +62,7 @@ Butonul verde **💬** din colțul dreapta-jos (pe telefon — deasupra barei de
 La prima vizită apare fereastra **«🍪 Folosim cookie-uri»**: **Refuz**, **Personalizez**
 sau **Accept toate**. Fără acordul dumneavoastră nu pornesc statisticile, chatul,
 harta și măsurarea reclamelor. Alegerea se schimbă oricînd din linkul **«Setări cookie»**
-din subsolul paginii. Detalii: <https://officeplus.md/politica-de-confidentialitate>.
+din subsolul paginii. Detalii: <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/page/politica-de-confidentialitate>.
 
 ### 7. Pagina «Se efectuează lucrări tehnice»
 
@@ -71,9 +71,9 @@ continuare la telefonul și emailul afișate pe pagină.
 
 ### 8. Contact și pagini utile
 
-[Livrare](https://officeplus.md/livrare) · [Retur produse](https://officeplus.md/retur-produse) ·
-[Credite](https://officeplus.md/credite) · [Termeni și condiții](https://officeplus.md/termeni-si-conditii) ·
-[Contacte](https://officeplus.md/contacte) · +373 620 07 211 · officeplussrl@gmail.com
+[Livrare](https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/page/livrare) · [Retur produse](https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/page/retur-produse) ·
+[Credite](https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/page/credite) · [Termeni și condiții](https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/page/termeni-si-conditii) ·
+[Contacte](https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/page/contacte) · +373 620 07 211 · officeplussrl@gmail.com
 
 ---
 
@@ -84,8 +84,8 @@ continuare la telefonul și emailul afișate pe pagină.
 | Как | Где |
 |---|---|
 | **Поиск** — название, артикул или штрихкод в строке сверху | любая страница |
-| **Каталог** — группа, затем категория в боковой панели | <https://officeplus.md/catalog> |
-| **Бренды** | <https://officeplus.md/branduri> |
+| **Каталог** — группа, затем категория в боковой панели | <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/catalog> |
+| **Бренды** | <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/brands> |
 | **Фильтры** — цена, бренд, сортировка (на телефоне — кнопка «Filtre») | каталог |
 
 Результаты поиска упорядочены по релевантности: сначала товары, чьё название
@@ -97,13 +97,13 @@ continuare la telefonul și emailul afișate pe pagină.
 
 ### 2. Карточка товара
 
-`https://officeplus.md/produs/<код>`: фото, описание, артикул, штрихкод, обычная цена и
+`https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/product/<код>`: фото, описание, артикул, штрихкод, обычная цена и
 цена в рассрочку. Кнопки: **Adaugă în coș** (в корзину), сердечко (**избранное**),
 **сравнить**.
 
 ### 3. Корзина и оплата
 
-Корзина: <https://officeplus.md/cos>. Измените количество и выберите оплату:
+Корзина: <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/cart>. Измените количество и выберите оплату:
 
 | Способ | Что происходит |
 |---|---|
@@ -117,7 +117,7 @@ continuare la telefonul și emailul afișate pe pagină.
 
 ### 4. Кабинет клиента
 
-<https://officeplus.md/cont> — регистрация (имя, телефон, email, пароль; для компаний —
+<https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/account> — регистрация (имя, телефон, email, пароль; для компаний —
 IDNO и адрес), история заказов, документы. Компании видят цену для юридических лиц.
 
 ### 5. Ассистент на сайте
@@ -141,8 +141,8 @@ IDNO и адрес), история заказов, документы. Комп
 
 ### 8. Контакты
 
-[Доставка](https://officeplus.md/livrare) · [Возврат](https://officeplus.md/retur-produse) ·
-[Кредиты](https://officeplus.md/credite) · [Контакты](https://officeplus.md/contacte) ·
+[Доставка](https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/page/livrare) · [Возврат](https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/page/retur-produse) ·
+[Кредиты](https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/page/credite) · [Контакты](https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site/page/contacte) ·
 +373 620 07 211 · officeplussrl@gmail.com
 
 ---
