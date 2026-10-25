@@ -32,6 +32,7 @@ DOCS = [
     ("03_REPLICARE", "3. Тиражирование", False),
     ("04_INSTRUCTIUNI_CUMPARATOR", "4a. Покупателю", True),
     ("05_INSTRUCTIUNI_OPERATOR", "4b. Сотруднику", False),
+    ("06_ISTORIA_PROIECTULUI", "6. История", False),
 ]
 PUBLIC = {name for name, _, pub in DOCS if pub}
 

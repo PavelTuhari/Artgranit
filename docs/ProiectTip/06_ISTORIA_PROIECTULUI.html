@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>6. История проекта: от SQL-консоли до типового проекта</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--b:#194681;--o:#e8632c;--t:#1f2937;--m:#6b7280;--line:#e5e7eb;--bg:#f6f8fb}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.6 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--t);background:#fff}
+header{background:linear-gradient(135deg,var(--b),#0f325f);color:#fff;padding:14px 20px}
+header .w{max-width:1040px;margin:0 auto;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+header .brand{font-weight:800;font-size:18px;margin-right:auto}
+header .brand span{color:var(--o)}
+header a{color:#fff;text-decoration:none;font-size:14px;padding:5px 10px;border-radius:8px;opacity:.9}
+header a.on,header a:hover{background:rgba(255,255,255,.16);opacity:1}
+main{max-width:1040px;margin:0 auto;padding:26px 20px 60px}
+h1{color:var(--b);font-size:30px;line-height:1.2;margin:.2em 0 .5em}
+h2{color:var(--b);font-size:22px;margin:1.8em 0 .6em;padding-bottom:6px;border-bottom:2px solid var(--line)}
+h3{font-size:18px;margin:1.4em 0 .5em}
+a{color:var(--b)}
+table{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14.5px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#eef3fa;color:var(--b)}
+tr:nth-child(even) td{background:#fbfcfe}
+code{font:13.5px ui-monospace,Menlo,Consolas,monospace;background:#eef2f7;padding:1px 5px;border-radius:4px}
+pre{background:#0f172a;color:#e2e8f0;padding:14px 16px;border-radius:10px;overflow:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0;color:inherit}
+blockquote{margin:14px 0;padding:12px 16px;background:var(--bg);border-left:4px solid var(--o);border-radius:0 10px 10px 0}
+blockquote table{font-size:14px}
+hr{border:0;border-top:1px solid var(--line);margin:30px 0}
+footer{max-width:1040px;margin:0 auto;padding:18px 20px 40px;color:var(--m);font-size:13px;border-top:1px solid var(--line)}
+@media print{header{background:none;color:#000;border-bottom:2px solid #000}header a{display:none}
+  header .brand{color:#000}main{padding-top:10px}pre{white-space:pre-wrap}a{color:#000}}
+</style>
+</head>
+<body>
+<header><div class="w"><div class="brand">Proiect <span>tip</span> · Artgranit</div><a href="00_INDEX.html">Пакет документов</a><a href="01_MARKETING.html">1. Маркетинг</a><a href="02_GHID_PROPRIETAR.html">2. Собственнику</a><a href="03_REPLICARE.html">3. Тиражирование</a><a href="04_INSTRUCTIUNI_CUMPARATOR.html">4a. Покупателю</a><a href="05_INSTRUCTIUNI_OPERATOR.html">4b. Сотруднику</a><a href="06_ISTORIA_PROIECTULUI.html" class="on">6. История</a></div></header>
+<main>
+<h1 id="6-sql-">6. История проекта: от SQL-консоли до типового проекта</h1>
+<p><em>25.10.2026 · восстановлено по истории git (3 146 коммитов с 26.11.2025), датированным
+документам в <code>docs/</code> (224 файла) и разборам инцидентов. Каждая дата ниже — дата коммита
+или документа, а не «по памяти».</em></p>
+<blockquote>
+<p><strong>Зачем этот документ.</strong> Тот, кто будет тиражировать проект, должен знать не только
+что есть сейчас, но и <strong>в каком порядке это строилось, сколько заняло и где больно
+ударило</strong>. Сроки из этой хроники — основа оценок в <a href="03_REPLICARE.html">Тиражировании</a>;
+уроки — основа правил в <a href="02_GHID_PROPRIETAR.html">Документации собственника</a>.</p>
+</blockquote>
+<hr />
+<h2 id="61">6.1 Коротко: проект в цифрах и этапах</h2>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Начало</td>
+<td>26.11.2025 — «Oracle SQL Developer Web Application» (веб-консоль к Oracle)</td>
+</tr>
+<tr>
+<td>Сейчас</td>
+<td>30 модулей, 179 экранов, 1 359 автотестов, 191 SQL-файл DDL, ~91 000 строк Python</td>
+</tr>
+<tr>
+<td>Коммитов</td>
+<td>3 146 (из них больше половины — автокоммиты каждой правки)</td>
+</tr>
+<tr>
+<td>Документов</td>
+<td>224 файла <code>.md</code> в <code>docs/</code>, у каждого модуля своя папка</td>
+</tr>
+<tr>
+<td>Контуры</td>
+<td>nufarul.eminescu.md (все материалы, демо, тест), officeplus.md (боевой магазин — с 17.10.2026 на паузе), офисная копия, резервное облако</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Шесть этапов:</strong></p>
+<table>
+<thead>
+<tr>
+<th>Этап</th>
+<th>Период</th>
+<th>Суть</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>I. Консоль и первые модули</td>
+<td>11.2025 – 02.2026</td>
+<td>SQL-консоль в браузере, метрики БД, маркетинг DIGI</td>
+</tr>
+<tr>
+<td>II. Отраслевые модули</td>
+<td>03.2026 – 05.2026</td>
+<td>AGRO (приёмка, весы), DECOR, кредиты, Nufărul, AEÎ — каждый как прототип для своего заказчика</td>
+</tr>
+<tr>
+<td>III. Biro26 — магазин на ERP</td>
+<td>06.2026 – 08.2026</td>
+<td>OfficePlus: импорт товаров, бэк-офис, витрина, оплата, рассрочка, PDF, переводы</td>
+</tr>
+<tr>
+<td>IV. Ядро и изолированные модули</td>
+<td>08.2026</td>
+<td>после потерь работы: модуль = папка, ядро подключает его само</td>
+</tr>
+<tr>
+<td>V. Расширение</td>
+<td>08.2026 – 10.2026</td>
+<td>e-Factura, CRM, Partner API, мониторинг, Автопарк, PECO, SDA, cookie, ассистент</td>
+</tr>
+<tr>
+<td>VI. Консолидация и типовой проект</td>
+<td>10.2026</td>
+<td>все ветки в <code>main</code>, правило №6, пауза officeplus.md, пакет «типовой проект»</td>
+</tr>
+</tbody>
+</table>
+<h3 id="_1">Коммиты по месяцам</h3>
+<table>
+<thead>
+<tr>
+<th>Месяц</th>
+<th style="text-align: right;">Коммитов</th>
+<th>Что происходило</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>2025-11</td>
+<td style="text-align: right;">2</td>
+<td>старт: веб-консоль Oracle</td>
+</tr>
+<tr>
+<td>2026-02</td>
+<td style="text-align: right;">8</td>
+<td>DIGI Marketing</td>
+</tr>
+<tr>
+<td>2026-03</td>
+<td style="text-align: right;">395</td>
+<td>AGRO целиком (36 таблиц, 5 рабочих мест, офлайн), общий «полный» коммит всех модулей</td>
+</tr>
+<tr>
+<td>2026-04</td>
+<td style="text-align: right;">63</td>
+<td>AEÎ (депозиты, кредиты, OLAP/P&amp;L-демо)</td>
+</tr>
+<tr>
+<td>2026-05</td>
+<td style="text-align: right;">73</td>
+<td>Nufărul — рабочее место оператора, подгруппы</td>
+</tr>
+<tr>
+<td>2026-06</td>
+<td style="text-align: right;">34</td>
+<td>старт Biro26: подключение к OfficePlus 11g, импорт</td>
+</tr>
+<tr>
+<td>2026-07</td>
+<td style="text-align: right;">713</td>
+<td>Biro26: около 60 PR за месяц — от склада до онлайн-оплаты</td>
+</tr>
+<tr>
+<td>2026-08</td>
+<td style="text-align: right;">1 257</td>
+<td>пик: наборы импорта 10–14, PECO, планограммы, ядро модулей, SEOForge, SDA, Partner</td>
+</tr>
+<tr>
+<td>2026-09</td>
+<td style="text-align: right;">438</td>
+<td>e-Factura, CRM, Contragenti, мониторинг офиса, Автопарк</td>
+</tr>
+<tr>
+<td>2026-10</td>
+<td style="text-align: right;">163</td>
+<td>ассистент, cookie, пауза, консолидация, восстановление, типовой проект</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="62-i-112025-022026">6.2 Этап I — консоль и первые модули (11.2025 – 02.2026)</h2>
+<ul>
+<li><strong>26.11.2025</strong> — первый коммит: веб-приложение «Oracle SQL Developer» на Flask —
+  выполнение SQL в браузере, подключение к Oracle Autonomous DB через wallet.</li>
+<li><strong>29.11.2025</strong> — редактор CodeMirror, выполнение нескольких операторов подряд,
+  AI-подсказки, системные метрики (CPU/RAM/сессии Oracle через WebSocket). Отсюда
+  растёт будущий модуль «Dashboard метрик БД».</li>
+<li><strong>06.02.2026</strong> — <strong>DIGI Marketing</strong>: первый модуль поверх консоли, пункт в боковом
+  меню «Модули». Тут же видна будущая проблема: чтобы добавить модуль, правили общий
+  <code>app.py</code> и шаблоны меню руками.</li>
+</ul>
+<p><strong>Итог этапа:</strong> есть платформа (Flask + Oracle + авторизация + меню), но модули
+вписываются в один общий файл.</p>
+<hr />
+<h2 id="63-ii-032026-052026">6.3 Этап II — отраслевые модули (03.2026 – 05.2026)</h2>
+<table>
+<thead>
+<tr>
+<th>Дата</th>
+<th>Модуль</th>
+<th>Что сделано</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>11.03</td>
+<td><strong>DECOR</strong></td>
+<td>конфигуратор раздвижных конструкций на рабочем месте оператора (спецификация и план в <code>docs/superpowers/</code>)</td>
+</tr>
+<tr>
+<td>12–13.03</td>
+<td><strong>AGRO</strong></td>
+<td>за два дня: DDL 36 таблиц <code>AGRO_*</code>, отчётные представления, триггеры аудита, 5 рабочих мест (админ, поле, склад, качество, продажи), штрихкоды ящиков, FIFO, экспортные декларации, 9 печатных форм, HACCP, отчёты XLSX/CSV, офлайн-режим (Service Worker + IndexedDB)</td>
+</tr>
+<tr>
+<td>15–16.03</td>
+<td>AGRO</td>
+<td>выравнивание запросов с реальной схемой, демо-данные, интеграция весов и эмулятора</td>
+</tr>
+<tr>
+<td>20.03</td>
+<td>все</td>
+<td>«полный коммит» — 494 файла, 92 796 строк: все модули, SQL, документация, шаблоны, WSDL EasyCredit</td>
+</tr>
+<tr>
+<td>26–28.03</td>
+<td>AGRO, Nufărul</td>
+<td>стандарты приёмки, весовая продажа с киоском (общий компонент <code>ScaleKiosk</code>), рабочее место оператора Nufărul и подгруппы</td>
+</tr>
+<tr>
+<td>04.2026</td>
+<td><strong>AEÎ</strong></td>
+<td>ассоциация сберегательно-кредитная: депозиты, кредиты, демо OLAP и P&amp;L</td>
+</tr>
+<tr>
+<td>05.2026</td>
+<td><strong>Nufărul</strong></td>
+<td>производство (химчистка/прачечная): экран оператора, экран покупателя — 59 правок шаблонов за месяц</td>
+</tr>
+</tbody>
+</table>
+<p>Параллельно: <strong>Кредитование</strong> (<code>CRED_*</code>, журнал <code>CRED_EVENT_LOG</code>), <strong>Colass</strong> (CRM и
+договоры), <strong>Dashboard</strong>.</p>
+<p><strong>Итог этапа:</strong> доказано, что на одной платформе живут совсем разные отрасли. Цена —
+<code>app.py</code> вырос до ~9 000 строк, 13 модулей в одном файле.</p>
+<hr />
+<h2 id="64-iii-biro26-erp-officeplus-062026-082026">6.4 Этап III — Biro26: магазин и бэк-офис на ERP OfficePlus (06.2026 – 08.2026)</h2>
+<p>Самый большой этап и сердце типового проекта. Заказчик — <strong>OfficePlus (GRECU OFFICE
+GROUP SRL, Бэлць)</strong>, учёт в UNA.md на Oracle 11g (кодировка CL8MSWIN1251).</p>
+<h3 id="_2">Июнь: подключение и импорт</h3>
+<ul>
+<li><strong>28.06</strong> — подключение к OfficePlus 11g (thin, принудительный NLS), профили
+  сопоставления, сетка фида поставщика, справочник, группы/поставщики/категории по
+  реальной схеме ERP, прайс-листы с откатом, трёхъязычный бэк-офис (5 вкладок).</li>
+<li><strong>29.06</strong> — картинки товаров (<code>TMS_MPT_TVR.IE_LINKADRES</code>), мастер импорта в 4 шага
+  (как WisePIM), источники-SELECT с AI-черновиком сопоставления, прайс-лист «как в
+  Windows» (master-detail + карточка с фото).</li>
+</ul>
+<h3 id="-60-pull-request-no-259">Июль: от склада до онлайн-оплаты — около 60 pull request'ов (№ 2–59)</h3>
+<table>
+<thead>
+<tr>
+<th>Даты</th>
+<th>Что появилось</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>01–03.07</td>
+<td>товар + остатки (<code>UN$SOLD.GET_SOLDT</code>), бесконечная прокрутка, фильтры бренд/категория, поиск по штрихкоду (<code>TMS_MPT_BARCODE</code>), дерево ГРУППА → КАТЕГОРИЯ</td>
+</tr>
+<tr>
+<td>06–07.07</td>
+<td>универсальная корзина (из трёх вкладок, CSV / ADO-XML), правка атрибутов и дерева, <strong>публичная витрина</strong>, самостоятельная регистрация клиента, счета через <code>y_ai_BIRO26</code>, цены по периодам, фасетные фильтры «как Amazon»</td>
+</tr>
+<tr>
+<td>08.07</td>
+<td>варианты товара, <strong>PDF через jsReport</strong> и <strong>pdfme</strong> (визуальный дизайнер), админка шаблонов</td>
+</tr>
+<tr>
+<td>09.07</td>
+<td>логотип в отчётах, группа «Услуги», PDF прикладываются к документу ERP (<code>VMDB_DOCS_OLE</code>), уведомления email/Telegram/WhatsApp, SMTP из админки, веб-импорт BIRO26PT</td>
+</tr>
+<tr>
+<td>10.07</td>
+<td>машинный API документов + слой десктоп-клиента, «новые товары», <strong>транспорт по расстоянию</strong> от логистических центров (туда-обратно от Бэлць)</td>
+</tr>
+<tr>
+<td>12–13.07</td>
+<td>настраиваемая верхняя панель, автообновление цен, информационные страницы WordPress внутри витрины, PDF по WhatsApp с подписанными ссылками, большое окно товара, обязательные поля регистрации, <strong>онлайн-оплата MAIB (карта) и MIA QR</strong>, мобильная витрина</td>
+</tr>
+<tr>
+<td>14.07</td>
+<td>мягкое удаление (<code>ISARHIV</code>), <strong>MAIB Checkout v2</strong>, страница тестовых платежей, API документов по номеру</td>
+</tr>
+<tr>
+<td>15–18.07</td>
+<td>режимы НДС в счёте, витрина полностью RO + RU, затем переключатель <strong>RO/RU/EN</strong>, переводы подвала и группировки, админка переводов с автопереводом</td>
+</tr>
+<tr>
+<td>18.07</td>
+<td><strong>ServOuts26</strong> — модуль услуг на схеме UNITEST той же базы</td>
+</tr>
+<tr>
+<td>20.07</td>
+<td>синхронизация родного дерева ERP → группировка витрины; <strong>рассрочка</strong>: организации, наценка, симулятор</td>
+</tr>
+<tr>
+<td>25–31.07</td>
+<td>реестр «Услуги» в бэк-офисе, описания товаров в <code>TMS_MPT_WEBATTR</code> (оригинал с диакритикой в BLOB), защита от дублей при импорте, интерактивная сетка, счёт в HTML/PDF/XLSX по константе клиента, PDF из HTML-шаблона (WeasyPrint), <strong>EasyCredit / Iute</strong>: схема <code>TMS_CREDITE_*</code> в обеих базах</td>
+</tr>
+</tbody>
+</table>
+<h3 id="seo">Август: наборы импорта, SEO, мобильная витрина</h3>
+<ul>
+<li><strong>03.08</strong> — страница «Рассрочка», аккордеон каталога, «maib liber» от 100 лей,
+  реальные лимиты по организациям.</li>
+<li><strong>10–23.08</strong> — <strong>наборы импорта 10–14</strong> (CRAFTI, экспорт сайта на 25 колонок,
+  officeshop с галереей и оптовыми ценами B2B, IMPRESO, bestbuy, atehno — 22 000 IT-товаров).
+  На каждом наборе — найденные и исправленные дефекты алгоритма, «паспорт файла»,
+  реестр источников (<code>TMS_ORG_IMPSRC/IMPFILE</code>), префиксы артикулов, защита
+  «слабого артикула» после инцидента 13.08.</li>
+<li><strong>14.08</strong> — атрибуция трафика (fbclid/gclid/utm → cookie 90 дней → MySQL WordPress).</li>
+<li><strong>18.08</strong> — найден старый системный дефект: группа длиннее 25 символов теряла цену.</li>
+<li><strong>22.08</strong> — единая нормализация чисел и автоматическая проверка цены после импорта;
+  Google Analytics; <strong>минимальный заказ 1 500 лей для рассрочки</strong> (правило владельца от 18.08).</li>
+<li><strong>25–26.08</strong> — <code>robots.txt</code> и <code>sitemap.xml</code> (1 301 категория, 152 734 товара),
+  разметка Product/Offer, витрина показывает только то, что можно купить.</li>
+<li><strong>27–30.08</strong> — мобильный слой «как приложение» (нижняя панель, липкий поиск, фильтры
+  снизу), карточки одной высоты, <strong>боковая панель категорий</strong> (требование владельца).</li>
+</ul>
+<p><strong>Итог этапа:</strong> витрина, бэк-офис, оплата, рассрочка и импорт работают прямо на ERP —
+без промежуточной базы. Это и есть ядро типового проекта.</p>
+<hr />
+<h2 id="65-iv-082026">6.5 Этап IV — ядро и изолированные модули (08.2026)</h2>
+<p>Причина этапа — <strong>потери работы</strong>, а не стиль кода:</p>
+<table>
+<thead>
+<tr>
+<th>Дата</th>
+<th>Что случилось</th>
+<th>Чем ответили</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>31.07</td>
+<td>сайт дважды падал с 500 на ~2 минуты: скрипт деплоя удалял каталог вместе с <code>venv</code></td>
+<td>venv переносится в сторону и возвращается; «venv неприкосновенен»; защитные файлы на сервере</td>
+</tr>
+<tr>
+<td>31.07–05.08</td>
+<td>заморозка работ по архивам</td>
+<td>архив деплоя 37 МБ вместо 480 МБ (исключения), заморозка снята 05.08</td>
+</tr>
+<tr>
+<td>19.08</td>
+<td>nufarul 502 на полторы минуты: отправлен <code>app.py</code>, импортирующий модули, которых нет на сервере</td>
+<td>правило «<code>app.py</code> — только вместе с модулями, проверка после каждого рестарта»</td>
+</tr>
+<tr>
+<td>22.08</td>
+<td>параллельная сессия затёрла правила VPN и деплоя в <code>CLAUDE.md</code></td>
+<td>восстановлено из коммита; правило №2 «не писать важное в общие файлы»</td>
+</tr>
+</tbody>
+</table>
+<p>Решение — <strong>ядро подключения модулей</strong> (25.08, <code>core/module_loader.py</code>):</p>
+<ol>
+<li>модуль — это папка <code>modules/&lt;ключ&gt;/</code> (маршруты, валидация, SQL, правила без БД,
+   шаблоны, DDL со своим установщиком, <code>module.json</code> для меню);</li>
+<li>ядро само находит модуль и подключает под его адресом; на время импорта модуля
+   правка общих маршрутов <strong>запрещена</strong>, а не просто проверяется;</li>
+<li>меню собирается из карты маршрутов — модуль не может оказаться «невидимым»;</li>
+<li>в каждом модуле два теста изоляции: общий <code>app.py</code> его не упоминает, общий
+   установщик DDL не тронут.</li>
+</ol>
+<p>Первым на ядро переехал <strong>SEOForge</strong> (25.08: таблицы <code>YSEO_*</code>, план/факт, ROI по
+каналам, перенос в боевую ERP). Вторым — <strong>SDA</strong> (25.08, депозитная система упаковки:
+участники, реестр EAN, тарифы с периодами, досье, отчёты). На SDA же поймана
+DDL-ловушка: файл пережил четыре ревью и не ставился — <code>/</code> стоял только после
+PL/SQL-блока. Правило: <code>/</code> до и после каждого блока, установщик прогнать вживую.</p>
+<p>В тот же период — <strong>PECO</strong> (19.08, АЗС: смены, сверка, отпуск топлива как конечный
+автомат, цистерны) и <strong>Планограммы</strong> (15–20.08: выкладка, четыре модели прогноза,
+источник данных PECO, 3D-план), <strong>Бэк-офис UNA в вебе</strong> (25.08: журналы, документы,
+проводки), <strong>Воронка продаж</strong> и <strong>Соцсети</strong> (26–27.08), <strong>Partner B2B API</strong> (28.08:
+контракт 1-в-1 с Ultra B2B API V1).</p>
+<hr />
+<h2 id="66-v-082026-102026">6.6 Этап V — расширение (08.2026 – 10.2026)</h2>
+<table>
+<thead>
+<tr>
+<th>Дата</th>
+<th>Модуль / событие</th>
+<th>Подробности</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>31.08 – 03.09</td>
+<td><strong>e-Factura (SFS)</strong></td>
+<td>изолированный модуль: три входа, одна логика; тестовая фактура, две подписи, проверка соединения, журнал вызовов SFS, режим неплательщика НДС, отчёт «переданные фактуры» (Excel, PDF)</td>
+</tr>
+<tr>
+<td>31.08</td>
+<td>хаб документации</td>
+<td>хаб проекта и просмотрщик документов</td>
+</tr>
+<tr>
+<td>01.09</td>
+<td><strong>инцидент</strong>: порог 1 500 лей стёрт выкладкой</td>
+<td>логика жила в <code>app.py</code>; вынесена в свой файл, настройка <code>CREDIT_MIN_ORDER</code>, 4 теста</td>
+</tr>
+<tr>
+<td>02.09</td>
+<td><strong>TBControl</strong></td>
+<td>восстановлены сервисы Zabbix (mTLS), Proxmox, контроль SSL — код, пропавший без следа; правило №3 «commit + push каждого шага»</td>
+</tr>
+<tr>
+<td>03.09</td>
+<td><strong>инцидент</strong>: «проект стёрт чужим push»</td>
+<td>на деле — хаб, затёртый выкладкой другой команды, и два старых скрытых дефекта; исправлено, 5 тестов без Oracle; вторая DDL-ловушка (<code>;</code> в комментарии)</td>
+</tr>
+<tr>
+<td>04.09</td>
+<td>вход в WordPress только по секретной ссылке</td>
+<td></td>
+</tr>
+<tr>
+<td>05–12.09</td>
+<td><strong>CRM</strong></td>
+<td>веб-копия Demo CRM: путь «от договора к деньгам», кабинет клиента, оповещения, сотрудники через дерево ERP, реальные товары, заказы, контакты и сделки из Oracle; демо-режим отдельно</td>
+</tr>
+<tr>
+<td>07.09</td>
+<td><strong>Contragenti</strong></td>
+<td>мост IDNO → карточка контрагента, дедупликация</td>
+</tr>
+<tr>
+<td>08.09</td>
+<td><strong>Partner / Ultra</strong></td>
+<td>публикация каталога Ultra в прод штатным конвейером, почасовой cron, каталог приведён к Ultra один-к-одному</td>
+</tr>
+<tr>
+<td>12.09</td>
+<td><strong>Мониторинг офиса (netmon)</strong></td>
+<td>скан сети, 38 хостов в Zabbix, Telegram-каналы, розетки и инженерное оборудование, план миграции Zabbix 3.4 → 8.0</td>
+</tr>
+<tr>
+<td>12.09</td>
+<td>правило №5</td>
+<td>в ответах и документах — только полные живые ссылки</td>
+</tr>
+<tr>
+<td>13–14.09</td>
+<td>e-Factura: входящие</td>
+<td>три пути импорта полученных фактур, повторное использование номенклатуры, группы для новых карточек</td>
+</tr>
+<tr>
+<td>18–19.09</td>
+<td><strong>Автопарк (Bemol)</strong></td>
+<td>распределение топлива по ТЗ, экран первого лица, приёмка по ролям, аудит с Excel/BI</td>
+</tr>
+<tr>
+<td>22.09</td>
+<td>e-Factura: штрихкоды и цены</td>
+<td>новые карточки получают EAN и основной штрихкод; цена продажи = цена из фактуры / (1 − 10 %)</td>
+</tr>
+<tr>
+<td>01.10</td>
+<td><strong>Ассистент на витрине</strong></td>
+<td>кнопка + изолированный iframe, перенесён в правый угол; поиск по релевантности; основной путь в офис — OpenVPN</td>
+</tr>
+<tr>
+<td>09–10.10</td>
+<td><strong>Согласие на cookie</strong></td>
+<td>баннер по новому закону: GA, Jivo, реклама — только после выбора; карта Google по клику; шрифт с нашего сервера</td>
+</tr>
+<tr>
+<td>17.10</td>
+<td><strong>Пауза officeplus.md</strong></td>
+<td>параметр <code>SITE_PAUSE</code>: витрина 503 «технические работы», бэк-офис и API партнёров работают, nufarul не затронут</td>
+</tr>
+<tr>
+<td>18.10</td>
+<td>маркетинг</td>
+<td>проспект, целевые группы, стратегия продвижения, набор текстов</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="67-vi-102026">6.7 Этап VI — консолидация и типовой проект (10.2026)</h2>
+<ul>
+<li><strong>19.10</strong> — разбор: восстановленный 02.09 код TBControl <strong>47 дней</strong> пролежал на
+  несли́той локальной ветке, а <code>/api/tbc/services</code> всё это время отвечал 500. Принято
+  <strong>правило №6</strong>: сделано = commit + push + слияние в <code>main</code> + выкатка + живая проверка</li>
+<li>запись в <code>docs/</code>. В тот же день <strong>13 веток слиты в <code>main</code></strong>, <code>main</code> выкачен на три
+  сервера (<code>docs/Git/GIT_CONSOLIDARE_2026-10-19.md</code>). Инцидент выкатки: архив ушёл
+  пустым (zsh не разбил список), nufarul ~1 минуту отдавал 502 — откат из <code>.bak</code>,
+  новый порядок деплоя <code>app.py</code>.</li>
+<li><strong>22.10</strong> — найдено, что при консолидации конфликты решались «файл целиком»:
+  пропали боковая панель категорий и поиск Oracle Text. Куски восстановлены
+  трёхсторонним слиянием по датам (<code>docs/Git/RESTAURARE_2026-10-22.md</code>), правило:
+  конфликт — только по блокам, новее побеждает. WordPress-админка тоже поставлена на
+  паузу тем же <code>SITE_PAUSE</code>.</li>
+<li><strong>25.10</strong> — пакет «типовой проект» (этот комплект), цифры платформы обновлены во всех
+  материалах; решение владельца — <strong>все материалы только на nufarul.eminescu.md</strong>,
+  officeplus.md на паузе целиком, включая страницы материалов.</li>
+</ul>
+<hr />
+<h2 id="68">6.8 Уроки, которые стоили времени (сводная таблица)</h2>
+<table>
+<thead>
+<tr>
+<th>№</th>
+<th>Урок</th>
+<th>Откуда</th>
+<th>Где теперь закреплено</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Не удалять <code>venv</code> на работающем сервере</td>
+<td>31.07, 500 на 2 мин.</td>
+<td><code>CLAUDE.md</code>, <code>docs/NUFARUL_VENV_PROTECTED.md</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>app.py</code> — только вместе с импортируемыми модулями</td>
+<td>19.08, 502</td>
+<td>порядок деплоя, проверка <code>[ -f ]</code> и <code>py_compile</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Важная логика — в свой файл, не в общий</td>
+<td>01.09, порог 1 500 лей</td>
+<td>правило №2, <code>models/biro26_credit_min.py</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Каждый шаг — commit и push</td>
+<td>02.09, код TBControl пропал</td>
+<td>правило №3</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Перед заменой файла на сервере — сверка md5 и <code>.bak</code></td>
+<td>03.09, затёртый хаб</td>
+<td>правило №4</td>
+</tr>
+<tr>
+<td>6</td>
+<td><code>/</code> до и после PL/SQL; в комментариях DDL нет <code>;</code> и апострофов</td>
+<td>25.08 и 03.09</td>
+<td><code>CLAUDE.md</code>, тест на самом файле DDL</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Ссылки — полные и проверенные</td>
+<td>12.09</td>
+<td>правило №5</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Сделано = в <code>main</code>, на сервере и проверено</td>
+<td>19.10, 47 дней на ветке</td>
+<td>правило №6, аудит веток в начале и конце сессии</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Конфликт слияния — по блокам, не «файл целиком»</td>
+<td>22.10, пропавшие функции</td>
+<td><code>CLAUDE.md</code>, <code>AGENTS.md</code></td>
+</tr>
+<tr>
+<td>10</td>
+<td>Список файлов для архива — через файл, пересчитать архив</td>
+<td>19.10, пустой архив</td>
+<td>порядок деплоя <code>app.py</code></td>
+</tr>
+<tr>
+<td>11</td>
+<td>Кириллица в CL8MSWIN1251 — только через python-oracledb; <code>TRANSLATE</code> с диакритикой нельзя</td>
+<td>импорт, 07–09.2026</td>
+<td>тесты нормализации</td>
+</tr>
+<tr>
+<td>12</td>
+<td>Цена в рассрочку — одна и та же наценка везде: расчёт, счёт и три шаблона витрины</td>
+<td>07–08.2026</td>
+<td>тесты витрины, корзины и счёта</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="69">6.9 Решения владельца, определившие проект</h2>
+<table>
+<thead>
+<tr>
+<th>Дата</th>
+<th>Решение</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>18.08.2026</td>
+<td>рассрочка — только для заказа от 1 500 лей</td>
+</tr>
+<tr>
+<td>30.08.2026</td>
+<td>категории группы — в боковой панели справа</td>
+</tr>
+<tr>
+<td>31.08.2026</td>
+<td>«прекращай писать важный код в один и тот же файл; каждое изменение документируй в md»</td>
+</tr>
+<tr>
+<td>02.09.2026</td>
+<td>«так всё разрабатывай, чтобы никто не мог случайно стереть; все push, commit на git»</td>
+</tr>
+<tr>
+<td>05.09.2026</td>
+<td>«ничего не затри из разработок в других ветках»</td>
+</tr>
+<tr>
+<td>12.09.2026</td>
+<td>всегда полные живые ссылки</td>
+</tr>
+<tr>
+<td>22.09.2026</td>
+<td>цена прайса на 10 % ниже цены продажи</td>
+</tr>
+<tr>
+<td>01.10.2026</td>
+<td>ассистент — в правом углу; VPN в офис — через OpenVPN</td>
+</tr>
+<tr>
+<td>09.10.2026</td>
+<td>окно согласия на cookie по новому закону</td>
+</tr>
+<tr>
+<td>17.10.2026</td>
+<td>officeplus.md на паузе, nufarul без изменений</td>
+</tr>
+<tr>
+<td>19.10.2026</td>
+<td>всё слить в <code>main</code>, чтобы ничего не терялось</td>
+</tr>
+<tr>
+<td>22.10.2026</td>
+<td>всё — последней версии по дате; WordPress-админка тоже на паузе</td>
+</tr>
+<tr>
+<td>25.10.2026</td>
+<td>пакет «типовой проект»; все материалы — на nufarul.eminescu.md</td>
+</tr>
+<tr>
+<td>общее</td>
+<td>технические развилки агент решает сам, владельца спрашивают только о необратимом и внешнем</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="610">6.10 Что это значит для тиражирования</h2>
+<ol>
+<li><strong>Фундамент дорогой, повтор — дешёвый.</strong> Biro26 строился три месяца (06–08.2026;
+   за эти месяцы ~2 000 коммитов вместе с параллельными модулями), потому что одновременно изучалась ERP, писались интеграции и
+   правила. Для нового клиента на той же ERP эти работы не повторяются — отсюда оценка
+   3–5 дней в <a href="03_REPLICARE.html">Тиражировании</a>.</li>
+<li><strong>Дольше всего — данные клиента</strong>, а не код: наборы импорта 10–14 заняли две недели
+   августа, и каждый находил новый дефект. Закладывать время на первые 2–3 прайса
+   поставщиков.</li>
+<li><strong>Правила №1–№6 — часть продукта.</strong> Каждое появилось после реальной потери;
+   при тиражировании их нельзя «упростить».</li>
+<li><strong>Пауза, cookie, ассистент, e-Factura</strong> — готовые модули последних месяцев,
+   включаются настройкой, а не разработкой.</li>
+</ol>
+<h2 id="_3">Где подробности</h2>
+<table>
+<thead>
+<tr>
+<th>Тема</th>
+<th>Документ</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>консолидация веток 19.10</td>
+<td><code>docs/Git/GIT_CONSOLIDARE_2026-10-19.md</code></td>
+</tr>
+<tr>
+<td>восстановление 22.10</td>
+<td><code>docs/Git/RESTAURARE_2026-10-22.md</code></td>
+</tr>
+<tr>
+<td>инциденты 01.09 и 03.09</td>
+<td><code>docs/Biro26/INCIDENT_2026-09-01_PRAG_STERS.md</code>, <code>docs/Biro26/INCIDENT_2026-09-03_FISIERE_COMUNE.md</code></td>
+</tr>
+<tr>
+<td>ядро модулей</td>
+<td><code>docs/CORE_MODULES.md</code></td>
+</tr>
+<tr>
+<td>ветки и worktree</td>
+<td><code>docs/GIT_WORKFLOW.md</code></td>
+</tr>
+<tr>
+<td>пауза, cookie, ассистент</td>
+<td><code>docs/Biro26/PAUZA_SITE_2026-10-17.md</code>, <code>docs/Biro26/COOKIE_CONSIMTAMINT_2026-10-09.md</code>, <code>docs/Biro26/CHATBOT_PE_SITE_2026-10-01.md</code></td>
+</tr>
+<tr>
+<td>материалы на nufarul</td>
+<td><code>docs/Biro26/MATERIALE_PE_NUFARUL_2026-10-25.md</code></td>
+</tr>
+</tbody>
+</table>
+</main>
+<footer>Сгенерировано из <code>docs/ProiectTip/06_ISTORIA_PROIECTULUI.md</code> скриптом
+<code>scripts/build_proiect_tip_html.py</code>. Правки — только в Markdown.</footer>
+</body>
+</html>

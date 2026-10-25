@@ -36,7 +36,7 @@ footer{max-width:1040px;margin:0 auto;padding:18px 20px 40px;color:var(--m);font
 </style>
 </head>
 <body>
-<header><div class="w"><div class="brand">Proiect <span>tip</span> · Artgranit</div><a href="00_INDEX.html">Пакет документов</a><a href="01_MARKETING.html">1. Маркетинг</a><a href="02_GHID_PROPRIETAR.html" class="on">2. Собственнику</a><a href="03_REPLICARE.html">3. Тиражирование</a><a href="04_INSTRUCTIUNI_CUMPARATOR.html">4a. Покупателю</a><a href="05_INSTRUCTIUNI_OPERATOR.html">4b. Сотруднику</a></div></header>
+<header><div class="w"><div class="brand">Proiect <span>tip</span> · Artgranit</div><a href="00_INDEX.html">Пакет документов</a><a href="01_MARKETING.html">1. Маркетинг</a><a href="02_GHID_PROPRIETAR.html" class="on">2. Собственнику</a><a href="03_REPLICARE.html">3. Тиражирование</a><a href="04_INSTRUCTIUNI_CUMPARATOR.html">4a. Покупателю</a><a href="05_INSTRUCTIUNI_OPERATOR.html">4b. Сотруднику</a><a href="06_ISTORIA_PROIECTULUI.html">6. История</a></div></header>
 <main>
 <h1 id="2">2. Документация собственника бизнеса</h1>
 <p><em>Для владельца и директора. Без технических подробностей — что даёт система, как её
@@ -322,6 +322,51 @@ footer{max-width:1040px;margin:0 auto;padding:18px 20px 40px;color:var(--m);font
 <li>Три контура: боевой (officeplus.md), резервный (облако, подхватывает сайт при сбое офиса), тестовый (nufarul.eminescu.md, та же база).</li>
 <li>Правила для разработчиков и ИИ-агентов записаны (<code>CLAUDE.md</code>): работа считается сделанной, только когда она в общем репозитории, на сервере и проверена вживую.</li>
 </ul>
+<h3 id="_1">Что уже случалось и как защищено</h3>
+<table>
+<thead>
+<tr>
+<th>Дата</th>
+<th>Что случилось</th>
+<th>Как долго</th>
+<th>Защита сейчас</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>31.07.2026</td>
+<td>сайт отдавал ошибку 500 при выкладке (удалялось окружение Python)</td>
+<td>~2 мин., дважды</td>
+<td>окружение не удаляется никогда</td>
+</tr>
+<tr>
+<td>19.08.2026</td>
+<td>502 после выкладки неполного набора файлов</td>
+<td>~1,5 мин.</td>
+<td>файлы проверяются до перезапуска</td>
+</tr>
+<tr>
+<td>01.09.2026</td>
+<td>пропал порог рассрочки 1 500 лей</td>
+<td>12 дней незамеченным</td>
+<td>правило вынесено в свой файл и в настройку, 4 теста</td>
+</tr>
+<tr>
+<td>02.09.2026</td>
+<td>пропал код мониторинга серверов (не был сохранён в git)</td>
+<td>восстановлен за день</td>
+<td>каждый шаг — commit и push</td>
+</tr>
+<tr>
+<td>19.10.2026</td>
+<td>при слиянии веток пропали боковая панель категорий и поиск</td>
+<td>3 дня</td>
+<td>слияние только по блокам; восстановлено 22.10</td>
+</tr>
+</tbody>
+</table>
+<p>Итог: <strong>ни разу не были потеряны данные</strong> — только код и только на время; данные живут
+в Oracle и выкладкой не затрагиваются. Полная хроника — <a href="06_ISTORIA_PROIECTULUI.html">История проекта</a>.</p>
 <h2 id="29">2.9 Решения, которые остаются за вами</h2>
 <table>
 <thead>

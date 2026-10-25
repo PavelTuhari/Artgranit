@@ -178,5 +178,35 @@
       "ro": "Mărfuri și prețuri, liste furnizori, comenzi, rate, e-Factura, site și pauză, întrebări frecvente.",
       "en": "Goods and prices, supplier lists, orders, credit, e-invoicing, site and pause, FAQ."
     }
+  },
+  "06_ISTORIA_PROIECTULUI.md": {
+    "order": 7,
+    "icon": "📜",
+    "audience": "собственник, внедренец, разработчик",
+    "title": {
+      "ru": "6. История проекта",
+      "ro": "6. Istoria proiectului",
+      "en": "6. Project history"
+    },
+    "descr": {
+      "ru": "Весь ход проекта с 26.11.2025: этапы, модули по датам, инциденты и уроки, решения владельца, выводы для тиражирования.",
+      "ro": "Tot parcursul proiectului din 26.11.2025: etape, module pe date, incidente și lecții, deciziile proprietarului, concluzii pentru replicare.",
+      "en": "The whole project course since 26.11.2025: stages, modules by date, incidents and lessons, owner decisions, replication takeaways."
+    }
+  },
+  "06_ISTORIA_PROIECTULUI.html": {
+    "order": 57,
+    "icon": "📜",
+    "audience": "собственник, внедренец, разработчик",
+    "title": {
+      "ru": "6. История проекта (HTML)",
+      "ro": "6. Istoria proiectului (HTML)",
+      "en": "6. Project history (HTML)"
+    },
+    "descr": {
+      "ru": "Весь ход проекта с 26.11.2025: этапы, модули по датам, инциденты и уроки, решения владельца, выводы для тиражирования.",
+      "ro": "Tot parcursul proiectului din 26.11.2025: etape, module pe date, incidente și lecții, deciziile proprietarului, concluzii pentru replicare.",
+      "en": "The whole project course since 26.11.2025: stages, modules by date, incidents and lessons, owner decisions, replication takeaways."
+    }
   }
 }
