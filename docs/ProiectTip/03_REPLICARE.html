@@ -36,7 +36,7 @@ footer{max-width:1040px;margin:0 auto;padding:18px 20px 40px;color:var(--m);font
 </style>
 </head>
 <body>
-<header><div class="w"><div class="brand">Proiect <span>tip</span> · Artgranit</div><a href="00_INDEX.html">Пакет документов</a><a href="01_MARKETING.html">1. Маркетинг</a><a href="02_GHID_PROPRIETAR.html">2. Собственнику</a><a href="03_REPLICARE.html" class="on">3. Тиражирование</a><a href="04_INSTRUCTIUNI_CUMPARATOR.html">4a. Покупателю</a><a href="05_INSTRUCTIUNI_OPERATOR.html">4b. Сотруднику</a></div></header>
+<header><div class="w"><div class="brand">Proiect <span>tip</span> · Artgranit</div><a href="00_INDEX.html">Пакет документов</a><a href="01_MARKETING.html">1. Маркетинг</a><a href="02_GHID_PROPRIETAR.html">2. Собственнику</a><a href="03_REPLICARE.html" class="on">3. Тиражирование</a><a href="04_INSTRUCTIUNI_CUMPARATOR.html">4a. Покупателю</a><a href="05_INSTRUCTIUNI_OPERATOR.html">4b. Сотруднику</a><a href="06_ISTORIA_PROIECTULUI.html">6. История</a></div></header>
 <main>
 <h1 id="3">3. Тиражирование: как развернуть типовой проект для другой компании</h1>
 <p><em>Для собственника нового клиента и внедренца. Образец — OfficePlus; ниже — что
@@ -228,6 +228,88 @@ footer{max-width:1040px;margin:0 auto;padding:18px 20px 40px;color:var(--m);font
 </table>
 <p>Итого базовый запуск: <strong>3–5 рабочих дней</strong> (без договоров с банками и кредиторами,
 которые идут параллельно со стороны клиента).</p>
+<h3 id="officeplus-git">Откуда эти сроки — как было на OfficePlus (по истории git)</h3>
+<table>
+<thead>
+<tr>
+<th>Работа</th>
+<th>Первый раз (OfficePlus)</th>
+<th>При тиражировании</th>
+<th>Почему быстрее</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Подключение к ERP, схема, импорт</td>
+<td>28–29.06.2026, 2 дня</td>
+<td>0,5 дня (аудит)</td>
+<td>профили сопоставления и знание схемы UNA.md уже есть</td>
+</tr>
+<tr>
+<td>Склад, остатки, штрихкоды, дерево групп</td>
+<td>01–03.07, 3 дня</td>
+<td>0</td>
+<td>работает на любой базе UNA.md</td>
+</tr>
+<tr>
+<td>Витрина, регистрация, счета, фильтры</td>
+<td>06–07.07, 2 дня</td>
+<td>0 + брендинг 1 день</td>
+<td>меняются только логотип, цвета, тексты</td>
+</tr>
+<tr>
+<td>PDF (счёт, заказ), уведомления</td>
+<td>08–09.07, 2 дня</td>
+<td>1 час</td>
+<td>шаблоны готовы, меняется логотип</td>
+</tr>
+<tr>
+<td>Онлайн-оплата MAIB / MIA</td>
+<td>13–14.07, 2 дня</td>
+<td>1 час + договор клиента</td>
+<td>нужны только ключи банка в <code>.env</code></td>
+</tr>
+<tr>
+<td>Три языка, переводы</td>
+<td>15–18.07, 4 дня</td>
+<td>0</td>
+<td>автоперевод группировки уже есть</td>
+</tr>
+<tr>
+<td>Рассрочка (EasyCredit, Iute и др.)</td>
+<td>20–31.07, ~10 дней</td>
+<td>1 час + договоры</td>
+<td><code>TMS_CREDITE_*</code> ставится установщиком</td>
+</tr>
+<tr>
+<td>Импорт прайсов поставщиков</td>
+<td>10–23.08, 2 недели (наборы 10–14)</td>
+<td><strong>1–3 дня на каждый новый формат</strong></td>
+<td>алгоритм готов, но данные каждого поставщика свои</td>
+</tr>
+<tr>
+<td>SEO, sitemap, мобильный слой</td>
+<td>25–30.08, 6 дней</td>
+<td>0</td>
+<td></td>
+</tr>
+<tr>
+<td>e-Factura</td>
+<td>31.08–22.09, ~3 недели</td>
+<td>0,5 дня (подписи, настройки)</td>
+<td>модуль готов</td>
+</tr>
+<tr>
+<td>Cookie, пауза, ассистент</td>
+<td>01–22.10</td>
+<td>минуты (настройки)</td>
+<td>модули готовы</td>
+</tr>
+</tbody>
+</table>
+<p>Вывод: <strong>код повторяется за дни, данные клиента — нет.</strong> Самый непредсказуемый пункт —
+прайсы поставщиков: на OfficePlus каждый из пяти наборов августа находил новый дефект.
+Полная хроника — <a href="06_ISTORIA_PROIECTULUI.html">История проекта</a>.</p>
 <h2 id="34">3.4 Правила, которые нельзя нарушать при тиражировании</h2>
 <ol>
 <li><strong>Данные только в Oracle</strong>, нормализованные таблицы со своим префиксом модуля; никаких JSON-файлов и SQLite как источника правды.</li>
@@ -236,7 +318,10 @@ footer{max-width:1040px;margin:0 auto;padding:18px 20px 40px;color:var(--m);font
 <li><strong>Каждое изменение — commit, push, merge в <code>main</code>, выкатка, проверка <code>curl</code>, запись в <code>docs/</code></strong> (правило №6 в <code>CLAUDE.md</code>).</li>
 <li><strong>При слиянии веток конфликты — только по блокам, по дате</strong>, никогда «файл одной стороны целиком» (<code>docs/Git/RESTAURARE_2026-10-22.md</code>).</li>
 <li><strong>Перед заменой файла на сервере</strong> — сверка md5 с git и резервная копия рядом.</li>
+<li><strong><code>venv</code> на сервере не трогать</strong>; <code>app.py</code> выкатывать только вместе с модулями, которые он импортирует, и сразу проверять <code>/login</code> (инциденты 31.07 и 19.08.2026).</li>
+<li><strong>DDL</strong>: <code>/</code> до и после каждого PL/SQL-блока, без <code>;</code> и апострофов в комментариях; установщик прогнать вживую — <code>--dry-run</code> ничего не доказывает (инциденты 25.08 и 03.09.2026).</li>
 </ol>
+<p>Каждое правило появилось после реальной потери — таблица уроков в <a href="06_ISTORIA_PROIECTULUI.html">Истории проекта</a>, раздел 6.8.</p>
 <h2 id="35-">3.5 Чек-лист приёмки</h2>
 <table>
 <thead>
