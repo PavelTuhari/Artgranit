@@ -20,7 +20,7 @@
 
 | Формат | Адрес |
 |---|---|
-| Хаб документации (после входа) | <https://officeplus.md/UNA.md/orasldev/b26docs/> → раздел **ProiectTip** · <https://nufarul.eminescu.md/UNA.md/orasldev/b26docs/> |
+| Хаб документации (после входа) | <https://nufarul.eminescu.md/UNA.md/orasldev/b26docs/> → раздел **ProiectTip** · <https://nufarul.eminescu.md/UNA.md/orasldev/b26docs/> |
 | Публичные HTML (маркетинг и инструкция покупателя, без входа) | <https://nufarul.eminescu.md/static/proiect-tip/index.html> |
 | Исходники | `/Users/pt/Projects.AI/Artgranit/docs/ProiectTip/` (git, ветка `main`) |
 

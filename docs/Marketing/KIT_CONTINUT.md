@@ -49,7 +49,7 @@ Artgranit ставит её **поверх вашей базы**: заказ с 
 в учёте, остатки на сайте — те же, что на складе, рассрочка считается по вашим
 пакетам, входящие накладные e-Factura импортируются сами.
 
-Живой пример — officeplus.md (Бэлць, 200 000 товаров).
+Живой пример — магазин OfficePlus (Бэлць, 200 000 товаров), демо: https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site
 
 Предлагаю демо на ваших данных: подключение занимает один день, ничего в вашей
 базе не меняется. Удобно {дата}? Ответьте на письмо или позвоните: +373 620 07 211.
@@ -139,7 +139,7 @@ rewrite. All module data is in normalized Oracle tables with per-module prefixes
 deployed separately from code.
 
 We would like to join Oracle PartnerNetwork (Build track), publish a joint success story
-and list a BYOL image on OCI Marketplace. Live system: https://officeplus.md ·
+and list a BYOL image on OCI Marketplace. Live system: https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site ·
 developer documentation: https://nufarul.eminescu.md/UNA.md/orasldev/docs/
 
 Could we schedule a 30-minute call?

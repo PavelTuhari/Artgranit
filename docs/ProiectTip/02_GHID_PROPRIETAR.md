@@ -29,19 +29,19 @@
 
 | Зачем | Экран |
 |---|---|
-| Карта всей системы (все модули) | <https://officeplus.md/UNA.md/orasldev/modules> |
-| Бэк-офис магазина: товары, цены, импорт, остатки | <https://officeplus.md/UNA.md/orasldev/biro26-backoffice> |
-| Настройки витрины (контакты, баннеры) | <https://officeplus.md/UNA.md/orasldev/biro26-site-admin> |
-| Уведомления, JivoChat, Telegram, почта | <https://officeplus.md/UNA.md/orasldev/biro26-notify-settings> |
-| Воронка продаж: заказы → отгрузки → конверсия | <https://officeplus.md/UNA.md/orasldev/funnel> |
-| CRM клиентов | <https://officeplus.md/UNA.md/orasldev/crm/> |
-| Рассрочка: пакеты, кредиторы, заявки | <https://officeplus.md/UNA.md/orasldev/biro26-credit-admin> |
-| e-Factura | <https://officeplus.md/UNA.md/orasldev/efactura/> |
-| Партнёры (B2B API) и синхронизация Ultra | <https://officeplus.md/UNA.md/orasldev/partner/> |
-| Соцсети | <https://officeplus.md/UNA.md/orasldev/social> |
-| Реклама: бюджет план/факт, ROI | <https://officeplus.md/UNA.md/orasldev/seoforge> |
-| **Пауза сайта** | <https://officeplus.md/UNA.md/orasldev/sitepause/> |
-| Вся документация | <https://officeplus.md/UNA.md/orasldev/b26docs/> |
+| Карта всей системы (все модули) | <https://nufarul.eminescu.md/UNA.md/orasldev/modules> |
+| Бэк-офис магазина: товары, цены, импорт, остатки | <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-backoffice> |
+| Настройки витрины (контакты, баннеры) | <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site-admin> |
+| Уведомления, JivoChat, Telegram, почта | <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-notify-settings> |
+| Воронка продаж: заказы → отгрузки → конверсия | <https://nufarul.eminescu.md/UNA.md/orasldev/funnel> |
+| CRM клиентов | <https://nufarul.eminescu.md/UNA.md/orasldev/crm/> |
+| Рассрочка: пакеты, кредиторы, заявки | <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-credit-admin> |
+| e-Factura | <https://nufarul.eminescu.md/UNA.md/orasldev/efactura/> |
+| Партнёры (B2B API) и синхронизация Ultra | <https://nufarul.eminescu.md/UNA.md/orasldev/partner/> |
+| Соцсети | <https://nufarul.eminescu.md/UNA.md/orasldev/social> |
+| Реклама: бюджет план/факт, ROI | <https://nufarul.eminescu.md/UNA.md/orasldev/seoforge> |
+| **Пауза сайта** | <https://nufarul.eminescu.md/UNA.md/orasldev/sitepause/> |
+| Вся документация | <https://nufarul.eminescu.md/UNA.md/orasldev/b26docs/> |
 
 Тестовый контур с той же базой — те же адреса на `https://nufarul.eminescu.md/…`.
 
@@ -52,7 +52,7 @@
 | Новые заказы и зависшие | Воронка продаж | зависших нет | менеджеру — связаться с клиентом |
 | Заявки на рассрочку | Рассрочка → заявки | обработаны в течение дня | проверить ответ кредитора |
 | Уведомления в Telegram | бот магазина | заказы и КП приходят | проверить настройки уведомлений |
-| Сайт открывается | <https://officeplus.md/> | страница магазина | см. 2.7 |
+| Сайт открывается | <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site> | страница магазина | см. 2.7 |
 | Новые входящие e-Factura | e-Factura → входящие | загружены в учёт | бухгалтеру — импорт (инструкция 4b) |
 
 Раз в неделю: воронка за неделю (конверсия, средний чек), отчёт по рекламе (SEOForge),
@@ -65,7 +65,7 @@
 
 | Что | Где меняется | Что происходит |
 |---|---|---|
-| **Пауза сайта** («ведутся технические работы») | <https://officeplus.md/UNA.md/orasldev/sitepause/> | витрина и вход в WordPress показывают страницу работ (503); бэк-офис и API партнёров работают; действует ≤ 20 с |
+| **Пауза сайта** («ведутся технические работы») | <https://nufarul.eminescu.md/UNA.md/orasldev/sitepause/> | витрина и вход в WordPress показывают страницу работ (503); бэк-офис и API партнёров работают; действует ≤ 20 с |
 | Текст страницы паузы RO / RU | там же | свой текст вместо стандартного |
 | Часы работы в шапке сайта | `SHOP_HOURS` | «Astăzi lucrăm de la … până la …» по дню недели |
 | Чат JivoChat | `SHOP_JIVO_ID` (экран уведомлений) | пусто — чата нет |

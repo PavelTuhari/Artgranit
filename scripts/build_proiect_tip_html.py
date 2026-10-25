@@ -23,7 +23,7 @@ import markdown
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "docs", "ProiectTip")
 PUB = os.path.join(ROOT, "static", "proiect-tip")
-HUB = "https://officeplus.md/UNA.md/orasldev/b26docs/ProiectTip/"
+HUB = "https://nufarul.eminescu.md/UNA.md/orasldev/b26docs/ProiectTip/"
 
 DOCS = [
     ("00_INDEX", "Пакет документов", True),

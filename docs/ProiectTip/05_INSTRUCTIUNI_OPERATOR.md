@@ -1,25 +1,25 @@
 # 4b. Инструкция сотрудника бэк-офиса
 
 *Для менеджеров, оператора магазина и бухгалтера. Короткие сценарии «что сделать» —
-со ссылками на подробные гиды. Вход: <https://officeplus.md/login> (тестовый контур —
+со ссылками на подробные гиды. Вход: <https://nufarul.eminescu.md/login> (тестовый контур —
 <https://nufarul.eminescu.md/login>, та же база).*
 
 ## 0. Где что находится
 
 После входа в боковой панели — все модули; полный список — карта системы
-<https://officeplus.md/UNA.md/orasldev/modules>. Основные экраны:
+<https://nufarul.eminescu.md/UNA.md/orasldev/modules>. Основные экраны:
 
 | Роль | Экран |
 |---|---|
-| Оператор магазина | Бэк-офис <https://officeplus.md/UNA.md/orasldev/biro26-backoffice> |
-| Менеджер продаж | CRM <https://officeplus.md/UNA.md/orasldev/crm/> · Воронка <https://officeplus.md/UNA.md/orasldev/funnel> · Клиенты <https://officeplus.md/UNA.md/orasldev/biro26-clients> |
-| Кредитный менеджер | Рассрочка <https://officeplus.md/UNA.md/orasldev/biro26-credit-admin> |
-| Бухгалтер | e-Factura <https://officeplus.md/UNA.md/orasldev/efactura/> · Журнал <https://officeplus.md/UNA.md/orasldev/biro26-journal> |
-| Маркетолог | Соцсети <https://officeplus.md/UNA.md/orasldev/social> · SEOForge <https://officeplus.md/UNA.md/orasldev/seoforge> · Настройки витрины <https://officeplus.md/UNA.md/orasldev/biro26-site-admin> |
-| Администратор | Уведомления <https://officeplus.md/UNA.md/orasldev/biro26-notify-settings> · Партнёры <https://officeplus.md/UNA.md/orasldev/partner/> · Пауза <https://officeplus.md/UNA.md/orasldev/sitepause/> |
+| Оператор магазина | Бэк-офис <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-backoffice> |
+| Менеджер продаж | CRM <https://nufarul.eminescu.md/UNA.md/orasldev/crm/> · Воронка <https://nufarul.eminescu.md/UNA.md/orasldev/funnel> · Клиенты <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-clients> |
+| Кредитный менеджер | Рассрочка <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-credit-admin> |
+| Бухгалтер | e-Factura <https://nufarul.eminescu.md/UNA.md/orasldev/efactura/> · Журнал <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-journal> |
+| Маркетолог | Соцсети <https://nufarul.eminescu.md/UNA.md/orasldev/social> · SEOForge <https://nufarul.eminescu.md/UNA.md/orasldev/seoforge> · Настройки витрины <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-site-admin> |
+| Администратор | Уведомления <https://nufarul.eminescu.md/UNA.md/orasldev/biro26-notify-settings> · Партнёры <https://nufarul.eminescu.md/UNA.md/orasldev/partner/> · Пауза <https://nufarul.eminescu.md/UNA.md/orasldev/sitepause/> |
 
 Документация с картинками по каждому меню бэк-офиса — `docs/Biro26/GHID_BACKOFFICE.md`
-(<https://officeplus.md/UNA.md/orasldev/b26docs/Biro26/GHID_BACKOFFICE.md>).
+(<https://nufarul.eminescu.md/UNA.md/orasldev/b26docs/Biro26/GHID_BACKOFFICE.md>).
 
 ## 1. Ежедневно: товары, цены, остатки
 
@@ -38,7 +38,7 @@
 
 1. Бэк-офис → **Import (asistent)** — 4 шага: **Sursă** (источник) → **Mapare** (какая колонка — артикул, название, цена, остаток) → проверка → запуск.
 2. Повторная загрузка того же прайса безопасна: новые позиции получают карточку и штрихкод, у существующих меняется цена, только если она отличается.
-3. Каталог дилера Ultra обновляется отдельно: <https://officeplus.md/UNA.md/orasldev/partner/> → «Integrare Ultra» (инструкция — `docs/Partner/ULTRA_ACTUALIZARE_INSTRUCTIUNE.html`).
+3. Каталог дилера Ultra обновляется отдельно: <https://nufarul.eminescu.md/UNA.md/orasldev/partner/> → «Integrare Ultra» (инструкция — `docs/Partner/ULTRA_ACTUALIZARE_INSTRUCTIUNE.html`).
 
 ## 3. Заказы с сайта
 
@@ -64,12 +64,12 @@
 **Входящие накладные из файла SFS:**
 
 1. Скачать XML с портала e-Factura.
-2. <https://officeplus.md/UNA.md/orasldev/efactura/> → импорт файла → **анализ**: поставщики находятся по IDNO, товары — по точному совпадению названия.
+2. <https://nufarul.eminescu.md/UNA.md/orasldev/efactura/> → импорт файла → **анализ**: поставщики находятся по IDNO, товары — по точному совпадению названия.
 3. Подтвердить создание недостающих карточек и документов прихода. Новые карточки получают штрихкод EAN-13 и цену продажи по правилу владельца (цена закупки / (1 − %)).
 4. Проверить документ в учёте: штрихкоды и цены во всех строках.
 
 **Исходящие:** инструкция бухгалтера — `docs/Partner/EFACTURA_INSTRUCTIUNI_CONTABIL.md`
-(<https://officeplus.md/UNA.md/orasldev/b26docs/Partner/EFACTURA_INSTRUCTIUNI_CONTABIL.md>).
+(<https://nufarul.eminescu.md/UNA.md/orasldev/b26docs/Partner/EFACTURA_INSTRUCTIUNI_CONTABIL.md>).
 
 ## 6. Сайт: тексты, баннеры, чат, пауза
 
@@ -78,7 +78,7 @@
 | Контакты, баннеры, блоки главной | Настройки витрины |
 | Часы работы в шапке | настройка `SHOP_HOURS` (например `1-5=09:00-18:00;6=09:00-15:00;7=`) |
 | JivoChat, Google Analytics | экран уведомлений (`SHOP_JIVO_ID`, `SHOP_GA_ID`) — запускаются только с согласия посетителя |
-| **Поставить сайт на паузу** | <https://officeplus.md/UNA.md/orasldev/sitepause/> → «⏸️ Pune site-ul pe pauză»; свой текст RO/RU — по желанию |
+| **Поставить сайт на паузу** | <https://nufarul.eminescu.md/UNA.md/orasldev/sitepause/> → «⏸️ Pune site-ul pe pauză»; свой текст RO/RU — по желанию |
 | Снять паузу | там же → «▶️ Redeschide site-ul» (действует ≤ 20 с; вход в WordPress открывается тем же переключателем) |
 | Проверить, как видит покупатель | открыть сайт в приватном окне (вошедшие сотрудники видят магазин и во время паузы) |
 
