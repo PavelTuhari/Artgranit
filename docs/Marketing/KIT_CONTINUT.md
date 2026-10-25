@@ -115,7 +115,7 @@ app.py to 21 self-registering modules with zero merge conflicts"
 
 ### B4. YouTube — сценарий «Модуль за 10 минут» (0:00–10:00)
 
-0:00 что такое портал и карта системы (99 страниц, меню само) · 1:00 `new_module.py demo "Demo"` · 2:30 маршрут + шаблон · 4:00 `rules.py` и тест без базы · 5:30 DDL с префиксом и свой установщик · 7:00 тесты изоляции падают, если тронуть `app.py` · 8:30 модуль появился в меню и на карте · 9:30 коммит, push, документ в `docs/`.
+0:00 что такое портал и карта системы (179 страниц, меню само) · 1:00 `new_module.py demo "Demo"` · 2:30 маршрут + шаблон · 4:00 `rules.py` и тест без базы · 5:30 DDL с префиксом и свой установщик · 7:00 тесты изоляции падают, если тронуть `app.py` · 8:30 модуль появился в меню и на карте · 9:30 коммит, push, документ в `docs/`.
 
 ---
 
@@ -130,7 +130,7 @@ Hello {Name},
 GRECU OFFICE GROUP SRL (Bălți, Moldova) runs **Artgranit** — a modular web platform on
 top of an Oracle-based ERP (UNA.md): e-commerce storefront with 200 000 SKUs, customer
 cabinet, instalment credit, SFS e-invoicing, CRM, production floor and infrastructure
-monitoring — 21 modules, 99 pages, 345 automated tests.
+monitoring — 30 modules, 179 pages, 1355 automated tests.
 
 What may interest Oracle: the same application works against a legacy **Oracle 11.2**
 ERP schema (CL8MSWIN1251, thick client in an isolated worker) and **Autonomous Database
@@ -150,8 +150,8 @@ Best regards, {Name}, {role} · +373 620 07 211
 
 1. **Customer:** OfficePlus (GRECU OFFICE GROUP SRL), office supplies retail & wholesale, Bălți, Moldova.
 2. **Challenge:** ERP on Oracle 11g since 2013; needed storefront, customer cabinet, credit, e-invoicing — without a second database and nightly syncs.
-3. **Solution:** Artgranit modular platform; Oracle-first data model; 21 modules; Autonomous DB 23ai for new modules and analytics; OCI Compute.
-4. **Results:** storefront live on the ERP database; e-Factura inbound in minutes; instalment price on every product; 345 tests; 0 merge conflicts with parallel AI-agent development.
+3. **Solution:** Artgranit modular platform; Oracle-first data model; 30 modules; Autonomous DB 23ai for new modules and analytics; OCI Compute.
+4. **Results:** storefront live on the ERP database; e-Factura inbound in minutes; instalment price on every product; 1355 tests; 0 merge conflicts with parallel AI-agent development.
 5. **Why Oracle:** one data model, two generations of the database, python-oracledb thin+thick, wallet security, OCI Free Tier for demo.
 6. **Quote** + architecture diagram + numbers table.
 
@@ -170,9 +170,9 @@ Best regards, {Name}, {role} · +373 620 07 211
 
 ### D1. Описание компании (bio, 300 знаков) — RO / RU / EN
 
-- **RO:** Artgranit — platformă web de module peste Oracle și UNA.md: magazin online, cabinet client, rate, e-Factura, CRM, producție, monitorizare — direct pe baza dvs. 21 module, 99 pagini, 345 teste. GRECU OFFICE GROUP SRL, Bălți.
-- **RU:** Artgranit — веб-платформа модулей над Oracle и UNA.md: магазин, кабинет, рассрочка, e-Factura, CRM, производство, мониторинг — прямо на вашей базе. 21 модуль, 99 страниц, 345 тестов. GRECU OFFICE GROUP SRL, Бэлць.
-- **EN:** Artgranit — modular web platform on Oracle & the UNA.md ERP: storefront, customer cabinet, instalment credit, e-invoicing, CRM, production, monitoring — straight on your database. 21 modules, 99 pages, 345 tests. Bălți, Moldova.
+- **RO:** Artgranit — platformă web de module peste Oracle și UNA.md: magazin online, cabinet client, rate, e-Factura, CRM, producție, monitorizare — direct pe baza dvs. 30 module, 179 pagini, 1355 teste. GRECU OFFICE GROUP SRL, Bălți.
+- **RU:** Artgranit — веб-платформа модулей над Oracle и UNA.md: магазин, кабинет, рассрочка, e-Factura, CRM, производство, мониторинг — прямо на вашей базе. 30 модулей, 179 страниц, 1355 тестов. GRECU OFFICE GROUP SRL, Бэлць.
+- **EN:** Artgranit — modular web platform on Oracle & the UNA.md ERP: storefront, customer cabinet, instalment credit, e-invoicing, CRM, production, monitoring — straight on your database. 30 modules, 179 pages, 1355 tests. Bălți, Moldova.
 
 ### D2. Хештеги
 

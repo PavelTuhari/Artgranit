@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>2. Документация собственника бизнеса</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--b:#194681;--o:#e8632c;--t:#1f2937;--m:#6b7280;--line:#e5e7eb;--bg:#f6f8fb}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.6 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--t);background:#fff}
+header{background:linear-gradient(135deg,var(--b),#0f325f);color:#fff;padding:14px 20px}
+header .w{max-width:1040px;margin:0 auto;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+header .brand{font-weight:800;font-size:18px;margin-right:auto}
+header .brand span{color:var(--o)}
+header a{color:#fff;text-decoration:none;font-size:14px;padding:5px 10px;border-radius:8px;opacity:.9}
+header a.on,header a:hover{background:rgba(255,255,255,.16);opacity:1}
+main{max-width:1040px;margin:0 auto;padding:26px 20px 60px}
+h1{color:var(--b);font-size:30px;line-height:1.2;margin:.2em 0 .5em}
+h2{color:var(--b);font-size:22px;margin:1.8em 0 .6em;padding-bottom:6px;border-bottom:2px solid var(--line)}
+h3{font-size:18px;margin:1.4em 0 .5em}
+a{color:var(--b)}
+table{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14.5px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#eef3fa;color:var(--b)}
+tr:nth-child(even) td{background:#fbfcfe}
+code{font:13.5px ui-monospace,Menlo,Consolas,monospace;background:#eef2f7;padding:1px 5px;border-radius:4px}
+pre{background:#0f172a;color:#e2e8f0;padding:14px 16px;border-radius:10px;overflow:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0;color:inherit}
+blockquote{margin:14px 0;padding:12px 16px;background:var(--bg);border-left:4px solid var(--o);border-radius:0 10px 10px 0}
+blockquote table{font-size:14px}
+hr{border:0;border-top:1px solid var(--line);margin:30px 0}
+footer{max-width:1040px;margin:0 auto;padding:18px 20px 40px;color:var(--m);font-size:13px;border-top:1px solid var(--line)}
+@media print{header{background:none;color:#000;border-bottom:2px solid #000}header a{display:none}
+  header .brand{color:#000}main{padding-top:10px}pre{white-space:pre-wrap}a{color:#000}}
+</style>
+</head>
+<body>
+<header><div class="w"><div class="brand">Proiect <span>tip</span> · Artgranit</div><a href="00_INDEX.html">Пакет документов</a><a href="01_MARKETING.html">1. Маркетинг</a><a href="02_GHID_PROPRIETAR.html" class="on">2. Собственнику</a><a href="03_REPLICARE.html">3. Тиражирование</a><a href="04_INSTRUCTIUNI_CUMPARATOR.html">4a. Покупателю</a><a href="05_INSTRUCTIUNI_OPERATOR.html">4b. Сотруднику</a></div></header>
+<main>
+<h1 id="2">2. Документация собственника бизнеса</h1>
+<p><em>Для владельца и директора. Без технических подробностей — что даёт система, как её
+контролировать, чем управлять самому и какие решения остаются за вами.</em></p>
+<h2 id="21">2.1 Что у вас есть</h2>
+<p>Одна база — ваша учётная система (UNA.md на Oracle). Вокруг неё — веб-модули:</p>
+<pre><code>                    ┌──────────── Покупатели ────────────┐
+                    │  витрина · кабинет · ассистент      │
+                    └──────────────┬──────────────────────┘
+   банки, кредиторы ◄──────────────┤
+   e-Factura (SFS)  ◄──────────────┤            ┌───────── Сотрудники ─────────┐
+   поставщики, Ultra ◄─────────────┤            │ бэк-офис · CRM · e-Factura    │
+   соцсети, Telegram ◄─────────────┤            │ отчёты · воронка · соцсети    │
+                                   ▼            └──────────────┬────────────────┘
+                     ┌──────────────────────────────────────────▼──┐
+                     │      ВАША БАЗА: товары, цены, остатки,        │
+                     │      клиенты, документы, заказы               │
+                     └───────────────────────────────────────────────┘
+</code></pre>
+<p>Главное свойство: <strong>данные не копируются</strong>. Цена, которую видит покупатель, — та же
+строка в базе, что у бухгалтера. Заказ с сайта — сразу документ в учёте.</p>
+<h2 id="22">2.2 Ваши экраны</h2>
+<table>
+<thead>
+<tr>
+<th>Зачем</th>
+<th>Экран</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Карта всей системы (все модули)</td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/modules">https://officeplus.md/UNA.md/orasldev/modules</a></td>
+</tr>
+<tr>
+<td>Бэк-офис магазина: товары, цены, импорт, остатки</td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/biro26-backoffice">https://officeplus.md/UNA.md/orasldev/biro26-backoffice</a></td>
+</tr>
+<tr>
+<td>Настройки витрины (контакты, баннеры)</td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/biro26-site-admin">https://officeplus.md/UNA.md/orasldev/biro26-site-admin</a></td>
+</tr>
+<tr>
+<td>Уведомления, JivoChat, Telegram, почта</td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/biro26-notify-settings">https://officeplus.md/UNA.md/orasldev/biro26-notify-settings</a></td>
+</tr>
+<tr>
+<td>Воронка продаж: заказы → отгрузки → конверсия</td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/funnel">https://officeplus.md/UNA.md/orasldev/funnel</a></td>
+</tr>
+<tr>
+<td>CRM клиентов</td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/crm/">https://officeplus.md/UNA.md/orasldev/crm/</a></td>
+</tr>
+<tr>
+<td>Рассрочка: пакеты, кредиторы, заявки</td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/biro26-credit-admin">https://officeplus.md/UNA.md/orasldev/biro26-credit-admin</a></td>
+</tr>
+<tr>
+<td>e-Factura</td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/efactura/">https://officeplus.md/UNA.md/orasldev/efactura/</a></td>
+</tr>
+<tr>
+<td>Партнёры (B2B API) и синхронизация Ultra</td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/partner/">https://officeplus.md/UNA.md/orasldev/partner/</a></td>
+</tr>
+<tr>
+<td>Соцсети</td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/social">https://officeplus.md/UNA.md/orasldev/social</a></td>
+</tr>
+<tr>
+<td>Реклама: бюджет план/факт, ROI</td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/seoforge">https://officeplus.md/UNA.md/orasldev/seoforge</a></td>
+</tr>
+<tr>
+<td><strong>Пауза сайта</strong></td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/sitepause/">https://officeplus.md/UNA.md/orasldev/sitepause/</a></td>
+</tr>
+<tr>
+<td>Вся документация</td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/b26docs/">https://officeplus.md/UNA.md/orasldev/b26docs/</a></td>
+</tr>
+</tbody>
+</table>
+<p>Тестовый контур с той же базой — те же адреса на <code>https://nufarul.eminescu.md/…</code>.</p>
+<h2 id="23-10">2.3 Ежедневный контроль (10 минут)</h2>
+<table>
+<thead>
+<tr>
+<th>Что смотреть</th>
+<th>Где</th>
+<th>Норма</th>
+<th>Если не так</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Новые заказы и зависшие</td>
+<td>Воронка продаж</td>
+<td>зависших нет</td>
+<td>менеджеру — связаться с клиентом</td>
+</tr>
+<tr>
+<td>Заявки на рассрочку</td>
+<td>Рассрочка → заявки</td>
+<td>обработаны в течение дня</td>
+<td>проверить ответ кредитора</td>
+</tr>
+<tr>
+<td>Уведомления в Telegram</td>
+<td>бот магазина</td>
+<td>заказы и КП приходят</td>
+<td>проверить настройки уведомлений</td>
+</tr>
+<tr>
+<td>Сайт открывается</td>
+<td><a href="https://officeplus.md/">https://officeplus.md/</a></td>
+<td>страница магазина</td>
+<td>см. 2.7</td>
+</tr>
+<tr>
+<td>Новые входящие e-Factura</td>
+<td>e-Factura → входящие</td>
+<td>загружены в учёт</td>
+<td>бухгалтеру — импорт (инструкция 4b)</td>
+</tr>
+</tbody>
+</table>
+<p>Раз в неделю: воронка за неделю (конверсия, средний чек), отчёт по рекламе (SEOForge),
+публикации в соцсетях.</p>
+<h2 id="24">2.4 Переключатели, которыми вы управляете сами</h2>
+<p>Все настройки хранятся в базе (<code>YBIRO_SETTINGS</code>), а не в программе: их изменение не
+требует программиста и не теряется при обновлениях.</p>
+<table>
+<thead>
+<tr>
+<th>Что</th>
+<th>Где меняется</th>
+<th>Что происходит</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Пауза сайта</strong> («ведутся технические работы»)</td>
+<td><a href="https://officeplus.md/UNA.md/orasldev/sitepause/">https://officeplus.md/UNA.md/orasldev/sitepause/</a></td>
+<td>витрина и вход в WordPress показывают страницу работ (503); бэк-офис и API партнёров работают; действует ≤ 20 с</td>
+</tr>
+<tr>
+<td>Текст страницы паузы RO / RU</td>
+<td>там же</td>
+<td>свой текст вместо стандартного</td>
+</tr>
+<tr>
+<td>Часы работы в шапке сайта</td>
+<td><code>SHOP_HOURS</code></td>
+<td>«Astăzi lucrăm de la … până la …» по дню недели</td>
+</tr>
+<tr>
+<td>Чат JivoChat</td>
+<td><code>SHOP_JIVO_ID</code> (экран уведомлений)</td>
+<td>пусто — чата нет</td>
+</tr>
+<tr>
+<td>Google Analytics</td>
+<td><code>SHOP_GA_ID</code></td>
+<td>запускается только с согласия посетителя</td>
+</tr>
+<tr>
+<td>Колонка цены для физлиц / юрлиц</td>
+<td><code>SHOP_PRICE_FIZ</code>, <code>SHOP_PRICE_JUR</code></td>
+<td>какую цену видит покупатель</td>
+</tr>
+<tr>
+<td>Порог рассрочки</td>
+<td><code>CREDIT_MIN_ORDER</code></td>
+<td>ниже суммы рассрочка недоступна, условие красным</td>
+</tr>
+<tr>
+<td>Наценка для новых товаров из e-Factura</td>
+<td><code>EFA_PRICE_BELOW_SALE_PCT</code> (по умолчанию 10)</td>
+<td>цена продажи = цена закупки / (1 − %)</td>
+</tr>
+<tr>
+<td>Telegram-уведомления</td>
+<td><code>NOTIFY_TG_*</code></td>
+<td>заказы и коммерческие предложения уходят менеджеру</td>
+</tr>
+</tbody>
+</table>
+<h2 id="25">2.5 Деньги</h2>
+<table>
+<thead>
+<tr>
+<th>Поток</th>
+<th>Как устроено</th>
+<th>Ваше действие</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Оплата картой</td>
+<td>MAIB / MIA — договор с банком, ключи в настройках сервера</td>
+<td>договор с банком</td>
+</tr>
+<tr>
+<td>Рассрочка</td>
+<td>пакеты кредиторов в базе; цена в рассрочку = цена × (1 + наценка пакета + надбавка организации) — одинаково на витрине, в корзине и в счёте</td>
+<td>договоры с кредиторами, пакеты</td>
+</tr>
+<tr>
+<td>Коммерческие предложения</td>
+<td>PDF из ассистента + уведомление менеджеру</td>
+<td>менеджер перезванивает</td>
+</tr>
+<tr>
+<td>Партнёры B2B</td>
+<td>заказы через API на клиента-партнёра</td>
+<td>заключить договор, выдать доступ</td>
+</tr>
+</tbody>
+</table>
+<h2 id="26">2.6 Закон</h2>
+<table>
+<thead>
+<tr>
+<th>Требование</th>
+<th>Как выполнено</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Персональные данные / cookie</td>
+<td>баннер согласия при первом визите: «Refuz» так же заметен, как «Accept»; аналитика, чат, карта и рекламные метки — только после согласия; выбор хранится 180 дней; ссылка «Setări cookie» в подвале</td>
+</tr>
+<tr>
+<td>Политика конфиденциальности</td>
+<td>страница сайта; раздел про cookie подготовлен (<code>docs/Biro26/COOKIE_CONSIMTAMINT_2026-10-09.md</code>) — публикуется после вашего утверждения</td>
+</tr>
+<tr>
+<td>e-Factura</td>
+<td>входящие накладные — импорт в учёт; исходящие — через модуль e-Factura</td>
+</tr>
+<tr>
+<td>Поиск Google во время работ</td>
+<td>пауза отдаёт код 503 и «Retry-After» — страницы не выпадают из индекса</td>
+</tr>
+</tbody>
+</table>
+<h2 id="27-">2.7 Если что-то не работает</h2>
+<table>
+<thead>
+<tr>
+<th>Признак</th>
+<th>Первое действие</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Сайт показывает «технические работы»</td>
+<td>проверить переключатель паузы — возможно, она включена намеренно</td>
+</tr>
+<tr>
+<td>Сайт не открывается вовсе</td>
+<td>сообщить внедренцу; бэк-офис и база при этом обычно живы</td>
+</tr>
+<tr>
+<td>Не приходят уведомления</td>
+<td>экран уведомлений → проверка Telegram</td>
+</tr>
+<tr>
+<td>Неверная цена на сайте</td>
+<td>бэк-офис → Listă de prețuri; правило цены — 2.4</td>
+</tr>
+<tr>
+<td>Товара нет на сайте</td>
+<td>у товара нет цены или группы — бэк-офис → Nomenclator</td>
+</tr>
+</tbody>
+</table>
+<h2 id="28">2.8 Надёжность и сохранность</h2>
+<ul>
+<li>Каждое изменение программы — в git с описанием; перед заменой файлов на сервере делается резервная копия.</li>
+<li>Три контура: боевой (officeplus.md), резервный (облако, подхватывает сайт при сбое офиса), тестовый (nufarul.eminescu.md, та же база).</li>
+<li>Правила для разработчиков и ИИ-агентов записаны (<code>CLAUDE.md</code>): работа считается сделанной, только когда она в общем репозитории, на сервере и проверена вживую.</li>
+</ul>
+<h2 id="29">2.9 Решения, которые остаются за вами</h2>
+<table>
+<thead>
+<tr>
+<th>Решение</th>
+<th>Когда</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Включить / снять паузу сайта</td>
+<td>по готовности работ</td>
+</tr>
+<tr>
+<td>Утвердить текст политики конфиденциальности</td>
+<td>до запуска рекламы</td>
+</tr>
+<tr>
+<td>Договоры с банком и кредиторами, пакеты рассрочки</td>
+<td>до включения оплаты</td>
+</tr>
+<tr>
+<td>Цена продажи для новых позиций (процент)</td>
+<td>при импорте e-Factura</td>
+</tr>
+<tr>
+<td>Бюджет на рекламу и каналы</td>
+<td>стратегия — <code>docs/Marketing/STRATEGIA_PROMOVARE.md</code></td>
+</tr>
+<tr>
+<td>Доступы сотрудников и партнёров</td>
+<td>при найме / договоре</td>
+</tr>
+</tbody>
+</table>
+</main>
+<footer>Сгенерировано из <code>docs/ProiectTip/02_GHID_PROPRIETAR.md</code> скриптом
+<code>scripts/build_proiect_tip_html.py</code>. Правки — только в Markdown.</footer>
+</body>
+</html>

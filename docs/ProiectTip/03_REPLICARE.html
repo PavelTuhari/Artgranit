@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>3. Тиражирование: как развернуть типовой проект для другой компании</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--b:#194681;--o:#e8632c;--t:#1f2937;--m:#6b7280;--line:#e5e7eb;--bg:#f6f8fb}
+*{box-sizing:border-box}
+body{margin:0;font:16px/1.6 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;color:var(--t);background:#fff}
+header{background:linear-gradient(135deg,var(--b),#0f325f);color:#fff;padding:14px 20px}
+header .w{max-width:1040px;margin:0 auto;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center}
+header .brand{font-weight:800;font-size:18px;margin-right:auto}
+header .brand span{color:var(--o)}
+header a{color:#fff;text-decoration:none;font-size:14px;padding:5px 10px;border-radius:8px;opacity:.9}
+header a.on,header a:hover{background:rgba(255,255,255,.16);opacity:1}
+main{max-width:1040px;margin:0 auto;padding:26px 20px 60px}
+h1{color:var(--b);font-size:30px;line-height:1.2;margin:.2em 0 .5em}
+h2{color:var(--b);font-size:22px;margin:1.8em 0 .6em;padding-bottom:6px;border-bottom:2px solid var(--line)}
+h3{font-size:18px;margin:1.4em 0 .5em}
+a{color:var(--b)}
+table{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:14.5px;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:8px 10px;text-align:left;vertical-align:top}
+th{background:#eef3fa;color:var(--b)}
+tr:nth-child(even) td{background:#fbfcfe}
+code{font:13.5px ui-monospace,Menlo,Consolas,monospace;background:#eef2f7;padding:1px 5px;border-radius:4px}
+pre{background:#0f172a;color:#e2e8f0;padding:14px 16px;border-radius:10px;overflow:auto;font-size:13px;line-height:1.45}
+pre code{background:none;padding:0;color:inherit}
+blockquote{margin:14px 0;padding:12px 16px;background:var(--bg);border-left:4px solid var(--o);border-radius:0 10px 10px 0}
+blockquote table{font-size:14px}
+hr{border:0;border-top:1px solid var(--line);margin:30px 0}
+footer{max-width:1040px;margin:0 auto;padding:18px 20px 40px;color:var(--m);font-size:13px;border-top:1px solid var(--line)}
+@media print{header{background:none;color:#000;border-bottom:2px solid #000}header a{display:none}
+  header .brand{color:#000}main{padding-top:10px}pre{white-space:pre-wrap}a{color:#000}}
+</style>
+</head>
+<body>
+<header><div class="w"><div class="brand">Proiect <span>tip</span> · Artgranit</div><a href="00_INDEX.html">Пакет документов</a><a href="01_MARKETING.html">1. Маркетинг</a><a href="02_GHID_PROPRIETAR.html">2. Собственнику</a><a href="03_REPLICARE.html" class="on">3. Тиражирование</a><a href="04_INSTRUCTIUNI_CUMPARATOR.html">4a. Покупателю</a><a href="05_INSTRUCTIUNI_OPERATOR.html">4b. Сотруднику</a></div></header>
+<main>
+<h1 id="3">3. Тиражирование: как развернуть типовой проект для другой компании</h1>
+<p><em>Для собственника нового клиента и внедренца. Образец — OfficePlus; ниже — что
+повторяется как есть, что настраивается и что делается заново.</em></p>
+<h2 id="31">3.1 Подходит ли проект клиенту</h2>
+<table>
+<thead>
+<tr>
+<th>Условие</th>
+<th>Обязательно?</th>
+<th>Комментарий</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Учёт в UNA.md (или другая ERP) на <strong>Oracle</strong></td>
+<td>да</td>
+<td>платформа читает и пишет прямо в базу; поддерживаются Oracle 11g и Autonomous Database 23ai</td>
+</tr>
+<tr>
+<td>Справочник товаров с ценами и остатками</td>
+<td>да</td>
+<td>источник витрины</td>
+</tr>
+<tr>
+<td>Сервер Linux (или облако OCI)</td>
+<td>да</td>
+<td>~2 vCPU, 4–8 ГБ ОЗУ на контур</td>
+</tr>
+<tr>
+<td>Домен и почта</td>
+<td>да</td>
+<td>SSL — Let's Encrypt, бесплатно</td>
+</tr>
+<tr>
+<td>Договор с банком (MAIB / MIA)</td>
+<td>для оплаты картой</td>
+<td></td>
+</tr>
+<tr>
+<td>Договоры с кредиторами</td>
+<td>для рассрочки</td>
+<td>EasyCredit, Iute, Microinvest, MAIB — уже подключены в коде</td>
+</tr>
+<tr>
+<td>Доступ к e-Factura (SFS)</td>
+<td>для импорта накладных</td>
+<td>сертификат / API-доступ клиента</td>
+</tr>
+</tbody>
+</table>
+<h2 id="32">3.2 Что переиспользуется, что настраивается, что делается заново</h2>
+<table>
+<thead>
+<tr>
+<th>Слой</th>
+<th>Как есть</th>
+<th>Настройка</th>
+<th>Заново</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ядро портала, вход, меню, хаб документации</td>
+<td>✓</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Витрина, корзина, кабинет, ассистент, cookie, пауза</td>
+<td>✓</td>
+<td>логотип, цвета, тексты, контакты, домен</td>
+<td></td>
+</tr>
+<tr>
+<td>Рассрочка</td>
+<td>✓</td>
+<td>пакеты и надбавки кредиторов в базе</td>
+<td></td>
+</tr>
+<tr>
+<td>e-Factura</td>
+<td>✓</td>
+<td>IDNO, сертификат, процент цены</td>
+<td></td>
+</tr>
+<tr>
+<td>Импорт поставщиков</td>
+<td>✓</td>
+<td>сопоставление колонок (экран «Mapare»)</td>
+<td>новый формат файла — при необходимости</td>
+</tr>
+<tr>
+<td>Партнёрский API, синхронизация Ultra</td>
+<td>✓</td>
+<td>учётные данные дилера</td>
+<td></td>
+</tr>
+<tr>
+<td>Отраслевые модули (производство, агро, планограммы, автопарк)</td>
+<td>по отрасли</td>
+<td></td>
+<td>под специфику клиента</td>
+</tr>
+<tr>
+<td>Данные (товары, клиенты, документы)</td>
+<td></td>
+<td></td>
+<td><strong>это база клиента — не переносятся</strong></td>
+</tr>
+</tbody>
+</table>
+<h2 id="33">3.3 Шаги внедрения</h2>
+<table>
+<thead>
+<tr>
+<th>№</th>
+<th>Шаг</th>
+<th>Кто</th>
+<th>Срок</th>
+<th>Проверка</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>Аудит базы клиента: схема, товары, цены, остатки, группы</td>
+<td>внедренец</td>
+<td>0,5 дня</td>
+<td>список колонок цен, число позиций с ценой</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Сервер: Python 3.12, systemd-служба, nginx, SSL; Oracle wallet <strong>вне</strong> каталога кода</td>
+<td>внедренец</td>
+<td>0,5 дня</td>
+<td><code>https://&lt;домен&gt;/login</code> → 200</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Код из <code>main</code> (git), <code>.env</code> клиента (подключение к Oracle, ключи банков)</td>
+<td>внедренец</td>
+<td>1 час</td>
+<td>служба запускается, 0 ошибок в журнале</td>
+</tr>
+<tr>
+<td>4</td>
+<td>DDL модулей — <strong>своим установщиком каждого модуля</strong> (<code>modules/&lt;ключ&gt;/scripts/&lt;ключ&gt;_deploy.py</code>), один раз вживую</td>
+<td>внедренец</td>
+<td>0,5 дня</td>
+<td>объекты видны в <code>USER_OBJECTS</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Настройки в <code>YBIRO_SETTINGS</code>: цены, часы, JivoChat, GA, Telegram, порог рассрочки</td>
+<td>собственник + внедренец</td>
+<td>1 час</td>
+<td>витрина показывает правильные цены</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Брендинг: логотип, цвета, тексты страниц (WordPress или страницы витрины), контакты, страница паузы</td>
+<td>маркетолог</td>
+<td>1 день</td>
+<td>сравнение с макетом</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Включить паузу, проверить всё на тестовом контуре, снять паузу</td>
+<td>собственник</td>
+<td>1 день</td>
+<td>чек-лист 3.5</td>
+</tr>
+<tr>
+<td>8</td>
+<td>Обучение сотрудников по инструкции 4b</td>
+<td>внедренец</td>
+<td>1 день</td>
+<td>сотрудник сам проводит заказ и импорт e-Factura</td>
+</tr>
+<tr>
+<td>9</td>
+<td>Реклама и соцсети по маркетинговому пакету</td>
+<td>маркетолог</td>
+<td>по плану</td>
+<td>первые заявки</td>
+</tr>
+</tbody>
+</table>
+<p>Итого базовый запуск: <strong>3–5 рабочих дней</strong> (без договоров с банками и кредиторами,
+которые идут параллельно со стороны клиента).</p>
+<h2 id="34">3.4 Правила, которые нельзя нарушать при тиражировании</h2>
+<ol>
+<li><strong>Данные только в Oracle</strong>, нормализованные таблицы со своим префиксом модуля; никаких JSON-файлов и SQLite как источника правды.</li>
+<li><strong>Новый функционал — новым модулем</strong> в <code>modules/&lt;ключ&gt;/</code> (каркас: <code>python scripts/new_module.py &lt;ключ&gt; "&lt;Название&gt;"</code>); общий код не править.</li>
+<li><strong>Секреты не в git</strong>: <code>.env</code>, wallet, ключи банков — только на сервере.</li>
+<li><strong>Каждое изменение — commit, push, merge в <code>main</code>, выкатка, проверка <code>curl</code>, запись в <code>docs/</code></strong> (правило №6 в <code>CLAUDE.md</code>).</li>
+<li><strong>При слиянии веток конфликты — только по блокам, по дате</strong>, никогда «файл одной стороны целиком» (<code>docs/Git/RESTAURARE_2026-10-22.md</code>).</li>
+<li><strong>Перед заменой файла на сервере</strong> — сверка md5 с git и резервная копия рядом.</li>
+</ol>
+<h2 id="35-">3.5 Чек-лист приёмки</h2>
+<table>
+<thead>
+<tr>
+<th>Проверка</th>
+<th>Как</th>
+<th>Ожидается</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Вход в бэк-офис</td>
+<td><code>https://&lt;домен&gt;/login</code></td>
+<td>200, вход работает</td>
+</tr>
+<tr>
+<td>Витрина</td>
+<td>главная, каталог, карточка, поиск «бумага»</td>
+<td>товары с ценами и фото</td>
+</tr>
+<tr>
+<td>Наличие</td>
+<td>товар со складом поставщика</td>
+<td>«În stoc» / «La comandă»</td>
+</tr>
+<tr>
+<td>Корзина и рассрочка</td>
+<td>товар ниже и выше порога</td>
+<td>ниже — условие красным, кнопки рассрочки неактивны</td>
+</tr>
+<tr>
+<td>Оплата</td>
+<td>тестовый платёж банка</td>
+<td>ответ банка, документ в учёте</td>
+</tr>
+<tr>
+<td>Ассистент</td>
+<td>поиск, корзина, проверка заказа</td>
+<td>розничная цена, «Order is valid (not created)»</td>
+</tr>
+<tr>
+<td>Cookie</td>
+<td>первый визит в новом окне</td>
+<td>баннер; до выбора — ни одного запроса к Google/Jivo</td>
+</tr>
+<tr>
+<td>Пауза</td>
+<td>включить → <code>https://&lt;домен&gt;/</code></td>
+<td>503 «технические работы», бэк-офис доступен</td>
+</tr>
+<tr>
+<td>e-Factura</td>
+<td>загрузить тестовый XML</td>
+<td>накладные в учёте, штрихкоды, цены</td>
+</tr>
+<tr>
+<td>Мобильная версия</td>
+<td>телефон</td>
+<td>нижняя панель навигации, кнопки не перекрываются</td>
+</tr>
+<tr>
+<td>Резерв</td>
+<td>остановить основной контур</td>
+<td>резервный подхватывает витрину</td>
+</tr>
+</tbody>
+</table>
+<h2 id="36-">3.6 Что подготовить клиенту до старта (письмо-запрос)</h2>
+<blockquote>
+<p>Для запуска нам понадобится: (1) доступ к базе учёта (пользователь Oracle только для
+нужных схем); (2) домен и доступ к DNS; (3) логотип, цвета, тексты «О нас», «Доставка»,
+«Возврат», «Политика конфиденциальности»; (4) реквизиты и контакты для подвала сайта;
+(5) договор с банком для оплаты картой и с кредиторами для рассрочки; (6) доступ к
+e-Factura (если нужен импорт накладных); (7) список сотрудников и их роли.</p>
+</blockquote>
+</main>
+<footer>Сгенерировано из <code>docs/ProiectTip/03_REPLICARE.md</code> скриптом
+<code>scripts/build_proiect_tip_html.py</code>. Правки — только в Markdown.</footer>
+</body>
+</html>

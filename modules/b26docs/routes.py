@@ -17,7 +17,10 @@ DOCS = os.path.join(ROOT, "docs")
 #     poata scoate un fisier de altundeva.
 # RO: 12.09.2026 — si documentele CRM-ului web (docs/CRM), ca legaturile din
 #     hub-ul Biro26 sa deschida ceva, nu 404.
-FOLDERS = ("Biro26", "Partner", "CRM")
+# RO: 25.10.2026 — si pachetul «Proiect tip» (docs/ProiectTip), materialele de marketing
+#     (docs/Marketing) si rapoartele git (docs/Git): legaturile date proprietarului
+#     treceau de logare si apoi dadeau 404, pentru ca folderele nu erau in lista.
+FOLDERS = ("Biro26", "Partner", "CRM", "ProiectTip", "Marketing", "Git")
 EXT = (".md", ".html", ".htm")
 
 

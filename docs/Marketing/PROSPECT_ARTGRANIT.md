@@ -15,7 +15,7 @@
 | Вы | Что получаете |
 |---|---|
 | **Владелец бизнеса** на UNA.md / Oracle | интернет-магазин, кабинет клиента, рассрочку, e-Factura, чат-ассистента — поверх вашей же базы, без «синхронизаций» и двойного ввода |
-| **Разработчик / студия** | ядро, в которое модуль подключается одной папкой; шаблон модуля одной командой; 345 тестов; правила, при которых две команды не могут затереть работу друг друга |
+| **Разработчик / студия** | ядро, в которое модуль подключается одной папкой; шаблон модуля одной командой; 1355 тестов; правила, при которых две команды не могут затереть работу друг друга |
 | **Oracle-партнёр / DBA** | нормализованные схемы с префиксами, DDL отдельно от кода, Oracle 11g и Autonomous Database (OCI) в одном приложении, thick-режим через изолированный воркер |
 
 ---
@@ -24,9 +24,9 @@
 
 | | |
 |---|---|
-| Модулей в портале | **21**, страниц — **99**, все находятся в меню автоматически |
-| Код | ~57 000 строк Python (Flask), 143 SQL-файла DDL, 1 998 коммитов за 11 месяцев |
-| Тесты | **345** автотестов; правила модулей — без Oracle wallet, за 2 секунды |
+| Модулей в портале | **30**, страниц — **179**, все находятся в меню автоматически |
+| Код | ~91 000 строк Python (Flask), 191 SQL-файл DDL, 3 133 коммита за 11 месяцев (на 25.10.2026) |
+| Тесты | **1355** автотестов; правила модулей — без Oracle wallet, за 2 секунды |
 | Базы | Oracle 11.2 (ERP UNA.md, кодировка CL8MSWIN1251) **и** Oracle Autonomous DB 23ai (OCI) одновременно |
 | Языки интерфейса | RO · RU · EN |
 | Боевые контуры | officeplus.md (магазин + бэк-офис), nufarul.eminescu.md (производство, тест) |
@@ -101,7 +101,7 @@ Python 3.12 · Flask · python-oracledb (thin + thick-воркер) · Oracle 11
 
 **Artgranit** este o platformă web de module peste Oracle și sistemul de evidență UNA.md:
 magazin online, cabinet client, rate, e-Factura, CRM, producție, monitorizare — toate
-direct pe baza dumneavoastră, fără sincronizări. 21 de module, 99 de pagini, 345 de teste.
+direct pe baza dumneavoastră, fără sincronizări. 30 de module, 179 de pagini, 1355 de teste.
 Un modul nou se adaugă dintr-un singur folder, fără a atinge codul comun. Exemplu viu:
 officeplus.md. Implementare: 1–3 zile pentru magazin, integrările sînt deja scrise.
 
@@ -110,7 +110,7 @@ officeplus.md. Implementare: 1–3 zile pentru magazin, integrările sînt deja 
 **Artgranit** is a modular web platform on top of Oracle and the UNA.md accounting
 system: e-commerce storefront, customer cabinet, instalment credit, e-invoicing (SFS
 e-Factura), CRM, production floor, infrastructure monitoring — all reading and writing
-the ERP database directly. 21 modules, 99 pages, 345 tests, Oracle 11g and Autonomous
+the ERP database directly. 30 modules, 179 pages, 1355 tests, Oracle 11g and Autonomous
 DB in one app. A new module is one folder that plugs into the core without touching
 shared code; the project is developed with AI agents under written engineering rules.
 Live: officeplus.md.

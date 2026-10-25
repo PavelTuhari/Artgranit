@@ -1,0 +1,182 @@
+{
+  "00_INDEX.md": {
+    "order": 1,
+    "icon": "📦",
+    "audience": "все",
+    "title": {
+      "ru": "Типовой проект — пакет документов",
+      "ro": "Proiect tip — pachetul de documente",
+      "en": "Template project — document pack"
+    },
+    "descr": {
+      "ru": "Оглавление: маркетинг, документация собственника, тиражирование, инструкции покупателя и сотрудника; MD + HTML.",
+      "ro": "Cuprins: marketing, documentația proprietarului, replicare, instrucțiuni pentru cumpărător și angajat; MD + HTML.",
+      "en": "Contents: marketing, owner docs, replication, buyer and staff instructions; MD + HTML."
+    }
+  },
+  "01_MARKETING.md": {
+    "order": 2,
+    "icon": "📣",
+    "audience": "собственник, продажи, маркетинг",
+    "title": {
+      "ru": "1. Маркетинговые материалы",
+      "ro": "1. Materiale de marketing",
+      "en": "1. Marketing materials"
+    },
+    "descr": {
+      "ru": "Позиционирование, что получает клиент, шаблон КП, тексты, сценарий демо, шаблон адаптации.",
+      "ro": "Poziționare, ce primește clientul, ofertă-șablon, texte, scenariu demo, șablon de adaptare.",
+      "en": "Positioning, offer, proposal template, copy, demo script, adaptation template."
+    }
+  },
+  "02_GHID_PROPRIETAR.md": {
+    "order": 3,
+    "icon": "🧭",
+    "audience": "владелец, директор",
+    "title": {
+      "ru": "2. Документация собственника бизнеса",
+      "ro": "2. Ghidul proprietarului afacerii",
+      "en": "2. Business owner guide"
+    },
+    "descr": {
+      "ru": "Экраны, ежедневный контроль, переключатели, деньги, закон, сбои, решения владельца.",
+      "ro": "Ecrane, control zilnic, comutatoare, bani, lege, incidente, deciziile proprietarului.",
+      "en": "Screens, daily control, switches, money, law, incidents, owner decisions."
+    }
+  },
+  "03_REPLICARE.md": {
+    "order": 4,
+    "icon": "🔁",
+    "audience": "собственник, внедренец",
+    "title": {
+      "ru": "3. Тиражирование типового проекта",
+      "ro": "3. Replicarea proiectului tip",
+      "en": "3. Replicating the template project"
+    },
+    "descr": {
+      "ru": "Кому подходит, что переиспользуется, шаги внедрения 3–5 дней, правила, чек-лист приёмки.",
+      "ro": "Pentru cine, ce se refolosește, pașii 3–5 zile, reguli, lista de recepție.",
+      "en": "Fit, reuse map, 3–5 day rollout, rules, acceptance checklist."
+    }
+  },
+  "04_INSTRUCTIUNI_CUMPARATOR.md": {
+    "order": 5,
+    "icon": "🛒",
+    "audience": "покупатели (RO / RU)",
+    "title": {
+      "ru": "4a. Инструкция покупателя",
+      "ro": "4a. Instrucțiunea cumpărătorului",
+      "en": "4a. Buyer instructions"
+    },
+    "descr": {
+      "ru": "Поиск, каталог, корзина, оплата и рассрочка, кабинет, ассистент, cookie.",
+      "ro": "Căutare, catalog, coș, plată și rate, cont, asistent, cookie.",
+      "en": "Search, catalog, cart, payment and credit, account, assistant, cookies."
+    }
+  },
+  "05_INSTRUCTIUNI_OPERATOR.md": {
+    "order": 6,
+    "icon": "🧑‍💼",
+    "audience": "сотрудники бэк-офиса",
+    "title": {
+      "ru": "4b. Инструкция сотрудника бэк-офиса",
+      "ro": "4b. Instrucțiunea angajatului back-office",
+      "en": "4b. Back-office staff instructions"
+    },
+    "descr": {
+      "ru": "Товары и цены, прайсы поставщиков, заказы, рассрочка, e-Factura, сайт и пауза, частые вопросы.",
+      "ro": "Mărfuri și prețuri, liste furnizori, comenzi, rate, e-Factura, site și pauză, întrebări frecvente.",
+      "en": "Goods and prices, supplier lists, orders, credit, e-invoicing, site and pause, FAQ."
+    }
+  },
+  "00_INDEX.html": {
+    "order": 51,
+    "icon": "📦",
+    "audience": "все",
+    "title": {
+      "ru": "Типовой проект — пакет документов (HTML)",
+      "ro": "Proiect tip — pachetul de documente (HTML)",
+      "en": "Template project — document pack (HTML)"
+    },
+    "descr": {
+      "ru": "Оглавление: маркетинг, документация собственника, тиражирование, инструкции покупателя и сотрудника; MD + HTML.",
+      "ro": "Cuprins: marketing, documentația proprietarului, replicare, instrucțiuni pentru cumpărător și angajat; MD + HTML.",
+      "en": "Contents: marketing, owner docs, replication, buyer and staff instructions; MD + HTML."
+    }
+  },
+  "01_MARKETING.html": {
+    "order": 52,
+    "icon": "📣",
+    "audience": "собственник, продажи, маркетинг",
+    "title": {
+      "ru": "1. Маркетинговые материалы (HTML)",
+      "ro": "1. Materiale de marketing (HTML)",
+      "en": "1. Marketing materials (HTML)"
+    },
+    "descr": {
+      "ru": "Позиционирование, что получает клиент, шаблон КП, тексты, сценарий демо, шаблон адаптации.",
+      "ro": "Poziționare, ce primește clientul, ofertă-șablon, texte, scenariu demo, șablon de adaptare.",
+      "en": "Positioning, offer, proposal template, copy, demo script, adaptation template."
+    }
+  },
+  "02_GHID_PROPRIETAR.html": {
+    "order": 53,
+    "icon": "🧭",
+    "audience": "владелец, директор",
+    "title": {
+      "ru": "2. Документация собственника бизнеса (HTML)",
+      "ro": "2. Ghidul proprietarului afacerii (HTML)",
+      "en": "2. Business owner guide (HTML)"
+    },
+    "descr": {
+      "ru": "Экраны, ежедневный контроль, переключатели, деньги, закон, сбои, решения владельца.",
+      "ro": "Ecrane, control zilnic, comutatoare, bani, lege, incidente, deciziile proprietarului.",
+      "en": "Screens, daily control, switches, money, law, incidents, owner decisions."
+    }
+  },
+  "03_REPLICARE.html": {
+    "order": 54,
+    "icon": "🔁",
+    "audience": "собственник, внедренец",
+    "title": {
+      "ru": "3. Тиражирование типового проекта (HTML)",
+      "ro": "3. Replicarea proiectului tip (HTML)",
+      "en": "3. Replicating the template project (HTML)"
+    },
+    "descr": {
+      "ru": "Кому подходит, что переиспользуется, шаги внедрения 3–5 дней, правила, чек-лист приёмки.",
+      "ro": "Pentru cine, ce se refolosește, pașii 3–5 zile, reguli, lista de recepție.",
+      "en": "Fit, reuse map, 3–5 day rollout, rules, acceptance checklist."
+    }
+  },
+  "04_INSTRUCTIUNI_CUMPARATOR.html": {
+    "order": 55,
+    "icon": "🛒",
+    "audience": "покупатели (RO / RU)",
+    "title": {
+      "ru": "4a. Инструкция покупателя (HTML)",
+      "ro": "4a. Instrucțiunea cumpărătorului (HTML)",
+      "en": "4a. Buyer instructions (HTML)"
+    },
+    "descr": {
+      "ru": "Поиск, каталог, корзина, оплата и рассрочка, кабинет, ассистент, cookie.",
+      "ro": "Căutare, catalog, coș, plată și rate, cont, asistent, cookie.",
+      "en": "Search, catalog, cart, payment and credit, account, assistant, cookies."
+    }
+  },
+  "05_INSTRUCTIUNI_OPERATOR.html": {
+    "order": 56,
+    "icon": "🧑‍💼",
+    "audience": "сотрудники бэк-офиса",
+    "title": {
+      "ru": "4b. Инструкция сотрудника бэк-офиса (HTML)",
+      "ro": "4b. Instrucțiunea angajatului back-office (HTML)",
+      "en": "4b. Back-office staff instructions (HTML)"
+    },
+    "descr": {
+      "ru": "Товары и цены, прайсы поставщиков, заказы, рассрочка, e-Factura, сайт и пауза, частые вопросы.",
+      "ro": "Mărfuri și prețuri, liste furnizori, comenzi, rate, e-Factura, site și pauză, întrebări frecvente.",
+      "en": "Goods and prices, supplier lists, orders, credit, e-invoicing, site and pause, FAQ."
+    }
+  }
+}
