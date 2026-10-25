@@ -23,7 +23,7 @@ def test_manifest_describes_every_marketing_doc():
 def test_numbers_are_the_same_in_prospect_and_brochure():
     md = _read("docs", "Marketing", "PROSPECT_ARTGRANIT.md")
     html = _read("static", "marketing", "artgranit-prospect.html")
-    for n in ("21", "99", "345", "143"):
+    for n in ("30", "179", "1355", "191"):
         assert n in md and n in html, n
     assert "+373 620 07 211" in md and "+37362007211" in html
 
