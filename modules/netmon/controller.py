@@ -848,6 +848,64 @@ class NetmonController:
         except Exception as e:  # noqa: BLE001
             return _fail(e)
 
+    # ------------------------------------------- наши специалисты и история
+
+    _staff_cache: dict = {}
+
+    @staticmethod
+    def staff(days=7, force=False):
+        """Наши в базах и на сервере баз: сейчас, нерабочее время, вся активность."""
+        import time
+        try:
+            from modules.netmon import history
+            days = max(1, min(int(days or 7), 3650))
+            c = NetmonController._staff_cache
+            if not force and c.get("days") == days and time.time() - c.get("at", 0) < 30:
+                return _ok({**c["data"], "cached_sec": round(time.time() - c["at"])})
+            data = history.staff_view(days)
+            NetmonController._staff_cache = {"data": data, "at": time.time(), "days": days}
+            return _ok({**data, "cached_sec": 0})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def staff_ident(body, user="system"):
+        """Подписать, кто это (компьютер, пара компьютер|пользователь, адрес, пользователь Linux),
+        или отметить «не наш»."""
+        try:
+            from modules.netmon import history_store
+            kind, value = (body.get("kind") or "").strip(), (body.get("value") or "").strip()
+            if kind not in ("host", "hostuser", "ip", "sshuser") or not value:
+                return _fail("kind: host|hostuser|ip|sshuser и value обязательны", 400)
+            history_store.save_ident(kind, value, 0 if body.get("staff") in (0, "0", False) else 1,
+                                     body.get("person"), body.get("note"), "manual", user)
+            NetmonController._staff_cache = {}
+            return _ok({"kind": kind, "value": value})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def history_refresh():
+        """Перенести свежий аудит и журналы SSH сейчас (обычно идёт сам, раз в 15 минут)."""
+        try:
+            from modules.netmon import history
+            res = history.import_all()
+            NetmonController._staff_cache = {}
+            NetmonController._clients_cache = {}
+            return _ok(res)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def client_history(client, days=30):
+        try:
+            from modules.netmon import history
+            if not (client or "").strip():
+                return _fail("не указан клиент", 400)
+            return _ok(history.client_history(client.strip(), max(1, min(int(days or 30), 3650))))
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
     # ------------------------------------------------ доска заявок OTRS
 
     _otrs_cache: dict = {}

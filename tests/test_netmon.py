@@ -1444,7 +1444,7 @@ def test_clients_connection_kinds_by_program():
     assert conn_kind("garaCPer.exe") == "pos" and conn_kind("UNAScales.exe") == "scales"
     assert conn_kind("UniacCLNT.exe", "AD\\AURW7WS06") == "desktop" and conn_kind("uniacCLNT.exe") == "desktop"
     assert conn_kind("php-fpm: pool www@web (TNS V1-V3)") == "web" and conn_kind("JDBC Thin Client") == "web"
-    assert conn_kind("UniacCLNT.exe", "UNAMD\\ANNA-PC") == "staff", "наш домен — наш специалист"
+    assert conn_kind("UniacCLNT.exe", "UNAMD\\DEV-PC") == "staff", "наш домен — наш специалист"
     assert conn_kind("Toad.exe", "WORKGROUP\\X") == "staff"
     assert conn_kind("oracle@cloudbd.internal.uniacc.md (TNS V1-V3)") == "link", "связь наших баз — не магазин"
 
@@ -1520,3 +1520,117 @@ def test_clients_tab_wired():
     assert "window.loadClientsPanel()" in page
     html = _read("modules/netmon/templates/clients_panel.html")
     assert "esc(c.osuser" in html and "esc(cl.title || cl.client)" in html, "всё из базы экранируется"
+
+
+# ------------------------------------------- наши специалисты и история
+
+def test_staff_off_hours_rules():
+    from datetime import datetime as D
+    from modules.netmon.staff_rules import off_hours, starts_off, off_reason
+    assert not off_hours(D(2026, 10, 26, 9, 0), D(2026, 10, 26, 18, 59))          # понедельник, день
+    assert starts_off(D(2026, 10, 26, 7, 59)) and starts_off(D(2026, 10, 26, 19, 0))
+    assert starts_off(D(2026, 10, 25, 12, 0)), "воскресенье"
+    assert off_hours(D(2026, 10, 26, 18, 0), D(2026, 10, 26, 20, 0)), "засиделся после 19:00"
+    assert off_hours(D(2026, 10, 26, 10, 0), D(2026, 10, 27, 9, 0)), "через ночь"
+    assert off_reason(D(2026, 10, 26, 1, 16)) == "ночь, 01:16"
+    assert off_reason(D(2026, 10, 24, 23, 41)) == "выходной, 23:41"
+    assert off_reason(D(2026, 10, 26, 10, 0), D(2026, 10, 27, 9, 0)).startswith("сеанс открыт до")
+
+
+def test_staff_identity_registry_beats_rules():
+    from modules.netmon.staff_rules import staff_of
+    reg = {("hostuser", "WORKGROUP\\WIN16TERM|staffuser"): {"staff": 1, "person": "Ivan"},
+           ("host", "UNAMD\\GUEST-PC"): {"staff": 0, "person": None}}
+    assert staff_of("WORKGROUP\\WIN16TERM", "staffuser", "SORINST", reg) == (True, "Ivan")
+    assert staff_of("WORKGROUP\\WIN16TERM", "guest1", "SORINST", reg) == (False, None), "терминальный сервер общий"
+    assert staff_of("UNAMD\\DEV-PC", "x", "A", reg)[0] is True
+    assert staff_of("UNAMD\\GUEST-PC", "x", "A", reg)[0] is False, "явное «не наш» сильнее домена"
+    assert staff_of("AD\\PC1", "u", "SYS", reg)[0] is True
+
+
+def test_staff_parse_last_secure_who_and_merge():
+    from datetime import datetime as D
+    from modules.netmon.staff_rules import parse_last, parse_secure, parse_who, ssh_events, mark_auto
+    last = ("ivan.petrov pts/0        10.27.1.63       Sat Oct 17 19:40:52 2026 - Tue Oct 20 09:54:02 2026 (2+14:13)\n"
+            "root     pts/0        10.27.1.41       Mon Oct 26 10:13:34 2026   still logged in\n"
+            "ivan.petrov pts/8        :pts/4:S.0       Mon Oct  5 11:10:51 2026 - Mon Oct  5 21:26:24 2026  (10:15)\n"
+            "reboot   system boot  3.10.0           Mon Jul  3 12:00:00 2026 - Mon Oct 26 10:15:00 2026\n"
+            "\nwtmp begins Tue May 21 15:23:17 2024\n")
+    s = parse_last(last)
+    assert len(s) == 3 and s[1]["still"] and s[1]["end"] is None and s[2]["from"] == "screen"
+    now = D(2026, 10, 26, 11, 0)
+    sec = ("Oct 26 10:13:34 cloudbd sshd[22422]: Accepted publickey for root from 10.27.1.41 port 59089 ssh2: "
+           "ED25519 a4:69:28\n"
+           "Oct 22 21:30:51 cloudbd sshd[1]: Failed password for root from 192.168.0.173 port 1 ssh2\n"
+           "Oct 22 21:30:51 cloudbd sshd[1]: Failed password for root from 192.168.0.173 port 1 ssh2\n"
+           "Oct 22 21:30:50 cloudbd sshd[2]: Failed password for invalid user unisim from 192.168.0.173 port 2 ssh2\n"
+           "Dec 30 10:00:00 cloudbd sshd[3]: Accepted password for root from 1.1.1.1 port 3 ssh2\n")
+    a = parse_secure(sec, now)
+    assert len(a) == 4, "двойная строка «Failed password» — одна попытка"
+    assert a[0]["key"] == "ED25519 a4:69:28" and a[2]["user"] == "unisim"
+    assert a[3]["at"].year == 2025, "дата из будущего — прошлый год"
+    ev = mark_auto(ssh_events(s, a, "cloudbd"))
+    root = next(e for e in ev if e["account"] == "root" and e["from_host"] == "10.27.1.41")
+    assert root["detail"] == "ED25519 a4:69:28" and root["interactive"], "вход по ключу дополнил сеанс"
+    fails = [e for e in ev if e["result"] == "fail"]
+    assert len(fails) == 2 and all(e["off_hours"] for e in fails), "22.10 в 21:30 — вечер"
+    w = parse_who("root     pts/0        Oct 26 10:13 (10.27.1.41)\nivan.petrov pts/1        Jul 31 17:47 (192.168.0.109)", now)
+    assert w[0]["from"] == "10.27.1.41" and w[1]["days"] == 86
+
+
+def test_staff_automation_blocks_and_round_the_clock():
+    from datetime import datetime as D, timedelta as T
+    from modules.netmon.staff_rules import mark_auto, blocks, round_the_clock, AUTO_MIN
+    base = D(2026, 10, 20, 3, 0)
+    ev = [{"source": "ssh", "account": "root", "from_host": "192.168.0.27", "method": "publickey", "result": "ok",
+           "interactive": False, "start_at": base + T(hours=i)} for i in range(AUTO_MIN)]
+    assert all(e["auto"] for e in mark_auto(ev)), "резервные копии по ключу — автоматика"
+    db = [{"target": "cloudbd", "account": "UNI", "from_host": "UNAMD\\X", "os_user": "u", "result": "ok",
+           "start_at": D(2026, 10, 21, 0, 16) + T(minutes=m), "end_at": None} for m in (0, 5, 50)]
+    b = blocks(db)
+    assert len(b) == 2 and b[0]["logons"] == 2 and b[0]["off_hours"] == 1, "подряд — один отрезок, разрыв > 30 мин — новый"
+    prog = [{"target": "clouddev", "account": "B", "from_host": "UNAMD\\DEV-PC", "os_user": "a",
+             "start_at": D(2026, 10, 20) + T(hours=h)} for h in range(24)]
+    assert round_the_clock(prog + db) == {("clouddev", "B", "UNAMD\\DEV-PC", "a")}
+
+
+def test_history_spikes_and_audit_parse():
+    from modules.netmon.staff_rules import spikes
+    days = {f"2026-10-{d:02d}": 200 for d in range(1, 25)}
+    days.update({"2026-10-25": 523338, "2026-10-26": 223230})
+    assert spikes(days) == ["2026-10-25", "2026-10-26"], "UNWEBSHOP с 25.10 — по 5 входов в секунду"
+    from modules.netmon.history import parse_audit, SEP
+    out = "\n".join([
+        "cloudbd|" + SEP.join(["A", "SANIX_BK", "AD\\PC1", "User", "2026-10-26", "12", "1", "2026-10-26T08:00:00",
+                               "2026-10-26T09:00:00"]),
+        "cloudbd|" + SEP.join(["A", "", "-", "-", "2026-10-26", "3", "3", "2026-10-26T08:00:00", "2026-10-26T09:00:00"]),
+        "clouddev|" + SEP.join(["E", "GLASS", "UNAMD\\DEV-PC-2", "devuser", "2026-10-24T23:41:26", "", "1017", "991"]),
+    ])
+    days_, ev = parse_audit(out)
+    assert days_[0]["client"] == "SANIX" and days_[0]["logons"] == 12
+    assert days_[1]["schema"] == "-" and days_[1]["client"] == "-", "неудачный вход без схемы не ломает ключ"
+    assert ev[0]["result"] == "fail" and ev[0]["method"] == "отказ ORA-01017" and ev[0]["target"] == "clouddev"
+
+
+def test_history_ddl_safe_and_registered():
+    sql = _read("modules/netmon/sql/205_nmon_history.sql")
+    for line in sql.splitlines():
+        if line.strip().startswith("--"):
+            assert ";" not in line and "'" not in line, f"комментарий сломает разборщик: {line}"
+    for t in ("NMON_LOGON_DAY", "NMON_STAFF_EVENT", "NMON_STAFF_ID", "NMON_HIST_SYNC"):
+        assert f"CREATE TABLE {t}" in sql
+    assert "205_nmon_history.sql" in _read("modules/netmon/scripts/netmon_deploy.py")
+    store = _read("modules/netmon/history_store.py")
+    assert not re.search(r"(=\s*|,\s*|\()\:by\b", store), "привязка :by — ORA-01745"
+
+
+def test_staff_tab_wired_and_ident_validated():
+    page = _read("modules/netmon/templates/netmon.html")
+    assert 'data-p="staff"' in page and '{% include "staff_panel.html" %}' in page and "window.loadStaffPanel()" in page
+    html = _read("modules/netmon/templates/staff_panel.html")
+    assert "В нерабочее время" in html and "esc(e.person || id)" in html
+    clients = _read("modules/netmon/templates/clients_panel.html")
+    assert "cl-staff" not in clients, "наши специалисты — на своей вкладке, не у клиентов"
+    from modules.netmon.controller import NetmonController
+    assert NetmonController.staff_ident({"kind": "boss", "value": "x"})[1] == 400
+    assert NetmonController.staff_ident({"kind": "ip", "value": ""})[1] == 400

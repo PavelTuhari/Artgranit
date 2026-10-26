@@ -19,13 +19,16 @@
   #p-clients .k-desktop{color:var(--acc)}
   #p-clients .k-web{color:var(--warn)}
   #p-clients .k-staff,#p-clients .k-link,#p-clients .k-other{color:var(--dim)}
+  #p-clients .hbars{display:flex;gap:2px;align-items:flex-end;height:46px;margin:8px 12px 4px}
+  #p-clients .hbars span{flex:1;background:var(--acc);opacity:.7;min-height:2px;border-radius:2px 2px 0 0}
+  #p-clients .hbars span.spike{background:var(--crit);opacity:1}
+  #p-clients .hsub{margin:8px 12px 2px;font-size:13px;font-weight:600}
 </style>
 
 <div class="tiles" id="cl-tiles"></div>
 <div class="filters">
   <input type="search" id="cl-q" placeholder="клиент, компьютер, точка, пользователь…" style="min-width:260px">
   <label class="dim"><input type="checkbox" id="cl-internal"> наши и служебные</label>
-  <label class="dim"><input type="checkbox" id="cl-staff"> подключения наших специалистов</label>
   <span class="spacer"></span>
   <span class="dim" id="cl-meta"></span>
   <button id="cl-reload">Обновить</button>
@@ -36,16 +39,18 @@
   (<code>oracle@сервер</code>, <code>ORACLE.EXE</code>), касса или меню (<code>UAMenu</code>, кассы автовокзала),
   весы; <b>прямой бэк</b> — работают в настольном UniAcc (<code>UniacCLNT.exe</code>): бухгалтерия,
   управленческий учёт; <b>веб</b> — только сайт и обмены. Тип можно закрепить за клиентом (📌) —
-  тогда он в своей группе, даже когда никто не подключён. Подключения с <code>UNAMD\</code>, из Toad
-  и sqlplus — наши специалисты, в счёт клиента не идут.
+  тогда он в своей группе, даже когда никто не подключён. Подключения наших специалистов
+  (<code>UNAMD\</code>, Toad, sqlplus) здесь не показываются — они на вкладке «Наши специалисты».
+  «За 30 дней» — из аудита входов баз: дней с входами, входов, последний вход; щелчок по клиенту —
+  история по дням и компьютерам.
 </div>
 
 <script>
 (() => {
-  const CL = {data: null, open: new Set()};
+  const CL = {data: null, open: new Set(), hist: {}};
   const $ = id => document.getElementById(id);
   const ORDER = ["shop", "back", "web", "internal"];
-  const KIND_OPT = {"": "по подключениям", shop: "магазинник", back: "прямой бэк", web: "веб", internal: "наш / служебный"};
+  const KIND_OPT = {"": "авто", shop: "магазинник", back: "прямой бэк", web: "веб", internal: "наш / служебный"};
 
   const idle = s => {
     if (s == null) return "—";
@@ -64,9 +69,44 @@
     return q.split(/\s+/).every(w => hay.includes(w));
   }
 
-  function details(cl, showStaff) {
-    const rows = cl.conns.filter(c => showStaff || c.kind !== "staff");
-    if (!rows.length) return `<div class="dim" style="padding:10px 12px">сейчас нет подключений</div>`;
+  function hist30(h) {
+    if (!h) return '<span class="dim">—</span>';
+    return `<span style="white-space:nowrap"><b>${h.days_active}</b> дн · ${h.logons}</span>
+      <div class="dim" style="white-space:nowrap">посл. ${since(h.last_at)}</div>`;
+  }
+
+  function historyBlock(key) {
+    const h = CL.hist[key];
+    if (!h) return `<div class="dim" style="padding:8px 12px">история загружается…</div>`;
+    if (h.error) return `<div class="crit" style="padding:8px 12px">${esc(h.error)}</div>`;
+    if (!h.daily.length) return `<div class="dim" style="padding:8px 12px">за ${h.days} дней входов не было</div>`;
+    const max = Math.max(...h.daily.map(d => d.logons), 1);
+    const bars = h.daily.map(d => `<span class="${d.spike ? "spike" : ""}" style="height:${Math.max(3, Math.round(d.logons / max * 100))}%"
+      title="${esc(d.day)}: входов ${d.logons}, компьютеров ${d.hosts}${d.failed ? ", неудачных " + d.failed : ""}"></span>`).join("");
+    const spike = h.spikes.length ? ` <span class="badge b-no">всплеск входов: ${esc(h.spikes.join(", "))}</span>` : "";
+    return `<div class="hsub">История за ${h.days} дней — входов по дням${spike}</div><div class="hbars">${bars}</div>
+      <div class="dim" style="margin:0 12px 6px;font-size:11px">${esc(h.daily[0].day)} … ${esc(h.daily[h.daily.length - 1].day)}</div>
+      <div class="hsub">Компьютеры за ${h.days} дней — ${h.hosts.length}</div>
+      <table><thead><tr><th>Компьютер</th><th>Пользователь Windows</th><th>Схемы · базы</th><th>Дней</th><th>Входов</th>
+        <th>Первый</th><th>Последний</th></tr></thead><tbody>` +
+      h.hosts.slice(0, 200).map(x => `<tr><td>${esc(x.userhost)}</td><td>${esc(x.os_user)}</td>
+        <td class="dim">${esc(x.schemas.join(", "))} · ${esc(x.dbs.join(", "))}</td><td>${x.days}</td><td>${x.logons}</td>
+        <td class="dim">${since(x.first_at)}</td><td>${since(x.last_at)}</td></tr>`).join("") + `</tbody></table>`;
+  }
+
+  async function loadHistory(key) {
+    if (CL.hist[key]) return;
+    try {
+      const r = await fetch(API + "/clients/history?days=30&client=" + encodeURIComponent(key), {headers: {Accept: "application/json"}});
+      const j = await r.json();
+      CL.hist[key] = j.success ? j.data : {error: j.message || "ошибка"};
+    } catch (e) { CL.hist[key] = {error: e.message}; }
+    render();
+  }
+
+  function details(cl) {
+    const rows = cl.conns.filter(c => c.kind !== "staff");
+    if (!rows.length) return `<div class="dim" style="padding:10px 12px">сейчас нет подключений</div>` + historyBlock(cl.client);
     return `<table><thead><tr><th>Вид</th><th>Точка / компьютер</th><th>Пользователь Windows</th>
       <th>Логин UniAcc</th><th>Программа</th><th>База</th><th>Вошёл</th><th>Простой</th></tr></thead><tbody>` +
       rows.map(c => `<tr>
@@ -78,14 +118,14 @@
         <td class="dim">${esc(c.db)}${c.schema !== cl.client ? " · " + esc(c.schema) : ""}</td>
         <td class="dim">${since(c.logon)}</td>
         <td>${c.status === "ACTIVE" ? '<span class="badge b-ok">работает</span>' : idle(c.idle_sec)}</td>
-      </tr>`).join("") + `</tbody></table>`;
+      </tr>`).join("") + `</tbody></table>` + historyBlock(cl.client);
   }
 
   function render() {
     const d = CL.data;
     if (!d) return;
     const q = $("cl-q").value.trim().toLowerCase();
-    const showInt = $("cl-internal").checked, showStaff = $("cl-staff").checked;
+    const showInt = $("cl-internal").checked;
     const s = d.summary;
     $("cl-tiles").innerHTML =
       tile(s.clients.shop, "магазинников") +
@@ -106,11 +146,12 @@
       html += `<h3 class="cl-grp">${esc(d.titles[k])} <span class="dim">${items.length}</span></h3>
         <div class="tbl-wrap" style="max-height:none"><table><thead><tr>
           <th>Клиент</th><th>Точки магазинов</th><th>Рабочие места UniAcc</th><th>Пользователи</th>
-          <th style="width:70px">Сессий</th><th style="width:110px">Активность</th><th style="width:150px">Тип</th>
+          <th style="width:70px">Сессий</th><th style="width:110px">Сейчас</th><th style="width:150px" title="дней с входами · входов, последний вход">За 30 дней</th>
+          <th style="width:150px">Тип</th>
         </tr></thead><tbody>` +
         items.map(cl => {
           const open = CL.open.has(cl.client);
-          const sess = showStaff ? cl.sessions : cl.sessions - (cl.by_kind.staff || 0);
+          const sess = cl.sessions - (cl.by_kind.staff || 0);
           const pin = `<select class="cl-pin" data-client="${esc(cl.client)}">` +
             Object.entries(KIND_OPT).map(([v, t]) =>
               `<option value="${v}" ${(cl.pinned ? cl.kind : "") === v ? "selected" : ""}>${v ? t : t + " (" + KIND_OPT[cl.auto_kind] + ")"}</option>`).join("") +
@@ -122,11 +163,26 @@
             <td><b>${cl.workplaces.length || ""}</b> <div class="cl-pts">${list(cl.workplaces)}</div></td>
             <td><b>${cl.users.length || ""}</b> <div class="cl-pts">${list(cl.users)}</div></td>
             <td>${sess || '<span class="dim">0</span>'}</td>
-            <td>${cl.active ? '<span class="badge b-ok">работают</span>' : cl.sessions ? idle(cl.min_idle_sec) : '<span class="badge b-dim">нет подключений</span>'}</td>
+            <td>${cl.active ? '<span class="badge b-ok">работают</span>' : sess ? idle(cl.min_idle_sec) : '<span class="badge b-dim">нет подключений</span>'}</td>
+            <td>${hist30(cl.history)}</td>
             <td>${pin}</td></tr>` +
-            (open ? `<tr class="cl-det"><td colspan="7">${details(cl, showStaff)}</td></tr>` : "");
+            (open ? `<tr class="cl-det"><td colspan="8">${details(cl)}</td></tr>` : "");
         }).join("") + `</tbody></table></div>`;
     }
+    const dormant = (d.dormant || []).filter(r => !q || r.client.toLowerCase().includes(q));
+    if (dormant.length) {
+      html += `<h3 class="cl-grp">Были за 30 дней, сейчас не подключены <span class="dim">${dormant.length}</span></h3>
+        <div class="tbl-wrap" style="max-height:none"><table><thead><tr><th>Клиент</th><th>Последний вход</th>
+        <th>Дней с входами</th><th>Входов</th><th>Компьютеров</th><th>Неудачных</th></tr></thead><tbody>` +
+        dormant.map(r => {
+          const open = CL.open.has(r.client);
+          return `<tr class="cl-row" data-client="${esc(r.client)}"><td>${open ? "▾" : "▸"} <b>${esc(r.client)}</b></td>
+            <td>${since(r.last_at)}</td><td>${r.days_active}</td><td>${r.logons}</td><td>${r.hosts}</td>
+            <td>${r.failed ? `<span class="warn">${r.failed}</span>` : '<span class="dim">0</span>'}</td></tr>` +
+            (open ? `<tr class="cl-det"><td colspan="6">${historyBlock(r.client)}</td></tr>` : "");
+        }).join("") + `</tbody></table></div>`;
+    }
+    if (d.history_error) html += `<div class="note crit">История недоступна: ${esc(d.history_error)}</div>`;
     $("cl-out").innerHTML = html || `<div class="dim">ничего не найдено</div>`;
   }
 
@@ -150,6 +206,7 @@
     const k = tr.dataset.client;
     CL.open.has(k) ? CL.open.delete(k) : CL.open.add(k);
     render();
+    if (CL.open.has(k)) loadHistory(k);
   });
   $("cl-out").addEventListener("change", async ev => {
     const sel = ev.target.closest("select.cl-pin");
@@ -160,7 +217,7 @@
       await load(true);
     } catch (e) { alert("Не сохранено: " + e.message); sel.disabled = false; }
   });
-  ["cl-q", "cl-internal", "cl-staff"].forEach(id => $(id).addEventListener("input", render));
+  ["cl-q", "cl-internal"].forEach(id => $(id).addEventListener("input", render));
   $("cl-reload").onclick = () => load(true);
 
   window.loadClientsPanel = () => { if (!CL.data) load(false); };

@@ -572,3 +572,36 @@ def api_client_pin():
         return g
     return _reply(NetmonController.client_pin(request.get_json(silent=True) or {},
                                               user=session.get("username", "system")))
+
+
+@blueprint.route("/api/clients/history")
+def api_client_history():
+    """История клиента по дням и компьютерам. ?client= &days=30"""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.client_history(request.args.get("client", ""), _int("days", 30)))
+
+
+@blueprint.route("/api/staff")
+def api_staff():
+    """Наши специалисты: ?days=7 &force=1"""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.staff(days=_int("days", 7), force=request.args.get("force") == "1"))
+
+
+@blueprint.route("/api/staff/ident", methods=["POST"])
+def api_staff_ident():
+    """Кто это: {kind: host|hostuser|ip|sshuser, value, person, note, staff: 1|0}."""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.staff_ident(request.get_json(silent=True) or {},
+                                               user=session.get("username", "system")))
+
+
+@blueprint.route("/api/history/refresh", methods=["POST"])
+def api_history_refresh():
+    """Перенести свежий аудит баз и журналы SSH в историю прямо сейчас."""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.history_refresh())

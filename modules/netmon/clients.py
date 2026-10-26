@@ -70,9 +70,53 @@ def collect() -> dict:
         registry, reg_error = clients_store.registry(), None
     except Exception as e:  # noqa: BLE001 — без справочника вкладка всё равно работает
         registry, reg_error = {}, str(e)[:200]
-    data = rules.group(rules.classify(sessions()), registry)
+    conns = rules.classify(sessions())
+    _mark_staff(conns)
+    data = rules.group(conns, registry)
+    data["history"], data["dormant"], data["history_error"] = _history(data, conns)
     data.update({"checked_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                  "databases": list(fo.DATABASES), "host": fo.DB_HOST,
                  "registry_error": reg_error, "kinds": list(rules.KINDS),
                  "conn_titles": rules.CONN_TITLES})
     return data
+
+
+HISTORY_DAYS = 30
+
+
+def _history(data: dict, conns: list[dict]) -> tuple[dict, list, str | None]:
+    """История за 30 дней по каждому клиенту и те, кто был, но сейчас не подключён.
+
+    Заодно — запоминание наших по замеченным Toad/sqlplus и фоновый перенос
+    свежего аудита (history.py). Без таблиц истории вкладка всё равно работает.
+    """
+    try:
+        from modules.netmon import history, history_store
+        history.learn_staff(conns)
+        history.ensure_fresh()
+        summary = history_store.clients_summary(HISTORY_DAYS)
+    except Exception as e:  # noqa: BLE001
+        return {}, [], str(e)[:200]
+    for grp in data["groups"].values():
+        for cl in grp:
+            cl["history"] = summary.get(cl["client"])
+    shown = {cl["client"] for grp in data["groups"].values() for cl in grp}
+    dormant = sorted((dict(v, client=k) for k, v in summary.items()
+                      if k not in shown and k not in rules.INTERNAL_SCHEMAS and k != "-"),
+                     key=lambda r: r.get("last_at") or "", reverse=True)
+    return {"days": HISTORY_DAYS}, dormant, None
+
+
+def _mark_staff(conns: list[dict]) -> None:
+    """Компьютер или пара «компьютер|пользователь» из справочника наших
+    (NMON_STAFF_ID) — это наш специалист в схеме клиента, не рабочее место клиента."""
+    try:
+        from modules.netmon import history_store
+        from modules.netmon import staff_rules
+        reg = history_store.staff_registry()
+    except Exception:  # noqa: BLE001
+        return
+    for c in conns:
+        if c["kind"] in ("desktop", "other") and staff_rules.staff_of(c.get("machine"), c.get("osuser"), None, reg)[0]:
+            c["kind"] = "staff"
+            c["kind_title"] = rules.CONN_TITLES["staff"]

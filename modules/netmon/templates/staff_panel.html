@@ -46,6 +46,8 @@
   const ST = {data: null};
   const $ = id => document.getElementById(id);
   const fmt = iso => iso ? iso.replace("T", " ").slice(5, 16) : "—";
+  const idleTxt = s => s == null ? "—" : s < 60 ? "сейчас" : s < 3600 ? Math.round(s / 60) + " мин"
+    : s < 86400 ? Math.round(s / 3600) + " ч" : Math.round(s / 86400) + " дн";
   const dur = (a, b) => {
     if (!a || !b) return "";
     const m = Math.round((new Date(b) - new Date(a)) / 60000);
@@ -83,7 +85,7 @@
   function when(e) {
     const end = e.end_at && e.end_at !== e.start_at ? " – " + fmt(e.end_at).slice(6) : "";
     const d = dur(e.start_at, e.end_at);
-    return `${fmt(e.start_at)}${end}${d ? `<div class="dim">${d}</div>` : ""}${e.open ? ' <span class="badge b-warn">не закрыт</span>' : ""}`;
+    return `${fmt(e.start_at)}${end}${d ? `<div class="dim">${d}</div>` : ""}${e.open && e.source === "ssh" ? ' <span class="badge b-warn">не закрыт</span>' : ""}`;
   }
   function reason(e) {
     if (e.off_hours) return `<span class="badge b-no">${esc(e.off_reason || "нерабочее время")}</span>`;
@@ -135,7 +137,7 @@
           <div class="dim">${esc(c.machine || "")}</div></td>
         <td><b>${esc(c.schema)}</b> · ${esc(c.db)}</td><td class="dim">${esc(c.program || "")}</td>
         <td class="dim">${fmt(c.logon)}</td>
-        <td>${c.status === "ACTIVE" ? '<span class="badge b-ok">работает</span>' : esc(Math.round((c.idle_sec || 0) / 60) + " мин")}</td></tr>`).join("")
+        <td>${c.status === "ACTIVE" ? '<span class="badge b-ok">работает</span>' : idleTxt(c.idle_sec)}</td></tr>`).join("")
        || `<tr><td colspan="5" class="dim">никого</td></tr>`) + `</tbody></table></div>`;
 
     html += `<h3 class="sec">Сейчас на сервере баз (SSH) — ${d.now_ssh.length}</h3><div class="tbl-wrap"><table><thead><tr>

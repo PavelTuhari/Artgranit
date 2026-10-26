@@ -41,7 +41,7 @@ CREATE TABLE NMON_STAFF_EVENT (
   START_AT    DATE                NOT NULL,
   END_AT      DATE,
   RESULT      VARCHAR2(10)        DEFAULT 'ok' NOT NULL,
-  METHOD      VARCHAR2(40),
+  METHOD      VARCHAR2(80 CHAR),
   DETAIL      VARCHAR2(400 CHAR),
   OFF_HOURS   NUMBER(1)           DEFAULT 0 NOT NULL,
   AUTO        NUMBER(1)           DEFAULT 0 NOT NULL,
@@ -52,6 +52,9 @@ CREATE TABLE NMON_STAFF_EVENT (
 );
 
 CREATE INDEX IX_NMON_STAFF_EVENT_START ON NMON_STAFF_EVENT (START_AT);
+
+-- Первая установка 26.10.2026 создала METHOD на 40 байт, кириллица туда не влезла
+ALTER TABLE NMON_STAFF_EVENT MODIFY (METHOD VARCHAR2(80 CHAR));
 
 -- Кто наш. KIND: host — компьютер целиком, hostuser — компьютер и
 -- пользователь Windows через черту (терминальный сервер общий),
@@ -80,12 +83,8 @@ CREATE TABLE NMON_HIST_SYNC (
   CONSTRAINT PK_NMON_HIST_SYNC PRIMARY KEY (SOURCE)
 );
 
--- Начальные записи: замечены с Toad и sqlplus 26.10.2026
+-- Начальная запись. Остальных наших модуль запоминает сам, застав с Toad или sqlplus
 INSERT INTO NMON_STAFF_ID (KIND, VALUE, NOTE, ORIGIN, UPDATED_BY)
 VALUES ('host', 'WORKGROUP\CPPDEV-PC', 'машина разработчика', 'auto', 'netmon');
 
-INSERT INTO NMON_STAFF_ID (KIND, VALUE, NOTE, ORIGIN, UPDATED_BY)
-VALUES ('hostuser', 'WORKGROUP\WIN16TERM|amindrescu', 'терминальный сервер, Toad', 'auto', 'netmon');
 
-INSERT INTO NMON_STAFF_ID (KIND, VALUE, NOTE, ORIGIN, UPDATED_BY)
-VALUES ('hostuser', 'WORKGROUP\WIN16TERM|MRuslana', 'терминальный сервер, Toad', 'auto', 'netmon');

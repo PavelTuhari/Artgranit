@@ -96,12 +96,13 @@ def parse_audit(out: str) -> tuple[list[dict], list[dict]]:
         db, _, p = line.partition("|")
         f = p.split(SEP)
         if f[0] == "A" and len(f) >= 9:
-            days.append({"db": db, "schema": f[1], "userhost": f[2] or "-", "os_user": f[3] or "-",
+            # неудачный вход бывает без имени схемы — ключ строки не может быть пустым
+            days.append({"db": db, "schema": f[1] or "-", "userhost": f[2] or "-", "os_user": f[3] or "-",
                          "day": datetime.strptime(f[4], "%Y-%m-%d"), "logons": int(f[5] or 0),
                          "failed": int(f[6] or 0), "first_at": _dt(f[7]), "last_at": _dt(f[8]),
-                         "client": crules.client_key(f[1])})
+                         "client": crules.client_key(f[1]) or "-"})
         elif f[0] == "E" and len(f) >= 8 and _dt(f[4]):
-            events.append({"source": "db", "target": db, "ref": f"{f[7]}@{f[4]}", "account": f[1],
+            events.append({"source": "db", "target": db, "ref": f"{f[7]}@{f[4]}", "account": f[1] or "-",
                            "from_host": f[2], "os_user": f[3], "start_at": _dt(f[4]), "end_at": _dt(f[5]),
                            "result": "ok" if f[6] in ("0", "") else "fail",
                            "method": "вход в базу" if f[6] in ("0", "") else f"отказ ORA-{int(f[6]):05d}",
@@ -124,13 +125,7 @@ def collect_ssh(now: datetime | None = None) -> tuple[list[dict], list[dict]]:
             part[cur].append(line)
     sessions = srules.parse_last("\n".join(part["LAST"]))
     auth = srules.parse_secure("\n".join(part["SECURE"]), now)
-    who = []
-    for line in part["WHO"]:
-        bits = line.split()
-        if len(bits) >= 4:
-            who.append({"user": bits[0], "tty": bits[1], "since": " ".join(bits[2:4]),
-                        "from": bits[4].strip("()") if len(bits) > 4 else "консоль"})
-    return srules.ssh_events(sessions, auth, SERVER), who
+    return srules.ssh_events(sessions, auth, SERVER), srules.parse_who("\n".join(part["WHO"]), now)
 
 
 # ------------------------------------------------------------- перенос
@@ -149,7 +144,7 @@ def import_all() -> dict:
         since = (last - OVERLAP) if last else now - timedelta(days=FIRST_DAYS)
         days, db_events = collect_audit(since, registry)
         for e in db_events:
-            e["off_hours"] = int(srules.off_hours(e["start_at"], e.get("end_at")))
+            e["off_hours"] = int(srules.starts_off(e["start_at"]))
             e["auto"] = 0
         n_days = hs.upsert_logon_days(days)
         n_db = hs.upsert_events(db_events)
@@ -227,6 +222,7 @@ def staff_view(days: int = 7) -> dict:
     from modules.netmon import history_store as hs
     registry = hs.staff_registry()
     rows = hs.staff_events(days)
+    clock = srules.round_the_clock([r for r in rows if r["source"] == "db"])
 
     db_rows = []
     out = []
@@ -239,16 +235,18 @@ def staff_view(days: int = 7) -> dict:
             if not staff:
                 continue
             e["person"] = person
+            e["auto"] = int((e["target"], e["account"], e["from_host"], e["os_user"]) in clock)
             db_rows.append(e)
         else:
             e["person"] = srules.ssh_person(e["account"], e["from_host"], registry)
             e["logons"] = 1
-            e["open"] = e["end_at"] is None and e["method"] and e["method"].startswith("сеанс")
-            e["off_hours"] = int(srules.off_hours(e["start_at"], e["end_at"]))
+            e["open"] = bool(e["end_at"] is None and (e["method"] or "").startswith("сеанс"))
+            e["off_hours"] = int(srules.starts_off(e["start_at"]))
             out.append(e)
     out += srules.blocks(db_rows)
     for e in out:
         e["off_reason"] = srules.off_reason(e["start_at"], e.get("end_at"))
+        e["overnight"] = int(not e["off_hours"] and srules.off_hours(e["start_at"], e.get("end_at")))
         e["start_at"], e["end_at"] = _iso(e["start_at"]), _iso(e.get("end_at"))
     out.sort(key=lambda e: e["start_at"], reverse=True)
 
@@ -258,10 +256,12 @@ def staff_view(days: int = 7) -> dict:
         conns = crules.classify(cl.sessions())
         learn_staff(conns)
         for c in conns:
+            if srules.is_self_probe(c):
+                continue
             staff, person = srules.staff_of(c.get("machine"), c.get("osuser"), c.get("schema"), registry)
             if c["kind"] == "staff" or staff:
                 now_db.append({**c, "person": person,
-                               "off_hours": int(srules.off_hours(datetime.now()))})
+                               "off_hours": int(srules.starts_off(datetime.now()))})
     except Exception as e:  # noqa: BLE001
         now_err = str(e)[:200]
     try:
@@ -279,6 +279,7 @@ def staff_view(days: int = 7) -> dict:
         "summary": {
             "now_db": len(now_db), "now_ssh": len(who),
             "off_hours": sum(1 for e in visible if e["off_hours"]),
+            "overnight": sum(1 for e in visible if e.get("overnight")),
             "failed": sum(1 for e in visible if e["result"] == "fail"),
             "ssh": sum(1 for e in visible if e["source"] == "ssh" and e["result"] == "ok"),
             "identities": len(people), "auto": sum(1 for e in out if e["auto"]),

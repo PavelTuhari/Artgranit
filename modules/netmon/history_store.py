@@ -13,6 +13,14 @@ from models.database import DatabaseModel
 _ISO = "YYYY-MM-DD\"T\"HH24:MI:SS"
 
 
+def _since(days: int) -> datetime:
+    """Начало периода по местному времени. В ADB SYSDATE — UTC, а даты
+    событий записаны по Кишинёву, поэтому граница считается здесь."""
+    from datetime import timedelta
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    return today - timedelta(days=max(0, days - 1))
+
+
 def _cursor(db):
     cur = db.connection.cursor()
     cur.execute("ALTER SESSION DISABLE PARALLEL DML")   # ADB, см. fs_store.py
@@ -112,7 +120,7 @@ def upsert_events(rows: list[dict]) -> int:
             [{"src": e["source"], "tgt": e["target"], "ref": e["ref"][:160], "acc": (e.get("account") or "")[:128],
               "host": (e.get("from_host") or "")[:255], "osu": (e.get("os_user") or "")[:255] or None,
               "start_at": e["start_at"], "end_at": e.get("end_at"), "res": e["result"],
-              "method": (e.get("method") or "")[:40] or None, "detail": (e.get("detail") or "")[:400] or None,
+              "method": (e.get("method") or "")[:80] or None, "detail": (e.get("detail") or "")[:400] or None,
               "off": int(e.get("off_hours", 0)), "auto": int(e.get("auto", 0))} for e in rows])
         db.connection.commit()
     return len(rows)
@@ -126,8 +134,8 @@ def staff_events(days: int) -> list[dict]:
         cur.execute("""SELECT SOURCE, TARGET, ACCOUNT, FROM_HOST, OS_USER, START_AT, END_AT, RESULT, METHOD,
                               DETAIL, OFF_HOURS, AUTO
                          FROM NMON_STAFF_EVENT
-                        WHERE START_AT >= TRUNC(SYSDATE) - :d
-                        ORDER BY START_AT DESC""", d=max(0, days - 1))
+                        WHERE START_AT >= :since
+                        ORDER BY START_AT DESC""", since=_since(days))
         return _rows(cur)
 
 
@@ -138,8 +146,8 @@ def clients_summary(days: int) -> dict[str, dict]:
         cur.execute(f"""SELECT CLIENT_KEY, COUNT(DISTINCT DAY) DAYS_ACTIVE, SUM(LOGONS) LOGONS,
                                SUM(FAILED) FAILED, COUNT(DISTINCT USERHOST) HOSTS,
                                TO_CHAR(MAX(LAST_AT), '{_ISO}') LAST_AT
-                          FROM NMON_LOGON_DAY WHERE DAY >= TRUNC(SYSDATE) - :d
-                         GROUP BY CLIENT_KEY""", d=max(0, days - 1))
+                          FROM NMON_LOGON_DAY WHERE DAY >= :since
+                         GROUP BY CLIENT_KEY""", since=_since(days))
         return {r["client_key"]: r for r in _rows(cur)}
 
 
@@ -150,6 +158,6 @@ def client_days(client: str, days: int) -> list[dict]:
                                LOGONS, FAILED, TO_CHAR(FIRST_AT, '{_ISO}') FIRST_AT,
                                TO_CHAR(LAST_AT, '{_ISO}') LAST_AT
                           FROM NMON_LOGON_DAY
-                         WHERE CLIENT_KEY = :c AND DAY >= TRUNC(SYSDATE) - :d
-                         ORDER BY DAY DESC, LOGONS DESC""", c=client.upper(), d=max(0, days - 1))
+                         WHERE CLIENT_KEY = :c AND DAY >= :since
+                         ORDER BY DAY DESC, LOGONS DESC""", c=client.upper(), since=_since(days))
         return _rows(cur)

@@ -42,14 +42,34 @@ def off_hours(start: datetime, end: datetime | None = None) -> bool:
     return False
 
 
+def starts_off(start: datetime) -> bool:
+    """Вход в нерабочее время — главный признак. Сеанс, открытый днём и
+    оставленный на ночь, — не то же самое, что работа ночью."""
+    return _off(start)
+
+
 def off_reason(start: datetime, end: datetime | None = None) -> str | None:
-    if not off_hours(start, end):
-        return None
-    if start.weekday() not in WORK_DAYS:
-        return "выходной"
-    if start.hour < WORK_START or start.hour >= WORK_END:
-        return f"ночь/вечер, {start:%H:%M}"
-    return f"до {end:%d.%m %H:%M}" if end else "вне рабочего времени"
+    if _off(start):
+        if start.weekday() not in WORK_DAYS:
+            return f"выходной, {start:%H:%M}"
+        return f"{'ночь' if start.hour < WORK_START else 'вечер'}, {start:%H:%M}"
+    if off_hours(start, end):
+        return f"сеанс открыт до {end:%d.%m %H:%M}" if end else "сеанс не закрыт"
+    return None
+
+
+# Компьютер, входящий в базу в столько разных часов суток, — программа
+ROUND_CLOCK_HOURS = 18
+
+
+def round_the_clock(events: list[dict]) -> set:
+    """Источники входов, которые входят круглые сутки: это программа
+    (переподключение по таймеру), а не человек ночью."""
+    hours: dict[tuple, set] = {}
+    for e in events:
+        k = (e["target"], e.get("account"), e.get("from_host"), e.get("os_user"))
+        hours.setdefault(k, set()).add(e["start_at"].hour)
+    return {k for k, h in hours.items() if len(h) >= ROUND_CLOCK_HOURS}
 
 
 # ------------------------------------------------------------------ кто наш
@@ -191,7 +211,7 @@ def mark_auto(events: list[dict]) -> list[dict]:
         k = (e["account"], e["from_host"], e["method"])
         e["auto"] = int(e["source"] == "ssh" and not e.get("interactive") and e["result"] == "ok"
                         and counts.get(k, 0) >= AUTO_MIN)
-        e["off_hours"] = int(off_hours(e["start_at"], e.get("end_at")))
+        e["off_hours"] = int(starts_off(e["start_at"]))
     return events
 
 
@@ -212,11 +232,13 @@ def blocks(events: list[dict]) -> list[dict]:
             last["end_at"] = max(last["end_at"], end)
             last["logons"] += 1
             last["open"] = last["open"] or e.get("end_at") is None
+            last["off_hours"] = int(last["off_hours"] or starts_off(e["start_at"]))
+            last["off_logons"] += int(starts_off(e["start_at"]))
             continue
-        out.append({**e, "_key": key(e), "end_at": end, "logons": 1, "open": e.get("end_at") is None})
+        out.append({**e, "_key": key(e), "end_at": end, "logons": 1, "open": e.get("end_at") is None,
+                    "off_hours": int(starts_off(e["start_at"])), "off_logons": int(starts_off(e["start_at"]))})
     for b in out:
         b.pop("_key", None)
-        b["off_hours"] = int(off_hours(b["start_at"], b["end_at"]))
     return out
 
 
@@ -230,3 +252,37 @@ def spikes(day_counts: dict, factor: int = 10, floor: int = 1000) -> list:
         return []
     median = vals[len(vals) // 2]
     return sorted(d for d, n in day_counts.items() if n >= floor and n >= factor * max(median, 1))
+
+
+_WHO = re.compile(r"^(?P<user>\S+)\s+(?P<tty>\S+)\s+(?P<when>\w{3}\s+\d+ \d\d:\d\d|\d{4}-\d\d-\d\d \d\d:\d\d)"
+                  r"(?:\s+\((?P<src>[^)]*)\))?")
+
+
+def parse_who(text: str, now: datetime) -> list[dict]:
+    """`who` → кто сидит на сервере сейчас: «root pts/0 Oct 26 10:13 (10.27.1.41)»."""
+    out = []
+    for line in text.splitlines():
+        m = _WHO.match(line.strip())
+        if not m:
+            continue
+        w = m.group("when")
+        try:
+            since = (datetime.strptime(w, "%Y-%m-%d %H:%M") if "-" in w else
+                     datetime.strptime(f"{now.year} {' '.join(w.split())}", "%Y %b %d %H:%M"))
+            if since > now + timedelta(days=1):
+                since = since.replace(year=now.year - 1)
+        except ValueError:
+            since = None
+        src = m.group("src") or "консоль"
+        out.append({"user": m.group("user"), "tty": m.group("tty"),
+                    "since": since.strftime("%Y-%m-%dT%H:%M:%S") if since else None,
+                    "from": "screen" if src.startswith(":") else src,
+                    "off_hours": int(bool(since) and starts_off(since)),
+                    "days": (now - since).days if since else None})
+    return out
+
+
+def is_self_probe(c: dict) -> bool:
+    """Наш собственный сбор: `sqlplus / as sysdba` на самом сервере баз под oracle."""
+    return ((c.get("schema") or "").upper() == "SYS" and (c.get("osuser") or "") == "oracle"
+            and (c.get("program") or "").lower().startswith("sqlplus@cloudbd"))
