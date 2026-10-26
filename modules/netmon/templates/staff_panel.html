@@ -1,0 +1,196 @@
+{# Наши специалисты в базах cloudbd/clouddev и на сервере баз 192.168.0.24.
+   Главное — кто работает в нерабочее время (пн–пт 08:00–19:00): эти входы
+   наверху и красным. Источники: аудит входов баз, журналы SSH сервера,
+   V$SESSION и who сейчас. История копится в Oracle (NMON_STAFF_EVENT).
+   Данные — /api/staff (modules/netmon/history.py). API, esc, post и tile
+   объявлены ниже, в основном скрипте панели. #}
+<style>
+  #p-staff .st-off{border:1px solid #f851494d;background:#f8514912;border-radius:11px;padding:12px 14px;margin:6px 0 18px}
+  #p-staff .st-off h3{margin:0 0 8px;color:var(--crit);font-size:15px}
+  #p-staff tr.off td{background:#f8514914}
+  #p-staff tr.fail td{background:#d2992214}
+  #p-staff tr.auto td{opacity:.6}
+  #p-staff .who{font-weight:600}
+  #p-staff .name{font-size:11px;color:var(--acc);cursor:pointer;margin-left:6px}
+  #p-staff .name:hover{text-decoration:underline}
+  #p-staff h3.sec{margin:20px 0 8px;font-size:14px}
+  #p-staff .tbl-wrap{max-height:none}
+</style>
+
+<div class="tiles" id="st2-tiles"></div>
+<div class="filters">
+  <select id="st2-days">
+    <option value="1">сегодня</option><option value="7" selected>7 дней</option><option value="30">30 дней</option>
+    <option value="90">90 дней</option><option value="365">год</option><option value="3650">всё</option>
+  </select>
+  <label class="dim"><input type="checkbox" id="st2-only-off"> только нерабочее время</label>
+  <label class="dim"><input type="checkbox" id="st2-auto"> показать программы и автоматику</label>
+  <input type="search" id="st2-q" placeholder="кто, компьютер, адрес, схема…" style="min-width:220px">
+  <span class="spacer"></span>
+  <span class="dim" id="st2-meta"></span>
+  <button id="st2-import" title="Перенести свежий аудит баз и журналы SSH в историю">Перенести сейчас</button>
+  <button id="st2-reload">Обновить</button>
+</div>
+<div id="st2-out"><div class="dim">загрузка… (снимаются сессии обеих баз и журналы сервера, ~10 с)</div></div>
+<div class="note">
+  Рабочее время — пн–пт 08:00–19:00. Красным — вход в базу или на сервер вне его; «сеанс открыт через
+  ночь» — вошёл днём и не вышел (мягче). Наши — домен <code>UNAMD\</code>, компьютеры и пользователи,
+  замеченные с Toad/sqlplus или отмеченные вручную («назвать»), входы под SYS/SYSTEM, все входы на
+  сервер баз по SSH. Программы, которые входят круглые сутки, и повторяющиеся входы по ключу
+  (резервные копии, наш мониторинг) скрыты флажком «программы и автоматика». Аудит базы хранит
+  30 дней, журнал SSH — 4 недели; модуль переносит их в Oracle, и история копится дольше.
+</div>
+
+<script>
+(() => {
+  const ST = {data: null};
+  const $ = id => document.getElementById(id);
+  const fmt = iso => iso ? iso.replace("T", " ").slice(5, 16) : "—";
+  const dur = (a, b) => {
+    if (!a || !b) return "";
+    const m = Math.round((new Date(b) - new Date(a)) / 60000);
+    if (m < 1) return "";
+    if (m < 60) return m + " мин";
+    if (m < 1440) return Math.floor(m / 60) + " ч " + (m % 60) + " мин";
+    return Math.floor(m / 1440) + " дн " + Math.floor((m % 1440) / 60) + " ч";
+  };
+
+  // Что подписывать: для базы — пара компьютер|пользователь, для SSH — адрес
+  const identOf = e => e.source === "ssh"
+    ? {kind: "ip", value: e.from_host}
+    : {kind: "hostuser", value: `${e.from_host}|${e.os_user || ""}`};
+
+  function who(e) {
+    const id = e.source === "ssh" ? `${e.account}@${e.from_host}` : `${e.from_host} · ${e.os_user || "—"}`;
+    const ident = identOf(e);
+    return `<span class="who">${esc(e.person || id)}</span>` +
+      (e.person ? `<div class="dim">${esc(id)}</div>` : "") +
+      `<span class="name" data-kind="${esc(ident.kind)}" data-value="${esc(ident.value)}">${e.person ? "изменить" : "назвать"}</span>`;
+  }
+  function where(e) {
+    return e.source === "ssh"
+      ? `сервер ${esc(e.target)} · <b>${esc(e.account)}</b>`
+      : `${esc(e.target)} · <b>${esc(e.account)}</b>`;
+  }
+  function what(e) {
+    let s = esc(e.method || "");
+    if (e.logons > 1) s += ` · входов ${e.logons}`;
+    if (e.detail && e.source === "ssh" && !/^pts|^tty/.test(e.detail)) s += `<div class="dim">${esc(e.detail)}</div>`;
+    if (e.result === "fail") s = `<span class="badge b-warn">отказ</span> ` + s;
+    if (e.auto) s += ` <span class="badge b-dim">программа</span>`;
+    return s;
+  }
+  function when(e) {
+    const end = e.end_at && e.end_at !== e.start_at ? " – " + fmt(e.end_at).slice(6) : "";
+    const d = dur(e.start_at, e.end_at);
+    return `${fmt(e.start_at)}${end}${d ? `<div class="dim">${d}</div>` : ""}${e.open ? ' <span class="badge b-warn">не закрыт</span>' : ""}`;
+  }
+  function reason(e) {
+    if (e.off_hours) return `<span class="badge b-no">${esc(e.off_reason || "нерабочее время")}</span>`;
+    if (e.overnight) return `<span class="badge b-warn">${esc(e.off_reason || "через ночь")}</span>`;
+    return "";
+  }
+  function table(rows) {
+    if (!rows.length) return `<div class="dim" style="padding:8px">ничего</div>`;
+    return `<div class="tbl-wrap"><table><thead><tr><th style="width:150px">Когда</th><th>Кто</th>
+      <th>Куда</th><th>Что</th><th style="width:170px">Почему выделено</th></tr></thead><tbody>` +
+      rows.map(e => `<tr class="${e.off_hours ? "off" : e.result === "fail" ? "fail" : ""} ${e.auto ? "auto" : ""}">
+        <td>${when(e)}</td><td>${who(e)}</td><td>${where(e)}</td><td>${what(e)}</td><td>${reason(e)}</td></tr>`).join("") +
+      `</tbody></table></div>`;
+  }
+
+  function render() {
+    const d = ST.data;
+    if (!d) return;
+    const q = $("st2-q").value.trim().toLowerCase();
+    const showAuto = $("st2-auto").checked, onlyOff = $("st2-only-off").checked;
+    const s = d.summary;
+    $("st2-tiles").innerHTML =
+      tile(s.off_hours, "входов в нерабочее время", s.off_hours ? "crit" : "ok") +
+      tile(s.overnight, "сеансов, открытых через ночь", s.overnight ? "warn" : "dim") +
+      tile(s.failed, "неудачных входов", s.failed ? "warn" : "dim") +
+      tile(s.now_db, "наших в базах сейчас") +
+      tile(s.now_ssh, "на сервере баз сейчас (SSH)") +
+      tile(s.ssh, "входов на сервер по SSH") +
+      tile(s.identities, "людей и компьютеров") +
+      tile(s.auto, "программ и автоматики", "dim");
+    const sync = d.sync && d.sync.audit;
+    $("st2-meta").textContent = (sync && sync.age_min != null ? `история перенесена ${sync.age_min} мин назад` : "история ещё не переносилась") +
+      (d.refreshing ? " · переносится…" : "") + (d.cached_sec ? ` · снято ${d.cached_sec} с назад` : "");
+
+    const match = e => !q || [e.person, e.account, e.from_host, e.os_user, e.target, e.method, e.detail]
+      .join(" ").toLowerCase().includes(q);
+    const ev = d.events.filter(e => (showAuto || !e.auto) && match(e));
+    const off = ev.filter(e => e.off_hours && !e.auto);
+
+    let html = `<div class="st-off"><h3>⚠ В нерабочее время — ${off.length}</h3>${table(off)}</div>`;
+    if (d.now_error) html += `<div class="crit">Не всё снято сейчас: ${esc(d.now_error)}</div>`;
+
+    const nowDb = d.now_db.filter(c => !q || [c.person, c.machine, c.osuser, c.schema, c.program].join(" ").toLowerCase().includes(q));
+    html += `<h3 class="sec">Сейчас в базах — ${nowDb.length}</h3><div class="tbl-wrap"><table><thead><tr>
+      <th>Кто</th><th>Схема · база</th><th>Программа</th><th>Вошёл</th><th>Простой</th></tr></thead><tbody>` +
+      (nowDb.map(c => `<tr class="${c.off_hours ? "off" : ""}">
+        <td><span class="who">${esc(c.person || c.point || c.machine)}</span> · ${esc(c.osuser || "")}
+          <span class="name" data-kind="hostuser" data-value="${esc((c.machine || "") + "|" + (c.osuser || ""))}">${c.person ? "изменить" : "назвать"}</span>
+          <div class="dim">${esc(c.machine || "")}</div></td>
+        <td><b>${esc(c.schema)}</b> · ${esc(c.db)}</td><td class="dim">${esc(c.program || "")}</td>
+        <td class="dim">${fmt(c.logon)}</td>
+        <td>${c.status === "ACTIVE" ? '<span class="badge b-ok">работает</span>' : esc(Math.round((c.idle_sec || 0) / 60) + " мин")}</td></tr>`).join("")
+       || `<tr><td colspan="5" class="dim">никого</td></tr>`) + `</tbody></table></div>`;
+
+    html += `<h3 class="sec">Сейчас на сервере баз (SSH) — ${d.now_ssh.length}</h3><div class="tbl-wrap"><table><thead><tr>
+      <th>Пользователь</th><th>Откуда</th><th>С какого времени</th><th></th></tr></thead><tbody>` +
+      (d.now_ssh.map(w => `<tr class="${w.off_hours ? "off" : ""}">
+        <td><span class="who">${esc(w.person || w.user)}</span>${w.person ? ` · ${esc(w.user)}` : ""}
+          <span class="name" data-kind="ip" data-value="${esc(w.from)}">${w.person ? "изменить" : "назвать"}</span></td>
+        <td>${esc(w.from)}</td><td>${fmt(w.since)}</td>
+        <td>${w.days >= 1 ? `<span class="badge b-warn">висит ${w.days} дн</span>` : ""}</td></tr>`).join("")
+       || `<tr><td colspan="4" class="dim">никого</td></tr>`) + `</tbody></table></div>`;
+
+    if (!onlyOff) html += `<h3 class="sec">Вся активность за период — ${ev.length}</h3>${table(ev.slice(0, 1500))}` +
+      (ev.length > 1500 ? `<div class="dim">показаны первые 1500, уточните поиск или период</div>` : "");
+    $("st2-out").innerHTML = html;
+    const nav = document.querySelector('nav a[data-p="staff"]');
+    if (nav) nav.innerHTML = `Наши специалисты${s.off_hours ? ` <span class="badge b-no">${s.off_hours}</span>` : ""}`;
+  }
+
+  async function load(force) {
+    $("st2-reload").disabled = true;
+    try {
+      const r = await fetch(API + "/staff?days=" + $("st2-days").value + (force ? "&force=1" : ""),
+                            {headers: {Accept: "application/json"}});
+      const j = await r.json();
+      if (!j.success) throw new Error(j.message || "ошибка");
+      ST.data = j.data;
+      render();
+    } catch (e) {
+      $("st2-out").innerHTML = `<div class="crit">Не удалось: ${esc(e.message)}</div>`;
+    } finally { $("st2-reload").disabled = false; }
+  }
+
+  $("st2-out").addEventListener("click", async ev => {
+    const n = ev.target.closest(".name");
+    if (!n) return;
+    const v = prompt(`Кто это — ${n.dataset.value}?\nИмя сотрудника. Чтобы отметить «не наш», введите минус (-).`, "");
+    if (v === null) return;
+    const notOurs = v.trim() === "-";
+    try {
+      await post("/staff/ident", {kind: n.dataset.kind, value: n.dataset.value,
+                                  person: notOurs ? null : v.trim() || null, staff: notOurs ? 0 : 1});
+      await load(true);
+    } catch (e) { alert("Не сохранено: " + e.message); }
+  });
+  ["st2-q", "st2-auto", "st2-only-off"].forEach(id => $(id).addEventListener("input", render));
+  $("st2-days").addEventListener("change", () => load(false));
+  $("st2-reload").onclick = () => load(true);
+  $("st2-import").onclick = async () => {
+    const b = $("st2-import");
+    b.disabled = true; b.textContent = "Переношу…";
+    try { const r = await post("/history/refresh"); b.textContent = `Перенесено за ${r.seconds ?? "?"} с`; await load(true); }
+    catch (e) { alert("Не перенесено: " + e.message); b.textContent = "Перенести сейчас"; }
+    finally { b.disabled = false; setTimeout(() => b.textContent = "Перенести сейчас", 8000); }
+  };
+
+  window.loadStaffPanel = () => { if (!ST.data) load(false); };
+})();
+</script>
