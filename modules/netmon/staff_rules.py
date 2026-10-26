@@ -35,10 +35,10 @@ def off_hours(start: datetime, end: datetime | None = None) -> bool:
     if _off(start):
         return True
     if end and end > start:
-        if _off(end) and not (end.hour == WORK_END and end.minute == 0 and end.date() == start.date()):
-            return True
         if end.date() != start.date():
             return True                       # перешёл через ночь
+        if end > start.replace(hour=WORK_END, minute=0, second=0, microsecond=0):
+            return True                       # засиделся после конца дня
     return False
 
 
