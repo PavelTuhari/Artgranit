@@ -1302,7 +1302,8 @@ def test_otrs_ai_demo_is_deterministic_fictional_and_consistent(tmp_path):
 # ------------------------------------------------- поиск по XWiki и OTRS
 
 _SRCH_SQL = ["modules/netmon/sql/cloudbd/300_nmon_srch_tables.sql",
-             "modules/netmon/sql/cloudbd/301_nmon_srch_pkg.sql"]
+             "modules/netmon/sql/cloudbd/301_nmon_srch_pkg.sql",
+             "modules/netmon/sql/cloudbd/302_nmon_cli.sql"]
 
 
 def _code_only(sql):
@@ -1598,7 +1599,7 @@ def test_history_spikes_and_audit_parse():
     from modules.netmon.staff_rules import spikes
     days = {f"2026-10-{d:02d}": 200 for d in range(1, 25)}
     days.update({"2026-10-25": 523338, "2026-10-26": 223230})
-    assert spikes(days) == ["2026-10-25", "2026-10-26"], "UNWEBSHOP с 25.10 — по 5 входов в секунду"
+    assert spikes(days) == ["2026-10-25", "2026-10-26"], "сайт, подключающийся на каждый запрос, — всплеск"
     from modules.netmon.history import parse_audit, SEP
     out = "\n".join([
         "cloudbd|" + SEP.join(["A", "SANIX_BK", "AD\\PC1", "User", "2026-10-26", "12", "1", "2026-10-26T08:00:00",
@@ -1634,3 +1635,84 @@ def test_staff_tab_wired_and_ident_validated():
     from modules.netmon.controller import NetmonController
     assert NetmonController.staff_ident({"kind": "boss", "value": "x"})[1] == 400
     assert NetmonController.staff_ident({"kind": "ip", "value": ""})[1] == 400
+
+
+# ------------------------------------------------ унификация клиентов
+
+def test_unify_norm_and_base():
+    from modules.netmon.unify_rules import norm, base_of, role_of
+    assert norm("ALFA SERVICE S.R.L.") == norm("Alfa Service SRL") == "ALFASERVICE"
+    assert norm("I.C.S. Beta Retail S.R.L.") == "BETARETAIL"
+    assert base_of("GAMMA18") == "GAMMA" and base_of("DELTA2025") == "DELTA" and base_of("POS_OMEGA2025") == "OMEGA"
+    assert base_of("SIGMA_BK") == "SIGMA" and base_of("SP245") == "SP245", "короткое имя год не теряет"
+    assert role_of("SIGMA_BK") == "bk" and role_of("SIGMA_HR") == "hr" and role_of("POS_X") == "pos" and role_of("X") == "back"
+
+
+def test_unify_similar_names_brand_vs_legal():
+    from modules.netmon.unify_rules import similar_names, match_score
+    assert similar_names("Fabrica Conserve Lunca", "Fabrica de conserve din Lunca SA"), "общее слово"
+    assert similar_names("ANRE", "Agentia Nationala pentru Reglementare in Energetica"), "аббревиатура"
+    assert not similar_names("Brand Shop", "Omega Holding SRL"), "бренд и юрлицо — разные названия"
+    assert match_score("ALFASERVICE", "ALFAFORWARD")[0] == 0, "общее только начало ALFA — не один клиент"
+    assert match_score("ALFASERVICE", "ALFASERVICEGRUP")[0] == 70
+
+
+def test_unify_host_kind_from_audit():
+    from modules.netmon.unify_rules import host_kind, host_name
+    assert host_kind("DESKTOP-1", "OracleServiceXE") == "shop", "локальная база магазина"
+    assert host_kind("WORKGROUP\\WY", "pos") == "pos" and host_kind("WORKGROUP\\CASA2", "User") == "pos"
+    assert host_kind("web4.hosting.net", "site") == "web" and host_kind("srv", "apache") == "web"
+    assert host_kind("WORKGROUP\\ACC-PC", "User") == "office"
+    assert host_name("WORKGROUP\\pc1") == host_name("PC1") == "PC1"
+
+
+def test_unify_build_merges_same_entity_and_flags_wrong_code(monkeypatch):
+    from modules.netmon import unify
+    data = {
+        "schemas": [{"username": "ALFA", "created": None}, {"username": "ALFA_BK", "created": None}],
+        "logins": [{"login": "alfa", "customer_id": "ALFA SRL", "cod_univ": 1},
+                   {"login": "alfa2", "customer_id": "Alfa Contabilitate", "cod_univ": 1},
+                   {"login": "zz", "customer_id": "Zeta SRL", "cod_univ": 2}],
+        "customers": [{"customer_id": "ALFA SRL", "tickets": 5, "open_tickets": 1, "last_ticket": "2026-10-01T00:00:00",
+                       "contract": "1/2026", "manager": "M"},
+                      {"customer_id": "Alfa Contabilitate", "tickets": 3, "open_tickets": 0,
+                       "last_ticket": "2026-09-01T00:00:00", "contract": None, "manager": None},
+                      {"customer_id": "Zeta SRL", "tickets": 4, "open_tickets": 0, "last_ticket": "2026-08-01T00:00:00",
+                       "contract": "Nu este contract valid", "manager": "Fara manager"}],
+        "all_customers": [{"customer_id": "ALFA SRL"}, {"customer_id": "Zeta SRL"}, {"customer_id": "Omega Trade"}],
+        "titles": [{"customer_id": "ALFA SRL", "tn": "1", "title": "Cantar pentru UaMenu"}],
+        "univ": [{"cod": 1, "denumirea": "ALFA S.R.L.", "codfiscal": "100"},
+                 {"cod": 2, "denumirea": "OMEGA TRADE SRL", "codfiscal": "200"}],
+        "projects": [], "manual": [],
+        "hosts": [{"db": "cloudbd", "schema_name": "ALFA", "userhost": "SHOP1", "os_user": "OracleServiceXE",
+                   "days": 3, "logons": 50, "first_at": None, "last_at": None},
+                  {"db": "cloudbd", "schema_name": "ALFA", "userhost": "UNAMD\\DEV", "os_user": "x",
+                   "days": 1, "logons": 5, "first_at": None, "last_at": None}],
+        "staff": {}, "pins": {},
+    }
+    r = unify.build(data)
+    a = r["clients"]["ALFA"]
+    assert set(a["otrs"]) == {"ALFA SRL", "Alfa Contabilitate"}, "один код контрагента — один клиент"
+    assert a["idno"] == "100" and a["kind"] == "shop" and "UaMenu" in a["products"] and "Весы" in a["products"]
+    assert set(a["schemas"]) == {("cloudbd", "ALFA"), ("cloudbd", "ALFA_BK")}
+    assert all(k != "office" for k, _h in a["points"]), "наш специалист — не рабочее место клиента"
+    z = r["clients"].get("ZETASRL") or r["clients"].get("ZETA")
+    assert z and z["contract"] is None and z["manager"] is None, "заглушки OTRS — пусто"
+    assert any(i["kind"] == "cod_univ_mismatch" and "zz" in i["subject"] for i in r["issues"]), \
+        "код ведёт на юрлицо, которое в OTRS — другой заказчик"
+
+
+def test_unify_sql_and_analytics_wired():
+    sql = _read("modules/netmon/sql/cloudbd/302_nmon_cli.sql")
+    for t in ("nmon_cli ", "nmon_cli_otrs", "nmon_cli_login", "nmon_cli_schema", "nmon_cli_point",
+              "nmon_cli_product", "nmon_cli_issue", "VIEW nmon_cli_v"):
+        assert t in sql, t
+    for line in sql.splitlines():
+        if line.strip().startswith("--"):
+            assert ";" not in line and "'" not in line, line
+    code = _read("modules/netmon/unify.py") + _read("modules/netmon/analytics.py")
+    assert not re.search(r"(=\s*|,\s*|\()\:by\b", code), "привязка :by — ORA-01745"
+    page = _read("modules/netmon/templates/netmon.html")
+    assert 'data-p="analytics"' in page and '{% include "analytics_panel.html" %}' in page
+    from modules.netmon.analytics import PSEUDO_OWNERS
+    assert PSEUDO_OWNERS["ptclose"] == "ждут закрытия" and PSEUDO_OWNERS["doljniki"] == "должники"

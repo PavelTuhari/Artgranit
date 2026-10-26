@@ -88,6 +88,7 @@
 
 <nav>
   <a href="#" class="on" data-p="dash">Сводка</a>
+  <a href="#" data-p="analytics">Аналитика клиентов</a>
   <a href="#" data-p="devices">Устройства</a>
   <a href="#" data-p="channels">Telegram-каналы</a>
   <a href="#" data-p="feed">Лента сообщений</a>
@@ -475,6 +476,10 @@
     </tr></thead><tbody></tbody></table></div>
 
     <div id="dl-dbs"></div>
+  </section>
+
+  <section class="panel" id="p-analytics">
+    {% include "analytics_panel.html" %}
   </section>
 
   <section class="panel" id="p-clients">
@@ -1916,6 +1921,7 @@ document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
   if (a.dataset.p === "search" && window.loadSearchPanel) window.loadSearchPanel();
   if (a.dataset.p === "clients" && window.loadClientsPanel) window.loadClientsPanel();
   if (a.dataset.p === "staff" && window.loadStaffPanel) window.loadStaffPanel();
+  if (a.dataset.p === "analytics" && window.loadAnalyticsPanel) window.loadAnalyticsPanel();
 });
 ["f-kind","f-missing","f-find"].forEach(id =>
   document.getElementById(id).addEventListener("input", renderDevices));

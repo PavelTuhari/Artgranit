@@ -599,6 +599,31 @@ def api_staff_ident():
                                                user=session.get("username", "system")))
 
 
+@blueprint.route("/api/analytics")
+def api_analytics():
+    """Аналитика клиентов: ?force=1 — мимо 5-минутного кэша."""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.analytics(force=request.args.get("force") == "1"))
+
+
+@blueprint.route("/api/analytics/client")
+def api_analytics_client():
+    """Карточка клиента: ?code=<код клиента из унификации>"""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.analytics_client(request.args.get("code", "")))
+
+
+@blueprint.route("/api/analytics/action", methods=["POST"])
+def api_analytics_action():
+    """{action: unify|link|client|resolve|find_otrs, ...}"""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.analytics_action(request.get_json(silent=True) or {},
+                                                    user=session.get("username", "system")))
+
+
 @blueprint.route("/api/history/refresh", methods=["POST"])
 def api_history_refresh():
     """Перенести свежий аудит баз и журналы SSH в историю прямо сейчас."""

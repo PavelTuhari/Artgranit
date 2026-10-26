@@ -72,7 +72,11 @@ def collect() -> dict:
         registry, reg_error = {}, str(e)[:200]
     conns = rules.classify(sessions())
     _mark_staff(conns)
-    data = rules.group(conns, registry)
+    names, kinds = _unified(conns)
+    data = rules.group(conns, registry, kinds)
+    for grp in data["groups"].values():
+        for cl in grp:
+            cl["title"] = cl["title"] or names.get(cl["client"])
     data["history"], data["dormant"], data["history_error"] = _history(data, conns)
     data.update({"checked_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                  "databases": list(fo.DATABASES), "host": fo.DB_HOST,
@@ -120,3 +124,22 @@ def _mark_staff(conns: list[dict]) -> None:
         if c["kind"] in ("desktop", "other") and staff_rules.staff_of(c.get("machine"), c.get("osuser"), None, reg)[0]:
             c["kind"] = "staff"
             c["kind_title"] = rules.CONN_TITLES["staff"]
+
+
+def _unified(conns: list[dict]) -> tuple[dict[str, str], dict[str, str]]:
+    """Клиент — из унификации (NMON_CLI_*, cloudbd): SIGMA_BK, SIGMA_WEB → SIGMA,
+    GAMMA18 → GAMMA, имя — юрлицо из бухгалтерии. Схема, которой нет в
+    унификации (clouddev), остаётся по старому правилу."""
+    try:
+        from modules.netmon import otrs_board as ob
+        rows = ob._rows(ob._run([{"sql": "SELECT s.schema_name, c.code, c.name, c.kind FROM nmon_cli_schema s, "
+                                         "nmon_cli c WHERE c.cli_id = s.cli_id", "kind": "query"}], timeout=60)[0])
+    except Exception:  # noqa: BLE001 — без унификации вкладка работает по именам схем
+        return {}, {}
+    by_schema = {r["schema_name"]: r for r in rows}
+    for c in conns:
+        u = by_schema.get(c["schema"])
+        if u:
+            c["client"] = u["code"]
+    return ({r["code"]: r["name"] for r in rows if r.get("name")},
+            {r["code"]: r["kind"] for r in rows if r.get("kind")})

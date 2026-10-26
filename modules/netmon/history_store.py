@@ -147,6 +147,7 @@ def clients_summary(days: int) -> dict[str, dict]:
                                SUM(FAILED) FAILED, COUNT(DISTINCT USERHOST) HOSTS,
                                TO_CHAR(MAX(LAST_AT), '{_ISO}') LAST_AT
                           FROM NMON_LOGON_DAY WHERE DAY >= :since
+                           AND UPPER(USERHOST) NOT LIKE 'UNAMD\\%'
                          GROUP BY CLIENT_KEY""", since=_since(days))
         return {r["client_key"]: r for r in _rows(cur)}
 

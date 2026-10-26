@@ -1,8 +1,8 @@
 """Унификация клиентов — чистые правила сопоставления, без базы.
 
-Один клиент записан по-разному: «FASTSERVICE SRL» в заявках OTRS, логин
-«fastservice» с кодом контрагента 4103, «FASTSERVICE S.R.L.» в нашей
-бухгалтерии (UNI.TMS_UNIVERS), схема FASTSERVICE в базе. Здесь — как эти
+Один клиент записан по-разному: «ALFA SERVICE SRL» в заявках OTRS, логин
+«alfa» с кодом контрагента, «ALFA SERVICE S.R.L.» в нашей бухгалтерии
+(UNI.TMS_UNIVERS), схема ALFASERVICE в базе. Здесь — как эти
 записи узнают друг друга, что считать точкой магазина и рабочим местом по
 истории входов, какие продукты видны по заявкам.
 """
@@ -31,7 +31,7 @@ def _ascii(s: str) -> str:
 
 def norm(name: str | None) -> str:
     """Название → ключ: без формы собственности, диакритики, пробелов и знаков.
-    «FASTSERVICE S.R.L.» и «FASTSERVICE SRL» → FASTSERVICE, «Bio Holda SRL» → BIOHOLDA."""
+    «ALFA SERVICE S.R.L.» и «Alfa Service SRL» → ALFASERVICE, «Beta Holda SRL» → BETAHOLDA."""
     s = _ascii((name or "").upper())
     s = re.sub(r"\(.*?\)", " ", s)
     s = _LEGAL.sub(" ", s)
@@ -40,8 +40,8 @@ def norm(name: str | None) -> str:
 
 def base_of(schema: str | None) -> str:
     """Схема → основной клиент: без служебного хвоста, префикса POS_ и года.
-    MOLLTEX18 → MOLLTEX, DATACONTROL2025 → DATACONTROL, POS_BOMBA2025 → BOMBA,
-    SANIX_BK → SANIX. Короткие имена (SP245) год не теряют."""
+    GAMMA18 → GAMMA, DELTA2025 → DELTA, POS_OMEGA2025 → OMEGA, SIGMA_BK → SIGMA.
+    Короткие имена (SP245) год не теряют."""
     s = client_key(schema)
     for suf, _role in _ROLE_SUFFIX:
         if s.endswith(suf) and len(s) > len(suf) + 2:
@@ -64,9 +64,45 @@ def role_of(schema: str | None) -> str:
     return "back"
 
 
+_STOP = {"DE", "DIN", "SI", "PENTRU", "IN", "LA", "CU", "AL", "A", "NATIONAL", "NATIONALA", "SRL", "SA",
+         "THE", "OF", "AND"}
+
+
+# Для аббревиатур выбрасываются только служебные слова: в ANRE буква N — это Nationala
+_GLUE = {"DE", "DIN", "SI", "PENTRU", "IN", "LA", "CU", "AL", "A", "THE", "OF", "AND"}
+
+
+def _tokens(name: str | None, stop: set = _STOP) -> list[str]:
+    s = _ascii((name or "").upper())
+    s = re.sub(r"\(.*?\)", " ", s)
+    s = _LEGAL.sub(" ", s)
+    return [w for w in re.findall(r"[0-9A-ZА-ЯЁ]+", s) if w not in stop]
+
+
+def similar_names(a: str | None, b: str | None) -> bool:
+    """Два названия одного юрлица: совпали ключи, один — начало другого,
+    общее значимое слово (4+ буквы) или одно — аббревиатура другого
+    (ANRE = Agentia Nationala pentru Reglementare in Energetica)."""
+    na, nb = norm(a), norm(b)
+    if not na or not nb:
+        return True
+    if match_score(na, nb)[0] or na in nb or nb in na:
+        return True
+    ta, tb = _tokens(a), _tokens(b)
+    if {w for w in ta if len(w) >= 4} & {w for w in tb if len(w) >= 4}:
+        return True
+    ga, gb = _tokens(a, _GLUE), _tokens(b, _GLUE)
+    for short, long_ in ((ga, gb), (gb, ga)):
+        if len(short) == 1 and 2 <= len(short[0]) <= 6 and len(long_) >= 2:
+            initials = "".join(w[0] for w in long_)
+            if short[0] == initials or short[0] in initials:
+                return True
+    return False
+
+
 def match_score(a: str, b: str) -> tuple[int, str]:
     """Насколько два ключа — один клиент: 100 — совпали, 70 — один начало
-    другого и не короче 6 букв (FASTSERVICE ≠ FASTFORWARD: общее только FAST)."""
+    другого и не короче 6 букв (ALFASERVICE ≠ ALFAFORWARD: общее только ALFA)."""
     if not a or not b:
         return 0, ""
     if a == b:
@@ -102,8 +138,9 @@ def host_kind(userhost: str | None, os_user: str | None) -> str:
 
 
 def host_name(userhost: str | None) -> str:
+    """Компьютер без домена: WORKGROUP\\PC1 и PC1 — одна машина."""
     h = (userhost or "").strip()
-    return h.split("\\")[-1] if "\\" in h else h
+    return (h.split("\\")[-1] if "\\" in h else h).upper() if h else h
 
 
 # ------------------------------------------------------------- продукты
@@ -134,6 +171,15 @@ def products_of_titles(titles: list[tuple[str, str]]) -> dict[str, str]:
             if prod not in out and rx.search(title or ""):
                 out[prod] = f"#{tn} {(title or '').strip()}"[:300]
     return out
+
+
+# Мы сами: наша компания и наши служебные схемы — не клиенты
+OUR_CODES = ("UNISIM", "UNI", "UNITEST", "OTRS", "XWIKI", "TICKETS", "HARUZ")
+
+
+def is_ours(code: str | None) -> bool:
+    c = (code or "").upper()
+    return c in OUR_CODES or c.startswith("UNISIM")
 
 
 def kind_of(points: list[dict]) -> str:

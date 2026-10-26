@@ -12,8 +12,8 @@
   * сайт и интеграции — php-fpm, node, python, JDBC;
   * наши специалисты — домен UNAMD, Toad, sqlplus, SQL Developer.
 
-Клиент — это схема без служебного хвоста: SANIX_BK, SANIX_WEB, SANIX_SALES
-относятся к клиенту SANIX. Группа клиента:
+Клиент — это схема без служебного хвоста: SIGMA_BK, SIGMA_WEB, SIGMA_SALES
+относятся к клиенту SIGMA. Группа клиента:
 
   * магазинники — есть база магазина, касса или весы;
   * прямые бэки — работают в настольном UniAcc, магазинов нет;
@@ -105,9 +105,14 @@ def point_name(c: dict) -> str:
     return m.split("\\")[-1] if "\\" in m else m
 
 
+TEST_DBS = {"clouddev"}       # тестовая база: клиенты оттуда — не боевые
+
+
 def auto_kind(conns: list[dict], key: str) -> str:
     if key in INTERNAL_SCHEMAS:
         return "internal"
+    if conns and all(c.get("db") in TEST_DBS for c in conns):
+        return "internal"     # виден только в тестовой базе
     kinds = {c["kind"] for c in conns}
     if kinds & {"shop_db", "pos", "scales"}:
         return "shop"
@@ -134,7 +139,8 @@ def classify(sessions: list[dict]) -> list[dict]:
     return out
 
 
-def group(conns: list[dict], registry: dict[str, dict] | None = None) -> dict:
+def group(conns: list[dict], registry: dict[str, dict] | None = None,
+          known_kinds: dict[str, str] | None = None) -> dict:
     """Подключения → клиенты по группам. Клиенты из справочника без
     подключений тоже показываются — в своей группе, с нулём подключений."""
     registry = registry or {}
@@ -149,12 +155,18 @@ def group(conns: list[dict], registry: dict[str, dict] | None = None) -> dict:
         conns_ = cl["conns"]
         reg = registry.get(key) or {}
         cl["auto_kind"] = auto_kind(conns_, key)
+        # сейчас подключены только наши — тип берём из истории клиента (унификация)
+        known = (known_kinds or {}).get(key)
+        if cl["auto_kind"] == "internal" and known in ("shop", "back", "web") and key not in INTERNAL_SCHEMAS \
+                and not all(c.get("db") in TEST_DBS for c in conns_):
+            cl["auto_kind"] = known
         cl["kind"] = reg.get("kind") or cl["auto_kind"]
         cl["pinned"] = bool(reg.get("kind"))
         cl["title"] = reg.get("title")
         cl["note"] = reg.get("note")
         cl["schemas"] = sorted({c["schema"] for c in conns_})
         cl["dbs"] = sorted({c["db"] for c in conns_ if c.get("db")})
+        cl["test_only"] = bool(conns_) and all(c.get("db") in TEST_DBS for c in conns_)
         cl["sessions"] = len(conns_)
         cl["active"] = sum(1 for c in conns_ if c.get("status") == "ACTIVE")
         cl["shops"] = sorted({c["point"] for c in conns_ if c["kind"] in ("shop_db", "pos", "scales")})

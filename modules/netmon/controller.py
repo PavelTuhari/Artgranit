@@ -906,6 +906,69 @@ class NetmonController:
         except Exception as e:  # noqa: BLE001
             return _fail(e)
 
+    # ------------------------------------------- аналитика и унификация клиентов
+
+    _analytics_cache: dict = {}
+
+    @staticmethod
+    def analytics(force=False):
+        """Клиенты для бизнеса и техники: показатели, риски, менеджеры, качество данных."""
+        import time
+        try:
+            from modules.netmon import analytics
+            c = NetmonController._analytics_cache
+            if not force and c.get("data") and time.time() - c.get("at", 0) < 300:
+                return _ok({**c["data"], "cached_sec": round(time.time() - c["at"])})
+            data = analytics.overview()
+            NetmonController._analytics_cache = {"data": data, "at": time.time()}
+            return _ok({**data, "cached_sec": 0})
+        except Exception as e:  # noqa: BLE001
+            msg = str(e)
+            if "NMON_CLI" in msg.upper() and ("ORA-00942" in msg or "ORA-00904" in msg):
+                return _fail("унификация ещё не установлена: modules/netmon/scripts/netmon_search_deploy.py "
+                             "и netmon_unify.py", 503)
+            return _fail(e)
+
+    @staticmethod
+    def analytics_client(code):
+        try:
+            from modules.netmon import analytics
+            return _ok(analytics.client_card(code))
+        except ValueError as e:
+            return _fail(e, 404)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def analytics_action(body, user="system"):
+        """Ручные правки: связать заказчика OTRS, тип и статус клиента, решить несостыковку,
+        сопоставить заново, найти заказчика OTRS."""
+        try:
+            from modules.netmon import analytics, unify
+            act = body.get("action")
+            if act == "unify":
+                res = unify.run()
+            elif act == "link":
+                analytics.link_otrs(body.get("code"), body.get("otrs_customer_id"))
+                res = {"linked": True}
+            elif act == "client":
+                analytics.set_client(body.get("code"), body.get("kind") or None, body.get("status") or None,
+                                     body.get("note"), user)
+                res = {"saved": True}
+            elif act == "resolve":
+                analytics.resolve_issue(body.get("issue_id"))
+                res = {"resolved": True}
+            elif act == "find_otrs":
+                return _ok(analytics.otrs_customers(body.get("q")))
+            else:
+                return _fail("action: unify|link|client|resolve|find_otrs", 400)
+            NetmonController._analytics_cache = {}
+            return _ok(res)
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
     # ------------------------------------------------ доска заявок OTRS
 
     _otrs_cache: dict = {}

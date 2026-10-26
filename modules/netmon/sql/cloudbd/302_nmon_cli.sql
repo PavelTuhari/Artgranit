@@ -4,10 +4,10 @@
 -- modules/netmon/unify.py. Таблицы OTRS, UNI и схем клиентов только читаются.
 --
 -- Зачем. Один и тот же клиент записан по-разному в пяти местах.
--- В заявках OTRS — свободным текстом (FASTSERVICE SRL), у его логина в OTRS —
+-- В заявках OTRS — свободным текстом (ALFA SERVICE SRL), у его логина в OTRS —
 -- код контрагента COD_UNIV, в нашей бухгалтерии (UNI.TMS_UNIVERS) — юрлицо с
--- фискальным кодом, в базе — одна или несколько схем (SANIX, SANIX_BK,
--- SANIX_WEB), а в подключениях — точки магазинов, кассы, сайт и рабочие места.
+-- фискальным кодом, в базе — одна или несколько схем (SIGMA, SIGMA_BK,
+-- SIGMA_WEB), а в подключениях — точки магазинов, кассы, сайт и рабочие места.
 -- Здесь всё это сведено к одной строке NMON_CLI.
 --
 -- ORIGIN auto — заполнено сопоставлением, manual — поправлено человеком.
@@ -137,12 +137,19 @@ CREATE SEQUENCE nmon_cli_issue_seq;
 CREATE OR REPLACE VIEW nmon_cli_v AS
 SELECT c.cli_id, c.code, c.name, c.idno, c.cod_univ, c.kind, c.status, c.manager, c.contract,
        (SELECT COUNT(*) FROM nmon_cli_schema s WHERE s.cli_id = c.cli_id) schemas,
-       (SELECT COUNT(*) FROM nmon_cli_point p WHERE p.cli_id = c.cli_id AND p.kind IN ('shop', 'pos', 'scales')) shop_points,
+       (SELECT COUNT(DISTINCT p.host) FROM nmon_cli_point p
+         WHERE p.cli_id = c.cli_id AND p.kind IN ('shop', 'pos', 'scales')) shop_points,
        (SELECT COUNT(*) FROM nmon_cli_point p WHERE p.cli_id = c.cli_id AND p.kind = 'office') workplaces,
        (SELECT COUNT(*) FROM ticket t, nmon_cli_otrs o WHERE o.cli_id = c.cli_id AND t.customer_id = o.otrs_customer_id) tickets,
        (SELECT COUNT(*) FROM ticket t, nmon_cli_otrs o, ticket_state ts, ticket_state_type st
          WHERE o.cli_id = c.cli_id AND t.customer_id = o.otrs_customer_id AND ts.id = t.ticket_state_id
            AND st.id = ts.type_id AND st.name IN ('new', 'open', 'pending reminder', 'pending auto')) tickets_open,
+       (SELECT COUNT(*) FROM ticket t, nmon_cli_otrs o, ticket_state ts, ticket_state_type st
+         WHERE o.cli_id = c.cli_id AND t.customer_id = o.otrs_customer_id AND ts.id = t.ticket_state_id
+           AND st.id = ts.type_id AND st.name IN ('new', 'open', 'pending reminder', 'pending auto')
+           AND t.create_time >= SYSDATE - 90) tickets_open_90d,
+       (SELECT COUNT(*) FROM ticket t, nmon_cli_otrs o
+         WHERE o.cli_id = c.cli_id AND t.customer_id = o.otrs_customer_id AND t.create_time >= SYSDATE - 90) tickets_90d,
        (SELECT MAX(t.create_time) FROM ticket t, nmon_cli_otrs o
          WHERE o.cli_id = c.cli_id AND t.customer_id = o.otrs_customer_id) last_ticket
   FROM nmon_cli c;

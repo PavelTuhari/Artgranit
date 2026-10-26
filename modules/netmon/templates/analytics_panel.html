@@ -9,9 +9,11 @@
   #p-analytics .an-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
   #p-analytics .an-card{background:#0d1117;border:1px solid var(--line);border-radius:11px;padding:12px 14px}
   #p-analytics .an-card h4{margin:0 0 8px;font-size:13px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
-  #p-analytics .wk{display:flex;gap:4px;align-items:flex-end;height:70px}
-  #p-analytics .wk div{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--dim)}
-  #p-analytics .wk span{width:100%;background:var(--acc);opacity:.75;border-radius:2px 2px 0 0;min-height:2px}
+  #p-analytics .wk{display:flex;gap:4px;align-items:stretch;height:90px}
+  #p-analytics .wk div{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px;
+    font-size:10px;color:var(--dim)}
+  #p-analytics .wk i{display:block;width:100%;background:var(--acc);opacity:.75;border-radius:2px 2px 0 0;min-height:2px}
+  #p-analytics .wk b{font-weight:400;color:var(--txt)}
   #p-analytics .spark{display:inline-flex;gap:1px;align-items:flex-end;height:20px;width:90px;vertical-align:middle}
   #p-analytics .spark span{flex:1;background:var(--acc);opacity:.7;min-height:1px}
   #p-analytics .flag{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;margin:1px 2px 1px 0;white-space:nowrap}
@@ -27,6 +29,8 @@
   #p-analytics .kv{display:grid;grid-template-columns:160px 1fr;gap:4px 12px;font-size:13px;margin:10px 0}
   #p-analytics .kv div:nth-child(odd){color:var(--dim)}
   #p-analytics .tbl-wrap{max-height:none}
+  #p-analytics a{color:var(--acc);text-decoration:none} #p-analytics a:hover{text-decoration:underline}
+  #p-analytics .f-debtor{background:#f8514933;color:var(--crit);font-weight:600}
 </style>
 
 <div class="filters">
@@ -49,8 +53,8 @@
 (() => {
   const AN = {data: null, sort: "people_30d", desc: true, q: "", kind: "", flag: ""};
   const $ = id => document.getElementById(id);
-  const FLAG = {quiet: "затих", backlog: "много заявок", storm: "всплеск входов", data: "данные", no_contract: "нет договора",
-                inactive: "не работает"};
+  const FLAG = {debtor: "должник", quiet: "затих", backlog: "много заявок в работе", storm: "всплеск входов", data: "данные",
+                no_contract: "нет договора", inactive: "не работает"};
   const KIND = {shop: "магазинник", back: "прямой бэк", web: "веб", internal: "наш", none: "—"};
   const ISSUE = {cod_univ_mismatch: "код контрагента не тот", otrs_variants: "по-разному в OTRS",
                  no_otrs: "нет связи с OTRS"};
@@ -68,20 +72,22 @@
 
   function business(d) {
     const k = d.kpi;
-    const notClosed = pct(k.tickets_open_90d, k.tickets_90d);
+    const st = k.stages || {}, n = s => (st[s] || {}).open_all || 0, n90 = s => (st[s] || {}).open_90d || 0;
     return `<h3 class="an-h">Бизнес <span class="dim">за 30 дней</span></h3><div class="tiles">` +
       tile(k.active_clients, `активных клиентов: магазинников ${k.kinds.shop}, бэков ${k.kinds.back}, веб ${k.kinds.web}`) +
       tile(k.shop_points, "точек магазинов на связи") +
       tile(k.workplaces, "рабочих мест UniAcc") +
       tile(k.support_only, "клиентов только сопровождения (заявки за год, нашей базы нет)", "dim") +
-      tile(`${k.tickets_open_90d} / ${k.tickets_90d}`, `заявок за 90 дней не закрыто — ${notClosed}%`, notClosed > 50 ? "crit" : "ok") +
-      tile(k.tickets_open - k.tickets_open_90d, "зависших заявок (открыты, старше 90 дней)", "warn") +
+      tile(k.in_work_90d, `заявок в работе у людей (из ${k.tickets_90d} созданных за 90 дней)`) +
+      tile(n90("ждут закрытия"), `сделано, ждут закрытия (всего на ptclose — ${n("ждут закрытия")})`, "warn") +
+      tile(k.flags.debtor, `клиентов-должников за полгода (всего заявок на doljniki — ${n("должники")})`, k.flags.debtor ? "crit" : "ok") +
       tile(trend(k.logons_week, k.logons_prev_week), "входов людей: неделя к прошлой") +
       tile(k.flags.quiet, "клиентов затихли — риск ухода", k.flags.quiet ? "crit" : "ok") +
       `</div>` + attention(d) + managers(d);
   }
 
   function attention(d) {
+    const k = d.kpi, st = k.stages || {};
     const pick = f => d.clients.filter(r => r.flags.includes(f));
     const list = (rows, fn) => rows.length ? rows.slice(0, 12).map(r =>
       `<div><a href="#" class="an-open" data-code="${esc(r.code)}">${esc(r.name || r.code)}</a> <span class="dim">${fn(r)}</span></div>`).join("") +
@@ -90,20 +96,32 @@
     return `<div class="an-grid" style="margin-top:12px">
       <div class="an-card"><h4>Затихли — не входили на этой неделе</h4>${list(pick("quiet"), r =>
         `${KIND[r.kind]} · последний вход ${d10(r.last_seen)} · ${esc(r.manager || "без менеджера")}`)}</div>
-      <div class="an-card"><h4>Больше всего открытых заявок (90 дней)</h4>${list(
-        d.clients.filter(r => r.tickets_open_90d).sort((a, b) => b.tickets_open_90d - a.tickets_open_90d),
-        r => `открыто ${r.tickets_open_90d} из ${r.tickets_90d}`)}</div>
+      <div class="an-card"><h4>Больше всего заявок в работе (90 дней)</h4>${list(
+        d.clients.filter(r => r.in_work_90d).sort((a, b) => b.in_work_90d - a.in_work_90d),
+        r => `в работе ${r.in_work_90d}, всего за 90 дней ${r.tickets_90d}`)}</div>
+      <div class="an-card"><h4>Должники — работа стоит из-за долга</h4>${list(pick("debtor"), r =>
+        `заявок на doljniki ${(r.stages || {})["должники"]} · ${esc(r.manager || "без менеджера")}`)}</div>
+      <div class="an-card"><h4>Где сейчас открытые заявки</h4>${Object.values(st).sort((a, b) => b.open_all - a.open_all).map(s =>
+        `<div>${esc(s.stage)} <span class="dim">— ${s.open_all}, из них за 90 дней ${s.open_90d}</span></div>`).join("")}
+        <div>в работе у людей <span class="dim">— ${k.in_work}, из них за 90 дней ${k.in_work_90d}</span></div>
+        <div class="dim" style="margin-top:6px;font-size:12px">Служебные исполнители OTRS — это стадии: ptclose — сделано и ждёт
+          закрытия, stopped — остановлено, doljniki — стоит из-за долга. Закрыть накопившееся на ptclose — разовая чистка.</div></div>
       <div class="an-card"><h4>Заявок создано по неделям</h4><div class="wk">${d.weeks.map(w =>
-        `<div title="${esc(w.week)}: ${w.created}"><span style="height:${Math.round(w.created / wk * 100)}%"></span>${w.week.slice(5)}</div>`).join("")}</div></div>
+        `<div title="неделя с ${esc(w.week)}: ${w.created}"><b>${w.created}</b><i style="height:${Math.round(w.created / wk * 60)}px"></i>${w.week.slice(5)}</div>`).join("")}</div></div>
       <div class="an-card"><h4>Работают, а договора в заявках нет</h4>${list(pick("no_contract"), r =>
         `${KIND[r.kind]} · людей ${r.people_30d} входов`)}</div>
     </div>`;
   }
 
   function managers(d) {
+    const people = `<h3 class="an-h">Исполнители <span class="dim">заявки на людях — что реально в работе</span></h3>
+      <div class="tbl-wrap"><table><thead><tr><th>Исполнитель</th><th>В работе за 90 дней</th><th>Всего на нём открыто</th></tr></thead><tbody>` +
+      d.owners.slice(0, 15).map(o => `<tr><td>${esc(o.name || o.login)} <span class="dim">${esc(o.login)}</span></td>
+        <td><b>${o.open_90d}</b></td><td class="${o.open_all - o.open_90d > 200 ? "warn" : "dim"}">${o.open_all}</td></tr>`).join("") +
+      `</tbody></table></div>`;
     const by = {};
     d.clients.forEach(r => { const m = r.manager || "—"; (by[m] = by[m] || {n: 0, quiet: 0}).n++; if (r.flags.includes("quiet")) by[m].quiet++; });
-    return `<h3 class="an-h">Менеджеры <span class="dim">открытые заявки — свежие и зависшие</span></h3>
+    return people + `<h3 class="an-h">Менеджеры по договору <span class="dim">поле «Manager» в заявках</span></h3>
       <div class="tbl-wrap"><table><thead><tr><th>Менеджер</th><th>Открыто за 90 дней</th><th>Зависло (старше 90 дней)</th>
       <th>Клиентов</th><th>Из них затихли</th></tr></thead><tbody>` +
       d.managers.map(m => `<tr><td>${esc(m.manager)}</td><td><b>${m.open_90d}</b></td>
@@ -155,14 +173,14 @@
       </div>
       <div class="tbl-wrap"><table><thead><tr>${th("name", "Клиент")}${th("kind", "Тип")}${th("manager", "Менеджер")}
         ${th("shop_points", "Точки")}${th("workplaces", "Места")}${th("people_30d", "Люди, 30 дн")}${th("this_week", "Неделя")}
-        ${th("tickets_open_90d", "Заявки 90 дн")}${th("last_ticket", "Посл. заявка")}<th>Внимание</th></tr></thead><tbody>` +
+        ${th("in_work_90d", "В работе 90 дн")}${th("last_ticket", "Посл. заявка")}<th>Внимание</th></tr></thead><tbody>` +
       rows.slice(0, 400).map(r => `<tr class="an-row" data-code="${esc(r.code)}">
         <td><b>${esc(r.name || r.code)}</b><div class="dim">${esc(r.code)}${r.idno ? " · " + esc(r.idno) : ""}</div></td>
         <td>${KIND[r.kind] || esc(r.kind)}</td><td class="dim">${esc(r.manager || "—")}</td>
         <td>${r.shop_points || ""}</td><td>${r.workplaces || ""}</td>
         <td>${r.people_30d ? spark(r.people_daily) + " " + r.people_30d : '<span class="dim">—</span>'}</td>
         <td>${trend(r.this_week, r.prev_week)}</td>
-        <td>${r.tickets_90d ? `<b>${r.tickets_open_90d}</b> / ${r.tickets_90d}` : '<span class="dim">—</span>'}</td>
+        <td>${r.tickets_90d ? `<b>${r.in_work_90d}</b> / ${r.tickets_90d}` : '<span class="dim">—</span>'}</td>
         <td class="dim">${d10(r.last_ticket)}</td><td>${flags(r)}</td></tr>`).join("") + `</tbody></table></div>`;
   }
 
@@ -212,7 +230,7 @@
           <button id="an-c-save" data-code="${esc(g("code"))}">сохранить</button></div>
         <div>Менеджер</div><div>${esc(g("manager") || "—")}</div>
         <div>Договор</div><div>${esc(g("contract") || "—")}</div>
-        <div>Заявки</div><div>всего ${g("tickets")}, открыто ${g("tickets_open")} (за 90 дней ${g("tickets_open_90d")} из ${g("tickets_90d")})</div>
+        <div>Заявки</div><div>всего ${g("tickets")}; в работе у людей ${row.in_work ?? "—"}${Object.entries(row.stages || {}).map(([s, n]) => `, ${esc(s)} ${n}`).join("")}</div>
         <div>Люди за 30 дней</div><div>${row.people_30d ? spark(row.people_daily) + " " + row.people_30d + " входов" : "—"} ${flags(row.flags ? row : {flags: []})}</div>
       </div>
       <h3 class="an-h">В OTRS</h3>
@@ -234,7 +252,7 @@
       <h3 class="an-h">Заявки <span class="dim">сначала открытые, ${x.tickets.length}</span></h3>
       <table><thead><tr><th>Заявка</th><th>Состояние</th><th>Очередь</th><th>Исполнитель</th><th>Изменена</th></tr></thead><tbody>` +
       x.tickets.map(t => `<tr><td><a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">#${esc(t.tn)}</a> ${esc(t.title)}</td>
-        <td class="${t.open ? "warn" : "dim"}">${esc(t.state)}</td><td class="dim">${esc(t.queue)}</td><td class="dim">${esc(t.owner || "")}</td>
+        <td class="${t.open ? (t.stage ? "dim" : "warn") : "dim"}">${esc(t.stage || t.state)}</td><td class="dim">${esc(t.queue)}</td><td class="dim">${esc(t.owner || "")}</td>
         <td class="dim">${d10(t.changed)}</td></tr>`).join("") + `</tbody></table>`;
   }
 

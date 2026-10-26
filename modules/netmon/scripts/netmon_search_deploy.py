@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Установщик поиска по XWiki и OTRS в базе cloudbd (схема OTRS, объекты NMON_SRCH_).
+"""Установщик объектов модуля в базе cloudbd (схема OTRS): поиск NMON_SRCH_ и унификация клиентов NMON_CLI_.
 
     python modules/netmon/scripts/netmon_search_deploy.py --dry-run     # разбор файлов, без базы
     python modules/netmon/scripts/netmon_search_deploy.py               # поставить / обновить объекты
@@ -31,7 +31,8 @@ sys.path.insert(0, str(ROOT))
 from deploy_oracle_objects import _is_comment_only, _is_plsql_block, _split_ddl_dml, _sql_blocks  # noqa: E402
 
 SQL_DIR = Path(__file__).resolve().parents[1] / "sql" / "cloudbd"
-INSTALL = ["300_nmon_srch_tables.sql", "301_nmon_srch_pkg.sql"]
+# 302 — унификация клиентов (NMON_CLI_*), тот же контур и те же правила
+INSTALL = ["300_nmon_srch_tables.sql", "301_nmon_srch_pkg.sql", "302_nmon_cli.sql"]
 DROP = ["399_nmon_srch_drop.sql"]
 
 # «Уже есть» — не ошибка: установщик запускается повторно.

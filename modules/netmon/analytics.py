@@ -24,6 +24,12 @@ from modules.netmon import otrs_board as ob
 from modules.netmon import staff_rules as sr
 
 QUIET_DAYS = 7          # не входил столько дней при входах раньше — «затих»
+DEBT_DAYS = 180         # заявка на doljniki менялась за это время — клиент сейчас должник
+# Служебные «исполнители» OTRS — это стадии, а не люди: заявка на ptclose
+# сделана и ждёт закрытия, на doljniki — работа стоит из-за долга клиента.
+PSEUDO_OWNERS = {"ptclose": "ждут закрытия", "stopped": "остановлены", "forum_uniacc": "форум",
+                 "doljniki": "должники", "root": "без исполнителя", "uni_marketing": "маркетинг",
+                 "otrs": "система"}
 BACKLOG = 10            # открытых заявок у клиента — «завал»
 _ISO = "'YYYY-MM-DD\"T\"HH24:MI:SS'"
 _OPEN = "('new', 'open', 'pending reminder', 'pending auto')"
@@ -34,17 +40,30 @@ def _q(sql: str, **params) -> dict:
 
 
 _Q_CLIENTS = f"""SELECT cli_id, code, name, idno, cod_univ, kind, status, manager, contract, schemas, shop_points,
-       workplaces, tickets, tickets_open, TO_CHAR(last_ticket, {_ISO}) last_ticket FROM nmon_cli_v"""
+       workplaces, tickets, tickets_open, tickets_open_90d, tickets_90d, TO_CHAR(last_ticket, {_ISO}) last_ticket
+  FROM nmon_cli_v"""
 _Q_SCHEMAS = "SELECT cli_id, db, schema_name, role, logons_30d FROM nmon_cli_schema"
 _Q_POINTS = f"""SELECT cli_id, kind, host, os_user, days_30d, logons_30d, TO_CHAR(last_seen, {_ISO}) last_seen
                   FROM nmon_cli_point"""
 _Q_PRODUCTS = "SELECT cli_id, product, evidence FROM nmon_cli_product"
 _Q_ISSUES = "SELECT issue_id, cli_id, kind, subject, detail FROM nmon_cli_issue WHERE resolved = 0 ORDER BY kind, subject"
 _Q_MANAGERS = f"""SELECT NVL(t.freetext3, '—') manager, COUNT(*) open_tickets,
+       SUM(CASE WHEN t.create_time >= SYSDATE - 90 THEN 1 ELSE 0 END) open_90d,
        SUM(CASE WHEN t.create_time < SYSDATE - 90 THEN 1 ELSE 0 END) older_90d
   FROM ticket t, ticket_state ts, ticket_state_type st
  WHERE ts.id = t.ticket_state_id AND st.id = ts.type_id AND st.name IN {_OPEN} AND t.freekey3 = 'Manager'
  GROUP BY NVL(t.freetext3, '—')"""
+_Q_OWNERS = f"""SELECT u.login, TRIM(u.first_name || ' ' || u.last_name) name, COUNT(*) open_all,
+       SUM(CASE WHEN t.create_time >= SYSDATE - 90 THEN 1 ELSE 0 END) open_90d
+  FROM ticket t, system_user u, ticket_state ts, ticket_state_type st
+ WHERE u.id = t.user_id AND ts.id = t.ticket_state_id AND st.id = ts.type_id AND st.name IN {_OPEN}
+ GROUP BY u.login, TRIM(u.first_name || ' ' || u.last_name)"""
+_Q_CLI_OWNERS = f"""SELECT o.cli_id, u.login, COUNT(*) n, SUM(CASE WHEN t.create_time >= SYSDATE - 90 THEN 1 ELSE 0 END) n90,
+       SUM(CASE WHEN t.change_time >= SYSDATE - {DEBT_DAYS} THEN 1 ELSE 0 END) nrecent
+  FROM ticket t, nmon_cli_otrs o, system_user u, ticket_state ts, ticket_state_type st
+ WHERE t.customer_id = o.otrs_customer_id AND u.id = t.user_id AND ts.id = t.ticket_state_id
+   AND st.id = ts.type_id AND st.name IN {_OPEN}
+ GROUP BY o.cli_id, u.login"""
 _Q_WEEKS = f"""SELECT TO_CHAR(TRUNC(create_time, 'IW'), 'YYYY-MM-DD') week, COUNT(*) created FROM ticket
  WHERE create_time >= TRUNC(SYSDATE, 'IW') - 7 * 11 GROUP BY TRUNC(create_time, 'IW') ORDER BY 1"""
 
@@ -53,21 +72,38 @@ def _adb_days(since: datetime) -> list[dict]:
     from models.database import DatabaseModel
     with DatabaseModel() as db:
         cur = db.connection.cursor()
-        cur.execute("""SELECT SCHEMA_NAME, TO_CHAR(DAY, 'YYYY-MM-DD') DAY, SUM(LOGONS) LOGONS, SUM(FAILED) FAILED
-                         FROM NMON_LOGON_DAY WHERE DAY >= :since GROUP BY SCHEMA_NAME, DAY""", since=since)
-        return [{"schema": r[0], "day": r[1], "logons": r[2] or 0, "failed": r[3] or 0} for r in cur.fetchall()]
+        cur.execute("""SELECT SCHEMA_NAME, TO_CHAR(DAY, 'YYYY-MM-DD') DAY, USERHOST, OS_USER, LOGONS, FAILED
+                         FROM NMON_LOGON_DAY WHERE DAY >= :since""", since=since)
+        return [{"schema": r[0], "day": r[1], "host": r[2], "os_user": r[3], "logons": r[4] or 0,
+                 "failed": r[5] or 0} for r in cur.fetchall()]
 
 
 def overview() -> dict:
     res = ob._run([_q(_Q_CLIENTS), _q(_Q_SCHEMAS), _q(_Q_POINTS), _q(_Q_PRODUCTS), _q(_Q_ISSUES),
-                   _q(_Q_MANAGERS), _q(_Q_WEEKS)], timeout=180)
-    clients, schemas, points, products, issues, managers, weeks = (ob._rows(r) for r in res)
+                   _q(_Q_MANAGERS), _q(_Q_WEEKS), _q(_Q_OWNERS), _q(_Q_CLI_OWNERS)], timeout=180)
+    clients, schemas, points, products, issues, managers, weeks, owners, cli_owners = (ob._rows(r) for r in res)
     now = datetime.now()
     today = now.replace(hour=0, minute=0, second=0, microsecond=0)
     days = _adb_days(today - timedelta(days=29))
 
     by_id = {c["cli_id"]: {**c, "schema_list": [], "points": [], "products": [], "issues": [],
-                           "daily": {}, "failed_30d": 0} for c in clients}
+                           "daily": {}, "people": {}, "failed_30d": 0,
+                           "stages": {}, "in_work_90d": 0, "in_work": 0} for c in clients}
+    for o in cli_owners:
+        c = by_id.get(o["cli_id"])
+        if not c:
+            continue
+        stage = PSEUDO_OWNERS.get(o["login"])
+        if stage:
+            c["stages"][stage] = c["stages"].get(stage, 0) + (o["n"] or 0)
+            if stage == "должники":
+                c["debt_recent"] = (c.get("debt_recent") or 0) + (o["nrecent"] or 0)
+        else:
+            c["in_work"] += o["n"] or 0
+            c["in_work_90d"] += o["n90"] or 0
+    from modules.netmon import history_store as hs
+    from modules.netmon import unify_rules as ur
+    staff = hs.staff_registry()
     schema_owner = {}
     for s in schemas:
         if s["cli_id"] in by_id:
@@ -88,25 +124,32 @@ def overview() -> dict:
             c = by_id[cid]
             c["daily"][d["day"]] = c["daily"].get(d["day"], 0) + d["logons"]
             c["failed_30d"] += d["failed"]
+            # входы людей: рабочие места офиса, без сайтов, баз магазинов и наших
+            if ur.host_kind(d["host"], d["os_user"]) == "office" and \
+                    not sr.staff_of(d["host"], d["os_user"], d["schema"], staff)[0]:
+                c["people"][d["day"]] = c["people"].get(d["day"], 0) + d["logons"]
 
     week_ago = (today - timedelta(days=QUIET_DAYS)).strftime("%Y-%m-%d")
     two_weeks = (today - timedelta(days=2 * QUIET_DAYS)).strftime("%Y-%m-%d")
     rows = []
     for c in by_id.values():
         daily = c.pop("daily")
+        people = c.pop("people")
         pts = c.pop("points")
         last = max((p["last_seen"] for p in pts if p.get("last_seen")), default=None)
         logons = sum(daily.values())
-        this_week = sum(n for d, n in daily.items() if d > week_ago)
-        prev_week = sum(n for d, n in daily.items() if two_weeks < d <= week_ago)
+        this_week = sum(n for d, n in people.items() if d > week_ago)
+        prev_week = sum(n for d, n in people.items() if two_weeks < d <= week_ago)
         spikes = sr.spikes(daily)
         flags = []
-        if logons and not this_week:
+        if sum(people.values()) and not this_week:
             flags.append("quiet")
         if c["schemas"] and not logons and c["kind"] != "none":
             flags.append("inactive")
-        if (c["tickets_open"] or 0) >= BACKLOG:
+        if c["in_work_90d"] >= BACKLOG:
             flags.append("backlog")
+        if c.get("debt_recent"):
+            flags.append("debtor")
         if spikes:
             flags.append("storm")
         if "no_otrs" in c["issues"] or "cod_univ_mismatch" in c["issues"]:
@@ -115,7 +158,11 @@ def overview() -> dict:
             flags.append("no_contract")
         rows.append({
             **{k: c[k] for k in ("cli_id", "code", "name", "idno", "kind", "status", "manager", "contract",
-                                 "tickets", "tickets_open", "last_ticket", "failed_30d")},
+                                 "tickets", "tickets_open", "tickets_open_90d", "tickets_90d", "last_ticket",
+                                 "failed_30d")},
+            "in_work": c["in_work"], "in_work_90d": c["in_work_90d"], "stages": c["stages"],
+            "people_30d": sum(people.values()), "people_daily": [people.get(
+                (today - timedelta(days=29 - i)).strftime("%Y-%m-%d"), 0) for i in range(30)],
             "schemas": [s["schema_name"] for s in c["schema_list"]],
             "shop_points": len({p["host"] for p in pts if p["kind"] in ("shop", "pos", "scales")}),
             "workplaces": len({p["host"] for p in pts if p["kind"] == "office"}),
@@ -124,24 +171,42 @@ def overview() -> dict:
             "this_week": this_week, "prev_week": prev_week, "last_seen": last,
             "products": sorted(c["products"]), "spikes": spikes, "flags": flags,
         })
+    rows = [r for r in rows if r["kind"] != "internal"]      # мы сами — не клиент
     active = [r for r in rows if r["logons_30d"]]
     kinds = {k: sum(1 for r in active if r["kind"] == k) for k in ("shop", "back", "web", "none")}
     support_only = sum(1 for r in rows if not r["schemas"] and (r["tickets"] or 0) and r["last_ticket"]
                        and r["last_ticket"] >= (today - timedelta(days=365)).strftime("%Y-%m-%d"))
     flag_count = {f: sum(1 for r in rows if f in r["flags"])
-                  for f in ("quiet", "inactive", "backlog", "storm", "data", "no_contract")}
+                  for f in ("quiet", "inactive", "backlog", "storm", "data", "no_contract", "debtor")}
+    stage_total: dict[str, dict] = {}
+    people_owners = []
+    for o in owners:
+        stage = PSEUDO_OWNERS.get(o["login"])
+        if stage:
+            s = stage_total.setdefault(stage, {"stage": stage, "open_all": 0, "open_90d": 0})
+            s["open_all"] += o["open_all"] or 0
+            s["open_90d"] += o["open_90d"] or 0
+        elif o["open_all"]:
+            people_owners.append(o)
     return {
         "checked_at": now.strftime("%Y-%m-%d %H:%M"),
         "kpi": {
             "active_clients": len(active), "kinds": kinds, "support_only": support_only,
             "shop_points": sum(r["shop_points"] for r in active), "workplaces": sum(r["workplaces"] for r in active),
-            "tickets_open": sum(r["tickets_open"] or 0 for r in rows), "flags": flag_count,
+            "tickets_open": sum(r["tickets_open"] or 0 for r in rows),
+            "tickets_open_90d": sum(r["tickets_open_90d"] or 0 for r in rows),
+            "tickets_90d": sum(r["tickets_90d"] or 0 for r in rows), "flags": flag_count,
+            "in_work_90d": sum(o["open_90d"] or 0 for o in people_owners),
+            "in_work": sum(o["open_all"] or 0 for o in people_owners),
+            "stages": stage_total,
             "inactive_schemas": sum(1 for s in schemas if not s["logons_30d"]),
             "issues": len(issues),
             "logons_week": sum(r["this_week"] for r in rows), "logons_prev_week": sum(r["prev_week"] for r in rows),
         },
-        "clients": sorted(rows, key=lambda r: (-(r["logons_30d"] > 0), -(r["tickets_open"] or 0), r["code"])),
-        "managers": sorted(managers, key=lambda m: -(m["open_tickets"] or 0)),
+        "clients": sorted(rows, key=lambda r: (-(r["logons_30d"] > 0), -(r["tickets_open_90d"] or 0), r["code"])),
+        "managers": sorted((m for m in managers if (m["open_90d"] or 0) or (m["older_90d"] or 0) >= 100),
+                           key=lambda m: -(m["open_90d"] or 0)),
+        "owners": sorted(people_owners, key=lambda o: (-(o["open_90d"] or 0), -(o["open_all"] or 0))),
         "weeks": weeks, "issues": issues,
         "inactive_schemas": sorted(s["schema_name"] for s in schemas if not s["logons_30d"]),
     }
@@ -181,6 +246,7 @@ def client_card(code: str) -> dict:
     for t in tickets:
         t["url"] = ob.ticket_url(t["id"])
         t["open"] = t["state_type"] in ("new", "open", "pending reminder", "pending auto")
+        t["stage"] = PSEUDO_OWNERS.get(t.get("owner") or "") if t["open"] else None
     return {"client": head[0], "otrs": otrs, "logins": logins, "schemas": schemas, "points": points,
             "products": products, "issues": issues, "tickets": tickets}
 

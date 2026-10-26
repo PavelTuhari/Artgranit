@@ -246,7 +246,7 @@ def blocks(events: list[dict]) -> list[dict]:
 
 def spikes(day_counts: dict, factor: int = 10, floor: int = 1000) -> list:
     """Дни, когда входов в разы больше обычного: признак переподключения на
-    каждый запрос (так UNWEBSHOP с 25.10.2026 давал по 5 входов в секунду)."""
+    каждый запрос (бывает по нескольку входов в секунду)."""
     vals = sorted(day_counts.values())
     if not vals:
         return []
