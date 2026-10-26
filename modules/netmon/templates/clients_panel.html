@@ -1,0 +1,168 @@
+{# Подключения клиентов к базам cloudbd и clouddev — вкладка панели мониторинга.
+   Группы: магазинники (база магазина, кассы, весы), прямые бэки (настольный
+   UniAcc — бухгалтерия, управленческий учёт), веб и интеграции, наши.
+   Данные — /api/clients (modules/netmon/clients.py), только чтение баз.
+   Тип клиента можно закрепить — /api/clients/pin, таблица NMON_CLIENT.
+   API, esc, post и tile объявлены ниже, в основном скрипте панели. #}
+<style>
+  #p-clients .cl-grp{margin:18px 0 6px;font-size:15px;display:flex;gap:8px;align-items:baseline}
+  #p-clients .cl-grp .dim{font-size:12px;font-weight:400}
+  #p-clients tr.cl-row{cursor:pointer}
+  #p-clients tr.cl-row td:first-child b{font-size:14px}
+  #p-clients tr.cl-det>td{background:#0d1117;padding:0 0 10px 0}
+  #p-clients tr.cl-det table{font-size:12.5px}
+  #p-clients tr.cl-det th{position:static;background:#0d1117}
+  #p-clients .cl-pts{color:var(--dim);font-size:12px;max-width:360px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #p-clients select.cl-pin{padding:3px 6px;font-size:12px}
+  #p-clients .cl-k{display:inline-block;min-width:92px}
+  #p-clients .k-shop_db,#p-clients .k-pos,#p-clients .k-scales{color:var(--ok)}
+  #p-clients .k-desktop{color:var(--acc)}
+  #p-clients .k-web{color:var(--warn)}
+  #p-clients .k-staff,#p-clients .k-link,#p-clients .k-other{color:var(--dim)}
+</style>
+
+<div class="tiles" id="cl-tiles"></div>
+<div class="filters">
+  <input type="search" id="cl-q" placeholder="клиент, компьютер, точка, пользователь…" style="min-width:260px">
+  <label class="dim"><input type="checkbox" id="cl-internal"> наши и служебные</label>
+  <label class="dim"><input type="checkbox" id="cl-staff"> подключения наших специалистов</label>
+  <span class="spacer"></span>
+  <span class="dim" id="cl-meta"></span>
+  <button id="cl-reload">Обновить</button>
+</div>
+<div id="cl-out"><div class="dim">загрузка…</div></div>
+<div class="note">
+  Как определяется группа: <b>магазинник</b> — к базе подключается локальная база магазина
+  (<code>oracle@сервер</code>, <code>ORACLE.EXE</code>), касса или меню (<code>UAMenu</code>, кассы автовокзала),
+  весы; <b>прямой бэк</b> — работают в настольном UniAcc (<code>UniacCLNT.exe</code>): бухгалтерия,
+  управленческий учёт; <b>веб</b> — только сайт и обмены. Тип можно закрепить за клиентом (📌) —
+  тогда он в своей группе, даже когда никто не подключён. Подключения с <code>UNAMD\</code>, из Toad
+  и sqlplus — наши специалисты, в счёт клиента не идут.
+</div>
+
+<script>
+(() => {
+  const CL = {data: null, open: new Set()};
+  const $ = id => document.getElementById(id);
+  const ORDER = ["shop", "back", "web", "internal"];
+  const KIND_OPT = {"": "по подключениям", shop: "магазинник", back: "прямой бэк", web: "веб", internal: "наш / служебный"};
+
+  const idle = s => {
+    if (s == null) return "—";
+    if (s < 60) return "сейчас";
+    if (s < 3600) return Math.round(s / 60) + " мин";
+    if (s < 86400) return Math.round(s / 3600) + " ч";
+    return Math.round(s / 86400) + " дн";
+  };
+  const since = iso => iso ? iso.replace("T", " ").slice(5, 16) : "—";
+  const list = (a, n = 6) => a.length ? esc(a.slice(0, n).join(", ")) + (a.length > n ? ` <span class="dim">+${a.length - n}</span>` : "") : "";
+
+  function match(cl, q) {
+    if (!q) return true;
+    const hay = [cl.client, cl.title, cl.note, ...cl.schemas, ...cl.shops, ...cl.workplaces, ...cl.users,
+                 ...cl.conns.map(c => [c.osuser, c.login, c.machine, c.program].join(" "))].join(" ").toLowerCase();
+    return q.split(/\s+/).every(w => hay.includes(w));
+  }
+
+  function details(cl, showStaff) {
+    const rows = cl.conns.filter(c => showStaff || c.kind !== "staff");
+    if (!rows.length) return `<div class="dim" style="padding:10px 12px">сейчас нет подключений</div>`;
+    return `<table><thead><tr><th>Вид</th><th>Точка / компьютер</th><th>Пользователь Windows</th>
+      <th>Логин UniAcc</th><th>Программа</th><th>База</th><th>Вошёл</th><th>Простой</th></tr></thead><tbody>` +
+      rows.map(c => `<tr>
+        <td><span class="cl-k k-${c.kind}">${esc(c.kind_title)}</span></td>
+        <td>${esc(c.point || "—")}<div class="dim">${c.point !== c.machine ? esc(c.machine || "") : ""}</div></td>
+        <td>${esc(c.osuser || "—")}</td>
+        <td>${esc(c.login || "—")}${c.version ? ` <span class="dim">${esc(c.version)}</span>` : ""}</td>
+        <td class="dim">${esc(c.program || "—")}</td>
+        <td class="dim">${esc(c.db)}${c.schema !== cl.client ? " · " + esc(c.schema) : ""}</td>
+        <td class="dim">${since(c.logon)}</td>
+        <td>${c.status === "ACTIVE" ? '<span class="badge b-ok">работает</span>' : idle(c.idle_sec)}</td>
+      </tr>`).join("") + `</tbody></table>`;
+  }
+
+  function render() {
+    const d = CL.data;
+    if (!d) return;
+    const q = $("cl-q").value.trim().toLowerCase();
+    const showInt = $("cl-internal").checked, showStaff = $("cl-staff").checked;
+    const s = d.summary;
+    $("cl-tiles").innerHTML =
+      tile(s.clients.shop, "магазинников") +
+      tile(s.shops_online, "точек магазинов на связи", "ok") +
+      tile(s.clients.back, "прямых бэков") +
+      tile(s.workplaces_online, "рабочих мест UniAcc") +
+      tile(s.users_online, "пользователей UniAcc") +
+      tile(s.clients.web, "веб и интеграции") +
+      tile(s.sessions, "сессий в cloudbd и clouddev", "dim");
+    $("cl-meta").textContent = `снято ${d.checked_at.slice(11, 16)}` + (d.cached_sec ? ` · ${d.cached_sec} с назад` : "") +
+      (d.registry_error ? " · справочник недоступен" : "");
+
+    let html = "";
+    for (const k of ORDER) {
+      if (k === "internal" && !showInt) continue;
+      const items = d.groups[k].filter(cl => match(cl, q));
+      if (!items.length) continue;
+      html += `<h3 class="cl-grp">${esc(d.titles[k])} <span class="dim">${items.length}</span></h3>
+        <div class="tbl-wrap" style="max-height:none"><table><thead><tr>
+          <th>Клиент</th><th>Точки магазинов</th><th>Рабочие места UniAcc</th><th>Пользователи</th>
+          <th style="width:70px">Сессий</th><th style="width:110px">Активность</th><th style="width:150px">Тип</th>
+        </tr></thead><tbody>` +
+        items.map(cl => {
+          const open = CL.open.has(cl.client);
+          const sess = showStaff ? cl.sessions : cl.sessions - (cl.by_kind.staff || 0);
+          const pin = `<select class="cl-pin" data-client="${esc(cl.client)}">` +
+            Object.entries(KIND_OPT).map(([v, t]) =>
+              `<option value="${v}" ${(cl.pinned ? cl.kind : "") === v ? "selected" : ""}>${v ? t : t + " (" + KIND_OPT[cl.auto_kind] + ")"}</option>`).join("") +
+            `</select>`;
+          return `<tr class="cl-row" data-client="${esc(cl.client)}">
+            <td>${open ? "▾" : "▸"} <b>${esc(cl.title || cl.client)}</b>${cl.pinned ? " 📌" : ""}
+              <div class="dim">${esc(cl.schemas.join(", ") || cl.client)}${cl.dbs.length ? " · " + esc(cl.dbs.join(", ")) : ""}${cl.note ? " · " + esc(cl.note) : ""}</div></td>
+            <td><b>${cl.shops.length || ""}</b> <div class="cl-pts">${list(cl.shops)}</div></td>
+            <td><b>${cl.workplaces.length || ""}</b> <div class="cl-pts">${list(cl.workplaces)}</div></td>
+            <td><b>${cl.users.length || ""}</b> <div class="cl-pts">${list(cl.users)}</div></td>
+            <td>${sess || '<span class="dim">0</span>'}</td>
+            <td>${cl.active ? '<span class="badge b-ok">работают</span>' : cl.sessions ? idle(cl.min_idle_sec) : '<span class="badge b-dim">нет подключений</span>'}</td>
+            <td>${pin}</td></tr>` +
+            (open ? `<tr class="cl-det"><td colspan="7">${details(cl, showStaff)}</td></tr>` : "");
+        }).join("") + `</tbody></table></div>`;
+    }
+    $("cl-out").innerHTML = html || `<div class="dim">ничего не найдено</div>`;
+  }
+
+  async function load(force) {
+    $("cl-reload").disabled = true;
+    try {
+      const r = await fetch(API + "/clients" + (force ? "?force=1" : ""), {headers: {Accept: "application/json"}});
+      const j = await r.json();
+      if (!j.success) throw new Error(j.message || "ошибка");
+      CL.data = j.data;
+      render();
+    } catch (e) {
+      $("cl-out").innerHTML = `<div class="crit">Не удалось снять подключения: ${esc(e.message)}</div>`;
+    } finally { $("cl-reload").disabled = false; }
+  }
+
+  $("cl-out").addEventListener("click", ev => {
+    if (ev.target.closest("select")) return;
+    const tr = ev.target.closest("tr.cl-row");
+    if (!tr) return;
+    const k = tr.dataset.client;
+    CL.open.has(k) ? CL.open.delete(k) : CL.open.add(k);
+    render();
+  });
+  $("cl-out").addEventListener("change", async ev => {
+    const sel = ev.target.closest("select.cl-pin");
+    if (!sel) return;
+    sel.disabled = true;
+    try {
+      await post("/clients/pin", {client: sel.dataset.client, kind: sel.value});
+      await load(true);
+    } catch (e) { alert("Не сохранено: " + e.message); sel.disabled = false; }
+  });
+  ["cl-q", "cl-internal", "cl-staff"].forEach(id => $(id).addEventListener("input", render));
+  $("cl-reload").onclick = () => load(true);
+
+  window.loadClientsPanel = () => { if (!CL.data) load(false); };
+})();
+</script>
