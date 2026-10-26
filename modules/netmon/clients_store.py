@@ -13,7 +13,8 @@ from modules.netmon.clients_rules import KINDS
 
 def _cursor(db):
     cur = db.connection.cursor()
-    # ADB по умолчанию делает DML параллельно — см. fs_store.py
+    # ADB по умолчанию делает DML параллельно — см. fs_store.py.
+    # Имя привязки :by нельзя — ORA-01745 (как в TBControl), поэтому :usr.
     cur.execute("ALTER SESSION DISABLE PARALLEL DML")
     return cur
 
@@ -33,18 +34,18 @@ def save(client_key: str, kind: str | None, title: str | None, note: str | None,
     key = (client_key or "").strip().upper()[:60]
     if not key:
         raise ValueError("не указан клиент")
+    if kind and kind not in KINDS:
+        raise ValueError(f"тип клиента: {', '.join(KINDS)}")
     with DatabaseModel() as db:
         cur = _cursor(db)
         if not kind:
             cur.execute("DELETE FROM NMON_CLIENT WHERE CLIENT_KEY = :k", k=key)
         else:
-            if kind not in KINDS:
-                raise ValueError(f"тип клиента: {', '.join(KINDS)}")
             cur.execute("""MERGE INTO NMON_CLIENT c USING (SELECT :k k FROM DUAL) s ON (c.CLIENT_KEY = s.k)
                            WHEN MATCHED THEN UPDATE SET KIND = :kind, TITLE = :title, NOTE = :note,
-                                UPDATED_AT = SYSTIMESTAMP, UPDATED_BY = :by
+                                UPDATED_AT = SYSTIMESTAMP, UPDATED_BY = :usr
                            WHEN NOT MATCHED THEN INSERT (CLIENT_KEY, KIND, TITLE, NOTE, UPDATED_BY)
-                                VALUES (:k, :kind, :title, :note, :by)""",
+                                VALUES (:k, :kind, :title, :note, :usr)""",
                         k=key, kind=kind, title=(title or "").strip()[:200] or None,
-                        note=(note or "").strip()[:500] or None, by=(by or "system")[:60])
+                        note=(note or "").strip()[:500] or None, usr=(by or "system")[:60])
         db.connection.commit()

@@ -16,7 +16,8 @@ sys.path.insert(0, str(ROOT))
 # Разбор SQL берём у общего установщика, чтобы не дублировать логику
 from deploy_oracle_objects import _is_comment_only, _is_plsql_block, _split_ddl_dml, _sql_blocks  # noqa: E402
 
-FILES = ["200_nmon_tables.sql", "201_nmon_pve.sql", "202_nmon_facility.sql", "203_nmon_fs.sql"]
+FILES = ["200_nmon_tables.sql", "201_nmon_pve.sql", "202_nmon_facility.sql", "203_nmon_fs.sql",
+         "204_nmon_clients.sql"]
 SQL_DIR = Path(__file__).resolve().parents[1] / "sql"
 
 # «Уже есть» — не ошибка: установщик запускается повторно при каждом новом

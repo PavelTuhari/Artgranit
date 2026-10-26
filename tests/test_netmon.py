@@ -1432,3 +1432,91 @@ def test_zabbix_xwiki_checks_page_search_and_glassfish():
     assert any("Search" in s["url"] for s in zx.STEPS), "поиск вики проверяет и базу"
     assert zx.GLASSFISH_PORT == 8080 and zx.SERVER_IP == "192.168.0.15"
     assert all(s["url"].startswith("https://xwiki.una.md/") for s in zx.STEPS)
+
+
+# ------------------------------------------------- подключения клиентов
+
+def test_clients_connection_kinds_by_program():
+    from modules.netmon.clients_rules import conn_kind
+    assert conn_kind("oracle@BONUS2-UNO-ORACLE (TNS V1-V3)", "BONUS2-UNO-ORACLE") == "shop_db"
+    assert conn_kind("ORACLE.EXE", "SHOP\\SRV1") == "shop_db"
+    assert conn_kind("UAMenu.exe", "WORKGROUP\\KASSA1") == "pos"
+    assert conn_kind("garaCPer.exe") == "pos" and conn_kind("UNAScales.exe") == "scales"
+    assert conn_kind("UniacCLNT.exe", "AD\\AURW7WS06") == "desktop" and conn_kind("uniacCLNT.exe") == "desktop"
+    assert conn_kind("php-fpm: pool www@web (TNS V1-V3)") == "web" and conn_kind("JDBC Thin Client") == "web"
+    assert conn_kind("UniacCLNT.exe", "UNAMD\\ANNA-PC") == "staff", "наш домен — наш специалист"
+    assert conn_kind("Toad.exe", "WORKGROUP\\X") == "staff"
+    assert conn_kind("oracle@cloudbd.internal.uniacc.md (TNS V1-V3)") == "link", "связь наших баз — не магазин"
+
+
+def test_clients_key_login_and_point():
+    from modules.netmon.clients_rules import client_key, uniacc_login, uniacc_version, classify
+    assert client_key("SANIX_BK") == client_key("SANIX_WEB") == client_key("sanix") == "SANIX"
+    assert client_key("BIOHOLDA_TEST") == "BIOHOLDA" and client_key("MOLLTEX18") == "MOLLTEX18"
+    assert uniacc_login("UniAcc-Client Nrusu 5.77.1.21 07.10.2026") == "Nrusu"
+    assert uniacc_version("UniAcc-Client Nrusu 5.77.1.21 07.10.2026") == "5.77.1.21"
+    assert uniacc_login("UniacCLNT.exe") is None
+    c = classify([{"schema": "aurum", "machine": "AD\\AURW7WS06", "program": "UniacCLNT.exe", "db": "cloudbd"},
+                  {"schema": "RETAIL", "machine": "X", "program": "oracle@SHOP-7 (TNS V1-V3)", "db": "cloudbd"}])
+    assert c[0]["client"] == "AURUM" and c[0]["point"] == "AURW7WS06"
+    assert c[1]["point"] == "SHOP-7", "точка магазина — сервер из программы"
+
+
+def test_clients_groups_and_pinned_registry():
+    from modules.netmon.clients_rules import classify, group
+    s = [
+        {"schema": "RETAIL", "machine": "S1", "program": "oracle@S1", "db": "cloudbd", "idle_sec": 5},
+        {"schema": "RETAIL", "machine": "AD\\PC1", "program": "UniacCLNT.exe", "module": "UniAcc-Client Ion",
+         "db": "cloudbd", "idle_sec": 30},
+        {"schema": "AURUM", "machine": "AD\\PC2", "program": "UniacCLNT.exe", "module": "UniAcc-Client Ana",
+         "db": "cloudbd", "status": "ACTIVE", "idle_sec": 0},
+        {"schema": "AURUM", "machine": "UNAMD\\DEV", "program": "Toad.exe", "db": "cloudbd"},
+        {"schema": "SHOPWEB", "machine": "web", "program": "php-fpm: pool www@web", "db": "cloudbd"},
+        {"schema": "BIOHOLDA", "machine": "apache", "program": "php-fpm: pool www@apache.una.md", "db": "cloudbd"},
+        {"schema": "OTRS", "machine": "mac", "program": "Python@x", "db": "cloudbd"},
+    ]
+    d = group(classify(s), {"BIOHOLDA": {"kind": "back", "title": "Bioholda"},
+                            "SANIX": {"kind": "back", "note": "управленческий учёт"}})
+    names = {k: [c["client"] for c in v] for k, v in d["groups"].items()}
+    assert names["shop"] == ["RETAIL"], "есть база магазина — магазинник, даже с UniAcc"
+    assert "AURUM" in names["back"] and "SHOPWEB" in names["web"] and "OTRS" in names["internal"]
+    assert "BIOHOLDA" in names["back"], "закреплённый тип важнее подключений"
+    sanix = next(c for c in d["groups"]["back"] if c["client"] == "SANIX")
+    assert sanix["sessions"] == 0 and sanix["pinned"], "клиент из справочника виден и без подключений"
+    aurum = next(c for c in d["groups"]["back"] if c["client"] == "AURUM")
+    assert aurum["users"] == ["Ana"] and aurum["active"] == 1 and aurum["by_kind"] == {"desktop": 1, "staff": 1}
+    assert d["summary"]["shops_online"] == 1 and d["summary"]["staff_sessions"] == 1
+
+
+def test_clients_parse_sqlplus_output():
+    from modules.netmon.clients import parse, SEP
+    line = "cloudbd|" + SEP.join(["S", "AURUM", "WORKGROUP\\USER-ПК", "User3", "UniacCLNT.exe",
+                                  "UniAcc-Client Ibasisto", "INACTIVE", "2026-10-26T08:25:00", "50", "123"])
+    rows = parse("Session altered.\n" + line + "\nclouddev|garbage\n")
+    assert len(rows) == 1 and rows[0]["db"] == "cloudbd" and rows[0]["machine"] == "WORKGROUP\\USER-ПК"
+    assert rows[0]["idle_sec"] == 50
+
+
+def test_clients_ddl_safe_for_splitter_and_registered():
+    sql = _read("modules/netmon/sql/204_nmon_clients.sql")
+    for line in sql.splitlines():
+        if line.strip().startswith("--"):
+            assert ";" not in line and "'" not in line, f"комментарий сломает разборщик: {line}"
+    assert "NMON_CLIENT" in sql and "'BIOHOLDA', 'back'" in sql and "'SANIX', 'back'" in sql
+    assert "204_nmon_clients.sql" in _read("modules/netmon/scripts/netmon_deploy.py")
+
+
+def test_clients_pin_rejects_unknown_kind_before_db():
+    from modules.netmon.controller import NetmonController
+    body, code = NetmonController.client_pin({"client": "X", "kind": "boss"})
+    assert code == 400
+    body, code = NetmonController.client_pin({"client": "", "kind": "shop"})
+    assert code == 400
+
+
+def test_clients_tab_wired():
+    page = _read("modules/netmon/templates/netmon.html")
+    assert 'data-p="clients"' in page and '{% include "clients_panel.html" %}' in page
+    assert "window.loadClientsPanel()" in page
+    html = _read("modules/netmon/templates/clients_panel.html")
+    assert "esc(c.osuser" in html and "esc(cl.title || cl.client)" in html, "всё из базы экранируется"

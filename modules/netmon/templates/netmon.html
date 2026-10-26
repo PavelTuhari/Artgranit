@@ -100,6 +100,7 @@
   <a href="#" data-p="mikrotik">MikroTik</a>
   <a href="#" data-p="fs">Файловые ресурсы</a>
   <a href="#" data-p="dbload">Нагрузка БД</a>
+  <a href="#" data-p="clients">Подключения клиентов</a>
   <a href="#" data-p="otrs">Заявки OTRS</a>
   <a href="#" data-p="search">Поиск: вики и OTRS</a>
   <a href="#" data-p="storage">Диски сервера БД</a>
@@ -473,6 +474,10 @@
     </tr></thead><tbody></tbody></table></div>
 
     <div id="dl-dbs"></div>
+  </section>
+
+  <section class="panel" id="p-clients">
+    {% include "clients_panel.html" %}
   </section>
 
   <section class="panel" id="p-otrs">
@@ -1904,6 +1909,7 @@ document.querySelectorAll("nav a").forEach(a => a.onclick = e => {
   if (a.dataset.p === "dbload") obRefresh(); else clearTimeout(OB.timer);
   if (a.dataset.p === "otrs" && window.loadOtrsBoard) window.loadOtrsBoard();
   if (a.dataset.p === "search" && window.loadSearchPanel) window.loadSearchPanel();
+  if (a.dataset.p === "clients" && window.loadClientsPanel) window.loadClientsPanel();
 });
 ["f-kind","f-missing","f-find"].forEach(id =>
   document.getElementById(id).addEventListener("input", renderDevices));

@@ -84,7 +84,7 @@ def conn_kind(program: str | None, machine: str | None = None) -> str:
         return "link"
     if pl.startswith("oracle@") or pl == "oracle.exe":
         return "shop_db"
-    if pl.startswith("uamenu") or pl.startswith("gara") or "pos" in pl.split(".")[0]:
+    if pl.startswith(("uamenu", "gara", "pos")):
         return "pos"
     if pl.startswith("unascales"):
         return "scales"
