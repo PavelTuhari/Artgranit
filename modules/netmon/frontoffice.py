@@ -53,7 +53,33 @@ def keychain_root() -> str:
     return r.stdout.strip() if r.returncode == 0 else ""
 
 
+_SSH_LOCK = threading.Lock()
+_SSH_LOCKFILE = os.path.expanduser("~/.ssh/netmon-cloudbd.lock")
+
+
 def _ssh(command: str, timeout: int = 120) -> str:
+    """Команда на сервере баз. Входы — по одному, при отказе — одна повторная попытка.
+
+    26.10.2026: сервер изредка отвечал «Failed password» на верный пароль
+    (журнал /var/log/secure: отказ и успешный вход с тем же паролем через
+    минуту). По одному входы проходят все, сбоит одновременный вход
+    нескольких частей модуля через общий сокет ControlMaster — вкладки
+    панели грузятся параллельно. Поэтому замок: внутри процесса и между
+    процессами (панель, скрипты, запись нагрузки). Повтор один, не серия:
+    череда неудачных входов в журнале неотличима от подбора пароля.
+    """
+    with _SSH_LOCK, open(_SSH_LOCKFILE, "a") as lockf:
+        fcntl.flock(lockf, fcntl.LOCK_EX)
+        try:
+            return _ssh_once(command, timeout)
+        except RuntimeError as e:
+            if "Permission denied" not in str(e):
+                raise
+            time.sleep(2)
+            return _ssh_once(command, timeout)
+
+
+def _ssh_once(command: str, timeout: int) -> str:
     pw = keychain_root()
     if not pw:
         raise RuntimeError(f"нет пароля сервера {DB_HOST} в Keychain")
