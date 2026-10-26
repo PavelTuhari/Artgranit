@@ -1,0 +1,299 @@
+{# Аналитика клиентов — для бизнеса и для техники в одном месте.
+   Опирается на унификацию NMON_CLI_* (cloudbd): клиент = заказчик OTRS +
+   юрлицо в бухгалтерии + схемы + точки + продукты; плюс заявки и история входов.
+   Данные — /api/analytics (modules/netmon/analytics.py). API, esc, post и tile
+   объявлены ниже, в основном скрипте панели. #}
+<style>
+  #p-analytics h3.an-h{margin:22px 0 8px;font-size:15px;display:flex;gap:8px;align-items:baseline}
+  #p-analytics h3.an-h .dim{font-size:12px;font-weight:400}
+  #p-analytics .an-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px}
+  #p-analytics .an-card{background:#0d1117;border:1px solid var(--line);border-radius:11px;padding:12px 14px}
+  #p-analytics .an-card h4{margin:0 0 8px;font-size:13px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+  #p-analytics .wk{display:flex;gap:4px;align-items:flex-end;height:70px}
+  #p-analytics .wk div{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10px;color:var(--dim)}
+  #p-analytics .wk span{width:100%;background:var(--acc);opacity:.75;border-radius:2px 2px 0 0;min-height:2px}
+  #p-analytics .spark{display:inline-flex;gap:1px;align-items:flex-end;height:20px;width:90px;vertical-align:middle}
+  #p-analytics .spark span{flex:1;background:var(--acc);opacity:.7;min-height:1px}
+  #p-analytics .flag{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;margin:1px 2px 1px 0;white-space:nowrap}
+  #p-analytics .f-quiet{background:#f8514922;color:var(--crit)} #p-analytics .f-backlog{background:#d2992222;color:var(--warn)}
+  #p-analytics .f-storm{background:#db6d2822;color:var(--mid)} #p-analytics .f-data{background:#58a6ff22;color:var(--acc)}
+  #p-analytics .f-no_contract{background:#8b949e22;color:var(--dim)} #p-analytics .f-inactive{background:#8b949e22;color:var(--dim)}
+  #p-analytics tr.an-row{cursor:pointer}
+  #p-analytics .up{color:var(--ok)} #p-analytics .down{color:var(--crit)}
+  #p-analytics .an-modal{position:fixed;inset:0;background:#0009;z-index:50;display:flex;justify-content:flex-end}
+  #p-analytics .an-drawer{width:min(980px,100%);height:100%;overflow:auto;background:var(--panel);border-left:1px solid var(--line);padding:18px 20px}
+  #p-analytics .an-drawer h2{margin:0 0 4px;font-size:19px}
+  #p-analytics .chip{display:inline-block;border:1px solid var(--line);border-radius:12px;padding:2px 9px;margin:2px 3px 2px 0;font-size:12px}
+  #p-analytics .kv{display:grid;grid-template-columns:160px 1fr;gap:4px 12px;font-size:13px;margin:10px 0}
+  #p-analytics .kv div:nth-child(odd){color:var(--dim)}
+  #p-analytics .tbl-wrap{max-height:none}
+</style>
+
+<div class="filters">
+  <span class="dim" id="an-meta">загрузка… (~10 с: заявки OTRS, унификация, история входов)</span>
+  <span class="spacer"></span>
+  <button id="an-unify" title="Заново сопоставить клиентов: OTRS, бухгалтерия, схемы, точки (~40 с)">Сопоставить заново</button>
+  <button id="an-reload">Обновить</button>
+</div>
+<div id="an-out"></div>
+<div id="an-modal-root"></div>
+<div class="note">
+  Клиент здесь — это унификация: заказчик в заявках OTRS + юрлицо в нашей бухгалтерии (код контрагента,
+  фискальный код) + схемы в базе + точки (база магазина, касса, весы, сайт, рабочие места) + продукты.
+  Хранится в OTRS, таблицы <code>NMON_CLI_*</code>. «Люди» — входы с рабочих мест офиса клиента, без сайтов,
+  баз магазинов и наших специалистов. «Затих» — входили в месяце, но не на этой неделе. Заявки — за 90 дней;
+  открытые старше 90 дней считаются зависшими.
+</div>
+
+<script>
+(() => {
+  const AN = {data: null, sort: "people_30d", desc: true, q: "", kind: "", flag: ""};
+  const $ = id => document.getElementById(id);
+  const FLAG = {quiet: "затих", backlog: "много заявок", storm: "всплеск входов", data: "данные", no_contract: "нет договора",
+                inactive: "не работает"};
+  const KIND = {shop: "магазинник", back: "прямой бэк", web: "веб", internal: "наш", none: "—"};
+  const ISSUE = {cod_univ_mismatch: "код контрагента не тот", otrs_variants: "по-разному в OTRS",
+                 no_otrs: "нет связи с OTRS"};
+  const PK = {shop: "база магазина", pos: "касса", scales: "весы", web: "сайт / обмен", office: "рабочее место", server: "сервер"};
+  const d10 = s => s ? s.slice(0, 10) : "—";
+  const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+  const spark = arr => `<span class="spark">${(arr || []).map(n => `<span style="height:${Math.max(1, Math.round(n / Math.max(...arr, 1) * 100))}%"></span>`).join("")}</span>`;
+  const flags = r => r.flags.map(f => `<span class="flag f-${f}">${FLAG[f] || f}</span>`).join("");
+
+  function trend(a, b) {
+    if (!a && !b) return '<span class="dim">—</span>';
+    const d = b ? Math.round((a - b) / b * 100) : 100;
+    return `${a} <span class="${d >= 0 ? "up" : "down"}">${d >= 0 ? "▲" : "▼"}${Math.abs(d)}%</span>`;
+  }
+
+  function business(d) {
+    const k = d.kpi;
+    const notClosed = pct(k.tickets_open_90d, k.tickets_90d);
+    return `<h3 class="an-h">Бизнес <span class="dim">за 30 дней</span></h3><div class="tiles">` +
+      tile(k.active_clients, `активных клиентов: магазинников ${k.kinds.shop}, бэков ${k.kinds.back}, веб ${k.kinds.web}`) +
+      tile(k.shop_points, "точек магазинов на связи") +
+      tile(k.workplaces, "рабочих мест UniAcc") +
+      tile(k.support_only, "клиентов только сопровождения (заявки за год, нашей базы нет)", "dim") +
+      tile(`${k.tickets_open_90d} / ${k.tickets_90d}`, `заявок за 90 дней не закрыто — ${notClosed}%`, notClosed > 50 ? "crit" : "ok") +
+      tile(k.tickets_open - k.tickets_open_90d, "зависших заявок (открыты, старше 90 дней)", "warn") +
+      tile(trend(k.logons_week, k.logons_prev_week), "входов людей: неделя к прошлой") +
+      tile(k.flags.quiet, "клиентов затихли — риск ухода", k.flags.quiet ? "crit" : "ok") +
+      `</div>` + attention(d) + managers(d);
+  }
+
+  function attention(d) {
+    const pick = f => d.clients.filter(r => r.flags.includes(f));
+    const list = (rows, fn) => rows.length ? rows.slice(0, 12).map(r =>
+      `<div><a href="#" class="an-open" data-code="${esc(r.code)}">${esc(r.name || r.code)}</a> <span class="dim">${fn(r)}</span></div>`).join("") +
+      (rows.length > 12 ? `<div class="dim">и ещё ${rows.length - 12}</div>` : "") : '<div class="dim">нет</div>';
+    const wk = d.weeks.length ? Math.max(...d.weeks.map(w => w.created)) : 1;
+    return `<div class="an-grid" style="margin-top:12px">
+      <div class="an-card"><h4>Затихли — не входили на этой неделе</h4>${list(pick("quiet"), r =>
+        `${KIND[r.kind]} · последний вход ${d10(r.last_seen)} · ${esc(r.manager || "без менеджера")}`)}</div>
+      <div class="an-card"><h4>Больше всего открытых заявок (90 дней)</h4>${list(
+        d.clients.filter(r => r.tickets_open_90d).sort((a, b) => b.tickets_open_90d - a.tickets_open_90d),
+        r => `открыто ${r.tickets_open_90d} из ${r.tickets_90d}`)}</div>
+      <div class="an-card"><h4>Заявок создано по неделям</h4><div class="wk">${d.weeks.map(w =>
+        `<div title="${esc(w.week)}: ${w.created}"><span style="height:${Math.round(w.created / wk * 100)}%"></span>${w.week.slice(5)}</div>`).join("")}</div></div>
+      <div class="an-card"><h4>Работают, а договора в заявках нет</h4>${list(pick("no_contract"), r =>
+        `${KIND[r.kind]} · людей ${r.people_30d} входов`)}</div>
+    </div>`;
+  }
+
+  function managers(d) {
+    const by = {};
+    d.clients.forEach(r => { const m = r.manager || "—"; (by[m] = by[m] || {n: 0, quiet: 0}).n++; if (r.flags.includes("quiet")) by[m].quiet++; });
+    return `<h3 class="an-h">Менеджеры <span class="dim">открытые заявки — свежие и зависшие</span></h3>
+      <div class="tbl-wrap"><table><thead><tr><th>Менеджер</th><th>Открыто за 90 дней</th><th>Зависло (старше 90 дней)</th>
+      <th>Клиентов</th><th>Из них затихли</th></tr></thead><tbody>` +
+      d.managers.map(m => `<tr><td>${esc(m.manager)}</td><td><b>${m.open_90d}</b></td>
+        <td class="${m.older_90d > 500 ? "warn" : "dim"}">${m.older_90d}</td><td>${(by[m.manager] || {}).n || 0}</td>
+        <td>${(by[m.manager] || {}).quiet ? `<span class="crit">${by[m.manager].quiet}</span>` : "0"}</td></tr>`).join("") +
+      `</tbody></table></div>`;
+  }
+
+  function technical(d) {
+    const k = d.kpi;
+    const storms = d.clients.filter(r => r.flags.includes("storm"));
+    const failed = d.clients.filter(r => r.failed_30d).sort((a, b) => b.failed_30d - a.failed_30d);
+    return `<h3 class="an-h">Техника</h3><div class="tiles">` +
+      tile(k.flags.storm, "клиентов со всплеском входов (подключение на каждый запрос)", k.flags.storm ? "warn" : "ok") +
+      tile(failed.reduce((s, r) => s + r.failed_30d, 0), "неудачных входов в базы за 30 дней", "warn") +
+      tile(k.inactive_schemas, "схем без входов за 30 дней — кандидаты в архив", "dim") +
+      tile(k.issues, "несостыковок в данных клиентов", k.issues ? "warn" : "ok") +
+      `</div><div class="an-grid">
+      <div class="an-card"><h4>Всплески входов</h4>${storms.length ? storms.map(r =>
+        `<div><a href="#" class="an-open" data-code="${esc(r.code)}">${esc(r.name || r.code)}</a>
+         <span class="dim">дни: ${esc(r.spikes.join(", "))} · за 30 дней ${r.logons_30d} входов</span></div>`).join("") : '<div class="dim">нет</div>'}
+        <div class="dim" style="margin-top:6px;font-size:12px">Признак программы или сайта, которые подключаются к базе на каждый
+          запрос вместо пула соединений, — лишняя нагрузка на cloudbd.</div></div>
+      <div class="an-card"><h4>Неудачные входы</h4>${failed.length ? failed.slice(0, 10).map(r =>
+        `<div><a href="#" class="an-open" data-code="${esc(r.code)}">${esc(r.name || r.code)}</a> <span class="dim">${r.failed_30d}</span></div>`).join("")
+        : '<div class="dim">нет</div>'}</div>
+      <div class="an-card"><h4>Схемы без входов за 30 дней — ${d.inactive_schemas.length}</h4>
+        <div class="dim" style="font-size:12px;max-height:150px;overflow:auto">${esc(d.inactive_schemas.join(", "))}</div></div>
+    </div>`;
+  }
+
+  function clientsTable(d) {
+    const q = AN.q.toLowerCase();
+    let rows = d.clients.filter(r => (!AN.kind || r.kind === AN.kind) && (!AN.flag || r.flags.includes(AN.flag)) &&
+      (!q || [r.code, r.name, r.idno, r.manager, r.contract, ...r.schemas, ...r.products].join(" ").toLowerCase().includes(q)));
+    const key = AN.sort;
+    rows = rows.slice().sort((a, b) => {
+      const x = a[key] ?? "", y = b[key] ?? "";
+      return (x > y ? 1 : x < y ? -1 : 0) * (AN.desc ? -1 : 1);
+    });
+    const th = (k, t) => `<th data-sort="${k}" style="cursor:pointer">${t}${AN.sort === k ? (AN.desc ? " ▼" : " ▲") : ""}</th>`;
+    return `<h3 class="an-h">Клиенты <span class="dim">${rows.length} из ${d.clients.length}</span></h3>
+      <div class="filters">
+        <input type="search" id="an-q" placeholder="клиент, фискальный код, менеджер, договор, схема, продукт…" style="min-width:300px" value="${esc(AN.q)}">
+        <select id="an-kind"><option value="">все типы</option>${Object.entries(KIND).filter(([k]) => k !== "internal").map(([k, t]) =>
+          `<option value="${k}" ${AN.kind === k ? "selected" : ""}>${t === "—" ? "без базы / не определён" : t}</option>`).join("")}</select>
+        <select id="an-flag"><option value="">все</option>${Object.entries(FLAG).map(([k, t]) =>
+          `<option value="${k}" ${AN.flag === k ? "selected" : ""}>${t}</option>`).join("")}</select>
+      </div>
+      <div class="tbl-wrap"><table><thead><tr>${th("name", "Клиент")}${th("kind", "Тип")}${th("manager", "Менеджер")}
+        ${th("shop_points", "Точки")}${th("workplaces", "Места")}${th("people_30d", "Люди, 30 дн")}${th("this_week", "Неделя")}
+        ${th("tickets_open_90d", "Заявки 90 дн")}${th("last_ticket", "Посл. заявка")}<th>Внимание</th></tr></thead><tbody>` +
+      rows.slice(0, 400).map(r => `<tr class="an-row" data-code="${esc(r.code)}">
+        <td><b>${esc(r.name || r.code)}</b><div class="dim">${esc(r.code)}${r.idno ? " · " + esc(r.idno) : ""}</div></td>
+        <td>${KIND[r.kind] || esc(r.kind)}</td><td class="dim">${esc(r.manager || "—")}</td>
+        <td>${r.shop_points || ""}</td><td>${r.workplaces || ""}</td>
+        <td>${r.people_30d ? spark(r.people_daily) + " " + r.people_30d : '<span class="dim">—</span>'}</td>
+        <td>${trend(r.this_week, r.prev_week)}</td>
+        <td>${r.tickets_90d ? `<b>${r.tickets_open_90d}</b> / ${r.tickets_90d}` : '<span class="dim">—</span>'}</td>
+        <td class="dim">${d10(r.last_ticket)}</td><td>${flags(r)}</td></tr>`).join("") + `</tbody></table></div>`;
+  }
+
+  function issues(d) {
+    if (!d.issues.length) return "";
+    return `<h3 class="an-h">Качество данных <span class="dim">${d.issues.length} — что поправить в OTRS и в учёте</span></h3>
+      <div class="tbl-wrap"><table><thead><tr><th>Что</th><th>Где</th><th>Подробно</th><th></th></tr></thead><tbody>` +
+      d.issues.map(i => `<tr><td>${esc(ISSUE[i.kind] || i.kind)}</td><td><b>${esc(i.subject)}</b></td><td class="dim">${esc(i.detail)}</td>
+        <td><button class="an-resolve" data-id="${i.issue_id}">решено</button></td></tr>`).join("") + `</tbody></table></div>`;
+  }
+
+  function render() {
+    const d = AN.data;
+    if (!d) return;
+    $("an-meta").textContent = `снято ${d.checked_at}` + (d.cached_sec ? ` · ${d.cached_sec} с назад` : "");
+    $("an-out").innerHTML = business(d) + technical(d) + clientsTable(d) + issues(d);
+  }
+
+  // ---------------------------------------------------------- карточка
+  async function openCard(code) {
+    const root = $("an-modal-root");
+    root.innerHTML = `<div class="an-modal"><div class="an-drawer"><div class="dim">загрузка ${esc(code)}…</div></div></div>`;
+    try {
+      const r = await fetch(API + "/analytics/client?code=" + encodeURIComponent(code), {headers: {Accept: "application/json"}});
+      const j = await r.json();
+      if (!j.success) throw new Error(j.message);
+      root.innerHTML = `<div class="an-modal"><div class="an-drawer">${card(j.data)}</div></div>`;
+    } catch (e) {
+      root.innerHTML = `<div class="an-modal"><div class="an-drawer"><button class="an-close">✕</button>
+        <div class="crit">${esc(e.message)}</div></div></div>`;
+    }
+  }
+
+  function card(x) {
+    const c = x.client, row = (AN.data.clients.find(r => r.code === c.CODE || r.code === c.code) || {});
+    const g = k => c[k] ?? c[k.toUpperCase()];
+    const pts = {};
+    x.points.forEach(p => (pts[p.kind] = pts[p.kind] || []).push(p));
+    return `<div style="display:flex;gap:10px;align-items:flex-start"><div style="flex:1">
+        <h2>${esc(g("name") || g("code"))}</h2>
+        <div class="dim">${esc(g("code"))}${g("idno") ? " · фискальный код " + esc(g("idno")) : ""}${g("cod_univ") ? " · код контрагента " + esc(g("cod_univ")) : ""}</div>
+      </div><button class="an-close">✕</button></div>
+      <div class="kv">
+        <div>Тип</div><div><select id="an-c-kind">${Object.entries(KIND).map(([k, t]) =>
+          `<option value="${k}" ${g("kind") === k ? "selected" : ""}>${t === "—" ? "не определён" : t}</option>`).join("")}</select>
+          <select id="an-c-status">${["active", "paused", "archived"].map(s => `<option ${g("status") === s ? "selected" : ""}>${s}</option>`).join("")}</select>
+          <button id="an-c-save" data-code="${esc(g("code"))}">сохранить</button></div>
+        <div>Менеджер</div><div>${esc(g("manager") || "—")}</div>
+        <div>Договор</div><div>${esc(g("contract") || "—")}</div>
+        <div>Заявки</div><div>всего ${g("tickets")}, открыто ${g("tickets_open")} (за 90 дней ${g("tickets_open_90d")} из ${g("tickets_90d")})</div>
+        <div>Люди за 30 дней</div><div>${row.people_30d ? spark(row.people_daily) + " " + row.people_30d + " входов" : "—"} ${flags(row.flags ? row : {flags: []})}</div>
+      </div>
+      <h3 class="an-h">В OTRS</h3>
+      <div>${x.otrs.map(o => `<span class="chip">${esc(o.otrs_customer_id)} <span class="dim">${esc(o.match_by)}</span></span>`).join("") || '<span class="dim">не связан</span>'}
+        ${x.logins.map(l => `<span class="chip dim">логин ${esc(l.customer_login)}${l.cod_univ ? " · " + l.cod_univ : ""}</span>`).join("")}</div>
+      <div class="filters" style="margin-top:8px"><input type="search" id="an-link-q" placeholder="найти заказчика OTRS, чтобы связать…" style="min-width:280px">
+        <span id="an-link-out" class="dim"></span></div>
+      <h3 class="an-h">Схемы в базе</h3>
+      ${x.schemas.length ? `<table><thead><tr><th>Схема</th><th>Роль</th><th>Входов за 30 дней</th><th>Создана</th></tr></thead><tbody>` +
+        x.schemas.map(s => `<tr><td>${esc(s.schema_name)} <span class="dim">${esc(s.db)}</span></td><td>${esc(s.role)}</td>
+          <td>${s.logons_30d}</td><td class="dim">${esc(s.created || "")}</td></tr>`).join("") + `</tbody></table>` : '<div class="dim">нашей базы нет — только сопровождение</div>'}
+      <h3 class="an-h">Точки за 30 дней</h3>
+      ${Object.keys(pts).length ? Object.entries(pts).map(([k, list]) => `<div style="margin:6px 0"><b>${esc(PK[k] || k)}</b> — ${list.length}:
+        ${list.map(p => `<span class="chip" title="${esc(p.os_user || "")} · дней ${p.days_30d}, входов ${p.logons_30d}">${esc(p.host)}
+          <span class="dim">${d10(p.last_seen)}</span></span>`).join("")}</div>`).join("") : '<div class="dim">входов не было</div>'}
+      <h3 class="an-h">Продукты и модули</h3>
+      <div>${x.products.map(p => `<span class="chip" title="${esc(p.evidence || "")}">${esc(p.product)}</span>`).join("") || '<span class="dim">—</span>'}</div>
+      ${x.issues.length ? `<h3 class="an-h">Несостыковки</h3>` + x.issues.map(i => `<div class="warn">${esc(ISSUE[i.kind] || i.kind)}: <span class="dim">${esc(i.detail)}</span></div>`).join("") : ""}
+      <h3 class="an-h">Заявки <span class="dim">сначала открытые, ${x.tickets.length}</span></h3>
+      <table><thead><tr><th>Заявка</th><th>Состояние</th><th>Очередь</th><th>Исполнитель</th><th>Изменена</th></tr></thead><tbody>` +
+      x.tickets.map(t => `<tr><td><a href="${esc(t.url)}" target="_blank" rel="noopener noreferrer">#${esc(t.tn)}</a> ${esc(t.title)}</td>
+        <td class="${t.open ? "warn" : "dim"}">${esc(t.state)}</td><td class="dim">${esc(t.queue)}</td><td class="dim">${esc(t.owner || "")}</td>
+        <td class="dim">${d10(t.changed)}</td></tr>`).join("") + `</tbody></table>`;
+  }
+
+  async function load(force) {
+    $("an-reload").disabled = true;
+    try {
+      const r = await fetch(API + "/analytics" + (force ? "?force=1" : ""), {headers: {Accept: "application/json"}});
+      const j = await r.json();
+      if (!j.success) throw new Error(j.message || "ошибка");
+      AN.data = j.data;
+      render();
+    } catch (e) {
+      $("an-out").innerHTML = `<div class="crit">Не удалось: ${esc(e.message)}</div>`;
+    } finally { $("an-reload").disabled = false; }
+  }
+
+  // ---------------------------------------------------------- события
+  const root = document.getElementById("p-analytics");
+  root.addEventListener("click", async ev => {
+    const open = ev.target.closest(".an-open, tr.an-row");
+    if (open && !ev.target.closest(".an-drawer")) { ev.preventDefault(); return openCard(open.dataset.code); }
+    const th = ev.target.closest("th[data-sort]");
+    if (th) { AN.desc = AN.sort === th.dataset.sort ? !AN.desc : true; AN.sort = th.dataset.sort; return render(); }
+    if (ev.target.closest(".an-close") || ev.target.classList.contains("an-modal")) { $("an-modal-root").innerHTML = ""; return; }
+    const res = ev.target.closest(".an-resolve");
+    if (res) { res.disabled = true; await post("/analytics/action", {action: "resolve", issue_id: +res.dataset.id}); return load(true); }
+    const save = ev.target.closest("#an-c-save");
+    if (save) {
+      save.disabled = true;
+      await post("/analytics/action", {action: "client", code: save.dataset.code, kind: $("an-c-kind").value, status: $("an-c-status").value});
+      save.textContent = "сохранено"; AN.data = null; load(true); return;
+    }
+    const link = ev.target.closest(".an-link");
+    if (link) {
+      await post("/analytics/action", {action: "link", code: link.dataset.code, otrs_customer_id: link.dataset.oc});
+      return openCard(link.dataset.code);
+    }
+  });
+  root.addEventListener("input", async ev => {
+    if (ev.target.id === "an-q") { AN.q = ev.target.value; render(); const i = $("an-q"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); }
+    if (ev.target.id === "an-kind") { AN.kind = ev.target.value; render(); }
+    if (ev.target.id === "an-flag") { AN.flag = ev.target.value; render(); }
+    if (ev.target.id === "an-link-q") {
+      const q = ev.target.value.trim(), out = $("an-link-out"), code = $("an-c-save").dataset.code;
+      if (q.length < 2) { out.innerHTML = ""; return; }
+      const list = await post("/analytics/action", {action: "find_otrs", q});
+      out.innerHTML = list.map(c => `<span class="chip">${esc(c.customer_id)} <span class="dim">${c.tickets} заявок, ${esc(c.last_ticket)}${c.linked ? " · у " + esc(c.linked) : ""}</span>
+        <a href="#" class="an-link" data-code="${esc(code)}" data-oc="${esc(c.customer_id)}">связать</a></span>`).join("") || "не найдено";
+    }
+  });
+  $("an-reload").onclick = () => load(true);
+  $("an-unify").onclick = async () => {
+    const b = $("an-unify");
+    b.disabled = true; b.textContent = "Сопоставляю… ~40 с";
+    try { const r = await post("/analytics/action", {action: "unify"}); b.textContent = `Клиентов ${r.clients}, несостыковок ${r.issues}`; await load(true); }
+    catch (e) { alert("Не получилось: " + e.message); b.textContent = "Сопоставить заново"; }
+    finally { b.disabled = false; setTimeout(() => b.textContent = "Сопоставить заново", 8000); }
+  };
+
+  window.loadAnalyticsPanel = () => { if (!AN.data) load(false); };
+})();
+</script>
