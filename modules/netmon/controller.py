@@ -812,6 +812,42 @@ class NetmonController:
         except Exception as e:  # noqa: BLE001
             return _fail(e)
 
+    # ------------------------------------------- подключения клиентов
+
+    _clients_cache: dict = {}
+
+    @staticmethod
+    def clients(force=False):
+        """Кто из клиентов подключён к cloudbd/clouddev: магазинники, прямые бэки, веб.
+
+        Сбор ~1,5 с (SSH на сервер баз и V$SESSION обеих баз), держится 30 с.
+        """
+        import time
+        try:
+            from modules.netmon import clients as cl
+            c = NetmonController._clients_cache
+            if not force and c.get("data") and time.time() - c.get("at", 0) < 30:
+                return _ok({**c["data"], "cached_sec": round(time.time() - c["at"])})
+            data = cl.collect()
+            NetmonController._clients_cache = {"data": data, "at": time.time()}
+            return _ok({**data, "cached_sec": 0})
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
+    @staticmethod
+    def client_pin(body, user="system"):
+        """Закрепить тип за клиентом (или снять закрепление, kind пустой)."""
+        try:
+            from modules.netmon import clients_store
+            clients_store.save(body.get("client"), body.get("kind") or None, body.get("title"),
+                               body.get("note"), user)
+            NetmonController._clients_cache = {}
+            return _ok({"client": (body.get("client") or "").upper(), "kind": body.get("kind") or None})
+        except ValueError as e:
+            return _fail(e, 400)
+        except Exception as e:  # noqa: BLE001
+            return _fail(e)
+
     # ------------------------------------------------ доска заявок OTRS
 
     _otrs_cache: dict = {}

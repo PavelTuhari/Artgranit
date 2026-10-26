@@ -555,3 +555,20 @@ def api_search_refresh():
     if (g := _guard()) is not None:
         return g
     return _reply(NetmonController.search_refresh(full=request.args.get("full") == "1"))
+
+
+@blueprint.route("/api/clients")
+def api_clients():
+    """Подключения клиентов по группам. ?force=1 — мимо 30-секундного кэша."""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.clients(force=request.args.get("force") == "1"))
+
+
+@blueprint.route("/api/clients/pin", methods=["POST"])
+def api_client_pin():
+    """Закрепить тип клиента: {client, kind: shop|back|web|internal|"", title, note}."""
+    if (g := _guard()) is not None:
+        return g
+    return _reply(NetmonController.client_pin(request.get_json(silent=True) or {},
+                                              user=session.get("username", "system")))
