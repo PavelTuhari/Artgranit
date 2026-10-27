@@ -59,11 +59,28 @@ curl -s -b opdemo=<значение> -D- -o /dev/null https://officeplus.una.md/
 curl -s -o /dev/null -w '%{http_code}\n' https://officeplus.md/                                       # 503
 ```
 
-## Чего нет на nufarul
+## Админка WordPress — открыта (27.10.2026, второе изменение)
 
-WordPress-админки (`/wp-admin/`, `/wp-login.php`) на nufarul нет — через officeplus.una.md они
-отвечают 404. На officeplus.md они тоже закрыты паузой с 22.10.2026. Информационные страницы
-WordPress витрина читает через REST и показывает (`/livrare` и др. — 200).
+Владелец: «админку открой для officeplus.una.md, если с неё приходят — всё равно нужен пароль».
+
+- `/wp-admin/`, `/wp-login.php`, `/wp-content/`, `/wp-includes/`, `/wp-json/`, `/wp-cron.php`
+  на officeplus.una.md идут **на офисный сервер `.250`**, где живёт WordPress (на nufarul его нет).
+  Нужны демо-cookie и затем пароль WordPress.
+- Короткий адрес `/admin` → `/wp-admin/` → страница входа WordPress.
+- Попутно заработали картинки и файлы из `/wp-content/` на страницах витрины.
+- Это **боевой WordPress** officeplus.md (та же база MySQL): правки в админке меняют
+  содержимое настоящего сайта, которое станет видно после снятия паузы.
+- **officeplus.md не затронут:** его `/wp-login.php` и `/wp-admin/` закрывает облако
+  (вход только по секретной ссылке с 04.09.2026, без неё — 404) ещё до этого сервера.
+
+| Адрес | С паролем демо |
+|---|---|
+| https://officeplus.una.md/wp-login.php | 200, «Autentificare ‹ OfficePlus — WordPress» |
+| https://officeplus.una.md/wp-admin/ | 302 → вход WordPress |
+| https://officeplus.una.md/admin | 301 → `/wp-admin/` |
+| https://officeplus.md/wp-login.php | 404 (закрыто облаком, без изменений) |
+
+Бэкап до второго изменения: `/etc/nginx/officeplus.una.md.conf.bak-2026-10-27b`.
 
 ## Откат
 
