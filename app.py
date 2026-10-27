@@ -359,12 +359,13 @@ def login():
     # RO: instalare dedicata (officeplus.md): login EXCLUSIV OfficePlus —
     #     fara selectorul de proiecte, intrare direct in backoffice.
     # EN: dedicated install: OfficePlus-only login — no project selector.
-    exclusive = (Config.LOGIN_EXCLUSIVE == 'biro26')
+    from models.login_mode import login_mode  # RO: + officeplus.una.md (antet de la nginx .148)
+    exclusive, prefill = login_mode(request.headers, Config.LOGIN_EXCLUSIVE)
     if exclusive and not next_url:
         next_url = '/UNA.md/orasldev/biro26-backoffice'
     return render_template('login.html',
-                         default_username=Config.DEFAULT_USERNAME,
-                         default_password=Config.DEFAULT_PASSWORD,
+                         default_username=Config.DEFAULT_USERNAME if prefill else '',
+                         default_password=Config.DEFAULT_PASSWORD if prefill else '',
                          next_url=next_url,
                          login_exclusive=exclusive,
                          exclusive_app_name=Config.BIRO26_APP_NAME)
