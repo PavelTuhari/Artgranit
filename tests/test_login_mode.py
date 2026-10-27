@@ -7,11 +7,17 @@ def test_header_from_officeplus_una_gives_exclusive_without_prefill():
 
 
 def test_nufarul_default_unchanged():
-    assert login_mode({}, "") == (False, True)
+    assert login_mode({}, "") == (False, False)
 
 
-def test_dedicated_install_keeps_prefill_behaviour():
-    assert login_mode({}, "biro26") == (True, True)
+def test_dedicated_install_exclusive_and_never_prefilled():
+    assert login_mode({}, "biro26") == (True, False)
+
+
+def test_login_page_never_prefills_credentials():
+    for h in ({}, {"X-Login-Exclusive": "biro26"}):
+        for s in ("", "biro26"):
+            assert login_mode(h, s)[1] is False
 
 
 def test_app_calls_the_helper_in_one_place():

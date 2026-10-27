@@ -13,7 +13,12 @@ HEADER = "X-Login-Exclusive"
 
 
 def login_mode(headers, login_exclusive_setting: str):
-    """-> (exclusive, prefill_defaults)"""
+    """-> (exclusive, prefill_defaults)
+
+    RO: 27.10.2026 — utilizatorul si parola NU se mai precompleteaza nicaieri: pagina
+    /login a nufarul arata public ADMIN si parola din .env oricui o deschidea.
+    Parola a fost schimbata pe toate trei serverele in aceeasi zi.
+    """
     by_header = (headers.get(HEADER) or "").strip().lower() == "biro26"
     exclusive = by_header or (login_exclusive_setting or "") == "biro26"
-    return exclusive, not by_header
+    return exclusive, False
