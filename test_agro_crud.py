@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import time
 import requests
@@ -20,7 +21,7 @@ import requests
 # ── defaults ──────────────────────────────────────────────────────
 DEFAULT_BASE = "http://localhost:3003"
 USERNAME = "ADMIN"
-PASSWORD = "ArtG2025UNAmd##"
+PASSWORD = os.environ.get("DEFAULT_PASSWORD", "")
 
 
 def login(s: requests.Session, base: str) -> bool:

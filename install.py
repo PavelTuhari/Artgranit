@@ -61,7 +61,7 @@
 ПАРАМЕТРЫ ПО УМОЛЧАНИЮ:
 ----------------------
 DB User: ADMIN
-DB Password: ArtG2025UNAmd##
+DB Password: <your-db-password>
 Wallet Password: UniSim2025UNAmd__
 Connect String: (description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)
                 (port=1522)(host=adb.eu-frankfurt-1.oraclecloud.com))
@@ -140,7 +140,7 @@ from pathlib import Path
 
 # Значения по умолчанию из проекта
 DEFAULT_DB_USER = "ADMIN"
-DEFAULT_DB_PASSWORD = "ArtG2025UNAmd##"
+DEFAULT_DB_PASSWORD = os.environ.get("DB_PASSWORD", "")
 DEFAULT_WALLET_PASSWORD = "UniSim2025UNAmd__"
 DEFAULT_CONNECT_STRING = '(description= (retry_count=20)(retry_delay=3)(address=(protocol=tcps)(port=1522)(host=adb.eu-frankfurt-1.oraclecloud.com))(connect_data=(service_name=g47056ff8b1b3d4_hxpavunkclu9he7q_high.adb.oraclecloud.com))(security=(ssl_server_dn_match=yes)))'
 DEFAULT_WALLET_ZIP = "Wallet_HXPAVUNKCLU9HE7Q.zip"
