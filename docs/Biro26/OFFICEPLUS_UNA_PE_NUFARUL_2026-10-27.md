@@ -82,6 +82,21 @@ curl -s -o /dev/null -w '%{http_code}\n' https://officeplus.md/                 
 
 Бэкап до второго изменения: `/etc/nginx/officeplus.una.md.conf.bak-2026-10-27b`.
 
+## Страница входа — OfficePlus, а не Artgranit OCI (27.10.2026, третье изменение)
+
+Владелец (скриншот `officeplus.una.md/login`): «такого быть для officeplus.una.md не должно! это
+только на nufarul!» Через officeplus.una.md показывалась общая страница nufarul «Artgranit OCI»
+с выбором проекта и подставленными логином и паролем.
+
+- nginx на .148 добавляет к запросам на nufarul заголовок `X-Login-Exclusive: biro26`.
+- `models/login_mode.py` (вызов одной строкой в `app.py`, маршрут `/login`): с этим заголовком —
+  страница «OfficePlus · Back Office · Magazin», без выбора проекта, без подставленных логина и
+  пароля, после входа — сразу бэк-офис. Без заголовка (сам nufarul) — всё как было.
+- Тесты: `tests/test_login_mode.py`. Выкачено на nufarul, облако и офис (`app.py.bak-2026-10-27`).
+
+Порядок для посетителя officeplus.una.md: страница демо-пароля → витрина → «Вход» OfficePlus →
+бэк-офис.
+
 ## Откат
 
 ```bash

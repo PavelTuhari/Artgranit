@@ -8,6 +8,8 @@ proxy_set_header X-Real-IP         $remote_addr;
 proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
 proxy_set_header X-Forwarded-Proto https;
 proxy_set_header Accept-Encoding   "";
+# PT 27.10.2026: na officeplus.una.md - stranica vhoda OfficePlus, ne Artgranit OCI (models/login_mode.py)
+proxy_set_header X-Login-Exclusive biro26;
 proxy_set_header Upgrade           $http_upgrade;
 proxy_set_header Connection        $op_nuf_conn_upgrade;
 proxy_ssl_server_name on;
