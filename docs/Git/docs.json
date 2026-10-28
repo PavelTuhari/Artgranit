@@ -28,5 +28,20 @@
       "ro": "Greșeala «fișier întreg», cum s-au găsit 29 de fișiere, ce s-a readus după dată, buyable_only, regula 3-way pe blocuri.",
       "en": "The whole-file mistake, how 29 files were found, what came back by date, buyable_only, the per-hunk 3-way rule."
     }
+  },
+  "PROTOCOL_ITERATIE_2026-10-28.md": {
+    "order": 3,
+    "icon": "🔁",
+    "audience": "все агенты и разработчики",
+    "title": {
+      "ru": "Правило №7: commit+push после каждой итерации, чужое не трогать",
+      "ro": "Regula №7: commit+push după fiecare iterație, codul altora rămîne neatins",
+      "en": "Rule #7: commit+push after every iteration, never touch others' code"
+    },
+    "descr": {
+      "ru": "Разбор потерь 02.09–22.10 по фактам, почему прежние правила не сработали (hook не видит shell-файлы), scripts/agent_step.sh и agent_audit.sh, протокол итерации.",
+      "ro": "Analiza pierderilor 02.09–22.10, de ce regulile vechi n-au funcționat (hook-ul nu vede fișierele din shell), scripts/agent_step.sh și agent_audit.sh, protocolul iterației.",
+      "en": "Fact-based review of the 02.09–22.10 losses, why earlier rules failed (the hook misses shell-written files), scripts/agent_step.sh and agent_audit.sh, the iteration protocol."
+    }
   }
 }
