@@ -1,5 +1,7 @@
 # Этикетки: Zebra (ZPL), TSC (TSPL), PDF A4 и PDF-рулон
 
+**Русский** · [Română](LABELS.ro.md) · [English](LABELS.en.md)
+
 Есть одна запись этикетки (`LabelData`) и четыре выхода из неё. Содержание везде
 одинаковое:
 

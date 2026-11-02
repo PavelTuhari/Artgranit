@@ -1,5 +1,7 @@
 # TexFlow — блок-схемы (Mermaid)
 
+**Русский** · [Română](ARCHITECTURE.ro.md) · [English](ARCHITECTURE.en.md)
+
 Схемы ниже рисуются прямо на GitHub, в VS Code с поддержкой Mermaid и на
 https://mermaid.live. Первая схема также встроена в страницу «Инструкция»
 самого приложения.
