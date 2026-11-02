@@ -7,6 +7,7 @@
 
     python texflow_app.py                 # нативное приложение (Tkinter)
     python texflow_app.py --demo          # с демо-поставкой
+    python texflow_app.py --sample        # на встроенной тестовой базе (заполнено всё; рабочая база не трогается)
     python texflow_app.py --web           # веб-версия в браузере
     python texflow_app.py --check         # проверить окружение и выйти
     python texflow_app.py --verify        # проверить подпись unisim-soft и контрольные суммы своих файлов
@@ -120,8 +121,17 @@ def smoke(argv) -> int:
     from texflow import store, label_templates as LT
     data, ext, _m = store.render_labels(app.con, store.label_rows(app.con, {1: 2}), "pdf_roll")
     ok = data[:4] == b"%PDF" and not errors and len(LT.list_templates(app.con)) == 3
+    # встроенная тестовая база: переключиться на неё и пройти все вкладки ещё раз
+    app.open_sample()
+    for key in app_mod.TAB_KEYS:
+        app.show(key)
+        app.update()
+    from texflow import sample_db
+    sample = sample_db.summary(app.con)
+    ok = ok and sample["shipments"] == 5 and not errors
     app.destroy()
     print(f"SMOKE {'OK' if ok else 'FAIL'} · {len(app_mod.TAB_KEYS)} вкладок × 3 языка · PDF {len(data)} байт · "
+          f"тестовая база {sample['shipments']} поставок / {sample['pieces']} шт. · "
           f"{time.time() - t0:.1f} с" + (f" · ошибки: {errors}" if errors else ""))
     return 0 if ok else 1
 
@@ -187,8 +197,13 @@ def main(argv=None) -> int:
         ap.add_argument("--port", type=int, default=5077)
         ap.add_argument("--db", default=None)
         ap.add_argument("--demo", action="store_true")
+        ap.add_argument("--sample", action="store_true")
         a = ap.parse_args(argv)
         from texflow_desktop.paths import db_path
+        if a.sample and not a.db:
+            from texflow import sample_db
+            a.db = sample_db.ensure(sample_db.default_path())
+            print("TexFlow: тестовая база", a.db)
         app = create_app(a.db or db_path())
         if a.demo:
             from texflow.demo import load_demo
