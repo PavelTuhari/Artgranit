@@ -80,49 +80,13 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: { name: texflow-scripts, path: out/*.zip, if-no-files-found: error }
 
-  scripts-run:
-    name: Запуск из скриптов — ${{ matrix.os }}
-    needs: scripts
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
-    runs-on: ${{ matrix.os }}
-    defaults:
-      run:
-        shell: bash
-        working-directory: .
-    steps:
-      - uses: actions/setup-python@v5
-        with: { python-version: "${{ env.PY }}" }
-      - uses: actions/download-artifact@v4
-        with: { name: texflow-scripts, path: dl }
-      - name: Распаковать
-        run: cd dl && python -m zipfile -e TexFlow-*-scripts.zip . && ls
-      - name: Tk и Xvfb (Linux)
-        if: runner.os == 'Linux'
-        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb python3-tk tk >/dev/null
-      - name: Целостность — подпись unisim-soft и суммы своих файлов
-        run: cd dl/TexFlow-*-scripts && python texflow_app.py --verify
-      - name: Окружение (библиотеки ставятся сами при первом запуске)
-        run: cd dl/TexFlow-*-scripts && python texflow_app.py --check
-      - name: Окно программы — все вкладки на RU/RO/EN
-        run: |
-          cd dl/TexFlow-*-scripts
-          if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a python texflow_app.py --smoke; else python texflow_app.py --smoke; fi
-      - name: Установщик (без ярлыков) + запуск установленной программы
-        run: |
-          cd dl/TexFlow-*-scripts
-          python install/install.py --no-launch --no-shortcuts --dest "$RUNNER_TEMP/TexFlowApp"
-          if [ "$RUNNER_OS" = "Windows" ]; then VPY="$RUNNER_TEMP/TexFlowApp/venv/Scripts/python.exe"; else VPY="$RUNNER_TEMP/TexFlowApp/venv/bin/python"; fi
-          "$VPY" "$RUNNER_TEMP/TexFlowApp/texflow_app.py" --verify
-          if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a "$VPY" "$RUNNER_TEMP/TexFlowApp/texflow_app.py" --smoke; else "$VPY" "$RUNNER_TEMP/TexFlowApp/texflow_app.py" --smoke; fi
-
   build:
-    name: Сборка — ${{ matrix.name }}
-    # собирается из того же подписанного архива скриптов (без checkout: в общем репозитории есть файлы
-    # с недопустимыми для Windows именами) — исполняемые файлы точно из подписанного кода
+    # одно задание на ОС (у учётной записи ограничено число одновременных macOS-раннеров):
+    # подписанные скрипты → проверка подписи → запуск из скриптов → установщик → сборка → запуск сборки.
+    # Без checkout: в общем репозитории есть чужие файлы с недопустимыми для Windows именами.
+    name: ${{ matrix.name }} — скрипты, установка, сборка
     needs: scripts
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -142,16 +106,27 @@ jobs:
         with: { name: texflow-scripts, path: src }
       - name: Распаковать подписанные скрипты
         run: cd src && python -m zipfile -e TexFlow-*-scripts.zip . && mv TexFlow-*-scripts app && ls app
-      - name: Целостность исходников сборки
-        run: python src/app/texflow_app.py --verify
       - name: Tk и Xvfb (Linux)
         if: runner.os == 'Linux'
         run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb python3-tk tk >/dev/null
-      - name: Библиотеки
+      - name: "Скрипты: целостность — подпись unisim-soft и суммы своих файлов"
+        run: python src/app/texflow_app.py --verify
+      - name: "Скрипты: окружение (библиотеки ставятся сами при первом запуске)"
+        run: python src/app/texflow_app.py --check
+      - name: "Скрипты: окно программы — все вкладки на RU/RO/EN"
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a python src/app/texflow_app.py --smoke; else python src/app/texflow_app.py --smoke; fi
+      - name: "Установщик (без ярлыков) + запуск установленной программы"
+        run: |
+          python src/app/install/install.py --no-launch --no-shortcuts --dest "$RUNNER_TEMP/TexFlowApp"
+          if [ "$RUNNER_OS" = "Windows" ]; then VPY="$RUNNER_TEMP/TexFlowApp/venv/Scripts/python.exe"; else VPY="$RUNNER_TEMP/TexFlowApp/venv/bin/python"; fi
+          "$VPY" "$RUNNER_TEMP/TexFlowApp/texflow_app.py" --verify
+          if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a "$VPY" "$RUNNER_TEMP/TexFlowApp/texflow_app.py" --smoke; else "$VPY" "$RUNNER_TEMP/TexFlowApp/texflow_app.py" --smoke; fi
+      - name: "Сборка: библиотеки"
         run: python -m pip install -q pyinstaller==6.11.1 reportlab openpyxl flask
-      - name: PyInstaller
+      - name: "Сборка: PyInstaller"
         run: cd src/app && python install/build_exe.py
-      - name: Запуск собранной программы без Python (Windows) — все вкладки на RU/RO/EN
+      - name: "Сборка: запуск без Python (Windows) — все вкладки на RU/RO/EN"
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
@@ -160,7 +135,7 @@ jobs:
           $p = Start-Process -FilePath "$env:RUNNER_TEMP\exe\TexFlow\TexFlow.exe" -ArgumentList '--smoke' -Wait -PassThru
           if ($p.ExitCode -ne 0) { Write-Error "SMOKE FAIL: $($p.ExitCode)"; exit 1 }
           "SMOKE OK (TexFlow.exe)"
-      - name: Запуск собранной программы без Python (macOS / Linux) — все вкладки на RU/RO/EN
+      - name: "Сборка: запуск без Python (macOS / Linux) — все вкладки на RU/RO/EN"
         if: runner.os != 'Windows'
         run: |
           ZIP=$(ls "$PWD"/src/app/dist/TexFlow-*.zip)
@@ -175,7 +150,7 @@ jobs:
 
   sign:
     name: SHA256SUMS + подпись unisim-soft + аттестация GitHub + выпуск
-    needs: [build, scripts-run]
+    needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: write        # выпуск

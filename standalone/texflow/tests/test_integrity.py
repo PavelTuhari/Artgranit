@@ -193,5 +193,7 @@ def test_workflow_builds_runs_and_signs_on_every_push():
         assert needle in text, needle
     yaml = pytest.importorskip("yaml")
     jobs = yaml.safe_load(text)["jobs"]
-    assert set(jobs) == {"test", "scripts", "scripts-run", "build", "sign"}
-    assert jobs["sign"]["needs"] == ["build", "scripts-run"]
+    assert set(jobs) == {"test", "scripts", "build", "sign"}
+    assert jobs["build"]["needs"] == "scripts" and jobs["sign"]["needs"] == "build"
+    oses = {m["os"].split("-")[0] for m in jobs["build"]["strategy"]["matrix"]["include"]}
+    assert oses == {"windows", "macos", "ubuntu"}
