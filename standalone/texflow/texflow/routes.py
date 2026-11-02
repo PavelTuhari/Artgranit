@@ -351,7 +351,7 @@ def labels():
             target = request.values.get("target") or st.get("printer_zpl" if fmt == "zpl" else "printer_tspl", "")
             try:
                 msg = printing.dispatch(target, data, ext)
-                store.log_label_job(c, fmt, target, n, "ok", msg)
+                store.log_label_job(c, fmt, target, n, "ok", f"{len(data)} B → {target}")  # без языка: журнал читают на любом
                 flash(_("Печать: {n} этикеток — {msg}", n=n, msg=msg), "ok")
             except Exception as e:  # noqa: BLE001
                 store.log_label_job(c, fmt, target, n, "error", str(e))

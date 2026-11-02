@@ -193,3 +193,19 @@ def test_migration_of_pre_i18n_database(tmp_path):
     c.execute("UPDATE colors SET name_en = 'Dark navy' WHERE code = '406'")
     db.init_db(c)
     assert c.execute("SELECT name_en FROM colors WHERE code = '406'").fetchone()[0] == "Dark navy"
+
+
+def test_print_log_is_language_neutral(app, client):
+    """Найдено e2e-прогоном: журнал печати хранил сообщение на языке печати (русский текст на RO/EN)."""
+    from test_printing import fake_printer
+    from texflow.demo import load_demo
+    with app.app_context():
+        load_demo(app.get_db())
+    port, got, t = fake_printer()
+    client.post("/labels", data={"variant": "1", "copies": "1", "fmt": "zpl", "action": "print",
+                                 "target": f"tcp://127.0.0.1:{port}"})
+    t.join(3)
+    with app.app_context():
+        msg = app.get_db().execute("SELECT message FROM label_jobs ORDER BY id DESC").fetchone()[0]
+    assert not CYR.search(msg) and msg.endswith(f"127.0.0.1:{port}")
+    assert "Print log" in client.get("/labels?lang=en").get_data(as_text=True)
