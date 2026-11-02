@@ -15,7 +15,7 @@
    "images": [
     "desk_01_start.jpg"
    ],
-   "ms": 299
+   "ms": 302
   },
   {
    "id": "D02",
@@ -27,7 +27,7 @@
    "images": [
     "desk_02_shipment_form.jpg"
    ],
-   "ms": 310
+   "ms": 297
   },
   {
    "id": "D03",
@@ -39,7 +39,7 @@
    "images": [
     "desk_03_shipment_loaded.jpg"
    ],
-   "ms": 450
+   "ms": 401
   },
   {
    "id": "D04",
@@ -52,7 +52,7 @@
     "desk_04_matrix.jpg",
     "desk_05_intake_log.jpg"
    ],
-   "ms": 685
+   "ms": 711
   },
   {
    "id": "D05",
@@ -64,7 +64,7 @@
    "images": [
     "desk_06_scanner.jpg"
    ],
-   "ms": 301
+   "ms": 311
   },
   {
    "id": "D06",
@@ -76,7 +76,7 @@
    "images": [
     "desk_07_pricing.jpg"
    ],
-   "ms": 320
+   "ms": 328
   },
   {
    "id": "D07",
@@ -88,7 +88,7 @@
    "images": [
     "desk_08_catalog.jpg"
    ],
-   "ms": 322
+   "ms": 323
   },
   {
    "id": "D08",
@@ -100,7 +100,7 @@
    "images": [
     "desk_09_editor_open.jpg"
    ],
-   "ms": 352
+   "ms": 385
   },
   {
    "id": "D09",
@@ -112,7 +112,7 @@
    "images": [
     "desk_10_editor_new.jpg"
    ],
-   "ms": 435
+   "ms": 457
   },
   {
    "id": "D10",
@@ -124,7 +124,7 @@
    "images": [
     "desk_11_editor_code.jpg"
    ],
-   "ms": 374
+   "ms": 419
   },
   {
    "id": "D11",
@@ -137,14 +137,14 @@
     "desk_12_labels.jpg",
     "desk_label_custom.png"
    ],
-   "ms": 456
+   "ms": 482
   },
   {
    "id": "D12",
    "lang": "ru",
    "title": "Этикетки: печать на сетевой принтер (TCP 9100)",
    "expected": "Принтер получает ZPL-задание, в журнале печати статус ok",
-   "actual": "Печать: 61 этикеток — отправлено 1793 байт на 127.0.0.1:41877; принтер получил 1793 байт",
+   "actual": "Печать: 61 этикеток — отправлено 1793 байт на 127.0.0.1:43963; принтер получил 1793 байт",
    "status": "PASS",
    "images": [],
    "ms": 305
@@ -159,7 +159,7 @@
    "images": [
     "desk_13_exchange.jpg"
    ],
-   "ms": 350
+   "ms": 377
   },
   {
    "id": "D14",
@@ -171,7 +171,7 @@
    "images": [
     "desk_14_exchange_import.jpg"
    ],
-   "ms": 345
+   "ms": 334
   },
   {
    "id": "D15",
@@ -183,7 +183,7 @@
    "images": [
     "desk_15_settings.jpg"
    ],
-   "ms": 312
+   "ms": 331
   },
   {
    "id": "D16",
@@ -202,7 +202,7 @@
     "desk_22_ro_exchange.jpg",
     "desk_23_ro_settings.jpg"
    ],
-   "ms": 2725
+   "ms": 2761
   },
   {
    "id": "D17",
@@ -221,7 +221,7 @@
     "desk_30_en_exchange.jpg",
     "desk_31_en_settings.jpg"
    ],
-   "ms": 2764
+   "ms": 2739
   },
   {
    "id": "D18",
@@ -231,7 +231,7 @@
    "actual": "Ошибок: 0",
    "status": "PASS",
    "images": [],
-   "ms": 101
+   "ms": 99
   }
  ]
 }

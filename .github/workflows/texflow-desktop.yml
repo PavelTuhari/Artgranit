@@ -1,0 +1,220 @@
+# TexFlow — на каждый push: тесты → запуск из скриптов на Windows/macOS/Linux → сборка исполняемых
+# файлов на трёх ОС и их запуск → контрольные суммы SHA-256 с подписью unisim-soft (Ed25519) и
+# аттестация происхождения GitHub (Sigstore) → выпуск.
+#
+# Выкачивается только standalone/texflow (sparse checkout): в общем репозитории есть файлы других
+# проектов с недопустимыми для Windows именами.
+#
+# Секрет репозитория UNISIM_SOFT_SIGNING_KEY — закрытый ключ unisim-soft (base64, 32 байта).
+# Открытый ключ: standalone/texflow/install/signing/unisim-soft.pub (отпечаток c5173c9670d69b5d).
+# Без секрета всё собирается и проверяется по контрольным суммам, но SHA256SUMS и манифест скриптов
+# НЕ подписываются (статус «не подписано», предупреждение в журнале);
+# для тегов texflow-v* подпись обязательна.
+#
+# Выпуски:  push в main → предварительный выпуск «texflow-nightly» (обновляется каждым push);
+#           тег texflow-vX.Y.Z → выпуск этой версии;  любая ветка → артефакты запуска (90 дней).
+name: TexFlow — сборка, подпись, выпуск
+
+on:
+  push:
+    branches: ["**"]          # любая ветка (с изменениями TexFlow) …
+    tags: ["texflow-v*"]       # … и теги выпусков (для тегов фильтр путей не действует)
+    paths: ["standalone/texflow/**", ".github/workflows/texflow-desktop.yml"]
+  pull_request:
+    paths: ["standalone/texflow/**", ".github/workflows/texflow-desktop.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: texflow-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUTF8: "1"
+  PYTHONIOENCODING: "utf-8"
+  PY: "3.12"
+
+defaults:
+  run:
+    working-directory: standalone/texflow
+
+jobs:
+  test:
+    name: Тесты (pytest, окно в Xvfb)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:   # только TexFlow: в репозитории есть чужие файлы с недопустимыми для Windows именами
+          sparse-checkout: |
+            standalone/texflow
+            .github
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PY }}" }
+      - name: Системные пакеты
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb python3-tk tk >/dev/null
+      - name: Библиотеки
+        run: python -m pip install -q reportlab openpyxl flask pytest markdown
+      - name: pytest
+        run: xvfb-run -a -s "-screen 0 1360x860x24" python -m pytest -q
+
+  scripts:
+    name: Скриптовая версия + манифест с подписью
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:   # только TexFlow: в репозитории есть чужие файлы с недопустимыми для Windows именами
+          sparse-checkout: |
+            standalone/texflow
+            .github
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PY }}" }
+      - name: Собрать TexFlow-…-scripts.zip
+        env:
+          UNISIM_SOFT_SIGNING_KEY: ${{ secrets.UNISIM_SOFT_SIGNING_KEY }}
+        run: |
+          if [ -z "$UNISIM_SOFT_SIGNING_KEY" ]; then echo "::warning::Секрет UNISIM_SOFT_SIGNING_KEY не задан — манифест скриптов не подписан"; fi
+          python tools/release.py scripts ../../out ${{ startsWith(github.ref, 'refs/tags/texflow-v') && '--require-signature' || '' }}
+      - uses: actions/upload-artifact@v4
+        with: { name: texflow-scripts, path: out/*.zip, if-no-files-found: error }
+
+  build:
+    # одно задание на ОС (у учётной записи ограничено число одновременных macOS-раннеров):
+    # подписанные скрипты → проверка подписи → запуск из скриптов → установщик → сборка → запуск сборки.
+    # Без checkout: в общем репозитории есть чужие файлы с недопустимыми для Windows именами.
+    name: ${{ matrix.name }} — скрипты, установка, сборка
+    needs: scripts
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: windows-latest, name: windows }
+          # Intel-раннер: на arm64 у GitHub нехватка мощностей (задания снимаются из очереди);
+          # сборка x86_64 работает и на Mac с Apple Silicon через Rosetta 2
+          - { os: macos-15-intel, name: macos }
+          - { os: ubuntu-22.04,   name: linux }
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
+        working-directory: .
+    steps:
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PY }}" }
+      - uses: actions/download-artifact@v4
+        with: { name: texflow-scripts, path: src }
+      - name: Распаковать подписанные скрипты
+        run: cd src && python -m zipfile -e TexFlow-*-scripts.zip . && mv TexFlow-*-scripts app && ls app
+      - name: Tk и Xvfb (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq xvfb python3-tk tk >/dev/null
+      - name: "Скрипты: целостность — подпись unisim-soft и суммы своих файлов"
+        run: python src/app/texflow_app.py --verify
+      - name: "Скрипты: окружение (библиотеки ставятся сами при первом запуске)"
+        run: python src/app/texflow_app.py --check
+      - name: "Скрипты: окно программы — все вкладки на RU/RO/EN"
+        run: |
+          if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a python src/app/texflow_app.py --smoke; else python src/app/texflow_app.py --smoke; fi
+      - name: "Установщик (без ярлыков) + запуск установленной программы"
+        run: |
+          python src/app/install/install.py --no-launch --no-shortcuts --dest "$RUNNER_TEMP/TexFlowApp"
+          if [ "$RUNNER_OS" = "Windows" ]; then VPY="$RUNNER_TEMP/TexFlowApp/venv/Scripts/python.exe"; else VPY="$RUNNER_TEMP/TexFlowApp/venv/bin/python"; fi
+          "$VPY" "$RUNNER_TEMP/TexFlowApp/texflow_app.py" --verify
+          if [ "$RUNNER_OS" = "Linux" ]; then xvfb-run -a "$VPY" "$RUNNER_TEMP/TexFlowApp/texflow_app.py" --smoke; else "$VPY" "$RUNNER_TEMP/TexFlowApp/texflow_app.py" --smoke; fi
+      - name: "Сборка: библиотеки"
+        run: python -m pip install -q pyinstaller==6.11.1 reportlab openpyxl flask
+      - name: "Сборка: PyInstaller"
+        run: cd src/app && python install/build_exe.py
+      - name: "Сборка: запуск без Python (Windows) — все вкладки на RU/RO/EN"
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $zip = Get-ChildItem src\app\dist\TexFlow-*.zip | Select-Object -First 1
+          Expand-Archive -Path $zip.FullName -DestinationPath "$env:RUNNER_TEMP\exe"
+          $p = Start-Process -FilePath "$env:RUNNER_TEMP\exe\TexFlow\TexFlow.exe" -ArgumentList '--smoke' -Wait -PassThru
+          if ($p.ExitCode -ne 0) { Write-Error "SMOKE FAIL: $($p.ExitCode)"; exit 1 }
+          "SMOKE OK (TexFlow.exe)"
+      - name: "Сборка: запуск без Python (macOS / Linux) — все вкладки на RU/RO/EN"
+        if: runner.os != 'Windows'
+        run: |
+          ZIP=$(ls "$PWD"/src/app/dist/TexFlow-*.zip)
+          mkdir -p "$RUNNER_TEMP/exe" && cd "$RUNNER_TEMP/exe"
+          if [ "$RUNNER_OS" = "macOS" ]; then
+            ditto -x -k "$ZIP" . && codesign --verify --deep --strict TexFlow.app && ./TexFlow.app/Contents/MacOS/TexFlow --smoke
+          else
+            unzip -q "$ZIP" && xvfb-run -a ./TexFlow/TexFlow --smoke
+          fi
+      - uses: actions/upload-artifact@v4
+        with: { name: "texflow-${{ matrix.name }}", path: src/app/dist/TexFlow-*.zip, if-no-files-found: error }
+
+  sign:
+    name: SHA256SUMS + подпись unisim-soft + аттестация GitHub + выпуск
+    needs: [scripts, build]
+    # ошибка в любой ОС останавливает выпуск; а если GitHub не выделил раннер (задание снято из
+    # очереди — бывает с macOS), подписываются готовые сборки и в выпуске это отмечается
+    if: always() && needs.scripts.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'cancelled')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write        # выпуск
+      id-token: write        # аттестация (Sigstore)
+      attestations: write
+    steps:
+      - uses: actions/checkout@v4
+        with:   # только TexFlow: в репозитории есть чужие файлы с недопустимыми для Windows именами
+          sparse-checkout: |
+            standalone/texflow
+            .github
+      - uses: actions/setup-python@v5
+        with: { python-version: "${{ env.PY }}" }
+      - uses: actions/download-artifact@v4
+        with: { path: dl, pattern: "texflow-*", merge-multiple: true }
+      - name: Контрольные суммы и подпись
+        env:
+          UNISIM_SOFT_SIGNING_KEY: ${{ secrets.UNISIM_SOFT_SIGNING_KEY }}
+        run: |
+          mkdir -p ../../out && cp ../../dl/*.zip ../../out/
+          MISSING=""
+          for os in windows macos linux; do ls ../../out/TexFlow-*-$os-*.zip >/dev/null 2>&1 || MISSING="$MISSING $os"; done
+          if [ -n "$MISSING" ]; then echo "::warning::Нет сборки:$MISSING (раннер GitHub не выделен) — перезапустите задание этой ОС"; fi
+          echo "MISSING=$MISSING" >> "$GITHUB_ENV"
+          python tools/release.py sums ../../out ${{ startsWith(github.ref, 'refs/tags/texflow-v') && '--require-signature' || '' }}
+          if [ -f ../../out/SHA256SUMS.sig ]; then python tools/release.py verify ../../out; else echo "::warning::SHA256SUMS не подписан — добавьте секрет UNISIM_SOFT_SIGNING_KEY"; fi
+          echo "## TexFlow — выпуск $(python -c 'import texflow;print(texflow.__version__)') · ${GITHUB_SHA::12}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY; cat ../../out/SHA256SUMS >> $GITHUB_STEP_SUMMARY; echo '```' >> $GITHUB_STEP_SUMMARY
+      - name: Аттестация происхождения (GitHub, Sigstore) — дополнительно к подписи unisim-soft
+        # доступна для публичных репозиториев и на тарифе GitHub Enterprise; в остальных случаях
+        # GitHub не выдаёт токен — шаг пропускается с предупреждением, подпись unisim-soft остаётся
+        if: github.event_name != 'pull_request'
+        continue-on-error: true
+        uses: actions/attest-build-provenance@v2
+        with: { subject-path: "out/*.zip" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: "TexFlow-${{ github.sha }}"
+          path: |
+            out/*.zip
+            out/SHA256SUMS*
+            out/SIGNER-unisim-soft.txt
+      - name: Выпуск texflow-nightly (push в main)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        working-directory: out
+        run: |
+          git -C "$GITHUB_WORKSPACE" tag -f texflow-nightly "$GITHUB_SHA"
+          git -C "$GITHUB_WORKSPACE" push -f origin refs/tags/texflow-nightly
+          NOTES="TexFlow · сборка ${GITHUB_SHA::12} · Windows / macOS / Linux + скриптовая версия${MISSING:+ (нет сборки:$MISSING)}. Проверка: python texflow_app.py --verify-sums SHA256SUMS (подпись unisim-soft, отпечаток ключа c5173c9670d69b5d) или gh attestation verify <файл> --repo $GITHUB_REPOSITORY"
+          gh release view texflow-nightly -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create texflow-nightly -R "$GITHUB_REPOSITORY" --prerelease --title "TexFlow nightly" --notes "$NOTES"
+          gh release edit texflow-nightly -R "$GITHUB_REPOSITORY" --notes "$NOTES"
+          for a in $(gh release view texflow-nightly -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'); do gh release delete-asset texflow-nightly "$a" -R "$GITHUB_REPOSITORY" -y; done
+          gh release upload texflow-nightly *.zip SHA256SUMS* SIGNER-unisim-soft.txt -R "$GITHUB_REPOSITORY" --clobber
+      - name: Выпуск версии (тег texflow-v*)
+        if: startsWith(github.ref, 'refs/tags/texflow-v')
+        env: { GH_TOKEN: "${{ github.token }}" }
+        working-directory: out
+        run: |
+          gh release create "$GITHUB_REF_NAME" -R "$GITHUB_REPOSITORY" --title "TexFlow ${GITHUB_REF_NAME#texflow-v}" \
+            --notes "Подпись unisim-soft (Ed25519, c5173c9670d69b5d): python texflow_app.py --verify-sums SHA256SUMS" \
+            *.zip SHA256SUMS* SIGNER-unisim-soft.txt

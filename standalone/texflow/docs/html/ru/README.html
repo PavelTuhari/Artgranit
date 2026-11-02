@@ -80,6 +80,10 @@ RU / RO / EN стоит в шапке. Названия цветов, катег
 <td>Excel и CSV</td>
 <td>вкладка «Excel / CSV» (и <code>/exchange</code> в веб-версии): полный отчёт, каталог, цены, приёмка — выгрузка и загрузка обратно</td>
 </tr>
+<tr>
+<td>Сборка и подпись</td>
+<td>на каждый push GitHub Actions проверяет, запускает из скриптов и собирает .exe / .app / Linux на трёх ОС, подписывает SHA256SUMS ключом <strong>unisim-soft</strong> (Ed25519); программа сама проверяет свою подпись: <code>python texflow_app.py --verify</code> — <a href="DESKTOP.html">DESKTOP.md, раздел 6</a></td>
+</tr>
 </tbody>
 </table>
 <h2 id="1">1. Установка и запуск</h2>

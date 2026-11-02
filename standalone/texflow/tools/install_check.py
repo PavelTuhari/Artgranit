@@ -166,6 +166,49 @@ def main():
         step("I06", "Сборка PyInstaller и запуск бинарника без Python", "Архив собран; бинарник отвечает --check с "
              "библиотеками внутри", build)
 
+    def signed_release():
+        if not os.environ.get("UNISIM_SOFT_SIGNING_KEY"):
+            return "пропущено: нет ключа UNISIM_SOFT_SIGNING_KEY (в CI — секрет репозитория)"
+        rel = os.path.join(tmp, "release")
+        os.makedirs(rel)
+        for z in os.listdir(os.path.join(ROOT, "dist")):
+            if z.startswith("TexFlow-") and z.endswith(".zip") and "-scripts" not in z:
+                shutil.copy(os.path.join(ROOT, "dist", z), rel)
+        py = sys.executable
+        for cmd in (["scripts", rel, "--require-signature"], ["sums", rel, "--require-signature"]):
+            r = subprocess.run([py, os.path.join(ROOT, "tools", "release.py"), *cmd], capture_output=True, text=True)
+            if r.returncode:
+                raise RuntimeError(r.stdout + r.stderr)
+        env2 = {k: v for k, v in os.environ.items() if k != "UNISIM_SOFT_SIGNING_KEY"}
+        v = subprocess.run([py, os.path.join(ROOT, "tools", "release.py"), "verify", rel], capture_output=True,
+                           text=True, env=env2)
+        if v.returncode:
+            raise RuntimeError(v.stdout)
+        sz = [f for f in os.listdir(rel) if f.endswith("-scripts.zip")][0]
+        un = os.path.join(tmp, "scripts")
+        shutil.unpack_archive(os.path.join(rel, sz), un)
+        app_dir = os.path.join(un, os.listdir(un)[0])
+        run = lambda *a, **kw: subprocess.run([py, os.path.join(app_dir, "texflow_app.py"), *a],  # noqa: E731
+                                              capture_output=True, text=True, env={**env2, **kw}, timeout=300)
+        ok = run("--verify")
+        if ok.returncode or "целостность: ok" not in ok.stdout:
+            raise RuntimeError(ok.stdout + ok.stderr)
+        with open(os.path.join(app_dir, "texflow", "rules.py"), "a", encoding="utf-8") as f:
+            f.write("\n# подмена\n")
+        bad = run("--verify")
+        strict = run("--check", TEXFLOW_STRICT_INTEGRITY="1")
+        with open(os.path.join(rel, sz), "ab") as f:
+            f.write(b"x")
+        sums = run("--verify-sums", os.path.join(rel, "SHA256SUMS"))
+        if bad.returncode != 1 or strict.returncode != 3 or "MISMATCH" not in sums.stdout:
+            raise RuntimeError(f"подмена не поймана: {bad.returncode} {strict.returncode} {sums.stdout}")
+        return (ok.stdout.strip() + " · подмена файла → «ИЗМЕНЕНЫ» и отказ в строгом режиме (код 3) · "
+                "подмена архива → MISMATCH · файлы: " + ", ".join(sorted(os.listdir(rel))))
+
+    step("I07", "Подписанный выпуск unisim-soft: манифест скриптов, SHA256SUMS, самопроверка и подмена",
+         "Скрипты из архива сами подтверждают подпись unisim-soft; изменённый файл и подменённый архив обнаруживаются",
+         signed_release)
+
     meta = {"os": f"{platform.system()} {platform.release()}", "python": platform.python_version()}
     with open(os.path.join(OUT, "install_results.json"), "w", encoding="utf-8") as f:
         json.dump({"meta": meta, "results": results}, f, ensure_ascii=False, indent=1)

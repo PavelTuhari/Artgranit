@@ -100,9 +100,8 @@ python texflow_app.py --check  # проверить окружение
 <p><code>python install/build_exe.py</code> собирает <code>dist/TexFlow-&lt;версия&gt;-&lt;ос&gt;-&lt;arch&gt;.zip</code>. Внутри
 <code>TexFlow.exe</code> (Windows), <code>TexFlow.app</code> (macOS) или <code>TexFlow</code> (Linux) со всеми библиотеками;
 Python на компьютере пользователя не нужен.</p>
-<p>Собирать нужно на той системе, для которой программа. Чтобы получить все три сборки сразу,
-есть шаблон для GitHub Actions: <code>install/github-actions-texflow-desktop.yml</code>. Скопируйте его в
-<code>.github/workflows/</code>, затем Actions → TexFlow Desktop → Run workflow.</p>
+<p>Собирать нужно на той системе, для которой программа. Поэтому все три сборки делает GitHub
+Actions — <strong>на каждый push</strong> с изменениями TexFlow (раздел 6).</p>
 <h3 id="_3">Удаление</h3>
 <p>Через ярлык «Uninstall TexFlow» (Windows) или <code>uninstall-texflow</code> в папке программы, либо:
 <code>python install/install.py --uninstall</code>. База при этом остаётся. Чтобы удалить и её, добавьте
@@ -303,4 +302,67 @@ Python на компьютере пользователя не нужен.</p>
 <td>скопировать папку данных (таблица в разделе 1) или «Полный отчёт» Excel</td>
 </tr>
 </tbody>
-</table></main></div></body></html>
+</table>
+<h2 id="6-push-unisim-soft">6. Сборка на каждый push, подпись unisim-soft и проверка</h2>
+<p>Сборку делает <code>.github/workflows/texflow-desktop.yml</code>. Он запускается на <strong>каждый push</strong> в любую
+ветку, если изменились файлы <code>standalone/texflow/</code>, и на теги <code>texflow-v*</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Этап</th>
+<th>Что делает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Тесты</td>
+<td>pytest, включая окно программы в Xvfb</td>
+</tr>
+<tr>
+<td>Скриптовая версия</td>
+<td><code>TexFlow-&lt;версия&gt;-scripts.zip</code>: все файлы, <code>MANIFEST.sha256</code> (SHA-256 каждого файла) и <code>MANIFEST.sha256.sig</code> — подпись unisim-soft</td>
+</tr>
+<tr>
+<td>Запуск из скриптов</td>
+<td>на Windows, macOS и Linux: проверка подписи (<code>--verify</code>), самоустановка библиотек (<code>--check</code>), окно со всеми вкладками на 3 языках (<code>--smoke</code>), установщик и запуск установленной программы</td>
+</tr>
+<tr>
+<td>Сборка исполняемых файлов</td>
+<td><code>TexFlow.exe</code> (Windows), <code>TexFlow.app</code> (macOS, ad-hoc подпись <code>codesign</code>), бинарник Linux. Каждый <strong>запускается</strong> без Python (<code>--smoke</code>)</td>
+</tr>
+<tr>
+<td>Подпись выпуска</td>
+<td><code>SHA256SUMS</code> всех архивов + <code>SHA256SUMS.sig</code> (Ed25519, ключ <strong>unisim-soft</strong>) + аттестация происхождения GitHub (Sigstore)</td>
+</tr>
+<tr>
+<td>Выпуск</td>
+<td>push в <code>main</code> → предварительный выпуск <strong>texflow-nightly</strong> (обновляется); тег <code>texflow-v1.2.0</code> → выпуск версии; любая ветка → артефакты запуска</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Ключ unisim-soft.</strong></p>
+<ul>
+<li>Закрытый ключ хранится в секрете репозитория <code>UNISIM_SOFT_SIGNING_KEY</code>
+  (Settings → Secrets and variables → Actions).</li>
+<li>Открытый ключ зашит в программу (<code>texflow/integrity.py</code>) и лежит в
+  <code>install/signing/unisim-soft.pub</code>. Отпечаток: <code>c5173c9670d69b5d</code>.</li>
+<li>Без секрета сборка проходит, но не подписывается, и в журнале запуска появляется
+  предупреждение. Для тегов выпуска подпись обязательна.</li>
+<li>Новая пара ключей: <code>python tools/release.py keygen</code>.</li>
+</ul>
+<p><strong>Самопроверка программы.</strong> Скриптовая версия при каждом запуске сверяет свои файлы с
+подписанным манифестом:</p>
+<pre><code class="language-bash">python texflow_app.py --verify                 # целостность: ok · 202 файлов · подпись unisim-soft (c5173c9670d69b5d)
+python texflow_app.py --verify-sums SHA256SUMS # проверить скачанные архивы
+TEXFLOW_STRICT_INTEGRITY=1 python texflow_app.py   # отказаться запускаться, если файлы изменены
+</code></pre>
+<ul>
+<li>Изменённый файл — предупреждение при запуске (в строгом режиме программа не запустится).</li>
+<li>Подменённый архив — <code>MISMATCH</code>.</li>
+<li>Изменённый <code>SHA256SUMS</code> — <code>подпись: INVALID</code>.</li>
+<li>Подпись проверяется кодом на чистом Python (Ed25519, RFC 8032), поэтому проверка работает
+  везде, где работает сама программа.</li>
+<li>Аттестация происхождения GitHub (Sigstore) — дополнительно к подписи. GitHub даёт её только
+  публичным репозиториям и на тарифе Enterprise; в приватном репозитории шаг пропускается с
+  предупреждением. Проверка: <code>gh attestation verify TexFlow-…zip --repo PavelTuhari/Artgranit</code>.</li>
+</ul></main></div></body></html>

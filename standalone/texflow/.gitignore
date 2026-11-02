@@ -10,3 +10,7 @@ tools/.cache/
 docs/html/pytest_results.xml.tmp
 build/
 TexFlow.spec
+# ключи подписи — только в секретах GitHub, никогда в git
+*SIGNING_KEY*
+*.key
+*.seed

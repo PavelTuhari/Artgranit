@@ -101,9 +101,8 @@ python texflow_app.py --check  # verificarea mediului
 <p><code>python install/build_exe.py</code> creează <code>dist/TexFlow-&lt;versiune&gt;-&lt;os&gt;-&lt;arch&gt;.zip</code>. În interior:
 <code>TexFlow.exe</code> (Windows), <code>TexFlow.app</code> (macOS) sau <code>TexFlow</code> (Linux), cu toate bibliotecile;
 pe calculatorul utilizatorului nu e nevoie de Python.</p>
-<p>Construcția se face pe sistemul-țintă. Pentru toate trei deodată există un șablon pentru GitHub
-Actions: <code>install/github-actions-texflow-desktop.yml</code>. Copiați-l în <code>.github/workflows/</code>, apoi
-Actions → TexFlow Desktop → Run workflow.</p>
+<p>Construcția se face pe sistemul-țintă, de aceea toate trei le face GitHub Actions — <strong>la fiecare
+push</strong> cu modificări TexFlow (secțiunea 6).</p>
 <h3 id="dezinstalare">Dezinstalare</h3>
 <p>Prin scurtătura „Uninstall TexFlow” (Windows) sau <code>uninstall-texflow</code> din dosarul programului, ori:
 <code>python install/install.py --uninstall</code>. Baza de date rămâne. Ca s-o ștergeți și pe ea, adăugați
@@ -262,4 +261,31 @@ editorului desenează aceeași geometrie ca tipărirea.</p>
 <td>puneți limba etichetei <strong>Română</strong> sau încărcați un font TTF în imprimantă</td>
 </tr>
 </tbody>
-</table></main></div></body></html>
+</table>
+<h2 id="6-construire-la-fiecare-push-semnatura-unisim-soft-si-verificare">6. Construire la fiecare push, semnătura unisim-soft și verificare</h2>
+<p><code>.github/workflows/texflow-desktop.yml</code> pornește la <strong>fiecare push</strong> în orice ramură, dacă s-au
+schimbat fișiere din <code>standalone/texflow/</code>, și la tagurile <code>texflow-v*</code>. Etapele:</p>
+<ol>
+<li><strong>teste</strong> (pytest, inclusiv fereastra în Xvfb);</li>
+<li><strong>versiunea din scripturi</strong> <code>TexFlow-&lt;versiune&gt;-scripts.zip</code> cu <code>MANIFEST.sha256</code> și semnătura
+   unisim-soft <code>MANIFEST.sha256.sig</code>;</li>
+<li><strong>pornire din scripturi</strong> pe Windows, macOS și Linux: <code>--verify</code>, <code>--check</code>, <code>--smoke</code>,
+   instalatorul;</li>
+<li><strong>executabile</strong>: <code>TexFlow.exe</code>, <code>TexFlow.app</code> (semnătură ad-hoc), binar Linux — fiecare
+   <strong>pornit</strong> fără Python;</li>
+<li><strong><code>SHA256SUMS</code> + <code>SHA256SUMS.sig</code></strong> (Ed25519, cheia <strong>unisim-soft</strong>) și atestarea GitHub
+   (Sigstore) — aceasta doar pentru depozite publice sau GitHub Enterprise;</li>
+<li><strong>publicare</strong>: push în <code>main</code> → pre-lansarea <strong>texflow-nightly</strong>; tagul <code>texflow-v1.2.0</code> →
+   lansarea versiunii.</li>
+</ol>
+<p><strong>Cheia unisim-soft.</strong></p>
+<ul>
+<li>Cheia privată este în secretul <code>UNISIM_SOFT_SIGNING_KEY</code>.</li>
+<li>Cheia publică este în program și în <code>install/signing/unisim-soft.pub</code>. Amprenta:
+  <code>c5173c9670d69b5d</code>.</li>
+</ul>
+<p><strong>Verificare:</strong></p>
+<pre><code class="language-bash">python texflow_app.py --verify                 # integritatea propriilor fișiere
+python texflow_app.py --verify-sums SHA256SUMS # arhivele descărcate
+TEXFLOW_STRICT_INTEGRITY=1 python texflow_app.py   # nu pornește dacă fișierele au fost modificate
+</code></pre></main></div></body></html>

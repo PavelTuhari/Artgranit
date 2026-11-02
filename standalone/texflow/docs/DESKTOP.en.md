@@ -65,9 +65,8 @@ On first run, missing libraries install themselves into the data folder (`pylibX
 `TexFlow.exe` (Windows), `TexFlow.app` (macOS) or `TexFlow` (Linux), with every library bundled;
 the user's computer needs no Python.
 
-Build on the target system. To get all three at once, there is a GitHub Actions template:
-`install/github-actions-texflow-desktop.yml`. Copy it into `.github/workflows/`, then
-Actions → TexFlow Desktop → Run workflow.
+Builds must run on the target system, so GitHub Actions makes all three — **on every push** that
+changes TexFlow (section 6).
 
 ### Uninstall
 
@@ -170,3 +169,34 @@ Headers are understood in Russian, Romanian, English and by technical name. So y
 | Windows: “Windows protected your PC” | “More info” → “Run anyway” |
 | macOS: “developer cannot be verified” | right-click → Open |
 | Cyrillic prints in Latin letters on Zebra/TSC | set the label language to **English** or load a TTF font into the printer |
+
+## 6. Build on every push, unisim-soft signature and verification
+
+`.github/workflows/texflow-desktop.yml` runs on **every push** to any branch that changes
+`standalone/texflow/`, and on `texflow-v*` tags. The stages:
+
+1. **tests** (pytest, including the window under Xvfb);
+2. **scripts edition** `TexFlow-<version>-scripts.zip` with `MANIFEST.sha256` and the unisim-soft
+   signature `MANIFEST.sha256.sig`;
+3. **run from scripts** on Windows, macOS and Linux: `--verify`, `--check`, `--smoke`, the
+   installer;
+4. **executables**: `TexFlow.exe`, `TexFlow.app` (ad-hoc signed), Linux binary — each one
+   **launched** without Python;
+5. **`SHA256SUMS` + `SHA256SUMS.sig`** (Ed25519, **unisim-soft** key) plus a GitHub provenance
+   attestation (Sigstore) — the latter only for public repositories or GitHub Enterprise;
+6. **publishing**: push to `main` → **texflow-nightly** pre-release; tag `texflow-v1.2.0` →
+   versioned release.
+
+**The unisim-soft key.**
+
+- The private key is in the `UNISIM_SOFT_SIGNING_KEY` secret.
+- The public key is built into the program and stored in `install/signing/unisim-soft.pub`.
+  Fingerprint: `c5173c9670d69b5d`.
+
+**Verification:**
+
+```bash
+python texflow_app.py --verify                 # integrity of its own files
+python texflow_app.py --verify-sums SHA256SUMS # downloaded archives
+TEXFLOW_STRICT_INTEGRITY=1 python texflow_app.py   # refuse to start if files were modified
+```

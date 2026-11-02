@@ -18,45 +18,45 @@ a{color:#1f4fa0}.hint{position:fixed;left:12px;bottom:10px;color:#aaa;font-size:
 @media print{body{background:#fff}.slide{margin:0;box-shadow:none;page-break-after:always}.hint{display:none}@page{size:1280px 720px;margin:0}}
 </style></head><body><section class="slide" id="s1"><div class="title"><div class="logo">TEXFLOW</div><h1>Приёмка одежды из мешков<br>за минуты, а не за часы</h1>
 <p>Каталог в стиле Zara · цены от себестоимости · этикетки Zebra / TSC / PDF · RU / RO / EN</p>
-<p class="mut">Автономное приложение Python + Flask + SQLite · 02.11.2026</p></div><div class="num">1 / 19</div></section><section class="slide" id="s2"><h2>Задача</h2><div class="two"><ul>
+<p class="mut">Автономное приложение Python + Flask + SQLite · 02.11.2026</p></div><div class="num">1 / 20</div></section><section class="slide" id="s2"><h2>Задача</h2><div class="two"><ul>
 <li>Одежда из Турции и Китая приходит <b>мешками</b>, всё вперемешку</li>
 <li>Упаковочный лист — <b>примерный</b>: «футболки — 120 шт.», без цветов и размеров</li>
 <li>Нужно быстро завести каждую вещь как <b>модель · цвет · размер</b> со штрихкодом</li>
 <li>Посчитать <b>себестоимость</b> с фрахтом, таможней и брокером и поставить цены</li>
 <li>Напечатать <b>этикетки</b> на термопринтере или на обычном принтере</li></ul>
-<div class="big">5 шагов<br><span>от мешка до вешалки</span></div></div><div class="num">2 / 19</div></section><section class="slide" id="s3"><h2>Решение: один процесс</h2><div class="flow">
+<div class="big">5 шагов<br><span>от мешка до вешалки</span></div></div><div class="num">2 / 20</div></section><section class="slide" id="s3"><h2>Решение: один процесс</h2><div class="flow">
 <div><b>1</b>Мешки из Турции / Китая</div><div><b>2</b>Поставка: курс, фрахт, таможня, брокер</div>
 <div><b>3</b>Примерный лист CSV → мешки</div><div><b>4</b>Разбор: матрица цвет × размер или сканер</div>
 <div><b>5</b>Сверка с листом</div><div><b>6</b>Себестоимость → цена</div>
 <div><b>7</b>Карточки и каталог</div><div><b>8</b>Этикетки ZPL / TSPL / PDF</div></div>
 <p>Сервер и интернет не нужны: один файл базы SQLite, запуск на ноутбуке склада, несколько рабочих мест по локальной сети.
-Полные блок-схемы — в <a href="ru/ARCHITECTURE.html">документации</a>.</p><div class="num">3 / 19</div></section><section class="slide" id="s4"><h2>1. Поставка и примерный лист</h2><div class="two"><figure><img src="img/e2e_03_shipment_form.jpg" alt=""><figcaption>Поставка: валюта, курс, фрахт, таможня, брокер</figcaption></figure>
+Полные блок-схемы — в <a href="ru/ARCHITECTURE.html">документации</a>.</p><div class="num">3 / 20</div></section><section class="slide" id="s4"><h2>1. Поставка и примерный лист</h2><div class="two"><figure><img src="img/e2e_03_shipment_form.jpg" alt=""><figcaption>Поставка: валюта, курс, фрахт, таможня, брокер</figcaption></figure>
 <figure><img src="img/e2e_05_packing_loaded.jpg" alt=""><figcaption>Лист CSV загружен — мешки созданы сами</figcaption></figure></div>
-<p>Заголовки листа понимаются на RU / RO / EN / TR / ZH; кодировки UTF-8, cp1251, cp1254, GB18030.</p><div class="num">4 / 19</div></section><section class="slide" id="s5"><h2>2. Разбор мешка: матрица цвет × размер</h2><div class="two"><figure><img src="img/e2e_06_matrix_filled.jpg" alt=""><figcaption>Клик по цветам → строки, количества по размерам → Ctrl+Enter</figcaption></figure>
+<p>Заголовки листа понимаются на RU / RO / EN / TR / ZH; кодировки UTF-8, cp1251, cp1254, GB18030.</p><div class="num">4 / 20</div></section><section class="slide" id="s5"><h2>2. Разбор мешка: матрица цвет × размер</h2><div class="two"><figure><img src="img/e2e_06_matrix_filled.jpg" alt=""><figcaption>Клик по цветам → строки, количества по размерам → Ctrl+Enter</figcaption></figure>
 <div><ul><li>Цвета сгруппированы как у Zara: Белый, Бежевый, Синий…</li><li>Шкала размеров — по категории: XS–3XL, EU 32–48, джинсы W, детская, обувь</li>
-<li>SKU <code>TSH0001-800-M</code> и EAN-13 — автоматически</li><li>Закупочная цена подставляется из листа</li><li>Enter — следующая ячейка, стрелки — навигация</li></ul></div></div><div class="num">5 / 19</div></section><section class="slide" id="s6"><h2>Сканер и журнал приёмки</h2><div class="two"><figure><img src="img/e2e_09_scanner.jpg" alt=""><figcaption>Повторная модель: скан EAN → +1 шт.; чужой код → ошибка</figcaption></figure>
-<figure><img src="img/e2e_07_intake_logged.jpg" alt=""><figcaption>Журнал: каждая партия из мешка, ошибку можно удалить</figcaption></figure></div><div class="num">6 / 19</div></section><section class="slide" id="s7"><h2>3. Сверка с упаковочным листом</h2><figure><img src="img/e2e_10_reconciliation.jpg" alt=""><figcaption>По категориям и по мешкам: совпало / недостача / излишек / нет в листе</figcaption></figure><div class="num">7 / 19</div></section><section class="slide" id="s8"><h2>4. Себестоимость и цены</h2><div class="two"><figure><img src="img/e2e_12_pricing.jpg" alt=""><figcaption>Предложение по каждой модели, своя цена, фиксация</figcaption></figure>
+<li>SKU <code>TSH0001-800-M</code> и EAN-13 — автоматически</li><li>Закупочная цена подставляется из листа</li><li>Enter — следующая ячейка, стрелки — навигация</li></ul></div></div><div class="num">5 / 20</div></section><section class="slide" id="s6"><h2>Сканер и журнал приёмки</h2><div class="two"><figure><img src="img/e2e_09_scanner.jpg" alt=""><figcaption>Повторная модель: скан EAN → +1 шт.; чужой код → ошибка</figcaption></figure>
+<figure><img src="img/e2e_07_intake_logged.jpg" alt=""><figcaption>Журнал: каждая партия из мешка, ошибку можно удалить</figcaption></figure></div><div class="num">6 / 20</div></section><section class="slide" id="s7"><h2>3. Сверка с упаковочным листом</h2><figure><img src="img/e2e_10_reconciliation.jpg" alt=""><figcaption>По категориям и по мешкам: совпало / недостача / излишек / нет в листе</figcaption></figure><div class="num">7 / 20</div></section><section class="slide" id="s8"><h2>4. Себестоимость и цены</h2><div class="two"><figure><img src="img/e2e_12_pricing.jpg" alt=""><figcaption>Предложение по каждой модели, своя цена, фиксация</figcaption></figure>
 <div><pre>себестоимость = закупка × курс
              + пошлина категории
              + доля затрат поставки
 цена = себестоимость × (1 + наценка)
-     × (1 + НДС) → 189.90</pre><p>Затраты распределяются по стоимости, по штукам или по весу мешков.</p></div></div><div class="num">8 / 19</div></section><section class="slide" id="s9"><h2>5. Карточки и каталог</h2><div class="two"><figure><img src="img/e2e_13_product_card.jpg" alt=""><figcaption>Карточка: цвета, сетка размеров с остатками, SKU / EAN, переводы</figcaption></figure>
-<figure><img src="img/e2e_14_catalog.jpg" alt=""><figcaption>Каталог, поиск по названию на любом языке, SKU, EAN; экспорт CSV</figcaption></figure></div><div class="num">9 / 19</div></section><section class="slide" id="s10"><h2>Этикетки: четыре формата</h2><div class="three">
+     × (1 + НДС) → 189.90</pre><p>Затраты распределяются по стоимости, по штукам или по весу мешков.</p></div></div><div class="num">8 / 20</div></section><section class="slide" id="s9"><h2>5. Карточки и каталог</h2><div class="two"><figure><img src="img/e2e_13_product_card.jpg" alt=""><figcaption>Карточка: цвета, сетка размеров с остатками, SKU / EAN, переводы</figcaption></figure>
+<figure><img src="img/e2e_14_catalog.jpg" alt=""><figcaption>Каталог, поиск по названию на любом языке, SKU, EAN; экспорт CSV</figcaption></figure></div><div class="num">9 / 20</div></section><section class="slide" id="s10"><h2>Этикетки: четыре формата</h2><div class="three">
 <figure><img src="img/e2e_label_roll.png" alt=""><figcaption>Термоэтикетка 58×40</figcaption></figure>
 <figure><img src="img/e2e_label_roll_ro.png" alt=""><figcaption>Та же — на румынском</figcaption></figure>
 <figure><img src="img/e2e_label_a4.png" alt=""><figcaption>Лист A4 3×8</figcaption></figure></div>
 <p><b>ZPL</b> → Zebra · <b>TSPL</b> → TSC · <b>PDF A4</b> → обычный принтер · <b>PDF-рулон</b> → виртуальный принтер / драйвер.
-Печать по сети (порт 9100), через CUPS или в папку; копии — одной командой.</p><div class="num">10 / 19</div></section><section class="slide" id="s11"><h2>Три языка: русский · румынский · английский</h2><div class="three"><figure><img src="img/e2e_21_ro_sort.jpg" alt=""><figcaption>Разбор — RO</figcaption></figure><figure><img src="img/e2e_32_en_pricing.jpg" alt=""><figcaption>Цены — EN</figcaption></figure><figure><img src="img/e2e_24_ro_product.jpg" alt=""><figcaption>Карточка — RO</figcaption></figure></div>
-<p>Переключатель RU / RO / EN, переведены справочники, названия моделей и этикетки. Тест не даёт добавить строку без перевода.</p><div class="num">11 / 19</div></section><section class="slide" id="s12"><h2>Нативное приложение: Windows · macOS · Linux</h2><div class="two"><figure><img src="img/desk_04_matrix.jpg" alt=""><figcaption>Разбор мешка — матрица цвет × размер в окне программы</figcaption></figure>
+Печать по сети (порт 9100), через CUPS или в папку; копии — одной командой.</p><div class="num">10 / 20</div></section><section class="slide" id="s11"><h2>Три языка: русский · румынский · английский</h2><div class="three"><figure><img src="img/e2e_21_ro_sort.jpg" alt=""><figcaption>Разбор — RO</figcaption></figure><figure><img src="img/e2e_32_en_pricing.jpg" alt=""><figcaption>Цены — EN</figcaption></figure><figure><img src="img/e2e_24_ro_product.jpg" alt=""><figcaption>Карточка — RO</figcaption></figure></div>
+<p>Переключатель RU / RO / EN, переведены справочники, названия моделей и этикетки. Тест не даёт добавить строку без перевода.</p><div class="num">11 / 20</div></section><section class="slide" id="s12"><h2>Нативное приложение: Windows · macOS · Linux</h2><div class="two"><figure><img src="img/desk_04_matrix.jpg" alt=""><figcaption>Разбор мешка — матрица цвет × размер в окне программы</figcaption></figure>
 <div><ul><li>Обычная программа с окном (Python + Tkinter), без браузера и сервера</li>
 <li>То же ядро и та же база SQLite, что у веб-версии</li><li>8 вкладок: поставки, разбор, цены, каталог, этикетки,
-<b>редактор этикеток</b>, <b>Excel / CSV</b>, настройки</li><li>RU / RO / EN — переключение кнопкой, без перезапуска</li></ul></div></div><div class="num">12 / 19</div></section><section class="slide" id="s13"><h2>Встроенный редактор этикеток</h2><div class="two"><figure><img src="img/desk_09_editor_open.jpg" alt=""><figcaption>Шаблон 58×40 с данными вещи</figcaption></figure>
+<b>редактор этикеток</b>, <b>Excel / CSV</b>, настройки</li><li>RU / RO / EN — переключение кнопкой, без перезапуска</li></ul></div></div><div class="num">12 / 20</div></section><section class="slide" id="s13"><h2>Встроенный редактор этикеток</h2><div class="two"><figure><img src="img/desk_09_editor_open.jpg" alt=""><figcaption>Шаблон 58×40 с данными вещи</figcaption></figure>
 <div><figure><img src="img/desk_10_editor_new.jpg" alt=""><figcaption>Свой шаблон 50×30: текст, CODE128, рамка — мышью</figcaption></figure>
 <ul><li>Любой размер; текст с полями <code>{name} {size} {price}</code>…</li><li>EAN-13 и CODE128, рамки, линии</li>
-<li>Перетаскивание мышью, стрелки, свойства справа</li><li>Печать ZPL · TSPL · PDF; экспорт JSON</li></ul></div></div><div class="num">13 / 19</div></section><section class="slide" id="s14"><h2>Excel и CSV: выгрузка и загрузка</h2><div class="two"><figure><img src="img/desk_13_exchange.jpg" alt=""><figcaption>Полный отчёт Excel — 7 листов</figcaption></figure>
+<li>Перетаскивание мышью, стрелки, свойства справа</li><li>Печать ZPL · TSPL · PDF; экспорт JSON</li></ul></div></div><div class="num">13 / 20</div></section><section class="slide" id="s14"><h2>Excel и CSV: выгрузка и загрузка</h2><div class="two"><figure><img src="img/desk_13_exchange.jpg" alt=""><figcaption>Полный отчёт Excel — 7 листов</figcaption></figure>
 <div><ul><li>Выгрузка: каталог, цены, поставки, приёмка, лист, сверка, предложение цен</li>
 <li>Загрузка: упаковочный лист, <b>цены после правки в Excel</b>, каталог (сразу в приёмку), результаты приёмки с другого места</li>
-<li>Заголовки — на RU / RO / EN, EAN хранится текстом</li></ul><figure><img src="img/desk_14_exchange_import.jpg" alt=""><figcaption>Загрузка цен и каталога</figcaption></figure></div></div><div class="num">14 / 19</div></section><section class="slide" id="s15"><h2>Самоустановка</h2><table style="width:100%;border-collapse:collapse;font-size:18px">
+<li>Заголовки — на RU / RO / EN, EAN хранится текстом</li></ul><figure><img src="img/desk_14_exchange_import.jpg" alt=""><figcaption>Загрузка цен и каталога</figcaption></figure></div></div><div class="num">14 / 20</div></section><section class="slide" id="s15"><h2>Самоустановка</h2><table style="width:100%;border-collapse:collapse;font-size:18px">
 <tr><th style="text-align:left;border-bottom:2px solid #111">Windows</th><th style="text-align:left;border-bottom:2px solid #111">macOS</th><th style="text-align:left;border-bottom:2px solid #111">Linux</th></tr>
 <tr><td>Install-TexFlow-Windows.bat</td><td>Install-TexFlow-macOS.command</td><td>install-texflow-linux.sh</td></tr>
 <tr><td>Python через winget</td><td>python.org / brew</td><td>apt / dnf / pacman</td></tr>
@@ -64,15 +64,20 @@ a{color:#1f4fa0}.hint{position:fixed;left:12px;bottom:10px;color:#aaa;font-size:
 <ul style="margin-top:24px"><li>Двойной щелчок → Python, библиотеки в отдельном venv, ярлыки — без прав администратора</li>
 <li>Без установки: <code>python texflow_app.py</code> сам доставит библиотеки</li>
 <li>Готовая программа без Python: PyInstaller → TexFlow.exe / .app / бинарник</li>
-<li>Удаление одной командой; база данных сохраняется</li></ul><div class="num">15 / 19</div></section><section class="slide" id="s16"><h2>Тестирование</h2><div class="kpis"><div><b>86/86</b>модульных тестов</div><div><b>27/27</b>браузер</div>
-<div><b>18/18</b>нативное приложение</div><div><b>6/6</b>установка и сборка</div></div>
+<li>Удаление одной командой; база данных сохраняется</li></ul><div class="num">15 / 20</div></section><section class="slide" id="s16"><h2>Сборка на каждый push · подпись unisim-soft</h2><div class="flow">
+<div><b>1</b>Тесты: pytest + окно в Xvfb</div><div><b>2</b>Скрипты: запуск на Windows · macOS · Linux</div>
+<div><b>3</b>Сборка .exe · .app · Linux — и запуск без Python</div><div><b>4</b>SHA256SUMS + подпись Ed25519 unisim-soft + аттестация GitHub</div></div>
+<ul><li>Скриптовая версия при каждом запуске сама сверяет свои файлы с подписанным манифестом</li>
+<li><code>python texflow_app.py --verify-sums SHA256SUMS</code> — проверка скачанных архивов</li>
+<li>push в main → выпуск <b>texflow-nightly</b>; тег <code>texflow-v1.2.0</code> → выпуск версии</li></ul><div class="num">16 / 20</div></section><section class="slide" id="s17"><h2>Тестирование</h2><div class="kpis"><div><b>98/98</b>модульных тестов</div><div><b>27/27</b>браузер</div>
+<div><b>18/18</b>нативное приложение</div><div><b>7/7</b>установка и сборка</div></div>
 <ul><li>Браузер и окно программы проходят весь путь оператора на чистой базе и печатают на сетевой «принтер»</li>
 <li>Все экраны на RO и EN — без единой русской строки интерфейса (веб и desktop)</li>
 <li>Установщик: установка в чистую папку, запуск ярлыком, удаление; бинарник PyInstaller без Python</li>
 <li>8 дефектов найдено и исправлено</li>
-<li>Подробности, скриншоты каждого шага и найденные дефекты — в <a href="test_act.html">акте тестирования</a></li></ul><div class="num">16 / 19</div></section><section class="slide" id="s17"><h2>Мобильный экран</h2><div class="two"><figure><img src="img/e2e_39_mobile_sort.jpg" alt=""><figcaption>Разбор мешка на телефоне / планшете кладовщика</figcaption></figure>
+<li>Подробности, скриншоты каждого шага и найденные дефекты — в <a href="test_act.html">акте тестирования</a></li></ul><div class="num">17 / 20</div></section><section class="slide" id="s18"><h2>Мобильный экран</h2><div class="two"><figure><img src="img/e2e_39_mobile_sort.jpg" alt=""><figcaption>Разбор мешка на телефоне / планшете кладовщика</figcaption></figure>
 <div><p>Интерфейс адаптивный: на складе можно работать с планшета, подключившись к ноутбуку по локальной сети
-(<code>python run.py --host 0.0.0.0</code>).</p></div></div><div class="num">17 / 19</div></section><section class="slide" id="s18"><h2>Как запустить</h2><pre># Windows / macOS: двойной щелчок
+(<code>python run.py --host 0.0.0.0</code>).</p></div></div><div class="num">18 / 20</div></section><section class="slide" id="s19"><h2>Как запустить</h2><pre># Windows / macOS: двойной щелчок
 Install-TexFlow-Windows.bat   ·   Install-TexFlow-macOS.command
 # Linux
 sh install-texflow-linux.sh
@@ -81,12 +86,12 @@ python texflow_app.py --demo  # окно программы
 python texflow_app.py --web   # веб-версия
 tools/run_all.sh              # все тесты + скриншоты + акт</pre>
 <p>Документация: <a href="index.html">все материалы</a> · <a href="ru/OPERATOR_GUIDE.html">инструкция оператора</a> ·
-<a href="ru/LABELS.html">принтеры</a> · <a href="ru/DESKTOP.html">нативное приложение</a> · <a href="ru/ARCHITECTURE.html">схемы</a></p><div class="num">18 / 19</div></section><section class="slide" id="s19"><h2>Дальше</h2><ul><li>Пробная печать на вашем Zebra / TSC и сканирование этикетки</li>
+<a href="ru/LABELS.html">принтеры</a> · <a href="ru/DESKTOP.html">нативное приложение</a> · <a href="ru/ARCHITECTURE.html">схемы</a></p><div class="num">19 / 20</div></section><section class="slide" id="s20"><h2>Дальше</h2><ul><li>Пробная печать на вашем Zebra / TSC и сканирование этикетки</li>
 <li>Установка на Windows и macOS двойным щелчком; сборка TexFlow.exe / TexFlow.app через GitHub Actions</li>
 <li>Загрузка шрифта с кириллицей в принтер — для этикеток на русском</li>
 <li>Фото моделей в карточках и выгрузка каталога в интернет-магазин</li>
 <li>Опытная эксплуатация на одной реальной поставке</li></ul>
-<p class="mut">Код: standalone/texflow/ · PR #60 слит в main</p><div class="num">19 / 19</div></section><div class="hint">← → — слайды · Ctrl+P — сохранить в PDF</div>
+<p class="mut">Код: standalone/texflow/ · PR #60 слит в main</p><div class="num">20 / 20</div></section><div class="hint">← → — слайды · Ctrl+P — сохранить в PDF</div>
 <script>
 const s=[...document.querySelectorAll('.slide')];let i=0;
 function go(n){i=Math.max(0,Math.min(s.length-1,n));s[i].scrollIntoView({behavior:'smooth',block:'center'});}

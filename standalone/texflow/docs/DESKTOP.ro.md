@@ -65,9 +65,8 @@ La prima pornire bibliotecile lipsă se instalează singure în dosarul de date 
 `TexFlow.exe` (Windows), `TexFlow.app` (macOS) sau `TexFlow` (Linux), cu toate bibliotecile;
 pe calculatorul utilizatorului nu e nevoie de Python.
 
-Construcția se face pe sistemul-țintă. Pentru toate trei deodată există un șablon pentru GitHub
-Actions: `install/github-actions-texflow-desktop.yml`. Copiați-l în `.github/workflows/`, apoi
-Actions → TexFlow Desktop → Run workflow.
+Construcția se face pe sistemul-țintă, de aceea toate trei le face GitHub Actions — **la fiecare
+push** cu modificări TexFlow (secțiunea 6).
 
 ### Dezinstalare
 
@@ -171,3 +170,34 @@ Antetele sunt înțelese în rusă, română, engleză și după numele tehnic. 
 | Windows: „Windows a protejat calculatorul” | „Mai multe informații” → „Rulează oricum” |
 | macOS: „dezvoltatorul nu poate fi verificat” | clic dreapta → „Deschide” |
 | Chirilica pe Zebra/TSC apare cu litere latine | puneți limba etichetei **Română** sau încărcați un font TTF în imprimantă |
+
+## 6. Construire la fiecare push, semnătura unisim-soft și verificare
+
+`.github/workflows/texflow-desktop.yml` pornește la **fiecare push** în orice ramură, dacă s-au
+schimbat fișiere din `standalone/texflow/`, și la tagurile `texflow-v*`. Etapele:
+
+1. **teste** (pytest, inclusiv fereastra în Xvfb);
+2. **versiunea din scripturi** `TexFlow-<versiune>-scripts.zip` cu `MANIFEST.sha256` și semnătura
+   unisim-soft `MANIFEST.sha256.sig`;
+3. **pornire din scripturi** pe Windows, macOS și Linux: `--verify`, `--check`, `--smoke`,
+   instalatorul;
+4. **executabile**: `TexFlow.exe`, `TexFlow.app` (semnătură ad-hoc), binar Linux — fiecare
+   **pornit** fără Python;
+5. **`SHA256SUMS` + `SHA256SUMS.sig`** (Ed25519, cheia **unisim-soft**) și atestarea GitHub
+   (Sigstore) — aceasta doar pentru depozite publice sau GitHub Enterprise;
+6. **publicare**: push în `main` → pre-lansarea **texflow-nightly**; tagul `texflow-v1.2.0` →
+   lansarea versiunii.
+
+**Cheia unisim-soft.**
+
+- Cheia privată este în secretul `UNISIM_SOFT_SIGNING_KEY`.
+- Cheia publică este în program și în `install/signing/unisim-soft.pub`. Amprenta:
+  `c5173c9670d69b5d`.
+
+**Verificare:**
+
+```bash
+python texflow_app.py --verify                 # integritatea propriilor fișiere
+python texflow_app.py --verify-sums SHA256SUMS # arhivele descărcate
+TEXFLOW_STRICT_INTEGRITY=1 python texflow_app.py   # nu pornește dacă fișierele au fost modificate
+```

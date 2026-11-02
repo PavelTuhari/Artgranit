@@ -162,4 +162,6 @@ def test_shared_deployer_untouched():
                              capture_output=True, text=True, timeout=10).stdout.split()
     except (OSError, subprocess.SubprocessError):
         return
-    assert all(p.startswith(("standalone/texflow/", "docs/TexFlow/")) for p in out), out
+    # единственный общий файл — сборка на каждый push, добавлен по прямому решению владельца
+    allowed = ("standalone/texflow/", "docs/TexFlow/", ".github/workflows/texflow-desktop.yml")
+    assert all(p.startswith(allowed) for p in out), out

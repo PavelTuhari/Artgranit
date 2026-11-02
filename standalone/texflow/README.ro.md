@@ -42,6 +42,7 @@ Pe lângă versiunea web există un **program obișnuit cu fereastră**, pe acel
 - **Program gata fără Python:** `python install/build_exe.py`.
 - **Editor de etichete integrat:** șabloane proprii cu mouse-ul, EAN-13 / CODE128, orice dimensiune.
 - **Excel și CSV:** export și import (raport complet, catalog, prețuri, recepție).
+- **Construire și semnătură:** la fiecare push GitHub Actions testează, pornește din scripturi și construiește .exe / .app / Linux, semnează SHA256SUMS cu cheia **unisim-soft**; programul își verifică singur semnătura: `python texflow_app.py --verify`.
 
 ## 1. Instalare și pornire
 
