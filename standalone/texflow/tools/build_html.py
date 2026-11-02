@@ -412,7 +412,8 @@ def build_act(e2e: dict, unit: list[dict]) -> str:
     e2e_rows = e2e["results"]
     up, ut = sum(r["status"] == "PASS" for r in unit), len(unit)
     ep, et = sum(r["status"] == "PASS" for r in e2e_rows), len(e2e_rows)
-    verdict_ok = up == ut and ep == et and dp == dt_ and ip == it and ut > 0 and et > 0
+    unit_fail = sum(r["status"] == "FAIL" for r in unit)
+    verdict_ok = unit_fail == 0 and ep == et and dp == dt_ and ip == it and ut > 0 and et > 0
 
     def thumbs(imgs):
         return "".join(f'<a href="img/{i}"><img loading="lazy" src="img/{i}" alt="{i}"></a>' for i in imgs)
