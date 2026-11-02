@@ -5,3 +5,6 @@ instance/
 *.db-wal
 *.db-shm
 spool/
+dist/
+tools/.cache/
+docs/html/pytest_results.xml.tmp

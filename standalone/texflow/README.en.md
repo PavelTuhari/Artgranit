@@ -66,13 +66,25 @@ cd standalone/texflow
 python -m pytest -q
 ```
 
-60 tests, no Oracle wallet and no printer needed. They cover:
+63 tests, no Oracle wallet and no printer needed. They cover:
 
 - rules: EAN-13, SKU, rounding, markup with VAT, cost allocation, reconciliation;
 - labels: ZPL, TSPL, PDF;
 - sending to a fake TCP “printer”;
 - the full HTTP scenario;
 - translations: every UI string has RO and EN, and the RO/EN pages contain no Cyrillic.
+
+## 2b. HTML materials: documentation, test report, presentation
+
+The HTML materials are in `docs/html/` and open offline, straight from the folder or in the app at
+`http://127.0.0.1:5077/docs/`:
+
+- `index.html` — all materials;
+- `{ru,ro,en}/*.html` — documentation and screen galleries;
+- `test_act.html` / `.pdf` — test report with screenshots;
+- `presentation.html` / `.pdf` — slides.
+
+Rebuild: `tools/run_all.sh`; archive identical to git: `tools/make_archive.sh`.
 
 ## 3. How to work (short)
 

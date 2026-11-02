@@ -1,10 +1,11 @@
 """HTTP-маршруты TexFlow."""
 from __future__ import annotations
 
+import os
 import re
 
 from flask import (Blueprint, Response, current_app, flash, jsonify, redirect, render_template,
-                   request, url_for)
+                   request, send_from_directory, url_for)
 
 from . import labels as L
 from . import printing, store
@@ -417,3 +418,15 @@ def refs():
 @bp.route("/help")
 def help_page():
     return render_template("help.html")
+
+
+DOCS_HTML = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs", "html")
+
+
+@bp.route("/docs/")
+@bp.route("/docs/<path:name>")
+def docs_html(name="index.html"):
+    """HTML-документация, акт тестирования и презентация (собираются tools/run_all.sh)."""
+    if not os.path.exists(os.path.join(DOCS_HTML, "index.html")):
+        return _("HTML-документация не собрана: запустите tools/run_all.sh"), 404
+    return send_from_directory(DOCS_HTML, name)

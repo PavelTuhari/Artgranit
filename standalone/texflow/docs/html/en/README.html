@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TexFlow — intake of clothing from bags, catalogue, pricing and labels · TexFlow</title><link rel="stylesheet" href="../assets/docs.css"></head>
+<body><header class="top"><span class="logo">TEXFLOW</span><a href="../index.html">All materials</a>
+<a href="../test_act.html">Test report</a><a href="../presentation.html">Presentation</a><span class="langs"><a class="" href="../ru/README.html">RU</a><a class="" href="../ro/README.html">RO</a><a class="on" href="../en/README.html">EN</a></span></header>
+<div class="wrap"><nav class="side"><b>Documentation</b><a class="on" href="../en/README.html">Overview & install</a><a href="../en/OPERATOR_GUIDE.html">Operator guide</a><a href="../en/LABELS.html">Labels & printers</a><a href="../en/ARCHITECTURE.html">Flowcharts</a><a href="../en/gallery.html">Screen gallery</a><b>Test report · Presentation</b><a href="../test_act.html">Test report (RU)</a><a href="../presentation.html">Presentation (RU)</a><a href="../index.html">All materials</a></nav><main class="doc"><h1 id="texflow-intake-of-clothing-from-bags-catalogue-pricing-and-labels">TexFlow — intake of clothing from bags, catalogue, pricing and labels</h1>
+<p><a href="../ru/README.html">Русский</a> · <a href="../ro/README.html">Română</a> · <strong>English</strong></p>
+<p>A standalone web app built on <strong>Python + Flask + SQLite</strong>. It is made for fast
+processing of clothing that arrives from Turkey and China in bags, where
+everything is mixed together and the shipment comes with only a <strong>rough</strong>
+packing list.</p>
+<p>TexFlow takes goods through five steps:</p>
+<ol>
+<li>receives them bag by bag, putting every model into a “colour × size” matrix (Zara-style);</li>
+<li>reconciles the actual count against the packing list;</li>
+<li>calculates landed cost including import costs;</li>
+<li>sets prices from category markups;</li>
+<li>prints labels on <strong>Zebra (ZPL)</strong>, <strong>TSC (TSPL)</strong> or as <strong>PDF</strong> —
+   an A4 sheet for an office printer or a roll for a virtual printer.</li>
+</ol>
+<p>The interface is in three languages: <strong>Russian, Romanian, English</strong>. The
+RU / RO / EN switch is in the header. Colour, category and size-scale names
+are translated, and the colour on the label can be printed in any of the
+three languages.</p>
+<p>No server or internet is needed: one database file <code>instance/texflow.db</code>,
+run it from a laptop.</p>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>About</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="ARCHITECTURE.html">docs/ARCHITECTURE.en.md</a></td>
+<td>Mermaid diagrams: process, data (ER), pricing, printing</td>
+</tr>
+<tr>
+<td><a href="LABELS.html">docs/LABELS.en.md</a></td>
+<td>Zebra/TSC printers, PDF, Cyrillic, A4 sheet calibration</td>
+</tr>
+<tr>
+<td><a href="OPERATOR_GUIDE.html">docs/OPERATOR_GUIDE.en.md</a></td>
+<td>step-by-step guide for the operator / storekeeper</td>
+</tr>
+<tr>
+<td><a href="../../../samples">samples/</a></td>
+<td>sample packing lists: Turkish and Chinese</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="1-install-and-run">1. Install and run</h2>
+<p>Requires Python 3.10 or newer (tested on 3.13).</p>
+<pre><code class="language-bash">cd standalone/texflow
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python run.py --demo               # opens http://127.0.0.1:5077/ with a demo shipment
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Option</th>
+<th>What it does</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--host 0.0.0.0</code></td>
+<td>allow tablets and PCs on the local network, e.g. a scanner at a second workstation</td>
+</tr>
+<tr>
+<td><code>--port 5077</code></td>
+<td>port</td>
+</tr>
+<tr>
+<td><code>--db path.db</code></td>
+<td>another database file, e.g. a separate database per season</td>
+</tr>
+<tr>
+<td><code>--demo</code></td>
+<td>load the demo shipment <code>DEMO-TR-01</code>: 3 models, received pieces, prices</td>
+</tr>
+<tr>
+<td><code>--no-browser</code></td>
+<td>do not open the browser automatically</td>
+</tr>
+</tbody>
+</table>
+<p>Environment variables: <code>TEXFLOW_DB</code> — database path, <code>TEXFLOW_PDF_FONT</code> — your
+own TTF font for PDF.</p>
+<p><strong>Backup</strong> — copy <code>instance/texflow.db</code>. While the app is running, this is
+safer: <code>sqlite3 instance/texflow.db ".backup backup.db"</code>.</p>
+<h2 id="2-tests">2. Tests</h2>
+<pre><code class="language-bash">cd standalone/texflow
+python -m pytest -q
+</code></pre>
+<p>60 tests, no Oracle wallet and no printer needed. They cover:</p>
+<ul>
+<li>rules: EAN-13, SKU, rounding, markup with VAT, cost allocation, reconciliation;</li>
+<li>labels: ZPL, TSPL, PDF;</li>
+<li>sending to a fake TCP “printer”;</li>
+<li>the full HTTP scenario;</li>
+<li>translations: every UI string has RO and EN, and the RO/EN pages contain no Cyrillic.</li>
+</ul>
+<h2 id="3-how-to-work-short">3. How to work (short)</h2>
+<p>Full guide — <a href="OPERATOR_GUIDE.html">docs/OPERATOR_GUIDE.en.md</a>.</p>
+<ol>
+<li><strong>Shipments → New shipment.</strong> Number, supplier, country, currency and rate
+   to the local currency. Costs in local currency: freight, customs fees,
+   broker, other. Allocation method: by value, per piece or by bag weight.</li>
+<li><strong>Packing list.</strong> CSV <code>bag;category;description;qty;price;weight</code>. Headers
+   can be in Russian, Romanian, English, Turkish or Chinese. UTF-8, cp1251,
+   cp1254 and GB18030 are detected automatically. Bags are created
+   automatically.</li>
+<li><strong>Sorting a bag.</strong> An item already in the system is scanned (EAN or SKU):
+   +1 pc. A new model is created in the “New model” form: click the colours,
+   then enter quantities into the size matrix. Enter — next cell,
+   Ctrl+Enter — save. The purchase price is taken from the packing list by
+   category.</li>
+<li><strong>Reconciliation</strong> on the shipment page, by category and by bag: “match”,
+   “shortage”, “surplus”, “not in list”.</li>
+<li><strong>Prices.</strong> Landed cost → category markup → VAT → charm price (e.g. 189.90).
+   You can type your own price or lock it on the product card.</li>
+<li><strong>Labels</strong> for the whole shipment, a bag, a model or one variant. The
+   number of labels equals the pieces received.</li>
+</ol>
+<h2 id="4-languages">4. Languages</h2>
+<table>
+<thead>
+<tr>
+<th>Where</th>
+<th>How</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Interface</td>
+<td>the <strong>RU / RO / EN</strong> switch in the header; remembered in the browser. Default language — “Settings → Default interface language”</td>
+</tr>
+<tr>
+<td>Reference data</td>
+<td>colour, colour group, category and scale have <code>name</code> (RU), <code>name_ro</code>, <code>name_en</code>; empty translation → Russian name</td>
+</tr>
+<tr>
+<td>Model</td>
+<td>on the model card — name and composition in RO and EN (empty → the main one). Catalogue, sorting and pricing show the name in the interface language; search works in any language</td>
+</tr>
+<tr>
+<td>Label</td>
+<td>“Settings → Language of colour names on labels”: colour, model name and composition are printed in that language (“Black”, “Basic oversize T-shirt”)</td>
+</tr>
+<tr>
+<td>Packing list</td>
+<td>Romanian headers are understood too; a category can be given by its Romanian or English name</td>
+</tr>
+<tr>
+<td>New UI string</td>
+<td>in the template — <code>{{ _('Russian text') }}</code>, translation — in <code>texflow/i18n_catalog.py</code>; without it <code>test_every_ui_string_translated</code> fails</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-data-model-sqlite-normalised">5. Data model (SQLite, normalised)</h2>
+<table>
+<thead>
+<tr>
+<th>Table</th>
+<th>Entity</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>suppliers</code></td>
+<td>suppliers</td>
+</tr>
+<tr>
+<td><code>size_scales</code>, <code>sizes</code></td>
+<td>size scales: letters XXS–3XL, women EU 32–48, men 44–58, jeans W24–38, kids by height 86–164, shoes 35–46, ONE</td>
+</tr>
+<tr>
+<td><code>color_families</code>, <code>colors</code></td>
+<td>Zara-style colour groups (White, Black, Beige, Blue…) and colours with codes <code>001</code>, <code>800</code>, <code>401</code>…</td>
+</tr>
+<tr>
+<td><code>categories</code></td>
+<td>category → size scale, markup %, duty %, HS code</td>
+</tr>
+<tr>
+<td><code>shipments</code></td>
+<td>shipment: currency, rate, freight/customs/broker/other, allocation method, status</td>
+</tr>
+<tr>
+<td><code>bags</code></td>
+<td>bags of a shipment: number, weight, status (<code>closed</code> → <code>sorting</code> → <code>done</code>)</td>
+</tr>
+<tr>
+<td><code>packing_lines</code></td>
+<td>lines of the rough packing list</td>
+</tr>
+<tr>
+<td><code>products</code></td>
+<td>model: style no., name, category, composition, purchase price, retail price, lock</td>
+</tr>
+<tr>
+<td><code>variants</code></td>
+<td>“colour × size” variant: unique <code>sku</code> and <code>ean13</code></td>
+</tr>
+<tr>
+<td><code>intake_items</code></td>
+<td>intake log: how many pieces of which variant from which bag; purchase; landed cost</td>
+</tr>
+<tr>
+<td><code>label_jobs</code></td>
+<td>print log</td>
+</tr>
+<tr>
+<td><code>settings</code></td>
+<td>settings: brand, VAT, rounding, label sizes, printers, languages</td>
+</tr>
+</tbody>
+</table>
+<p>Stock is not a separate column: it is <code>SUM(intake_items.qty)</code> per variant. A
+miscount is fixed with a negative line or by deleting the log line.</p>
+<p><strong>SKU</strong> = <code>STYLE-COLOURCODE-SIZE</code>, e.g. <code>TSH0001-800-M</code>.
+<strong>EAN-13</strong> — internal, prefix <code>200</code> (GS1 reserves 20–29 for in-store use)
+with a correct check digit.</p>
+<h2 id="6-formulas">6. Formulas</h2>
+<pre><code>purchase_loc  = purchase_fx × rate
+duty          = purchase_loc × category_duty %
+share         = (freight + customs + broker + other) × line_basis / Σ basis
+                 basis: value | pieces | weight (bag weight × share of pieces in the bag)
+landed        = purchase_loc + duty + share / qty
+price_calc    = landed × (1 + max(category_markup, min_markup) %) × (1 + VAT %)
+price         = ⌈(price_calc + ending) / step⌉ × step − ending      (step 10, ending 0.1 → 189.90)
+</code></pre>
+<h2 id="7-post-install-checklist">7. Post-install checklist</h2>
+<ol>
+<li><code>python -m pytest -q</code> — all tests pass.</li>
+<li><code>python run.py --demo</code> opens the home page; “Catalogue” shows 3 models with prices.</li>
+<li>Switch to <strong>EN</strong> in the header — the whole interface is in English.</li>
+<li>“Labels” → shipment <code>DEMO-TR-01</code> → “PDF A4” → “Open”: a 3×8 sheet with barcodes.
+   A scanner must read the EAN from paper.</li>
+<li>For Zebra/TSC: set the printer address in “Settings”, print one label
+   (the “label” button next to a variant) and check that it scans.</li>
+</ol></main></div></body></html>

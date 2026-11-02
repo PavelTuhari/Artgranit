@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Etichete: Zebra (ZPL), TSC (TSPL), PDF A4 și PDF rolă · TexFlow</title><link rel="stylesheet" href="../assets/docs.css"></head>
+<body><header class="top"><span class="logo">TEXFLOW</span><a href="../index.html">Toate materialele</a>
+<a href="../test_act.html">Act de testare</a><a href="../presentation.html">Prezentare</a><span class="langs"><a class="" href="../ru/LABELS.html">RU</a><a class="on" href="../ro/LABELS.html">RO</a><a class="" href="../en/LABELS.html">EN</a></span></header>
+<div class="wrap"><nav class="side"><b>Documentație</b><a href="../ro/README.html">Prezentare și instalare</a><a href="../ro/OPERATOR_GUIDE.html">Instrucțiuni operator</a><a class="on" href="../ro/LABELS.html">Etichete și imprimante</a><a href="../ro/ARCHITECTURE.html">Scheme bloc</a><a href="../ro/gallery.html">Galerie ecrane</a><b>Act de testare · Prezentare</b><a href="../test_act.html">Act de testare (RU)</a><a href="../presentation.html">Prezentare (RU)</a><a href="../index.html">Toate materialele</a></nav><main class="doc"><h1 id="etichete-zebra-zpl-tsc-tspl-pdf-a4-si-pdf-rola">Etichete: Zebra (ZPL), TSC (TSPL), PDF A4 și PDF rolă</h1>
+<p><a href="../ru/LABELS.html">Русский</a> · <strong>Română</strong> · <a href="../en/LABELS.html">English</a></p>
+<p>Există o singură înregistrare de etichetă (<code>LabelData</code>) și patru ieșiri din
+ea. Conținutul este același peste tot:</p>
+<pre><code>┌──────────────────────────────────────┐
+│ MY STORE                             │  brand (Setări → Brand)
+│ Tricou oversize                      │  denumirea modelului
+│ Negru   TSH0001-800-S                │  culoare + SKU
+│ ┌───┐                                │
+│ │ S │                     179.90 MDL │  mărimea în chenar, prețul
+│ └───┘                                │
+│        ▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌          │  EAN-13
+│        2 000000 000015               │
+│ 100% bumbac                          │  compoziție
+└──────────────────────────────────────┘
+</code></pre>
+<p>Limba denumirii culorii (Negru / Чёрный / Black) se alege în
+„Setări → Limba denumirilor culorilor pe etichetă”.
+În aceeași limbă se tipăresc denumirea modelului și compoziția, dacă în fișă
+există traducerea lor (altfel — cea principală).</p>
+<h2 id="ce-format-sa-alegeti">Ce format să alegeți</h2>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Imprimantă</th>
+<th>Cum se tipărește</th>
+<th>Când</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ZPL</strong></td>
+<td>Zebra GK420t/d, ZD220, ZD230, ZD421, ZT230/ZT410, precum și imprimante cu emulare ZPL (Godex, Xprinter, TSC în regim ZPL)</td>
+<td><code>tcp://IP:9100</code>, <code>cups://COADĂ</code> sau descărcare <code>.zpl</code></td>
+<td>fluxul principal, cel mai rapid</td>
+</tr>
+<tr>
+<td><strong>TSPL</strong></td>
+<td>TSC TE200/TE210/TE300, TTP-244 Pro, DA200/DA210, Alpha-3R; multe imprimante chinezești ieftine (Xprinter XP-360B etc.)</td>
+<td>la fel</td>
+<td>dacă imprimanta nu înțelege ZPL</td>
+</tr>
+<tr>
+<td><strong>PDF A4</strong></td>
+<td>orice imprimantă laser sau cu jet</td>
+<td>deschideți PDF-ul → tipărire la scara <strong>100%</strong> („Dimensiune reală”)</td>
+<td>nu aveți imprimantă termică, aveți coli de etichete autoadezive</td>
+</tr>
+<tr>
+<td><strong>PDF rolă</strong></td>
+<td>orice imprimantă cu driver, inclusiv Zebra/TSC prin driverul Windows (Seagull), precum și „Microsoft Print to PDF”</td>
+<td>o pagină = o etichetă, dimensiunea paginii egală cu a etichetei</td>
+<td>tipărire prin driver, arhivă, trimitere prin e-mail</td>
+</tr>
+</tbody>
+</table>
+<h2 id="adresa-imprimantei">Adresa imprimantei</h2>
+<p>Se setează în „Setări” (<code>printer_zpl</code>, <code>printer_tspl</code>) sau direct în câmpul
+„Imprimantă” de pe pagina etichetelor.</p>
+<table>
+<thead>
+<tr>
+<th>Adresă</th>
+<th>Ce se întâmplă</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tcp://192.168.1.50:9100</code></td>
+<td>octeții bruți merg pe portul 9100 (RAW / JetDirect). Așa funcționează Zebra și TSC cu Ethernet sau Wi-Fi</td>
+</tr>
+<tr>
+<td><code>cups://Zebra_ZD220</code></td>
+<td><code>lp -d Zebra_ZD220 -o raw</code> — pentru imprimantă USB pe Linux sau macOS</td>
+</tr>
+<tr>
+<td><code>dir:///home/shop/spool</code></td>
+<td>fișierul lucrării se salvează într-un dosar, de unde îl preia alt script sau driver</td>
+</tr>
+</tbody>
+</table>
+<h3 id="imprimanta-usb-pe-linuxmacos-cups">Imprimantă USB pe Linux/macOS (CUPS)</h3>
+<pre><code class="language-bash">lpinfo -v | grep -i usb                       # găsiți URI-ul imprimantei
+sudo lpadmin -p Zebra_ZD220 -E -v &quot;usb://Zebra%20Technologies/ZTC%20ZD220-203dpi%20ZPL&quot; -m raw
+# în TexFlow: cups://Zebra_ZD220
+</code></pre>
+<h3 id="imprimanta-usb-pe-windows">Imprimantă USB pe Windows</h3>
+<p>Există două căi:</p>
+<ol>
+<li><strong>PDF rolă</strong> prin driverul instalat: în setările driverului dimensiunea
+   hârtiei 58×40 mm, la tipărire scara 100%.</li>
+<li><strong>ZPL/TSPL brut.</strong> Partajați imprimanta (de exemplu, numele <code>ZEBRA</code>),
+   descărcați <code>.zpl</code> și executați <code>copy /b labels.zpl \\localhost\ZEBRA</code>.</li>
+</ol>
+<p>Dacă imprimanta are port de rețea, cel mai simplu este <code>tcp://IP:9100</code>.</p>
+<h2 id="dimensiuni-si-rezolutie">Dimensiuni și rezoluție</h2>
+<p>Se configurează în „Setări”:</p>
+<table>
+<thead>
+<tr>
+<th>Parametru</th>
+<th>Implicit</th>
+<th>Comentariu</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Lățime × înălțime</td>
+<td>58 × 40 mm</td>
+<td>dimensiuni populare: 58×40, 58×30, 40×30, 50×30, 43×25</td>
+</tr>
+<tr>
+<td>Spațiu</td>
+<td>2 mm</td>
+<td>pentru TSPL (<code>GAP</code>)</td>
+</tr>
+<tr>
+<td>DPI</td>
+<td>203</td>
+<td>203 / 300 / 600. Pentru ZPL modulul codului de bare este de 2 puncte la 203 dpi și 3 puncte la 300 dpi</td>
+</tr>
+</tbody>
+</table>
+<h2 id="chirilica-si-diacriticele-pe-imprimanta-termica">Chirilica și diacriticele pe imprimanta termică</h2>
+<p>Fonturile încorporate Zebra (<code>^A0</code>) și TSC (<code>"1"</code>…<code>"8"</code>) <strong>nu conțin
+chirilică</strong>. De aceea, implicit, textul pe eticheta ZPL/TSPL se
+transliterează: „Футболка” → „Futbolka”, iar „ș ț ă î â” → „s t a i a”.
+Cifrele, prețul, SKU și codul de bare nu se schimbă.</p>
+<p>Pentru textul original:</p>
+<ol>
+<li>Încărcați un font TTF în imprimantă: Zebra Setup Utilities → Download Fonts,
+   la TSC — Diagnostic Tool → Font.</li>
+<li>În „Setări” indicați numele fontului de pe imprimantă:
+   - ZPL: <code>E:ARIAL.TTF</code> (se folosește <code>^A@N,h,w,E:ARIAL.TTF</code>; UTF-8 este deja activat prin <code>^CI28</code>);
+   - TSPL: <code>ARIAL.TTF</code> (se folosesc <code>CODEPAGE UTF-8</code> și <code>TEXT x,y,"ARIAL.TTF",...</code>).</li>
+</ol>
+<p>Pentru etichete fără chirilică puneți limba culorii <strong>Română</strong> sau <strong>English</strong>,
+iar denumirile modelelor scrieți-le cu litere latine.</p>
+<p>În PDF chirilica și diacriticele se tipăresc întotdeauna: se folosește fontul
+de sistem DejaVu, Liberation sau Arial. Un font propriu se indică prin
+variabila <code>TEXFLOW_PDF_FONT</code>.</p>
+<h2 id="coala-a4-calibrare">Coala A4 — calibrare</h2>
+<p>Implicit coala 3×8 = 24 de etichete 70×37 mm. Alte formate:</p>
+<table>
+<thead>
+<tr>
+<th>Coală</th>
+<th>Coloane × rânduri</th>
+<th>Etichetă, mm</th>
+<th>Margine sus, mm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>24 buc</td>
+<td>3 × 8</td>
+<td>70 × 37</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>21 buc</td>
+<td>3 × 7</td>
+<td>70 × 42.3</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>40 buc</td>
+<td>4 × 10</td>
+<td>52.5 × 29.7</td>
+<td>0</td>
+</tr>
+<tr>
+<td>14 buc</td>
+<td>2 × 7</td>
+<td>105 × 42.3</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>65 buc</td>
+<td>5 × 13</td>
+<td>38.1 × 21.2</td>
+<td>10.7 (și stânga 4.7)</td>
+</tr>
+</tbody>
+</table>
+<p>Ordinea calibrării:</p>
+<ol>
+<li>Tipăriți pe hârtie simplă cu chenar (Setări → „Chenar”).</li>
+<li>Puneți coala peste coala de etichete, în contra luminii.</li>
+<li>Corectați deplasarea cu marginile.</li>
+</ol>
+<p>Câmpul <strong>„Începe de la celula”</strong> permite completarea unei coli începute: de
+exemplu, <code>5</code> sare peste primele cinci etichete ocupate.</p>
+<h2 id="verificare-fara-imprimanta">Verificare fără imprimantă</h2>
+<ul>
+<li><strong>ZPL</strong>: pagina etichetelor afișează ZPL-ul primei etichete. Îl puteți lipi
+  în https://labelary.com/viewer.html (8 dpmm = 203 dpi, 2.28×1.57 inch = 58×40 mm).</li>
+<li><strong>TSPL</strong>: descărcați <code>.tspl</code> și deschideți-l în TSC Console / Diagnostic Tool,
+  sau trimiteți-l la imprimantă: <code>nc 192.168.1.50 9100 &lt; labels.tspl</code>.</li>
+<li><strong>PDF</strong>: deschideți-l în browser și scanați codul de bare de pe ecran cu
+  telefonul.</li>
+</ul>
+<p>Numărul de copii se dă printr-o singură comandă: <code>^PQn</code> în ZPL și
+<code>PRINT 1,n</code> în TSPL. Astfel, 18 etichete identice sunt o singură lucrare, nu 18.
+Exemple complete de ZPL și TSPL — în <a href="../ru/LABELS.html">LABELS.md</a>.</p></main></div></body></html>

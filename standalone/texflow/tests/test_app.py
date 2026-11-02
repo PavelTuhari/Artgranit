@@ -122,6 +122,16 @@ def test_settings_and_refs_forms(app, client):
     assert "Не сохранено" in r.get_data(as_text=True)
 
 
+def test_html_docs_served(client):
+    r = client.get("/docs/")
+    if r.status_code == 404:                       # документация ещё не собрана — понятное сообщение
+        assert "run_all" in r.get_data(as_text=True)
+        return
+    assert r.status_code == 200 and "TexFlow" in r.get_data(as_text=True)
+    assert client.get("/docs/test_act.html").status_code == 200
+    assert client.get("/docs/../texflow/db.py").status_code == 404
+
+
 def test_demo_loads(app):
     from texflow.demo import load_demo
     with app.app_context():

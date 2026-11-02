@@ -1,0 +1,72 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TexFlow — презентация</title><style>
+*{box-sizing:border-box}body{margin:0;background:#1b1b1b;font:20px/1.45 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#111}
+.slide{width:1280px;height:720px;margin:24px auto;background:#fff;padding:48px 60px;position:relative;overflow:hidden;box-shadow:0 4px 30px #0008}
+h2{margin:0 0 20px;font-size:34px;letter-spacing:.02em;text-transform:uppercase}h1{font-size:48px;line-height:1.15}
+.title{display:flex;flex-direction:column;justify-content:center;height:100%}.logo{font-weight:800;letter-spacing:.3em;font-size:22px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}.three{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:start}
+figure{margin:0}figure img{width:100%;max-height:400px;object-fit:contain;object-position:top left;border:1px solid #ddd}
+.three figure img{max-height:340px}.slide>figure img{max-height:500px}figcaption{font-size:15px;color:#555;margin-top:6px}
+.diagram,.diagram *{line-height:normal}.diagram{font-size:16px}.diagram svg{max-width:100%;height:auto;max-height:420px}pre{background:#111;color:#eee;padding:16px;font-size:17px}
+.big{font-size:64px;font-weight:800;text-align:center;align-self:center}.big span{display:block;font-size:22px;font-weight:400;color:#666}
+.flow{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin:10px 0 30px}
+.flow div{border:2px solid #111;padding:18px;font-size:21px;min-height:120px;position:relative}.flow b{display:block;font-size:34px;margin-bottom:6px}
+.flow div:not(:nth-child(4n)):after{content:"→";position:absolute;right:-17px;top:40%;font-size:22px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin:10px 0 24px}.kpis div{border:1px solid #ddd;padding:16px;font-size:16px}
+.kpis b{display:block;font-size:40px}.mut{color:#777}.num{position:absolute;right:28px;bottom:18px;font-size:14px;color:#999}
+a{color:#1f4fa0}.hint{position:fixed;left:12px;bottom:10px;color:#aaa;font-size:13px}
+@media print{body{background:#fff}.slide{margin:0;box-shadow:none;page-break-after:always}.hint{display:none}@page{size:1280px 720px;margin:0}}
+</style></head><body><section class="slide" id="s1"><div class="title"><div class="logo">TEXFLOW</div><h1>Приёмка одежды из мешков<br>за минуты, а не за часы</h1>
+<p>Каталог в стиле Zara · цены от себестоимости · этикетки Zebra / TSC / PDF · RU / RO / EN</p>
+<p class="mut">Автономное приложение Python + Flask + SQLite · 02.11.2026</p></div><div class="num">1 / 15</div></section><section class="slide" id="s2"><h2>Задача</h2><div class="two"><ul>
+<li>Одежда из Турции и Китая приходит <b>мешками</b>, всё вперемешку</li>
+<li>Упаковочный лист — <b>примерный</b>: «футболки — 120 шт.», без цветов и размеров</li>
+<li>Нужно быстро завести каждую вещь как <b>модель · цвет · размер</b> со штрихкодом</li>
+<li>Посчитать <b>себестоимость</b> с фрахтом, таможней и брокером и поставить цены</li>
+<li>Напечатать <b>этикетки</b> на термопринтере или на обычном принтере</li></ul>
+<div class="big">5 шагов<br><span>от мешка до вешалки</span></div></div><div class="num">2 / 15</div></section><section class="slide" id="s3"><h2>Решение: один процесс</h2><div class="flow">
+<div><b>1</b>Мешки из Турции / Китая</div><div><b>2</b>Поставка: курс, фрахт, таможня, брокер</div>
+<div><b>3</b>Примерный лист CSV → мешки</div><div><b>4</b>Разбор: матрица цвет × размер или сканер</div>
+<div><b>5</b>Сверка с листом</div><div><b>6</b>Себестоимость → цена</div>
+<div><b>7</b>Карточки и каталог</div><div><b>8</b>Этикетки ZPL / TSPL / PDF</div></div>
+<p>Сервер и интернет не нужны: один файл базы SQLite, запуск на ноутбуке склада, несколько рабочих мест по локальной сети.
+Полные блок-схемы — в <a href="ru/ARCHITECTURE.html">документации</a>.</p><div class="num">3 / 15</div></section><section class="slide" id="s4"><h2>1. Поставка и примерный лист</h2><div class="two"><figure><img src="img/e2e_03_shipment_form.jpg" alt=""><figcaption>Поставка: валюта, курс, фрахт, таможня, брокер</figcaption></figure>
+<figure><img src="img/e2e_05_packing_loaded.jpg" alt=""><figcaption>Лист CSV загружен — мешки созданы сами</figcaption></figure></div>
+<p>Заголовки листа понимаются на RU / RO / EN / TR / ZH; кодировки UTF-8, cp1251, cp1254, GB18030.</p><div class="num">4 / 15</div></section><section class="slide" id="s5"><h2>2. Разбор мешка: матрица цвет × размер</h2><div class="two"><figure><img src="img/e2e_06_matrix_filled.jpg" alt=""><figcaption>Клик по цветам → строки, количества по размерам → Ctrl+Enter</figcaption></figure>
+<div><ul><li>Цвета сгруппированы как у Zara: Белый, Бежевый, Синий…</li><li>Шкала размеров — по категории: XS–3XL, EU 32–48, джинсы W, детская, обувь</li>
+<li>SKU <code>TSH0001-800-M</code> и EAN-13 — автоматически</li><li>Закупочная цена подставляется из листа</li><li>Enter — следующая ячейка, стрелки — навигация</li></ul></div></div><div class="num">5 / 15</div></section><section class="slide" id="s6"><h2>Сканер и журнал приёмки</h2><div class="two"><figure><img src="img/e2e_09_scanner.jpg" alt=""><figcaption>Повторная модель: скан EAN → +1 шт.; чужой код → ошибка</figcaption></figure>
+<figure><img src="img/e2e_07_intake_logged.jpg" alt=""><figcaption>Журнал: каждая партия из мешка, ошибку можно удалить</figcaption></figure></div><div class="num">6 / 15</div></section><section class="slide" id="s7"><h2>3. Сверка с упаковочным листом</h2><figure><img src="img/e2e_10_reconciliation.jpg" alt=""><figcaption>По категориям и по мешкам: совпало / недостача / излишек / нет в листе</figcaption></figure><div class="num">7 / 15</div></section><section class="slide" id="s8"><h2>4. Себестоимость и цены</h2><div class="two"><figure><img src="img/e2e_12_pricing.jpg" alt=""><figcaption>Предложение по каждой модели, своя цена, фиксация</figcaption></figure>
+<div><pre>себестоимость = закупка × курс
+             + пошлина категории
+             + доля затрат поставки
+цена = себестоимость × (1 + наценка)
+     × (1 + НДС) → 189.90</pre><p>Затраты распределяются по стоимости, по штукам или по весу мешков.</p></div></div><div class="num">8 / 15</div></section><section class="slide" id="s9"><h2>5. Карточки и каталог</h2><div class="two"><figure><img src="img/e2e_13_product_card.jpg" alt=""><figcaption>Карточка: цвета, сетка размеров с остатками, SKU / EAN, переводы</figcaption></figure>
+<figure><img src="img/e2e_14_catalog.jpg" alt=""><figcaption>Каталог, поиск по названию на любом языке, SKU, EAN; экспорт CSV</figcaption></figure></div><div class="num">9 / 15</div></section><section class="slide" id="s10"><h2>Этикетки: четыре формата</h2><div class="three">
+<figure><img src="img/e2e_label_roll.png" alt=""><figcaption>Термоэтикетка 58×40</figcaption></figure>
+<figure><img src="img/e2e_label_roll_ro.png" alt=""><figcaption>Та же — на румынском</figcaption></figure>
+<figure><img src="img/e2e_label_a4.png" alt=""><figcaption>Лист A4 3×8</figcaption></figure></div>
+<p><b>ZPL</b> → Zebra · <b>TSPL</b> → TSC · <b>PDF A4</b> → обычный принтер · <b>PDF-рулон</b> → виртуальный принтер / драйвер.
+Печать по сети (порт 9100), через CUPS или в папку; копии — одной командой.</p><div class="num">10 / 15</div></section><section class="slide" id="s11"><h2>Три языка: русский · румынский · английский</h2><div class="three"><figure><img src="img/e2e_21_ro_sort.jpg" alt=""><figcaption>Разбор — RO</figcaption></figure><figure><img src="img/e2e_32_en_pricing.jpg" alt=""><figcaption>Цены — EN</figcaption></figure><figure><img src="img/e2e_24_ro_product.jpg" alt=""><figcaption>Карточка — RO</figcaption></figure></div>
+<p>Переключатель RU / RO / EN, переведены справочники, названия моделей и этикетки. Тест не даёт добавить строку без перевода.</p><div class="num">11 / 15</div></section><section class="slide" id="s12"><h2>Тестирование</h2><div class="kpis"><div><b>63/63</b>модульных тестов</div><div><b>27/27</b>сквозных проверок в браузере</div>
+<div><b>4</b>дефекта найдено и исправлено</div><div><b>42</b>скриншотов</div></div>
+<ul><li>Браузер проходит весь путь оператора на чистой базе и печатает на сетевой «принтер»</li>
+<li>Все экраны проверены на RO и EN — без единой русской строки интерфейса</li>
+<li>Подробности, скриншоты каждого шага и найденные дефекты — в <a href="test_act.html">акте тестирования</a></li></ul><div class="num">12 / 15</div></section><section class="slide" id="s13"><h2>Мобильный экран</h2><div class="two"><figure><img src="img/e2e_39_mobile_sort.jpg" alt=""><figcaption>Разбор мешка на телефоне / планшете кладовщика</figcaption></figure>
+<div><p>Интерфейс адаптивный: на складе можно работать с планшета, подключившись к ноутбуку по локальной сети
+(<code>python run.py --host 0.0.0.0</code>).</p></div></div><div class="num">13 / 15</div></section><section class="slide" id="s14"><h2>Как запустить</h2><pre>git clone … && cd standalone/texflow
+pip install -r requirements.txt
+python run.py --demo        # http://127.0.0.1:5077/
+python -m pytest -q         # тесты
+tools/run_all.sh            # тесты + браузер + акт + документация + архив</pre>
+<p>Документация: <a href="index.html">все материалы</a> · <a href="ru/OPERATOR_GUIDE.html">инструкция оператора</a> ·
+<a href="ru/LABELS.html">принтеры</a> · <a href="ru/ARCHITECTURE.html">схемы</a></p><div class="num">14 / 15</div></section><section class="slide" id="s15"><h2>Дальше</h2><ul><li>Пробная печать на вашем Zebra / TSC и сканирование этикетки</li>
+<li>Загрузка шрифта с кириллицей в принтер — для этикеток на русском</li>
+<li>Фото моделей в карточках и выгрузка каталога в интернет-магазин</li>
+<li>Опытная эксплуатация на одной реальной поставке</li></ul>
+<p class="mut">Код: standalone/texflow/ · PR #60 слит в main</p><div class="num">15 / 15</div></section><div class="hint">← → — слайды · Ctrl+P — сохранить в PDF</div>
+<script>
+const s=[...document.querySelectorAll('.slide')];let i=0;
+function go(n){i=Math.max(0,Math.min(s.length-1,n));s[i].scrollIntoView({behavior:'smooth',block:'center'});}
+document.addEventListener('keydown',e=>{if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();go(i+1)}
+if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(i-1)}});
+</script></body></html>

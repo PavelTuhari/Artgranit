@@ -65,13 +65,25 @@ cd standalone/texflow
 python -m pytest -q
 ```
 
-60 de teste, fără wallet Oracle și fără imprimantă. Ele verifică:
+63 de teste, fără wallet Oracle și fără imprimantă. Ele verifică:
 
 - reguli: EAN-13, SKU, rotunjirea, adaosul cu TVA, repartizarea cheltuielilor, verificarea;
 - etichete: ZPL, TSPL, PDF;
 - trimiterea la o „imprimantă” TCP falsă;
 - scenariul HTTP complet;
 - traducerile: fiecare șir al interfeței are RO și EN, iar paginile RO/EN nu au chirilică.
+
+## 2b. Materiale HTML: documentație, act de testare, prezentare
+
+Materialele HTML sunt în `docs/html/` și se deschid fără internet, direct din dosar sau din aplicație la
+`http://127.0.0.1:5077/docs/`:
+
+- `index.html` — toate materialele;
+- `{ru,ro,en}/*.html` — documentația și galeriile de ecrane;
+- `test_act.html` / `.pdf` — actul de testare cu capturi;
+- `presentation.html` / `.pdf` — prezentarea.
+
+Regenerare: `tools/run_all.sh`; arhivă identică cu git: `tools/make_archive.sh`.
 
 ## 3. Cum se lucrează (pe scurt)
 
