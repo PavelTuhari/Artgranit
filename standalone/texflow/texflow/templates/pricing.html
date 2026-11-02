@@ -1,18 +1,17 @@
-{% extends "base.html" %}{% block title %}Цены {{ sh.code }}{% endblock %}
+{% extends "base.html" %}{% block title %}{{ _('Цены') }} {{ sh.code }}{% endblock %}
 {% block body %}
-<h1>Ценообразование: {{ sh.code }}</h1>
-<div class="card mut">Себестоимость = закупка × курс {{ sh.fx_rate }} + пошлина категории + доля затрат поставки
-({{ '%.2f'|format(totals.lump) }} {{ st.currency }}, {{ {'value':'по стоимости','qty':'по штукам','weight':'по весу'}[sh.alloc_method] }}).
-Цена = себестоимость × (1 + наценка категории){% if st.prices_include_vat=='1' %} × (1 + НДС {{ st.vat_pct }}%){% endif %}, округление вверх до шага {{ st.round_step }} минус {{ st.round_ending }}. Мин. наценка {{ st.min_markup_pct }}%.
-Наценки категорий — в <a href="{{ url_for('tf.refs') }}#category">справочниках</a>, округление — в <a href="{{ url_for('tf.settings') }}">настройках</a>.</div>
+<h1>{{ _('Ценообразование') }}: {{ sh.code }}</h1>
+<div class="card mut">{{ _('Себестоимость = закупка × курс {fx} + пошлина категории + доля затрат поставки ({lump} {cur}, {method}).', fx=sh.fx_rate, lump='%.2f'|format(totals.lump), cur=st.currency, method={'value':_('по стоимости'),'qty':_('по штукам'),'weight':_('по весу мешков')}[sh.alloc_method]) }}
+{{ _('Цена = себестоимость × (1 + наценка категории)') }}{% if st.prices_include_vat=='1' %} × (1 + {{ _('НДС') }} {{ st.vat_pct }}%){% endif %}{{ _(', округление вверх до шага {step} минус {end}. Мин. наценка {min}%.', step=st.round_step, end=st.round_ending, min=st.min_markup_pct) }}
+<a href="{{ url_for('tf.refs') }}#category">{{ _('Наценки категорий') }}</a> · <a href="{{ url_for('tf.settings') }}">{{ _('Настройки') }}</a></div>
 <form class="card" method="post">
-<table><tr><th>Артикул</th><th>Модель</th><th>Категория</th><th class="n">Шт</th><th class="n">Закупка {{ sh.currency }}</th><th class="n">Себест.</th><th class="n">Наценка</th><th class="n">Расчёт</th><th class="n">Предложено</th><th class="n">Факт. наценка</th><th class="n">Текущая</th><th>Своя цена</th></tr>
+<table><tr><th>{{ _('Артикул') }}</th><th>{{ _('Модель') }}</th><th>{{ _('Категория') }}</th><th class="n">{{ _('Шт') }}</th><th class="n">{{ _('Закупка') }} {{ sh.currency }}</th><th class="n">{{ _('Себест.') }}</th><th class="n">{{ _('Наценка') }}</th><th class="n">{{ _('Расчёт') }}</th><th class="n">{{ _('Предложено') }}</th><th class="n">{{ _('Факт. наценка') }}</th><th class="n">{{ _('Текущая') }}</th><th>{{ _('Своя цена') }}</th></tr>
 {% for r in rows %}<tr><td><a href="{{ url_for('tf.product', pid=r.id) }}">{{ r.style_code }}</a></td><td>{{ r.name }}</td><td>{{ r.category }}</td><td class="n">{{ r.qty }}</td>
 <td class="n">{{ '%.2f'|format(r.cost_fx) }}</td><td class="n">{{ '%.2f'|format(r.landed) }}</td><td class="n">{{ r.markup_pct|int }}%</td><td class="n">{{ '%.2f'|format(r.gross) }}</td>
 <td class="n"><b>{{ '%.2f'|format(r.price) }}</b></td><td class="n">{{ r.real_markup_pct }}%</td>
 <td class="n">{{ '%.2f'|format(r.retail_price) if r.retail_price is not none else '—' }}{% if r.price_locked %} 🔒{% endif %}</td>
 <td><input name="price_{{ r.id }}" placeholder="{{ '%.2f'|format(r.price) }}" style="width:90px" {{ 'disabled' if r.price_locked }}></td></tr>
-{% else %}<tr><td colspan="12" class="mut">Нет принятого товара — сначала разберите мешки.</td></tr>{% endfor %}</table>
-{% if rows %}<p><button>Записать цены в карточки</button> <a class="btn sec" href="{{ url_for('tf.labels', shipment=sh.id) }}">К этикеткам</a></p>{% endif %}
+{% else %}<tr><td colspan="12" class="mut">{{ _('Нет принятого товара — сначала разберите мешки.') }}</td></tr>{% endfor %}</table>
+{% if rows %}<p><button>{{ _('Записать цены в карточки') }}</button> <a class="btn sec" href="{{ url_for('tf.labels', shipment=sh.id) }}">{{ _('К этикеткам') }}</a></p>{% endif %}
 </form>
 {% endblock %}

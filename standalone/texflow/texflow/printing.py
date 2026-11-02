@@ -11,6 +11,8 @@ import socket
 import subprocess
 import time
 
+from .i18n import _
+
 
 def send_raw_tcp(host: str, data: bytes, port: int = 9100, timeout: float = 5.0) -> int:
     """Отправить байты на принтер. Возвращает количество отправленных байт."""
@@ -27,11 +29,11 @@ def send_cups(queue: str, data: bytes) -> str:
     """Печать через CUPS в режиме raw (USB-принтер, Linux/macOS)."""
     lp = shutil.which("lp")
     if not lp:
-        raise RuntimeError("команда lp не найдена — CUPS не установлен")
+        raise RuntimeError(_("команда lp не найдена — CUPS не установлен"))
     r = subprocess.run([lp, "-d", queue, "-o", "raw"], input=data,
                        capture_output=True, timeout=20)
     if r.returncode:
-        raise RuntimeError(r.stderr.decode(errors="replace").strip() or "lp: ошибка")
+        raise RuntimeError(r.stderr.decode(errors="replace").strip() or _("lp: ошибка"))
     return r.stdout.decode(errors="replace").strip()
 
 
@@ -48,11 +50,11 @@ def dispatch(target: str, data: bytes, ext: str) -> str:
     """target: ``tcp://10.0.0.50:9100`` | ``cups://Zebra_ZD220`` | ``dir:///path``."""
     if target.startswith("tcp://"):
         hostport = target[6:]
-        host, _, port = hostport.partition(":")
+        host, _sep, port = hostport.partition(":")
         n = send_raw_tcp(host, data, int(port or 9100))
-        return f"отправлено {n} байт на {host}:{port or 9100}"
+        return _("отправлено {n} байт на {host}:{port}", n=n, host=host, port=port or 9100)
     if target.startswith("cups://"):
-        return send_cups(target[7:], data) or "отправлено в CUPS"
+        return send_cups(target[7:], data) or _("отправлено в CUPS")
     if target.startswith("dir://"):
-        return "сохранено: " + save_spool(target[6:], data, ext)
-    raise ValueError("адрес принтера: tcp://IP:9100, cups://ОЧЕРЕДЬ или dir:///папка")
+        return _("сохранено: ") + save_spool(target[6:], data, ext)
+    raise ValueError(_("адрес принтера: tcp://IP:9100, cups://ОЧЕРЕДЬ или dir:///папка"))

@@ -1,13 +1,13 @@
-{% extends "base.html" %}{% block title %}Каталог{% endblock %}
+{% extends "base.html" %}{% block title %}{{ _('Каталог') }}{% endblock %}
 {% block body %}
-<h1>Каталог</h1>
-<form class="card row noprint"><label>Поиск: название, артикул, SKU, EAN<input name="q" value="{{ q }}"></label>
-<label>Категория<select name="category"><option value="">все</option>{% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if request.args.get('category')|int==c.id }}>{{ c.name }}</option>{% endfor %}</select></label>
-<div><button>Найти</button> <a class="btn sec" href="{{ url_for('tf.export_catalog') }}">Экспорт CSV</a> <button type="button" class="sec" onclick="print()">Печать</button></div></form>
+<h1>{{ _('Каталог') }}</h1>
+<form class="card row noprint"><label>{{ _('Поиск: название, артикул, SKU, EAN') }}<input name="q" value="{{ q }}"></label>
+<label>{{ _('Категория') }}<select name="category"><option value="">{{ _('все') }}</option>{% for c in categories %}<option value="{{ c.id }}" {{ 'selected' if request.args.get('category')|int==c.id }}>{{ c.title }}</option>{% endfor %}</select></label>
+<div><button>{{ _('Найти') }}</button> <a class="btn sec" href="{{ url_for('tf.export_catalog') }}">{{ _('Экспорт CSV') }}</a> <button type="button" class="sec" onclick="print()">{{ _('Печать') }}</button></div></form>
 <div class="pc">{% for p in products %}<a class="it" href="{{ url_for('tf.product', pid=p.id) }}">
 <div class="ph">{{ p.style_code[:3] }}</div>
 <div>{% for h in (p.swatches or '').split(',') if h %}<span class="sw" style="background:{{ h }}"></span>{% endfor %}</div>
-<div class="nm">{{ p.name }}</div><div class="mut">{{ p.style_code }} · {{ p.category }} · {{ p.stock }} шт</div>
-<div class="pr">{{ '%.2f'|format(p.retail_price) ~ ' ' ~ st.currency if p.retail_price is not none else 'без цены' }}</div></a>
-{% else %}<p class="mut">Пусто. Модели создаются при разборе мешков.</p>{% endfor %}</div>
+<div class="nm">{{ p.name }}</div><div class="mut">{{ p.style_code }} · {{ p.category }} · {{ p.stock }} {{ _('шт') }}</div>
+<div class="pr">{{ '%.2f'|format(p.retail_price) ~ ' ' ~ st.currency if p.retail_price is not none else _('без цены') }}</div></a>
+{% else %}<p class="mut">{{ _('Пусто. Модели создаются при разборе мешков.') }}</p>{% endfor %}</div>
 {% endblock %}

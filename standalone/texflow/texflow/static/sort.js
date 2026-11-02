@@ -12,7 +12,7 @@
       const j = await r.json();
       slog.innerHTML = (j.success ? "✓ " + esc(j.sku) + " — " + esc(j.name) : "✗ " + esc(j.error)) + "<br>" + slog.innerHTML;
       try { new AudioContext().resume(); } catch (_) {}
-    } catch (err) { slog.textContent = "ошибка сети: " + err; }
+    } catch (err) { slog.textContent = (window.TF_I18N || {})["ошибка сети"] + ": " + err; }
   });
 
   const body = document.getElementById("mbody"), tpl = document.getElementById("rowtpl");

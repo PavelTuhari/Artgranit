@@ -5,6 +5,7 @@ import csv
 import io
 
 from . import rules
+from .i18n import _, name_sql as N
 from .labels import LabelData, LabelLayout, SheetLayout
 
 
@@ -32,13 +33,13 @@ def save_settings(con, values: dict) -> None:
 # ---------------------------------------------------------------- справочники
 
 def categories(con):
-    return con.execute("""SELECT c.*, s.name AS scale_name FROM categories c
-                          LEFT JOIN size_scales s ON s.id = c.size_scale_id ORDER BY c.name""").fetchall()
+    return con.execute(f"""SELECT c.*, {N('c')} AS title, {N('s')} AS scale_name FROM categories c
+                           LEFT JOIN size_scales s ON s.id = c.size_scale_id ORDER BY title""").fetchall()
 
 
 def size_scales(con):
-    scales = con.execute("SELECT * FROM size_scales ORDER BY id").fetchall()
-    return [{"id": s["id"], "name": s["name"],
+    scales = con.execute(f"SELECT *, {N()} AS title FROM size_scales ORDER BY id").fetchall()
+    return [{"id": s["id"], "name": s["name"], "title": s["title"],
              "sizes": con.execute("SELECT * FROM sizes WHERE scale_id = ? ORDER BY sort",
                                   (s["id"],)).fetchall()} for s in scales]
 
@@ -48,15 +49,16 @@ def sizes_for_scale(con, scale_id):
 
 
 def color_families(con):
-    fams = con.execute("SELECT * FROM color_families ORDER BY sort, name").fetchall()
-    return [{"id": f["id"], "name": f["name"], "hex": f["hex"],
-             "colors": con.execute("SELECT * FROM colors WHERE family_id = ? ORDER BY code",
+    fams = con.execute(f"SELECT *, {N()} AS title FROM color_families ORDER BY sort, name").fetchall()
+    return [{"id": f["id"], "name": f["name"], "title": f["title"], "hex": f["hex"],
+             "colors": con.execute(f"SELECT *, {N()} AS title FROM colors WHERE family_id = ? ORDER BY code",
                                    (f["id"],)).fetchall()} for f in fams]
 
 
-def add_color(con, family_id: int, code: str, name: str, hexv: str) -> int:
-    cid = con.execute("INSERT INTO colors(family_id, code, name, hex) VALUES (?, ?, ?, ?)",
-                      (family_id, code.strip(), name.strip(), hexv or "#cccccc")).lastrowid
+def add_color(con, family_id: int, code: str, name: str, hexv: str, name_ro: str = "", name_en: str = "") -> int:
+    cid = con.execute("INSERT INTO colors(family_id, code, name, name_ro, name_en, hex) VALUES (?, ?, ?, ?, ?, ?)",
+                      (family_id, code.strip(), name.strip(), (name_ro or "").strip(), (name_en or "").strip(),
+                       hexv or "#cccccc")).lastrowid
     con.commit()
     return cid
 
@@ -75,10 +77,11 @@ def update_category(con, cat_id: int, markup_pct: float, duty_pct: float, size_s
     con.commit()
 
 
-def add_category(con, code, name, scale_id, markup, duty, hs="") -> int:
-    cid = con.execute("INSERT INTO categories(code, name, size_scale_id, markup_pct, duty_pct, hs_code)"
-                      " VALUES (?, ?, ?, ?, ?, ?)",
-                      (code.strip().upper(), name.strip(), scale_id, markup, duty, hs)).lastrowid
+def add_category(con, code, name, scale_id, markup, duty, hs="", name_ro="", name_en="") -> int:
+    cid = con.execute("INSERT INTO categories(code, name, name_ro, name_en, size_scale_id, markup_pct, duty_pct,"
+                      " hs_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                      (code.strip().upper(), name.strip(), (name_ro or "").strip(), (name_en or "").strip(),
+                       scale_id, markup, duty, hs)).lastrowid
     con.commit()
     return cid
 
@@ -97,8 +100,8 @@ def find_category(con, text: str):
     t = (text or "").strip()
     if not t:
         return None
-    return con.execute("SELECT * FROM categories WHERE UPPER(code) = UPPER(?) OR LOWER(name) = LOWER(?)",
-                       (t, t)).fetchone()
+    return con.execute("SELECT * FROM categories WHERE UPPER(code) = UPPER(?) OR LOWER(name) = LOWER(?)"
+                       " OR LOWER(name_ro) = LOWER(?) OR LOWER(name_en) = LOWER(?)", (t, t, t, t)).fetchone()
 
 
 # ---------------------------------------------------------------- поставки
@@ -170,12 +173,13 @@ def set_bag_status(con, bag_id: int, status: str) -> None:
 # ---------------------------------------------------------------- упаковочный лист
 
 PACKING_ALIASES = {
-    "bag_no": ["bag_no", "bag", "мешок", "№ мешка", "no", "çuval", "cuval", "sack", "包"],
-    "category": ["category", "категория", "cat", "kategori", "类别"],
-    "description": ["description", "описание", "desc", "товар", "açıklama", "aciklama", "品名"],
-    "qty": ["qty", "кол-во", "количество", "quantity", "pcs", "adet", "шт", "数量"],
-    "unit_price": ["unit_price", "price", "цена", "fiyat", "单价"],
-    "weight_kg": ["weight_kg", "weight", "вес", "kg", "ağırlık", "agirlik", "重量"],
+    "bag_no": ["bag_no", "bag", "мешок", "№ мешка", "no", "çuval", "cuval", "sack", "sac", "nr. sac", "包"],
+    "category": ["category", "категория", "cat", "kategori", "categorie", "类别"],
+    "description": ["description", "описание", "desc", "товар", "açıklama", "aciklama", "descriere",
+                    "denumire", "品名"],
+    "qty": ["qty", "кол-во", "количество", "quantity", "pcs", "adet", "шт", "cantitate", "buc", "数量"],
+    "unit_price": ["unit_price", "price", "цена", "fiyat", "preț", "pret", "单价"],
+    "weight_kg": ["weight_kg", "weight", "вес", "kg", "ağırlık", "agirlik", "greutate", "重量"],
 }
 
 
@@ -213,7 +217,7 @@ def import_packing_csv(con, sid: int, text: str, replace: bool = True) -> dict:
         return {"lines": 0, "bags": 0, "unknown_categories": []}
     header = [_norm_header(h) for h in rows[0]]
     if "qty" not in header:
-        raise ValueError("в упаковочном листе нет колонки количества (qty / кол-во / adet)")
+        raise ValueError(_("в упаковочном листе нет колонки количества (qty / кол-во / adet)"))
     if replace:
         con.execute("DELETE FROM packing_lines WHERE shipment_id = ?", (sid,))
     unknown, bag_w, n = set(), {}, 0
@@ -244,7 +248,7 @@ def import_packing_csv(con, sid: int, text: str, replace: bool = True) -> dict:
 
 
 def packing_lines(con, sid: int):
-    return con.execute("""SELECT p.*, c.name AS category, c.code AS category_code FROM packing_lines p
+    return con.execute(f"""SELECT p.*, {N('c')} AS category, c.code AS category_code FROM packing_lines p
                           LEFT JOIN categories c ON c.id = p.category_id
                           WHERE p.shipment_id = ? ORDER BY p.bag_no, p.id""", (sid,)).fetchall()
 
@@ -259,11 +263,11 @@ def declared_unit_price(con, sid: int, category_id: int) -> float:
 
 def reconciliation(con, sid: int) -> dict:
     by_cat_decl = {r["k"]: r["q"] for r in con.execute(
-        """SELECT COALESCE(c.name, '— без категории: ' || p.description) AS k, SUM(p.qty) AS q
+        f"""SELECT COALESCE({N('c')}, ? || p.description) AS k, SUM(p.qty) AS q
            FROM packing_lines p LEFT JOIN categories c ON c.id = p.category_id
-           WHERE p.shipment_id = ? GROUP BY k""", (sid,))}
+           WHERE p.shipment_id = ? GROUP BY k""", (_("— без категории: "), sid))}
     by_cat_cnt = {r["k"]: r["q"] for r in con.execute(
-        """SELECT c.name AS k, SUM(i.qty) AS q FROM intake_items i
+        f"""SELECT {N('c')} AS k, SUM(i.qty) AS q FROM intake_items i
            JOIN variants v ON v.id = i.variant_id JOIN products pr ON pr.id = v.product_id
            JOIN categories c ON c.id = pr.category_id WHERE i.shipment_id = ? GROUP BY k""", (sid,))}
     by_bag_decl = {r["k"]: r["q"] for r in con.execute(
@@ -293,7 +297,7 @@ def create_product(con, name: str, category_id: int, style_code: str = "", suppl
                    season: str = "", gender: str = "") -> int:
     cat = con.execute("SELECT * FROM categories WHERE id = ?", (category_id,)).fetchone()
     if not cat:
-        raise ValueError("категория не найдена")
+        raise ValueError(_("категория не найдена"))
     code = rules.sku_part(style_code) or next_style_code(con, cat["code"])
     pid = con.execute(
         """INSERT INTO products(style_code, name, category_id, supplier_id, composition, description,
@@ -315,14 +319,14 @@ def update_product(con, pid: int, **f) -> None:
 
 
 def product(con, pid: int):
-    return con.execute("""SELECT p.*, c.name AS category, c.code AS category_code, c.size_scale_id,
+    return con.execute(f"""SELECT p.*, {N('c')} AS category, c.code AS category_code, c.size_scale_id,
                                  c.markup_pct, s.name AS supplier
                           FROM products p JOIN categories c ON c.id = p.category_id
                           LEFT JOIN suppliers s ON s.id = p.supplier_id WHERE p.id = ?""", (pid,)).fetchone()
 
 
 def products(con, q: str = "", category_id: int | None = None):
-    sql = """SELECT p.*, c.name AS category,
+    sql = f"""SELECT p.*, {N('c')} AS category,
                     (SELECT COUNT(*) FROM variants v WHERE v.product_id = p.id) AS variants,
                     (SELECT COALESCE(SUM(i.qty), 0) FROM intake_items i JOIN variants v ON v.id = i.variant_id
                       WHERE v.product_id = p.id) AS stock,
@@ -361,15 +365,15 @@ def ensure_variant(con, pid: int, color_id: int, size_id: int) -> int:
     c = con.execute("SELECT code FROM colors WHERE id = ?", (color_id,)).fetchone()
     s = con.execute("SELECT code FROM sizes WHERE id = ?", (size_id,)).fetchone()
     if not (p and c and s):
-        raise ValueError("товар, цвет или размер не найден")
+        raise ValueError(_("товар, цвет или размер не найден"))
     return con.execute("INSERT INTO variants(product_id, color_id, size_id, sku, ean13) VALUES (?, ?, ?, ?, ?)",
                        (pid, color_id, size_id, rules.make_sku(p["style_code"], c["code"], s["code"]),
                         next_ean(con))).lastrowid
 
 
 def variants(con, pid: int):
-    return con.execute("""
-        SELECT v.*, co.name AS color, co.code AS color_code, co.hex, cf.name AS family,
+    return con.execute(f"""
+        SELECT v.*, {N('co')} AS color, co.code AS color_code, co.hex, {N('cf')} AS family,
                sz.code AS size, sz.sort AS size_sort,
                (SELECT COALESCE(SUM(qty), 0) FROM intake_items i WHERE i.variant_id = v.id) AS stock
         FROM variants v JOIN colors co ON co.id = v.color_id JOIN color_families cf ON cf.id = co.family_id
@@ -406,7 +410,7 @@ def add_intake(con, sid: int, bag_id: int | None, pid: int, grid: dict, unit_cos
     """grid: {(color_id, size_id): qty}. Создаёт недостающие варианты. Возвращает штук."""
     p = con.execute("SELECT base_cost_fx FROM products WHERE id = ?", (pid,)).fetchone()
     if not p:
-        raise ValueError("товар не найден")
+        raise ValueError(_("товар не найден"))
     cost = float(unit_cost_fx if unit_cost_fx not in (None, "") else p["base_cost_fx"])
     total = 0
     for (color_id, size_id), qty in grid.items():
@@ -426,7 +430,7 @@ def add_intake(con, sid: int, bag_id: int | None, pid: int, grid: dict, unit_cos
 def add_scan(con, sid: int, bag_id: int | None, code: str, qty: int = 1) -> dict:
     v = variant_by_ean(con, code)
     if not v:
-        raise ValueError(f"штрихкод {code} не найден")
+        raise ValueError(_("штрихкод {code} не найден", code=code))
     con.execute("INSERT INTO intake_items(shipment_id, bag_id, variant_id, qty, unit_cost_fx) VALUES (?, ?, ?, ?, ?)",
                 (sid, bag_id, v["id"], qty, v["base_cost_fx"]))
     con.commit()
@@ -434,7 +438,7 @@ def add_scan(con, sid: int, bag_id: int | None, code: str, qty: int = 1) -> dict
 
 
 def intake_log(con, sid: int, bag_id: int | None = None, limit: int = 200):
-    sql = """SELECT i.*, v.sku, v.ean13, p.name, p.id AS product_id, co.name AS color, sz.code AS size,
+    sql = f"""SELECT i.*, v.sku, v.ean13, p.name, p.id AS product_id, {N('co')} AS color, sz.code AS size,
                     b.bag_no FROM intake_items i JOIN variants v ON v.id = i.variant_id
              JOIN products p ON p.id = v.product_id JOIN colors co ON co.id = v.color_id
              JOIN sizes sz ON sz.id = v.size_id LEFT JOIN bags b ON b.id = i.bag_id
@@ -480,13 +484,13 @@ def price_proposal(con, sid: int) -> list[dict]:
     compute_landed(con, sid)
     st = settings(con)
     vat = float(st.get("vat_pct", 0)) if st.get("prices_include_vat", "1") == "1" else 0.0
-    rows = con.execute("""
-        SELECT p.id, p.style_code, p.name, p.retail_price, p.price_locked, c.name AS category, c.markup_pct,
+    rows = con.execute(f"""
+        SELECT p.id, p.style_code, p.name, p.retail_price, p.price_locked, {N('c')} AS category, c.markup_pct,
                SUM(i.qty) AS qty, SUM(i.qty * i.landed_unit_cost) / SUM(i.qty) AS landed,
                SUM(i.qty * i.unit_cost_fx) / SUM(i.qty) AS cost_fx
         FROM intake_items i JOIN variants v ON v.id = i.variant_id JOIN products p ON p.id = v.product_id
         JOIN categories c ON c.id = p.category_id WHERE i.shipment_id = ? AND i.qty > 0
-        GROUP BY p.id ORDER BY c.name, p.name""", (sid,)).fetchall()
+        GROUP BY p.id ORDER BY category, p.name""", (sid,)).fetchall()
     out = []
     for r in rows:
         calc = rules.retail_price(r["landed"] or 0, r["markup_pct"], vat,
@@ -528,12 +532,13 @@ def shipment_totals(con, sid: int) -> dict:
 def label_rows(con, variant_qty: dict) -> list[LabelData]:
     """variant_qty: {variant_id: копий}."""
     st = settings(con)
+    label_lang = st.get("label_lang", "ru") if st.get("label_lang") in ("ru", "ro", "en") else "ru"
     out = []
     for vid, qty in variant_qty.items():
         if int(qty or 0) <= 0:
             continue
-        r = con.execute("""SELECT v.ean13, v.sku, p.name, p.style_code, p.composition, p.retail_price,
-                                  co.name AS color, sz.code AS size, s.country
+        r = con.execute(f"""SELECT v.ean13, v.sku, p.name, p.style_code, p.composition, p.retail_price,
+                                   {N('co', label_lang)} AS color, sz.code AS size, s.country
                            FROM variants v JOIN products p ON p.id = v.product_id
                            JOIN colors co ON co.id = v.color_id JOIN sizes sz ON sz.id = v.size_id
                            LEFT JOIN suppliers s ON s.id = p.supplier_id WHERE v.id = ?""", (vid,)).fetchone()
@@ -578,8 +583,8 @@ def export_catalog_csv(con) -> str:
     w = csv.writer(buf, delimiter=";")
     w.writerow(["style_code", "name", "category", "color_family", "color_code", "color", "size", "sku",
                 "ean13", "price", "stock", "composition"])
-    for r in con.execute("""
-        SELECT p.style_code, p.name, c.name AS cat, cf.name AS fam, co.code AS ccode, co.name AS color,
+    for r in con.execute(f"""
+        SELECT p.style_code, p.name, {N('c')} AS cat, {N('cf')} AS fam, co.code AS ccode, {N('co')} AS color,
                sz.code AS size, v.sku, v.ean13, p.retail_price, p.composition,
                (SELECT COALESCE(SUM(qty), 0) FROM intake_items i WHERE i.variant_id = v.id) AS stock
         FROM variants v JOIN products p ON p.id = v.product_id JOIN categories c ON c.id = p.category_id

@@ -5,21 +5,21 @@
 <div class="card">
 <div class="mut">{{ p.category }} · REF. {{ p.style_code }}</div>
 <h1 style="margin-top:4px">{{ p.name }}</h1>
-<div class="kpi">{{ '%.2f'|format(p.retail_price) ~ ' ' ~ st.currency if p.retail_price is not none else 'Цена не назначена' }}</div>
+<div class="kpi">{{ '%.2f'|format(p.retail_price) ~ ' ' ~ st.currency if p.retail_price is not none else _('Цена не назначена') }}</div>
 {% for c in m.colors %}<h2><span class="sw" style="background:{{ c.hex }}"></span>{{ c.name }} <span class="mut">| {{ c.code }} · {{ c.family }}</span></h2>
 <div class="sizes">{% for s in m.sizes %}{% set v = m.cells.get((c.id, s.id)) %}<span class="{{ 'na' if not v or v.stock <= 0 }}" title="{{ v.sku if v }}">{{ s.code }}{% if v %}<br><small>{{ v.stock }}</small>{% endif %}</span>{% endfor %}</div>{% endfor %}
 <p>{{ p.composition }}</p><p class="mut">{{ p.description }}</p>
-<p class="noprint"><a class="btn" href="{{ url_for('tf.labels', product=p.id) }}">Этикетки модели</a> <button class="sec" onclick="print()">Печать карточки</button></p>
+<p class="noprint"><a class="btn" href="{{ url_for('tf.labels', product=p.id) }}">{{ _('Этикетки модели') }}</a> <button class="sec" onclick="print()">{{ _('Печать карточки') }}</button></p>
 </div></div>
-<form class="card noprint" method="post"><h2>Редактировать карточку</h2>
-<div class="row"><label>Название<input name="name" value="{{ p.name }}"></label><label>Состав<input name="composition" value="{{ p.composition }}"></label><label>Сезон<input name="season" value="{{ p.season }}"></label>
-<label>Пол<select name="gender">{% for g in ['', 'Женское', 'Мужское', 'Детское', 'Унисекс'] %}<option {{ 'selected' if p.gender==g }}>{{ g }}</option>{% endfor %}</select></label></div>
-<div class="row"><label>Описание<input name="description" value="{{ p.description }}"></label><label>Закупка за шт. (валюта поставки)<input name="base_cost_fx" value="{{ p.base_cost_fx }}"></label>
-<label>Цена розничная<input name="retail_price" value="{{ p.retail_price if p.retail_price is not none }}"></label>
-<label>Зафиксировать цену<input type="checkbox" name="price_locked" value="1" {{ 'checked' if p.price_locked }} style="width:auto"></label></div>
-<button>Сохранить</button></form>
-<div class="card"><h2>Варианты (SKU / EAN-13)</h2>
-<table><tr><th>SKU</th><th>EAN-13</th><th>Цвет</th><th>Размер</th><th class="n">Остаток</th><th class="noprint"></th></tr>
+<form class="card noprint" method="post"><h2>{{ _('Редактировать карточку') }}</h2>
+<div class="row"><label>{{ _('Название') }}<input name="name" value="{{ p.name }}"></label><label>{{ _('Состав') }}<input name="composition" value="{{ p.composition }}"></label><label>{{ _('Сезон') }}<input name="season" value="{{ p.season }}"></label>
+<label>{{ _('Пол') }}<select name="gender">{% for g in ['', 'women', 'men', 'kids', 'unisex'] %}<option value="{{ g }}" {{ 'selected' if p.gender==g }}>{{ gender_name(g) }}</option>{% endfor %}</select></label></div>
+<div class="row"><label>{{ _('Описание') }}<input name="description" value="{{ p.description }}"></label><label>{{ _('Закупка за шт. (валюта поставки)') }}<input name="base_cost_fx" value="{{ p.base_cost_fx }}"></label>
+<label>{{ _('Цена розничная') }}<input name="retail_price" value="{{ p.retail_price if p.retail_price is not none }}"></label>
+<label>{{ _('Зафиксировать цену') }}<input type="checkbox" name="price_locked" value="1" {{ 'checked' if p.price_locked }} style="width:auto"></label></div>
+<button>{{ _('Сохранить') }}</button></form>
+<div class="card"><h2>{{ _('Варианты (SKU / EAN-13)') }}</h2>
+<table><tr><th>SKU</th><th>EAN-13</th><th>{{ _('Цвет') }}</th><th>{{ _('Размер') }}</th><th class="n">{{ _('Остаток') }}</th><th class="noprint"></th></tr>
 {% for v in variants %}<tr><td>{{ v.sku }}</td><td>{{ v.ean13 }}</td><td><span class="sw" style="background:{{ v.hex }}"></span>{{ v.color }}</td><td>{{ v.size }}</td><td class="n">{{ v.stock }}</td>
-<td class="noprint"><a class="btn sm sec" href="{{ url_for('tf.labels', variant=v.id, copies=1) }}">этикетка</a></td></tr>{% endfor %}</table></div>
+<td class="noprint"><a class="btn sm sec" href="{{ url_for('tf.labels', variant=v.id, copies=1) }}">{{ _('этикетка') }}</a></td></tr>{% endfor %}</table></div>
 {% endblock %}

@@ -31,51 +31,94 @@ DEFAULT_SETTINGS = {
     "sheet_margin_left_mm": "0",
     "sheet_margin_top_mm": "0.5",
     "sheet_border": "1",
+    "ui_lang": "ru",
+    "label_lang": "ru",
 }
 
+# шкала: (RU, RO, EN) → размеры
 SIZE_SCALES = {
-    "Буквенная": ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL"],
-    "Женская EU": ["32", "34", "36", "38", "40", "42", "44", "46", "48"],
-    "Мужская RU": ["44", "46", "48", "50", "52", "54", "56", "58"],
-    "Джинсы W": ["24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "36", "38"],
-    "Детская (рост)": ["86", "92", "98", "104", "110", "116", "122", "128", "134", "140", "152", "164"],
-    "Обувь EU": ["35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46"],
-    "Единый": ["ONE"],
+    ("Буквенная", "Litere", "Letter"): ["XXS", "XS", "S", "M", "L", "XL", "XXL", "3XL"],
+    ("Женская EU", "Damă EU", "Women EU"): ["32", "34", "36", "38", "40", "42", "44", "46", "48"],
+    ("Мужская RU", "Bărbați RU", "Men RU"): ["44", "46", "48", "50", "52", "54", "56", "58"],
+    ("Джинсы W", "Blugi W", "Jeans W"): ["24", "25", "26", "27", "28", "29", "30", "31", "32", "33", "34", "36", "38"],
+    ("Детская (рост)", "Copii (înălțime)", "Kids (height)"): ["86", "92", "98", "104", "110", "116", "122", "128",
+                                                             "134", "140", "152", "164"],
+    ("Обувь EU", "Încălțăminte EU", "Shoes EU"): ["35", "36", "37", "38", "39", "40", "41", "42", "43", "44", "45", "46"],
+    ("Единый", "Mărime unică", "One size"): ["ONE"],
 }
 
-# (семейство, hex, [(код, название, hex)]) — группы цветов как на витрине Zara
+# ((семейство RU, RO, EN), hex, [(код, (RU, RO, EN), hex)]) — группы цветов как на витрине Zara
 COLOR_FAMILIES = [
-    ("Белый", "#ffffff", [("001", "Белый", "#ffffff"), ("002", "Молочный", "#f6f1e6"), ("003", "Экрю", "#efe6d2")]),
-    ("Чёрный", "#111111", [("800", "Чёрный", "#111111"), ("802", "Графит", "#33363a")]),
-    ("Серый", "#9a9a9a", [("810", "Серый", "#9a9a9a"), ("812", "Серый меланж", "#b8b8b8"), ("815", "Антрацит", "#4a4d50")]),
-    ("Бежевый", "#d9c4a3", [("710", "Бежевый", "#d9c4a3"), ("704", "Песочный", "#cdb58a"), ("712", "Кэмел", "#b5844f")]),
-    ("Коричневый", "#6b4a2f", [("700", "Коричневый", "#6b4a2f"), ("702", "Шоколад", "#4a3020")]),
-    ("Синий", "#1f3a68", [("401", "Синий", "#1f4fa0"), ("406", "Тёмно-синий", "#1b2a49"), ("400", "Деним", "#4a6a8f")]),
-    ("Голубой", "#9cc3e6", [("403", "Голубой", "#9cc3e6"), ("405", "Небесный", "#bcd8f0")]),
-    ("Зелёный", "#3b6e4a", [("500", "Зелёный", "#3b6e4a"), ("505", "Хаки", "#7a7a4a"), ("507", "Оливковый", "#6b6b3a"), ("510", "Мятный", "#bfe3cf")]),
-    ("Красный", "#b3202a", [("600", "Красный", "#b3202a"), ("620", "Бордовый", "#6d1a26")]),
-    ("Розовый", "#e9a8b8", [("630", "Розовый", "#e9a8b8"), ("640", "Пудровый", "#e8c8c0"), ("645", "Фуксия", "#c4307a")]),
-    ("Фиолетовый", "#6b4a8f", [("650", "Фиолетовый", "#6b4a8f"), ("655", "Лиловый", "#b9a3d0")]),
-    ("Жёлтый", "#e8c33a", [("300", "Жёлтый", "#e8c33a"), ("310", "Горчичный", "#c49a2a")]),
-    ("Оранжевый", "#e07a2a", [("320", "Оранжевый", "#e07a2a"), ("330", "Терракота", "#b5573a")]),
-    ("Принт / Мульти", "#cccccc", [("900", "Принт", "#cccccc"), ("901", "Полоска", "#dddddd"), ("902", "Клетка", "#bbbbbb")]),
+    (("Белый", "Alb", "White"), "#ffffff", [
+        ("001", ("Белый", "Alb", "White"), "#ffffff"),
+        ("002", ("Молочный", "Lăptos", "Off-white"), "#f6f1e6"),
+        ("003", ("Экрю", "Ecru", "Ecru"), "#efe6d2")]),
+    (("Чёрный", "Negru", "Black"), "#111111", [
+        ("800", ("Чёрный", "Negru", "Black"), "#111111"),
+        ("802", ("Графит", "Grafit", "Graphite"), "#33363a")]),
+    (("Серый", "Gri", "Grey"), "#9a9a9a", [
+        ("810", ("Серый", "Gri", "Grey"), "#9a9a9a"),
+        ("812", ("Серый меланж", "Gri melanj", "Grey marl"), "#b8b8b8"),
+        ("815", ("Антрацит", "Antracit", "Anthracite"), "#4a4d50")]),
+    (("Бежевый", "Bej", "Beige"), "#d9c4a3", [
+        ("710", ("Бежевый", "Bej", "Beige"), "#d9c4a3"),
+        ("704", ("Песочный", "Nisipiu", "Sand"), "#cdb58a"),
+        ("712", ("Кэмел", "Camel", "Camel"), "#b5844f")]),
+    (("Коричневый", "Maro", "Brown"), "#6b4a2f", [
+        ("700", ("Коричневый", "Maro", "Brown"), "#6b4a2f"),
+        ("702", ("Шоколад", "Ciocolatiu", "Chocolate"), "#4a3020")]),
+    (("Синий", "Albastru", "Blue"), "#1f3a68", [
+        ("401", ("Синий", "Albastru", "Blue"), "#1f4fa0"),
+        ("406", ("Тёмно-синий", "Bleumarin", "Navy"), "#1b2a49"),
+        ("400", ("Деним", "Denim", "Denim"), "#4a6a8f")]),
+    (("Голубой", "Albastru deschis", "Light blue"), "#9cc3e6", [
+        ("403", ("Голубой", "Albastru deschis", "Light blue"), "#9cc3e6"),
+        ("405", ("Небесный", "Bleu ceresc", "Sky blue"), "#bcd8f0")]),
+    (("Зелёный", "Verde", "Green"), "#3b6e4a", [
+        ("500", ("Зелёный", "Verde", "Green"), "#3b6e4a"),
+        ("505", ("Хаки", "Kaki", "Khaki"), "#7a7a4a"),
+        ("507", ("Оливковый", "Oliv", "Olive"), "#6b6b3a"),
+        ("510", ("Мятный", "Mentă", "Mint"), "#bfe3cf")]),
+    (("Красный", "Roșu", "Red"), "#b3202a", [
+        ("600", ("Красный", "Roșu", "Red"), "#b3202a"),
+        ("620", ("Бордовый", "Bordo", "Burgundy"), "#6d1a26")]),
+    (("Розовый", "Roz", "Pink"), "#e9a8b8", [
+        ("630", ("Розовый", "Roz", "Pink"), "#e9a8b8"),
+        ("640", ("Пудровый", "Roz pudră", "Powder pink"), "#e8c8c0"),
+        ("645", ("Фуксия", "Fucsia", "Fuchsia"), "#c4307a")]),
+    (("Фиолетовый", "Violet", "Purple"), "#6b4a8f", [
+        ("650", ("Фиолетовый", "Violet", "Purple"), "#6b4a8f"),
+        ("655", ("Лиловый", "Lila", "Lilac"), "#b9a3d0")]),
+    (("Жёлтый", "Galben", "Yellow"), "#e8c33a", [
+        ("300", ("Жёлтый", "Galben", "Yellow"), "#e8c33a"),
+        ("310", ("Горчичный", "Muștar", "Mustard"), "#c49a2a")]),
+    (("Оранжевый", "Portocaliu", "Orange"), "#e07a2a", [
+        ("320", ("Оранжевый", "Portocaliu", "Orange"), "#e07a2a"),
+        ("330", ("Терракота", "Teracotă", "Terracotta"), "#b5573a")]),
+    (("Принт / Мульти", "Imprimeu / Multi", "Print / Multi"), "#cccccc", [
+        ("900", ("Принт", "Imprimeu", "Print"), "#cccccc"),
+        ("901", ("Полоска", "Dungi", "Stripes"), "#dddddd"),
+        ("902", ("Клетка", "Carouri", "Check"), "#bbbbbb")]),
 ]
 
-# (код, название, шкала, наценка %, пошлина %, ТН ВЭД)
+# (код, (RU, RO, EN), шкала RU, наценка %, пошлина %, ТН ВЭД)
 CATEGORIES = [
-    ("TSH", "Футболки и топы", "Буквенная", 150, 12, "6109"),
-    ("SHR", "Рубашки и блузы", "Буквенная", 140, 12, "6205"),
-    ("KNT", "Трикотаж и свитеры", "Буквенная", 130, 12, "6110"),
-    ("DRS", "Платья", "Женская EU", 140, 12, "6204"),
-    ("SKR", "Юбки", "Женская EU", 140, 12, "6204"),
-    ("PNT", "Брюки", "Буквенная", 130, 12, "6203"),
-    ("JNS", "Джинсы", "Джинсы W", 120, 12, "6203"),
-    ("JCK", "Куртки и пальто", "Буквенная", 110, 12, "6201"),
-    ("SUI", "Костюмы мужские", "Мужская RU", 110, 12, "6203"),
-    ("KID", "Детская одежда", "Детская (рост)", 130, 12, "6111"),
-    ("SHO", "Обувь", "Обувь EU", 100, 10, "6403"),
-    ("ACC", "Аксессуары", "Единый", 160, 10, "6117"),
+    ("TSH", ("Футболки и топы", "Tricouri și topuri", "T-shirts & tops"), "Буквенная", 150, 12, "6109"),
+    ("SHR", ("Рубашки и блузы", "Cămăși și bluze", "Shirts & blouses"), "Буквенная", 140, 12, "6205"),
+    ("KNT", ("Трикотаж и свитеры", "Tricotaje și pulovere", "Knitwear & sweaters"), "Буквенная", 130, 12, "6110"),
+    ("DRS", ("Платья", "Rochii", "Dresses"), "Женская EU", 140, 12, "6204"),
+    ("SKR", ("Юбки", "Fuste", "Skirts"), "Женская EU", 140, 12, "6204"),
+    ("PNT", ("Брюки", "Pantaloni", "Trousers"), "Буквенная", 130, 12, "6203"),
+    ("JNS", ("Джинсы", "Blugi", "Jeans"), "Джинсы W", 120, 12, "6203"),
+    ("JCK", ("Куртки и пальто", "Geci și paltoane", "Jackets & coats"), "Буквенная", 110, 12, "6201"),
+    ("SUI", ("Костюмы мужские", "Costume bărbați", "Men's suits"), "Мужская RU", 110, 12, "6203"),
+    ("KID", ("Детская одежда", "Îmbrăcăminte copii", "Kidswear"), "Детская (рост)", 130, 12, "6111"),
+    ("SHO", ("Обувь", "Încălțăminte", "Footwear"), "Обувь EU", 100, 10, "6403"),
+    ("ACC", ("Аксессуары", "Accesorii", "Accessories"), "Единый", 160, 10, "6117"),
 ]
+
+# колонки переводов, которых могло не быть в базе, созданной до версии 1.1
+I18N_TABLES = ("size_scales", "color_families", "colors", "categories")
 
 
 def connect(path: str) -> sqlite3.Connection:
@@ -92,9 +135,36 @@ def connect(path: str) -> sqlite3.Connection:
 def init_db(con: sqlite3.Connection, seed: bool = True) -> None:
     with open(SCHEMA, encoding="utf-8") as f:
         con.executescript(f.read())
+    migrate(con)
     if seed:
         seed_reference(con)
+        fill_translations(con)
     con.commit()
+
+
+def migrate(con: sqlite3.Connection) -> None:
+    """Добавить колонки name_ro / name_en в базу, созданную до версии 1.1."""
+    for table in I18N_TABLES:
+        cols = {r[1] for r in con.execute(f"PRAGMA table_info({table})")}
+        for col in ("name_ro", "name_en"):
+            if col not in cols:
+                con.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT NOT NULL DEFAULT ''")
+
+
+def fill_translations(con: sqlite3.Connection) -> None:
+    """Проставить RO/EN стартовым справочникам, если они пустые (не трогает правки пользователя)."""
+    def upd(table, where_col, key, ro, en):
+        con.execute(f"UPDATE {table} SET name_ro = CASE WHEN name_ro = '' THEN ? ELSE name_ro END, "
+                    f"name_en = CASE WHEN name_en = '' THEN ? ELSE name_en END WHERE {where_col} = ?",
+                    (ro, en, key))
+    for (ru, ro, en) in SIZE_SCALES:
+        upd("size_scales", "name", ru, ro, en)
+    for (fru, fro, fen), _hex, colors in COLOR_FAMILIES:
+        upd("color_families", "name", fru, fro, fen)
+        for code, (_ru, ro, en), _h in colors:
+            upd("colors", "code", code, ro, en)
+    for code, (_ru, ro, en), *_rest in CATEGORIES:
+        upd("categories", "code", code, ro, en)
 
 
 def seed_reference(con: sqlite3.Connection) -> None:
@@ -102,19 +172,21 @@ def seed_reference(con: sqlite3.Connection) -> None:
     for k, v in DEFAULT_SETTINGS.items():
         con.execute("INSERT OR IGNORE INTO settings(key, value) VALUES (?, ?)", (k, v))
     if con.execute("SELECT COUNT(*) FROM size_scales").fetchone()[0] == 0:
-        for name, sizes in SIZE_SCALES.items():
-            sid = con.execute("INSERT INTO size_scales(name) VALUES (?)", (name,)).lastrowid
+        for (name, name_ro, name_en), sizes in SIZE_SCALES.items():
+            sid = con.execute("INSERT INTO size_scales(name, name_ro, name_en) VALUES (?, ?, ?)",
+                              (name, name_ro, name_en)).lastrowid
             for i, code in enumerate(sizes):
                 con.execute("INSERT INTO sizes(scale_id, code, sort) VALUES (?, ?, ?)", (sid, code, i))
     if con.execute("SELECT COUNT(*) FROM color_families").fetchone()[0] == 0:
-        for i, (fam, hexv, colors) in enumerate(COLOR_FAMILIES):
-            fid = con.execute("INSERT INTO color_families(name, hex, sort) VALUES (?, ?, ?)",
-                              (fam, hexv, i)).lastrowid
-            for code, name, chex in colors:
-                con.execute("INSERT INTO colors(family_id, code, name, hex) VALUES (?, ?, ?, ?)",
-                            (fid, code, name, chex))
+        for i, ((fam, fam_ro, fam_en), hexv, colors) in enumerate(COLOR_FAMILIES):
+            fid = con.execute("INSERT INTO color_families(name, name_ro, name_en, hex, sort) VALUES (?, ?, ?, ?, ?)",
+                              (fam, fam_ro, fam_en, hexv, i)).lastrowid
+            for code, (name, name_ro, name_en), chex in colors:
+                con.execute("INSERT INTO colors(family_id, code, name, name_ro, name_en, hex) VALUES (?, ?, ?, ?, ?, ?)",
+                            (fid, code, name, name_ro, name_en, chex))
     if con.execute("SELECT COUNT(*) FROM categories").fetchone()[0] == 0:
-        for code, name, scale, markup, duty, hs in CATEGORIES:
+        for code, (name, name_ro, name_en), scale, markup, duty, hs in CATEGORIES:
             sid = con.execute("SELECT id FROM size_scales WHERE name = ?", (scale,)).fetchone()[0]
-            con.execute("INSERT INTO categories(code, name, size_scale_id, markup_pct, duty_pct, hs_code)"
-                        " VALUES (?, ?, ?, ?, ?, ?)", (code, name, sid, markup, duty, hs))
+            con.execute("INSERT INTO categories(code, name, name_ro, name_en, size_scale_id, markup_pct, duty_pct,"
+                        " hs_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        (code, name, name_ro, name_en, sid, markup, duty, hs))

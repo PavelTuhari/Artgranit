@@ -8,6 +8,7 @@ from flask import (Blueprint, Response, current_app, flash, jsonify, redirect, r
 
 from . import labels as L
 from . import printing, store
+from .i18n import _
 
 bp = Blueprint("tf", __name__)
 
@@ -47,7 +48,7 @@ def shipments():
     if request.method == "POST":
         code = request.form.get("code", "").strip()
         if not code:
-            flash("Укажите номер поставки", "err")
+            flash(_("Укажите номер поставки"), "err")
             return redirect(url_for("tf.shipments"))
         try:
             sid = store.create_shipment(
@@ -56,13 +57,13 @@ def shipments():
                 freight=_f("freight"), customs=_f("customs"), broker=_f("broker"),
                 other_costs=_f("other_costs"), alloc_method=request.form.get("alloc_method", "value"))
         except Exception as e:  # noqa: BLE001
-            flash(f"Не создано: {e}", "err")
+            flash(_("Не создано: {e}", e=e), "err")
             return redirect(url_for("tf.shipments"))
         n = _i(request.form.get("bags_count")) or 0
         for k in range(1, n + 1):
             store.ensure_bag(c, sid, str(k))
         c.commit()
-        flash(f"Поставка {code} создана", "ok")
+        flash(_("Поставка {code} создана", code=code), "ok")
         return redirect(url_for("tf.shipment", sid=sid))
     return render_template("shipments.html", shipments=store.shipments(c))
 
@@ -72,7 +73,7 @@ def shipment(sid):
     c = con()
     sh = store.shipment(c, sid)
     if not sh:
-        return "Поставка не найдена", 404
+        return _("Поставка не найдена"), 404
     if request.method == "POST":
         store.update_shipment(c, sid, currency=request.form.get("currency", sh["currency"]).upper(),
                               fx_rate=_f("fx_rate", sh["fx_rate"]), freight=_f("freight"), customs=_f("customs"),
@@ -81,7 +82,7 @@ def shipment(sid):
                               arrival_date=request.form.get("arrival_date", ""),
                               note=request.form.get("note", ""))
         store.compute_landed(c, sid)
-        flash("Затраты сохранены, себестоимость пересчитана", "ok")
+        flash(_("Затраты сохранены, себестоимость пересчитана"), "ok")
         return redirect(url_for("tf.shipment", sid=sid))
     return render_template("shipment.html", sh=sh, bags=store.bags(c, sid),
                            packing=store.packing_lines(c, sid), rec=store.reconciliation(c, sid),
@@ -102,16 +103,16 @@ def packing_import(sid):
             except UnicodeDecodeError:
                 continue
     if not text.strip():
-        flash("Пустой упаковочный лист", "err")
+        flash(_("Пустой упаковочный лист"), "err")
         return redirect(url_for("tf.shipment", sid=sid))
     try:
         r = store.import_packing_csv(c, sid, text, replace=request.form.get("append") != "1")
     except ValueError as e:
         flash(str(e), "err")
         return redirect(url_for("tf.shipment", sid=sid))
-    msg = f"Загружено строк: {r['lines']}, мешков: {r['bags']}"
+    msg = _("Загружено строк: {lines}, мешков: {bags}", lines=r["lines"], bags=r["bags"])
     if r["unknown_categories"]:
-        msg += ". Не распознаны категории: " + ", ".join(r["unknown_categories"])
+        msg += ". " + _("Не распознаны категории: ") + ", ".join(r["unknown_categories"])
     flash(msg, "ok" if not r["unknown_categories"] else "warn")
     return redirect(url_for("tf.shipment", sid=sid))
 
@@ -141,7 +142,7 @@ def sort(sid):
     c = con()
     sh = store.shipment(c, sid)
     if not sh:
-        return "Поставка не найдена", 404
+        return _("Поставка не найдена"), 404
     bag_id = _i(request.args.get("bag"))
     pid = _i(request.args.get("product"))
     matrix = store.product_matrix(c, pid) if pid and store.product(c, pid) else None
@@ -161,7 +162,7 @@ def sort_quick_product(sid):
     cat_id = _i(request.form.get("category_id"))
     name = request.form.get("name", "").strip()
     if not (cat_id and name):
-        flash("Нужны название и категория", "err")
+        flash(_("Нужны название и категория"), "err")
         return redirect(url_for("tf.sort", sid=sid, bag=bag))
     cost = _f("base_cost_fx") or store.declared_unit_price(c, sid, cat_id)
     try:
@@ -169,7 +170,7 @@ def sort_quick_product(sid):
                                    store.shipment(c, sid)["supplier"] or "", cost,
                                    request.form.get("composition", ""))
     except Exception as e:  # noqa: BLE001
-        flash(f"Товар не создан: {e}", "err")
+        flash(_("Товар не создан: {e}", e=e), "err")
         return redirect(url_for("tf.sort", sid=sid, bag=bag))
     return redirect(url_for("tf.sort", sid=sid, bag=bag, product=pid))
 
@@ -194,7 +195,7 @@ def sort_intake(sid):
     if cost:
         store.update_product(c, pid, base_cost_fx=float(cost))
     n = store.add_intake(c, sid, bag_id, pid, grid, float(cost) if cost else None)
-    flash(f"Принято {n} шт." if n else "Ничего не введено", "ok" if n else "warn")
+    flash(_("Принято {n} шт.", n=n) if n else _("Ничего не введено"), "ok" if n else "warn")
     if request.form.get("print") and n:
         return redirect(url_for("tf.labels", shipment=sid, bag=bag_id or "", last=1))
     return redirect(url_for("tf.sort", sid=sid, bag=bag_id or "", product=pid))
@@ -226,7 +227,7 @@ def pricing(sid):
     c = con()
     sh = store.shipment(c, sid)
     if not sh:
-        return "Поставка не найдена", 404
+        return _("Поставка не найдена"), 404
     if request.method == "POST":
         overrides = {}
         for k, v in request.form.items():
@@ -236,7 +237,7 @@ def pricing(sid):
                 except ValueError:
                     pass
         n = store.apply_prices(c, sid, overrides)
-        flash(f"Цены записаны в {n} карточек", "ok")
+        flash(_("Цены записаны в {n} карточек", n=n), "ok")
         return redirect(url_for("tf.pricing", sid=sid))
     return render_template("pricing.html", sh=sh, rows=store.price_proposal(c, sid),
                            totals=store.shipment_totals(c, sid), st=store.settings(c))
@@ -257,7 +258,7 @@ def catalog():
 def product(pid):
     c = con()
     if not store.product(c, pid):
-        return "Товар не найден", 404
+        return _("Товар не найден"), 404
     if request.method == "POST":
         rp = request.form.get("retail_price", "").replace(",", ".").strip()
         store.update_product(c, pid, name=request.form.get("name", ""),
@@ -267,7 +268,7 @@ def product(pid):
                              base_cost_fx=_f("base_cost_fx"),
                              retail_price=float(rp) if rp else None,
                              price_locked=1 if request.form.get("price_locked") else 0)
-        flash("Карточка сохранена", "ok")
+        flash(_("Карточка сохранена"), "ok")
         return redirect(url_for("tf.product", pid=pid))
     m = store.product_matrix(c, pid)
     return render_template("product.html", m=m, p=m["product"], variants=store.variants(c, pid),
@@ -327,7 +328,7 @@ def labels():
         st = store.settings(c)
         sheet.start_cell = _i(request.values.get("start_cell")) or 0
         if not items:
-            flash("Нет выбранных этикеток", "warn")
+            flash(_("Нет выбранных этикеток"), "warn")
             return redirect(url_for("tf.labels", **{k: v for k, v in request.values.items() if k != "action"}))
         try:
             if fmt == "zpl":
@@ -347,10 +348,10 @@ def labels():
             try:
                 msg = printing.dispatch(target, data, ext)
                 store.log_label_job(c, fmt, target, n, "ok", msg)
-                flash(f"Печать: {n} этикеток — {msg}", "ok")
+                flash(_("Печать: {n} этикеток — {msg}", n=n, msg=msg), "ok")
             except Exception as e:  # noqa: BLE001
                 store.log_label_job(c, fmt, target, n, "error", str(e))
-                flash(f"Принтер не ответил: {e}", "err")
+                flash(_("Принтер не ответил: {e}", e=e), "err")
             return redirect(url_for("tf.labels", **{k: v for k, v in request.values.items()
                                                     if k not in ("action", "target")}))
         store.log_label_job(c, fmt, "download", n)
@@ -376,7 +377,7 @@ def settings():
         if "prices_include_vat" in keys:
             vals["prices_include_vat"] = "1" if request.form.get("prices_include_vat") else "0"
         store.save_settings(c, vals)
-        flash("Настройки сохранены", "ok")
+        flash(_("Настройки сохранены"), "ok")
         return redirect(url_for("tf.settings"))
     return render_template("settings.html", st=store.settings(c))
 
@@ -389,18 +390,20 @@ def refs():
         try:
             if kind == "color":
                 store.add_color(c, int(request.form["family_id"]), request.form["code"], request.form["name"],
-                                request.form.get("hex", "#cccccc"))
+                                request.form.get("hex", "#cccccc"), request.form.get("name_ro", ""),
+                                request.form.get("name_en", ""))
             elif kind == "size":
                 store.add_size(c, int(request.form["scale_id"]), request.form["code"])
             elif kind == "category":
                 store.add_category(c, request.form["code"], request.form["name"], _i(request.form.get("scale_id")),
-                                   _f("markup_pct", 100), _f("duty_pct"), request.form.get("hs_code", ""))
+                                   _f("markup_pct", 100), _f("duty_pct"), request.form.get("hs_code", ""),
+                                   request.form.get("name_ro", ""), request.form.get("name_en", ""))
             elif kind == "category_update":
                 store.update_category(c, int(request.form["id"]), _f("markup_pct", 100), _f("duty_pct"),
                                       _i(request.form.get("scale_id")))
-            flash("Сохранено", "ok")
+            flash(_("Сохранено"), "ok")
         except Exception as e:  # noqa: BLE001
-            flash(f"Не сохранено: {e}", "err")
+            flash(_("Не сохранено: {e}", e=e), "err")
         return redirect(url_for("tf.refs") + "#" + (kind or ""))
     return render_template("refs.html", families=store.color_families(c), scales=store.size_scales(c),
                            categories=store.categories(c))

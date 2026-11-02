@@ -10,7 +10,7 @@ from flask import Flask, g
 
 from . import db
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 
 def create_app(db_path: str | None = None, testing: bool = False) -> Flask:
@@ -50,8 +50,32 @@ def create_app(db_path: str | None = None, testing: bool = False) -> Flask:
     from .routes import bp
     app.register_blueprint(bp)
 
+    from flask import request, session
+    from urllib.parse import urlencode
+
+    from . import i18n
+
+    @app.before_request
+    def _pick_lang():
+        lang = request.args.get("lang")
+        if lang in i18n.LANGS:
+            session["lang"] = lang
+        lang = session.get("lang")
+        if lang not in i18n.LANGS:
+            r = get_db().execute("SELECT value FROM settings WHERE key = 'ui_lang'").fetchone()
+            lang = r[0] if r else "ru"
+        i18n.set_lang(lang)
+
+    def lang_url(code):
+        args = {k: v for k, v in request.args.items() if k != "lang"}
+        args["lang"] = code
+        return request.path + "?" + urlencode(args)
+
     @app.context_processor
     def _ctx():
-        return {"version": __version__}
+        return {"version": __version__, "_": i18n.gettext, "lang": i18n.current_lang(),
+                "langs": i18n.LANGS, "lang_names": i18n.LANG_NAMES, "lang_url": lang_url,
+                "status_name": i18n.status_name, "gender_name": i18n.gender_name,
+                "js_i18n": i18n.js_strings()}
 
     return app

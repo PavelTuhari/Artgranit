@@ -9,6 +9,7 @@ import os
 from dataclasses import dataclass
 
 from .rules import translit, is_valid_ean13
+from .i18n import _
 
 MM_PER_INCH = 25.4
 
@@ -81,7 +82,7 @@ def to_zpl(labels: list[LabelData], layout: LabelLayout | None = None,
     out = []
     for lb in labels:
         if not is_valid_ean13(lb.ean13):
-            raise ValueError(f"неверный EAN-13: {lb.ean13}")
+            raise ValueError(_("неверный EAN-13: {code}", code=lb.ean13))
         y = m
         z = ["^XA", "^CI28", f"^PW{W}", f"^LL{H}", "^LH0,0"]
         if lb.brand:
@@ -140,7 +141,7 @@ def to_tspl(labels: list[LabelData], layout: LabelLayout | None = None,
     out = []
     for lb in labels:
         if not is_valid_ean13(lb.ean13):
-            raise ValueError(f"неверный EAN-13: {lb.ean13}")
+            raise ValueError(_("неверный EAN-13: {code}", code=lb.ean13))
         y = m
         t = [f"SIZE {lay.width_mm:g} mm,{lay.height_mm:g} mm",
              f"GAP {lay.gap_mm:g} mm,0 mm", "DIRECTION 1", "REFERENCE 0,0",
@@ -297,7 +298,7 @@ def to_pdf_sheet(labels: list[LabelData], sheet: SheetLayout | None = None) -> b
         _draw_label(c, x, y, s.label_w_mm * mm, s.label_h_mm * mm, lb, fonts, s.border)
         cell += 1
     if not items:
-        c.setFont(fonts[0], 12); c.drawString(20 * mm, ph - 20 * mm, "Нет этикеток" if fonts[2] else "No labels")
+        c.setFont(fonts[0], 12); c.drawString(20 * mm, ph - 20 * mm, _("Нет этикеток") if fonts[2] else "No labels")
     c.showPage(); c.save()
     return buf.getvalue()
 

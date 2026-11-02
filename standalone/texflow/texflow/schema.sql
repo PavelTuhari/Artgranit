@@ -1,4 +1,5 @@
 -- TexFlow: SQLite schema (normalized). Comments without semicolons and quotes.
+-- name = RU, name_ro = RO, name_en = EN (empty means fall back to RU)
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS settings (
@@ -13,8 +14,10 @@ CREATE TABLE IF NOT EXISTS suppliers (
 );
 
 CREATE TABLE IF NOT EXISTS size_scales (
-    id   INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE
+    id      INTEGER PRIMARY KEY,
+    name    TEXT NOT NULL UNIQUE,
+    name_ro TEXT NOT NULL DEFAULT '',
+    name_en TEXT NOT NULL DEFAULT ''
 );
 
 CREATE TABLE IF NOT EXISTS sizes (
@@ -27,9 +30,11 @@ CREATE TABLE IF NOT EXISTS sizes (
 
 CREATE TABLE IF NOT EXISTS color_families (
     id   INTEGER PRIMARY KEY,
-    name TEXT NOT NULL UNIQUE,
-    hex  TEXT NOT NULL DEFAULT '#cccccc',
-    sort INTEGER NOT NULL DEFAULT 0
+    name    TEXT NOT NULL UNIQUE,
+    name_ro TEXT NOT NULL DEFAULT '',
+    name_en TEXT NOT NULL DEFAULT '',
+    hex     TEXT NOT NULL DEFAULT '#cccccc',
+    sort    INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS colors (
@@ -37,6 +42,8 @@ CREATE TABLE IF NOT EXISTS colors (
     family_id INTEGER NOT NULL REFERENCES color_families(id),
     code      TEXT NOT NULL UNIQUE,
     name      TEXT NOT NULL,
+    name_ro   TEXT NOT NULL DEFAULT '',
+    name_en   TEXT NOT NULL DEFAULT '',
     hex       TEXT NOT NULL DEFAULT '#cccccc'
 );
 
@@ -44,6 +51,8 @@ CREATE TABLE IF NOT EXISTS categories (
     id            INTEGER PRIMARY KEY,
     code          TEXT NOT NULL UNIQUE,
     name          TEXT NOT NULL,
+    name_ro       TEXT NOT NULL DEFAULT '',
+    name_en       TEXT NOT NULL DEFAULT '',
     size_scale_id INTEGER REFERENCES size_scales(id),
     markup_pct    REAL NOT NULL DEFAULT 100,
     duty_pct      REAL NOT NULL DEFAULT 0,

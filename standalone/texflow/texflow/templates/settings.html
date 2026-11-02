@@ -1,25 +1,29 @@
-{% extends "base.html" %}{% block title %}Настройки{% endblock %}
+{% extends "base.html" %}{% block title %}{{ _('Настройки') }}{% endblock %}
 {% block body %}
-<h1>Настройки</h1>
+<h1>{{ _('Настройки') }}</h1>
 <form method="post">
-<div class="card"><h2>Магазин и цены</h2><div class="row">
-<label>Бренд на этикетке<input name="brand" value="{{ st.brand }}"></label><label>Валюта продажи<input name="currency" value="{{ st.currency }}"></label>
-<label>НДС, %<input name="vat_pct" value="{{ st.vat_pct }}"></label><label>Цены с НДС<input type="checkbox" name="prices_include_vat" value="1" {{ 'checked' if st.prices_include_vat=='1' }} style="width:auto"></label></div>
-<div class="row"><label>Шаг округления (10 → …9.90)<input name="round_step" value="{{ st.round_step }}"></label><label>Хвост цены (0.1 → .90, 0.01 → .99, 0 → ровно)<input name="round_ending" value="{{ st.round_ending }}"></label>
-<label>Минимальная наценка, %<input name="min_markup_pct" value="{{ st.min_markup_pct }}"></label><label>Префикс внутреннего EAN (20–29…)<input name="ean_prefix" value="{{ st.ean_prefix }}"></label></div>
-<p class="mut">Выдано EAN: {{ st.ean_counter }}</p></div>
-<div class="card"><h2>Термоэтикетка (Zebra / TSC / PDF-рулон)</h2><div class="row">
-<label>Ширина, мм<input name="label_width_mm" value="{{ st.label_width_mm }}"></label><label>Высота, мм<input name="label_height_mm" value="{{ st.label_height_mm }}"></label>
-<label>Зазор, мм<input name="label_gap_mm" value="{{ st.label_gap_mm }}"></label><label>DPI<select name="label_dpi">{% for d in ['203','300','600'] %}<option {{ 'selected' if st.label_dpi==d }}>{{ d }}</option>{% endfor %}</select></label></div>
-<div class="row"><label>Принтер Zebra (ZPL)<input name="printer_zpl" value="{{ st.printer_zpl }}" placeholder="tcp://192.168.1.50:9100"></label>
-<label>Принтер TSC (TSPL)<input name="printer_tspl" value="{{ st.printer_tspl }}" placeholder="cups://TSC_TE200"></label></div>
-<div class="row"><label>Шрифт кириллицы ZPL (на принтере)<input name="zpl_font" value="{{ st.zpl_font }}" placeholder="E:ARIAL.TTF — пусто: латиница"></label>
-<label>Шрифт кириллицы TSPL<input name="tspl_font" value="{{ st.tspl_font }}" placeholder="ARIAL.TTF — пусто: латиница"></label></div></div>
-<div class="card"><h2>Лист A4 (обычный принтер)</h2><div class="row">
-<label>Колонок<input name="sheet_cols" value="{{ st.sheet_cols }}"></label><label>Строк<input name="sheet_rows" value="{{ st.sheet_rows }}"></label>
-<label>Ширина этикетки, мм<input name="sheet_label_w_mm" value="{{ st.sheet_label_w_mm }}"></label><label>Высота, мм<input name="sheet_label_h_mm" value="{{ st.sheet_label_h_mm }}"></label>
-<label>Отступ слева, мм<input name="sheet_margin_left_mm" value="{{ st.sheet_margin_left_mm }}"></label><label>Отступ сверху, мм<input name="sheet_margin_top_mm" value="{{ st.sheet_margin_top_mm }}"></label>
-<label>Рамка<input type="checkbox" name="sheet_border" value="1" {{ 'checked' if st.sheet_border=='1' }} style="width:auto"></label></div>
-<p class="mut">Типовые листы: 3×8 = 70×37 мм; 3×7 = 70×42.3; 4×10 = 52.5×29.7; 2×7 = 105×42.3.</p></div>
-<button>Сохранить</button></form>
+<div class="card"><h2>{{ _('Язык') }}</h2><div class="row">
+<label>{{ _('Язык интерфейса по умолчанию') }}<select name="ui_lang">{% for l in langs %}<option value="{{ l }}" {{ 'selected' if st.ui_lang==l }}>{{ lang_names[l] }}</option>{% endfor %}</select></label>
+<label>{{ _('Язык названий цветов на этикетке') }}<select name="label_lang">{% for l in langs %}<option value="{{ l }}" {{ 'selected' if st.label_lang==l }}>{{ lang_names[l] }}</option>{% endfor %}</select></label></div>
+<p class="mut">{{ _('Переключатель RU / RO / EN в шапке меняет язык только для вашего браузера.') }}</p></div>
+<div class="card"><h2>{{ _('Магазин и цены') }}</h2><div class="row">
+<label>{{ _('Бренд на этикетке') }}<input name="brand" value="{{ st.brand }}"></label><label>{{ _('Валюта продажи') }}<input name="currency" value="{{ st.currency }}"></label>
+<label>{{ _('НДС, %') }}<input name="vat_pct" value="{{ st.vat_pct }}"></label><label>{{ _('Цены с НДС') }}<input type="checkbox" name="prices_include_vat" value="1" {{ 'checked' if st.prices_include_vat=='1' }} style="width:auto"></label></div>
+<div class="row"><label>{{ _('Шаг округления (10 → …9.90)') }}<input name="round_step" value="{{ st.round_step }}"></label><label>{{ _('Хвост цены (0.1 → .90, 0.01 → .99, 0 → ровно)') }}<input name="round_ending" value="{{ st.round_ending }}"></label>
+<label>{{ _('Минимальная наценка, %') }}<input name="min_markup_pct" value="{{ st.min_markup_pct }}"></label><label>{{ _('Префикс внутреннего EAN (20–29…)') }}<input name="ean_prefix" value="{{ st.ean_prefix }}"></label></div>
+<p class="mut">{{ _('Выдано EAN') }}: {{ st.ean_counter }}</p></div>
+<div class="card"><h2>{{ _('Термоэтикетка (Zebra / TSC / PDF-рулон)') }}</h2><div class="row">
+<label>{{ _('Ширина, мм') }}<input name="label_width_mm" value="{{ st.label_width_mm }}"></label><label>{{ _('Высота, мм') }}<input name="label_height_mm" value="{{ st.label_height_mm }}"></label>
+<label>{{ _('Зазор, мм') }}<input name="label_gap_mm" value="{{ st.label_gap_mm }}"></label><label>DPI<select name="label_dpi">{% for d in ['203','300','600'] %}<option {{ 'selected' if st.label_dpi==d }}>{{ d }}</option>{% endfor %}</select></label></div>
+<div class="row"><label>{{ _('Принтер Zebra (ZPL)') }}<input name="printer_zpl" value="{{ st.printer_zpl }}" placeholder="tcp://192.168.1.50:9100"></label>
+<label>{{ _('Принтер TSC (TSPL)') }}<input name="printer_tspl" value="{{ st.printer_tspl }}" placeholder="cups://TSC_TE200"></label></div>
+<div class="row"><label>{{ _('Шрифт кириллицы ZPL (на принтере)') }}<input name="zpl_font" value="{{ st.zpl_font }}" placeholder="{{ _('E:ARIAL.TTF — пусто: латиница') }}"></label>
+<label>{{ _('Шрифт кириллицы TSPL') }}<input name="tspl_font" value="{{ st.tspl_font }}" placeholder="{{ _('ARIAL.TTF — пусто: латиница') }}"></label></div></div>
+<div class="card"><h2>{{ _('Лист A4 (обычный принтер)') }}</h2><div class="row">
+<label>{{ _('Колонок') }}<input name="sheet_cols" value="{{ st.sheet_cols }}"></label><label>{{ _('Строк') }}<input name="sheet_rows" value="{{ st.sheet_rows }}"></label>
+<label>{{ _('Ширина этикетки, мм') }}<input name="sheet_label_w_mm" value="{{ st.sheet_label_w_mm }}"></label><label>{{ _('Высота, мм') }}<input name="sheet_label_h_mm" value="{{ st.sheet_label_h_mm }}"></label>
+<label>{{ _('Отступ слева, мм') }}<input name="sheet_margin_left_mm" value="{{ st.sheet_margin_left_mm }}"></label><label>{{ _('Отступ сверху, мм') }}<input name="sheet_margin_top_mm" value="{{ st.sheet_margin_top_mm }}"></label>
+<label>{{ _('Рамка') }}<input type="checkbox" name="sheet_border" value="1" {{ 'checked' if st.sheet_border=='1' }} style="width:auto"></label></div>
+<p class="mut">{{ _('Типовые листы: 3×8 = 70×37 мм; 3×7 = 70×42.3; 4×10 = 52.5×29.7; 2×7 = 105×42.3.') }}</p></div>
+<button>{{ _('Сохранить') }}</button></form>
 {% endblock %}

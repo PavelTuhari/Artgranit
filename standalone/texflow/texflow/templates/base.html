@@ -1,22 +1,25 @@
 <!doctype html>
-<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="{{ lang }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{% block title %}TexFlow{% endblock %} · TexFlow</title>
 <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}"></head>
 <body>
 <header><span class="logo">TEXFLOW</span>
 <nav>{% set ep = request.endpoint or '' %}
-<a href="{{ url_for('tf.index') }}" class="{{ 'on' if ep=='tf.index' }}">Главная</a>
-<a href="{{ url_for('tf.shipments') }}" class="{{ 'on' if 'shipment' in ep or 'sort' in ep or 'pricing' in ep }}">Поставки</a>
-<a href="{{ url_for('tf.catalog') }}" class="{{ 'on' if ep in ('tf.catalog','tf.product') }}">Каталог</a>
-<a href="{{ url_for('tf.labels') }}" class="{{ 'on' if ep=='tf.labels' }}">Этикетки</a>
-<a href="{{ url_for('tf.refs') }}" class="{{ 'on' if ep=='tf.refs' }}">Справочники</a>
-<a href="{{ url_for('tf.settings') }}" class="{{ 'on' if ep=='tf.settings' }}">Настройки</a>
-<a href="{{ url_for('tf.help_page') }}" class="{{ 'on' if ep=='tf.help_page' }}">Инструкция</a>
-</nav></header>
+<a href="{{ url_for('tf.index') }}" class="{{ 'on' if ep=='tf.index' }}">{{ _('Главная') }}</a>
+<a href="{{ url_for('tf.shipments') }}" class="{{ 'on' if 'shipment' in ep or 'sort' in ep or 'pricing' in ep }}">{{ _('Поставки') }}</a>
+<a href="{{ url_for('tf.catalog') }}" class="{{ 'on' if ep in ('tf.catalog','tf.product') }}">{{ _('Каталог') }}</a>
+<a href="{{ url_for('tf.labels') }}" class="{{ 'on' if ep=='tf.labels' }}">{{ _('Этикетки') }}</a>
+<a href="{{ url_for('tf.refs') }}" class="{{ 'on' if ep=='tf.refs' }}">{{ _('Справочники') }}</a>
+<a href="{{ url_for('tf.settings') }}" class="{{ 'on' if ep=='tf.settings' }}">{{ _('Настройки') }}</a>
+<a href="{{ url_for('tf.help_page') }}" class="{{ 'on' if ep=='tf.help_page' }}">{{ _('Инструкция') }}</a>
+</nav>
+<span class="langs">{% for l in langs %}<a href="{{ lang_url(l) }}" class="{{ 'on' if l==lang }}" title="{{ lang_names[l] }}">{{ l|upper }}</a>{% endfor %}</span>
+</header>
 <main>
 {% for cat, msg in get_flashed_messages(with_categories=true) %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
 {% block body %}{% endblock %}
-<p class="mut noprint" style="margin-top:30px;font-size:11px">TexFlow {{ version }} · SQLite · автономно</p>
+<p class="mut noprint" style="margin-top:30px;font-size:11px">TexFlow {{ version }} · SQLite · {{ _('автономно') }}</p>
 </main>
+<script>window.TF_I18N = {{ js_i18n|tojson }};</script>
 {% block scripts %}{% endblock %}
 </body></html>

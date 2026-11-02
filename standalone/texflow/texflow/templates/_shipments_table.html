@@ -1,4 +1,4 @@
-<table><tr><th>Поставка</th><th>Поставщик</th><th>Страна</th><th>Валюта</th><th class="n">Мешков</th><th class="n">По листу</th><th class="n">Принято</th><th>Статус</th><th></th></tr>
+<table><tr><th>{{ _('Поставка') }}</th><th>{{ _('Поставщик') }}</th><th>{{ _('Страна') }}</th><th>{{ _('Валюта') }}</th><th class="n">{{ _('Мешков') }}</th><th class="n">{{ _('По листу') }}</th><th class="n">{{ _('Принято') }}</th><th>{{ _('Статус') }}</th><th></th></tr>
 {% for s in shipments %}<tr><td><a href="{{ url_for('tf.shipment', sid=s.id) }}"><b>{{ s.code }}</b></a></td><td>{{ s.supplier or '' }}</td><td>{{ s.country }}</td>
-<td>{{ s.currency }} × {{ s.fx_rate }}</td><td class="n">{{ s.bags }}</td><td class="n">{{ s.declared }}</td><td class="n">{{ s.counted }}</td><td><span class="tag">{{ s.status }}</span></td>
-<td><a class="btn sm" href="{{ url_for('tf.sort', sid=s.id) }}">Разбор</a> <a class="btn sm sec" href="{{ url_for('tf.pricing', sid=s.id) }}">Цены</a></td></tr>{% endfor %}</table>
+<td>{{ s.currency }} × {{ s.fx_rate }}</td><td class="n">{{ s.bags }}</td><td class="n">{{ s.declared }}</td><td class="n">{{ s.counted }}</td><td><span class="tag">{{ status_name(s.status) }}</span></td>
+<td><a class="btn sm" href="{{ url_for('tf.sort', sid=s.id) }}">{{ _('Разбор') }}</a> <a class="btn sm sec" href="{{ url_for('tf.pricing', sid=s.id) }}">{{ _('Цены') }}</a></td></tr>{% endfor %}</table>
