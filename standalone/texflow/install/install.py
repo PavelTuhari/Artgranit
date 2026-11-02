@@ -27,8 +27,9 @@ import textwrap
 
 SRC = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))     # standalone/texflow
 APP = "TexFlow"
-COPY = ["texflow", "desktop", "texflow_app.py", "run.py", "requirements.txt", "samples", "install",
-        "README.md", "README.ro.md", "README.en.md", "docs"]
+# копируется вся поставка (вместе с MANIFEST.sha256 и подписью unisim-soft — установленная программа сама
+# проверяет свои файлы при запуске); кроме служебных и рабочих папок:
+SKIP_TOP = {"venv", "dist", "build", "instance", ".cache", "__pycache__", ".git", ".github", "node_modules"}
 DEPS = ["reportlab>=4.0", "openpyxl>=3.1", "flask>=3.0"]
 IS_WIN, IS_MAC = sys.platform.startswith("win"), sys.platform == "darwin"
 
@@ -98,10 +99,10 @@ def copy_program(dest: str):
     os.makedirs(dest, exist_ok=True)
     ignore = shutil.ignore_patterns("__pycache__", "*.pyc", "instance", "dist", ".cache", "*.db", "*.db-*",
                                     "node_modules", "build")
-    for name in COPY:
-        src = os.path.join(SRC, name)
-        if not os.path.exists(src):
+    for name in sorted(os.listdir(SRC)):
+        if name in SKIP_TOP or name.startswith("._"):
             continue
+        src = os.path.join(SRC, name)
         dst = os.path.join(dest, name)
         if os.path.isdir(src):
             if os.path.abspath(src) == os.path.abspath(dst):

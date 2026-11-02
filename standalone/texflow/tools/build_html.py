@@ -520,7 +520,7 @@ def build_act(e2e: dict, unit: list[dict]) -> str:
 что установщик формирует правильные файлы (<code>.bat</code> с CRLF, <code>TexFlow.app</code> с Info.plist и иконкой) — тесты
 <code>test_installer_windows_and_mac_scripts</code>; ярлыки Windows (.lnk через PowerShell) и запуск на этих ОС не проверялись.
 Сборка PyInstaller выполнена только для Linux; для Windows (.exe) и macOS (.app) — шаблон GitHub Actions
-<code>install/github-actions-texflow-desktop.yml</code>, собирает на своих ОС.</li>
+<code>.github/workflows/texflow-desktop.yml</code>, собирает и запускает их на своих ОС на каждый push.</li>
 <li>Системная печать PDF (кнопка «Печать на системный принтер») — вызывает <code>lp</code> / печать Windows; в среде испытаний
 системного принтера нет.</li>
 <li>Схема процесса на странице «Инструкция» в самом приложении рисуется библиотекой mermaid с CDN; без интернета показывается её текст.
