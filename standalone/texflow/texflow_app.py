@@ -9,6 +9,13 @@
     python texflow_app.py --demo          # с демо-поставкой
     python texflow_app.py --web           # веб-версия в браузере
     python texflow_app.py --check         # проверить окружение и выйти
+    python texflow_app.py --verify        # проверить подпись unisim-soft и контрольные суммы своих файлов
+    python texflow_app.py --verify-sums SHA256SUMS   # проверить скачанные архивы выпуска
+    python texflow_app.py --smoke         # открыть окно, пройти вкладки на 3 языках, закрыть (для CI)
+
+Целостность: в подписанной поставке (архив «-scripts» со сборки GitHub) лежат MANIFEST.sha256 и
+MANIFEST.sha256.sig; при каждом запуске программа сверяет свои файлы и подпись unisim-soft.
+Изменённые файлы — предупреждение; TEXFLOW_STRICT_INTEGRITY=1 — отказ запускаться.
 """
 from __future__ import annotations
 
@@ -78,6 +85,46 @@ def check_tk() -> str | None:
         return "Tkinter не найден. Переустановите Python с python.org, отметив «tcl/tk and IDLE»."
 
 
+def integrity_status() -> dict:
+    from texflow import integrity
+    if _frozen():
+        return {"status": "binary", "signer": integrity.SIGNER, "files": 0}
+    return integrity.check_tree(HERE)
+
+
+def integrity_line(res: dict) -> str:
+    from texflow import integrity
+    if res["status"] == "binary":
+        return "целостность: собранная программа — проверяйте архив по SHA256SUMS + подписи unisim-soft"
+    return integrity.describe(res)
+
+
+def smoke(argv) -> int:
+    """Открыть окно на временной базе, загрузить демо, пройти все вкладки на RU/RO/EN, закрыть."""
+    import tempfile
+    import time
+    os.environ["TEXFLOW_HOME"] = tempfile.mkdtemp(prefix="texflow-smoke-")
+    from texflow_desktop import app as app_mod, widgets
+    widgets.error = widgets.info = lambda *a, **k: None
+    t0 = time.time()
+    app = app_mod.App(os.path.join(os.environ["TEXFLOW_HOME"], "smoke.db"), "ru")
+    errors = []
+    app.report_callback_exception = lambda *a: errors.append(str(a[1]))
+    app.load_demo()
+    for lang in ("ru", "ro", "en"):
+        app.set_language(lang)
+        for key in app_mod.TAB_KEYS:
+            app.show(key)
+            app.update()
+    from texflow import store, label_templates as LT
+    data, ext, _m = store.render_labels(app.con, store.label_rows(app.con, {1: 2}), "pdf_roll")
+    ok = data[:4] == b"%PDF" and not errors and len(LT.list_templates(app.con)) == 3
+    app.destroy()
+    print(f"SMOKE {'OK' if ok else 'FAIL'} · {len(app_mod.TAB_KEYS)} вкладок × 3 языка · PDF {len(data)} байт · "
+          f"{time.time() - t0:.1f} с" + (f" · ошибки: {errors}" if errors else ""))
+    return 0 if ok else 1
+
+
 def main(argv=None) -> int:
     argv = list(sys.argv[1:] if argv is None else argv)
     if sys.version_info < MIN_PY:
@@ -85,6 +132,24 @@ def main(argv=None) -> int:
         return 2
     sys.path.insert(0, HERE)
     sys.path.insert(0, os.path.join(HERE, "desktop"))
+    if "--verify-sums" in argv:
+        from texflow import integrity
+        i = argv.index("--verify-sums")
+        path = argv[i + 1] if i + 1 < len(argv) else "SHA256SUMS"
+        res = integrity.check_sums_file(path)
+        print(f"подпись {integrity.SIGNER}: {res['signature']}")
+        for name, st in res["files"].items():
+            print(f"  {st:9} {name}")
+        return 0 if res["signature"] == "ok" and all(v == "ok" for v in res["files"].values()) else 1
+    res = integrity_status()
+    if "--verify" in argv:
+        print(integrity_line(res))
+        return 0 if res["status"] in ("ok", "dev", "binary") else 1
+    if res["status"] in ("modified", "bad-signature", "no-key"):
+        print("TexFlow ВНИМАНИЕ:", integrity_line(res), file=sys.stderr)
+        if os.environ.get("TEXFLOW_STRICT_INTEGRITY") == "1":
+            return 3
+    os.environ["TEXFLOW_INTEGRITY"] = integrity_line(res)
     web = "--web" in argv
     ensure_deps({**CORE_DEPS, **(WEB_DEPS if web or "--check" in argv else {})})
     if "--check" in argv:
@@ -94,6 +159,7 @@ def main(argv=None) -> int:
         print(f"TexFlow {texflow.__version__} · Python {platform.python_version()} · {platform.system()} "
               f"{platform.release()}")
         print("data:", data_dir())
+        print(integrity_line(res))
         print("tkinter:", "ok" if not tk_err else tk_err)
         from importlib import metadata
         for m in ("reportlab", "openpyxl", "flask"):
@@ -132,6 +198,8 @@ def main(argv=None) -> int:
     if err:
         print("TexFlow:", err)
         return 1
+    if "--smoke" in argv:
+        return smoke(argv)
     from texflow_desktop.app import main as desktop_main
     desktop_main(argv)
     return 0

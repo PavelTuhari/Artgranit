@@ -1,6 +1,7 @@
 """Главное окно TexFlow Desktop: вкладки, язык, база."""
 from __future__ import annotations
 
+import os
 import sys
 import tkinter as tk
 from tkinter import ttk
@@ -143,7 +144,8 @@ class App(tk.Tk):
     def about(self):
         from .widgets import info
         info(f"TexFlow {__version__}\n{_('Приёмка одежды из мешков')}\n\n"
-             f"{paths.platform_name()}\nTk {tk.TkVersion}\n\n{_('База данных')}: {self.db_file}")
+             f"{paths.platform_name()}\nTk {tk.TkVersion}\n\n{_('База данных')}: {self.db_file}\n\n"
+             f"{os.environ.get('TEXFLOW_INTEGRITY', '')}")
 
 
 def main(argv=None):
