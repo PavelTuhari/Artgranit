@@ -3,7 +3,7 @@
 <title>TexFlow — intake of clothing from bags, catalogue, pricing and labels · TexFlow</title><link rel="stylesheet" href="../assets/docs.css"></head>
 <body><header class="top"><span class="logo">TEXFLOW</span><a href="../index.html">All materials</a>
 <a href="../test_act.html">Test report</a><a href="../presentation.html">Presentation</a><span class="langs"><a class="" href="../ru/README.html">RU</a><a class="" href="../ro/README.html">RO</a><a class="on" href="../en/README.html">EN</a></span></header>
-<div class="wrap"><nav class="side"><b>Documentation</b><a class="on" href="../en/README.html">Overview & install</a><a href="../en/OPERATOR_GUIDE.html">Operator guide</a><a href="../en/LABELS.html">Labels & printers</a><a href="../en/ARCHITECTURE.html">Flowcharts</a><a href="../en/gallery.html">Screen gallery</a><b>Test report · Presentation</b><a href="../test_act.html">Test report (RU)</a><a href="../presentation.html">Presentation (RU)</a><a href="../index.html">All materials</a></nav><main class="doc"><h1 id="texflow-intake-of-clothing-from-bags-catalogue-pricing-and-labels">TexFlow — intake of clothing from bags, catalogue, pricing and labels</h1>
+<div class="wrap"><nav class="side"><b>Documentation</b><a class="on" href="../en/README.html">Overview & install</a><a href="../en/DESKTOP.html">Native app</a><a href="../en/OPERATOR_GUIDE.html">Operator guide</a><a href="../en/LABELS.html">Labels & printers</a><a href="../en/ARCHITECTURE.html">Flowcharts</a><a href="../en/gallery.html">Screen gallery</a><b>Test report · Presentation</b><a href="../test_act.html">Test report (RU)</a><a href="../presentation.html">Presentation (RU)</a><a href="../index.html">All materials</a></nav><main class="doc"><h1 id="texflow-intake-of-clothing-from-bags-catalogue-pricing-and-labels">TexFlow — intake of clothing from bags, catalogue, pricing and labels</h1>
 <p><a href="../ru/README.html">Русский</a> · <a href="../ro/README.html">Română</a> · <strong>English</strong></p>
 <p>A standalone web app built on <strong>Python + Flask + SQLite</strong>. It is made for fast
 processing of clothing that arrives from Turkey and China in bags, where
@@ -51,6 +51,16 @@ run it from a laptop.</p>
 </tbody>
 </table>
 <hr />
+<h2 id="0-native-app-12-windows-macos-linux">0. Native app (1.2): Windows · macOS · Linux</h2>
+<p>Besides the web version there is a <strong>regular windowed program</strong> on the same core: <a href="DESKTOP.html">docs/DESKTOP.en.md</a>.</p>
+<ul>
+<li><strong>Install:</strong> double-click <code>Install-TexFlow-Windows.bat</code> / <code>Install-TexFlow-macOS.command</code> /
+  <code>sh install-texflow-linux.sh</code> — Python, libraries and shortcuts install themselves.</li>
+<li><strong>Without installing:</strong> <code>python texflow_app.py</code> (<code>--web</code> — web version).</li>
+<li><strong>Ready-made program without Python:</strong> <code>python install/build_exe.py</code>.</li>
+<li><strong>Built-in label editor:</strong> your own templates with the mouse, EAN-13 / CODE128, any size.</li>
+<li><strong>Excel and CSV:</strong> export and import back (full report, catalogue, prices, intake).</li>
+</ul>
 <h2 id="1-install-and-run">1. Install and run</h2>
 <p>Requires Python 3.10 or newer (tested on 3.13).</p>
 <pre><code class="language-bash">cd standalone/texflow
@@ -97,7 +107,7 @@ safer: <code>sqlite3 instance/texflow.db ".backup backup.db"</code>.</p>
 <pre><code class="language-bash">cd standalone/texflow
 python -m pytest -q
 </code></pre>
-<p>63 tests, no Oracle wallet and no printer needed. They cover:</p>
+<p>86 tests, no Oracle wallet and no printer needed. They cover:</p>
 <ul>
 <li>rules: EAN-13, SKU, rounding, markup with VAT, cost allocation, reconciliation;</li>
 <li>labels: ZPL, TSPL, PDF;</li>

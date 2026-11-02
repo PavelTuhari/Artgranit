@@ -200,3 +200,32 @@ flowchart LR
     E --> H[SQL: COALESCE name_ro, name]
     I[Setări: label_lang] --> J[Culoarea pe etichetă]
 ```
+
+## 7. Un nucleu — două programe și instalarea
+
+```mermaid
+flowchart LR
+    subgraph CORE["Nucleu texflow/"]
+      C1[db · rules · store]
+      C2[label_templates · labels]
+      C3[exchange · printing · i18n]
+    end
+    DB[(SQLite)]
+    CORE <--> DB
+    WEB[Versiunea web Flask<br/>browser] --> CORE
+    DESK[Aplicația nativă Tkinter<br/>fereastră Windows / macOS / Linux] --> CORE
+    DESK --> ED[Editor de etichete]
+    DESK --> XL[Excel / CSV]
+    WEB --> XL
+```
+
+```mermaid
+flowchart TD
+    A([Dublu clic pe fișierul de instalare]) --> B{Python 3.10+ cu Tk există?}
+    B -- nu --> C[winget / python.org / apt] --> B
+    B -- da --> D[install.py: copie în dosarul utilizatorului]
+    D --> E[venv + reportlab, openpyxl, flask]
+    E --> F[Scurtături: Start / TexFlow.app / .desktop]
+    F --> G([Verificare --check și pornire])
+```
+

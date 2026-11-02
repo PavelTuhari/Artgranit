@@ -3,7 +3,7 @@
 <title>TexFlow — recepția îmbrăcămintei din saci, catalog, prețuri și etichete · TexFlow</title><link rel="stylesheet" href="../assets/docs.css"></head>
 <body><header class="top"><span class="logo">TEXFLOW</span><a href="../index.html">Toate materialele</a>
 <a href="../test_act.html">Act de testare</a><a href="../presentation.html">Prezentare</a><span class="langs"><a class="" href="../ru/README.html">RU</a><a class="on" href="../ro/README.html">RO</a><a class="" href="../en/README.html">EN</a></span></header>
-<div class="wrap"><nav class="side"><b>Documentație</b><a class="on" href="../ro/README.html">Prezentare și instalare</a><a href="../ro/OPERATOR_GUIDE.html">Instrucțiuni operator</a><a href="../ro/LABELS.html">Etichete și imprimante</a><a href="../ro/ARCHITECTURE.html">Scheme bloc</a><a href="../ro/gallery.html">Galerie ecrane</a><b>Act de testare · Prezentare</b><a href="../test_act.html">Act de testare (RU)</a><a href="../presentation.html">Prezentare (RU)</a><a href="../index.html">Toate materialele</a></nav><main class="doc"><h1 id="texflow-receptia-imbracamintei-din-saci-catalog-preturi-si-etichete">TexFlow — recepția îmbrăcămintei din saci, catalog, prețuri și etichete</h1>
+<div class="wrap"><nav class="side"><b>Documentație</b><a class="on" href="../ro/README.html">Prezentare și instalare</a><a href="../ro/DESKTOP.html">Aplicația nativă</a><a href="../ro/OPERATOR_GUIDE.html">Instrucțiuni operator</a><a href="../ro/LABELS.html">Etichete și imprimante</a><a href="../ro/ARCHITECTURE.html">Scheme bloc</a><a href="../ro/gallery.html">Galerie ecrane</a><b>Act de testare · Prezentare</b><a href="../test_act.html">Act de testare (RU)</a><a href="../presentation.html">Prezentare (RU)</a><a href="../index.html">Toate materialele</a></nav><main class="doc"><h1 id="texflow-receptia-imbracamintei-din-saci-catalog-preturi-si-etichete">TexFlow — recepția îmbrăcămintei din saci, catalog, prețuri și etichete</h1>
 <p><a href="../ru/README.html">Русский</a> · <strong>Română</strong> · <a href="../en/README.html">English</a></p>
 <p>Aplicație web autonomă pe <strong>Python + Flask + SQLite</strong>. Servește la prelucrarea
 rapidă a îmbrăcămintei care vine din Turcia și China în saci, unde totul e
@@ -50,6 +50,16 @@ dintre cele trei limbi.</p>
 </tbody>
 </table>
 <hr />
+<h2 id="0-aplicatia-nativa-12-windows-macos-linux">0. Aplicația nativă (1.2): Windows · macOS · Linux</h2>
+<p>Pe lângă versiunea web există un <strong>program obișnuit cu fereastră</strong>, pe același nucleu: <a href="DESKTOP.html">docs/DESKTOP.ro.md</a>.</p>
+<ul>
+<li><strong>Instalare:</strong> dublu clic pe <code>Install-TexFlow-Windows.bat</code> / <code>Install-TexFlow-macOS.command</code> /
+  <code>sh install-texflow-linux.sh</code> — Python, bibliotecile și scurtăturile se instalează singure.</li>
+<li><strong>Fără instalare:</strong> <code>python texflow_app.py</code> (<code>--web</code> — versiunea web).</li>
+<li><strong>Program gata fără Python:</strong> <code>python install/build_exe.py</code>.</li>
+<li><strong>Editor de etichete integrat:</strong> șabloane proprii cu mouse-ul, EAN-13 / CODE128, orice dimensiune.</li>
+<li><strong>Excel și CSV:</strong> export și import (raport complet, catalog, prețuri, recepție).</li>
+</ul>
 <h2 id="1-instalare-si-pornire">1. Instalare și pornire</h2>
 <p>Este nevoie de Python 3.10 sau mai nou (verificat pe 3.13).</p>
 <pre><code class="language-bash">cd standalone/texflow
@@ -96,7 +106,7 @@ rulează, e mai sigur așa: <code>sqlite3 instance/texflow.db ".backup backup.db
 <pre><code class="language-bash">cd standalone/texflow
 python -m pytest -q
 </code></pre>
-<p>63 de teste, fără wallet Oracle și fără imprimantă. Ele verifică:</p>
+<p>86 de teste, fără wallet Oracle și fără imprimantă. Ele verifică:</p>
 <ul>
 <li>reguli: EAN-13, SKU, rotunjirea, adaosul cu TVA, repartizarea cheltuielilor, verificarea;</li>
 <li>etichete: ZPL, TSPL, PDF;</li>

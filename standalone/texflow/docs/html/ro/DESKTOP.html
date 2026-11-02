@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TexFlow Desktop — aplicație nativă pentru Windows, macOS și Linux · TexFlow</title><link rel="stylesheet" href="../assets/docs.css"></head>
+<body><header class="top"><span class="logo">TEXFLOW</span><a href="../index.html">Toate materialele</a>
+<a href="../test_act.html">Act de testare</a><a href="../presentation.html">Prezentare</a><span class="langs"><a class="" href="../ru/DESKTOP.html">RU</a><a class="on" href="../ro/DESKTOP.html">RO</a><a class="" href="../en/DESKTOP.html">EN</a></span></header>
+<div class="wrap"><nav class="side"><b>Documentație</b><a href="../ro/README.html">Prezentare și instalare</a><a class="on" href="../ro/DESKTOP.html">Aplicația nativă</a><a href="../ro/OPERATOR_GUIDE.html">Instrucțiuni operator</a><a href="../ro/LABELS.html">Etichete și imprimante</a><a href="../ro/ARCHITECTURE.html">Scheme bloc</a><a href="../ro/gallery.html">Galerie ecrane</a><b>Act de testare · Prezentare</b><a href="../test_act.html">Act de testare (RU)</a><a href="../presentation.html">Prezentare (RU)</a><a href="../index.html">Toate materialele</a></nav><main class="doc"><h1 id="texflow-desktop-aplicatie-nativa-pentru-windows-macos-si-linux">TexFlow Desktop — aplicație nativă pentru Windows, macOS și Linux</h1>
+<p><a href="../ru/DESKTOP.html">Русский</a> · <strong>Română</strong> · <a href="../en/DESKTOP.html">English</a></p>
+<p>TexFlow Desktop este un program obișnuit cu fereastră (Python + Tkinter), fără browser și fără
+server. Nucleul este același ca la versiunea web:</p>
+<ul>
+<li>aceeași bază SQLite;</li>
+<li>aceleași reguli de cost și preț;</li>
+<li>aceleași etichete ZPL / TSPL / PDF;</li>
+<li>aceleași traduceri RU / RO / EN.</li>
+</ul>
+<p>Ambele versiuni pot lucra cu aceeași bază de date.</p>
+<p>Ce are versiunea nativă:</p>
+<ul>
+<li>toți pașii recepției: livrări, sortarea sacilor cu matricea și scanerul, verificare, prețuri,
+  catalog, etichete;</li>
+<li><strong>editor de etichete integrat</strong> — aranjament propriu, cu mouse-ul, pentru orice dimensiune;</li>
+<li><strong>export și import Excel (.xlsx) și CSV</strong> — rapoarte, prețuri, catalog, rezultatele recepției;</li>
+<li><strong>autoinstalare</strong>: dublu clic pe fișierul de instalare, restul face programul.</li>
+</ul>
+<h2 id="1-instalare">1. Instalare</h2>
+<h3 id="cel-mai-simplu-fisierul-de-instalare">Cel mai simplu — fișierul de instalare</h3>
+<p>Dezarhivați TexFlow și rulați fișierul pentru sistemul dvs.:</p>
+<table>
+<thead>
+<tr>
+<th>Sistem</th>
+<th>Fișier</th>
+<th>Ce face</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows 10/11</td>
+<td><code>Install-TexFlow-Windows.bat</code> (dublu clic)</td>
+<td>găsește Python 3.10+; dacă lipsește — instalează Python 3.12 prin <code>winget</code> (sau deschide python.org); apoi rulează instalatorul</td>
+</tr>
+<tr>
+<td>macOS 12+</td>
+<td><code>Install-TexFlow-macOS.command</code> (dublu clic; prima dată — clic dreapta → „Deschide”)</td>
+<td>găsește Python 3.10+ cu Tk; dacă lipsește — deschide pagina de descărcare python.org; apoi rulează instalatorul</td>
+</tr>
+<tr>
+<td>Linux</td>
+<td><code>sh install-texflow-linux.sh</code></td>
+<td>găsește Python 3.10+ cu Tk și venv; dacă lipsesc — afișează comanda <code>apt</code>/<code>dnf</code>/<code>pacman</code> (cu <code>--with-system-packages</code> o rulează prin <code>sudo</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Instalatorul (<code>install/install.py</code>) face cinci pași, fără drepturi de administrator:</p>
+<ol>
+<li>verifică Python și Tkinter;</li>
+<li>copiază programul în dosarul utilizatorului;</li>
+<li>creează mediul izolat <code>venv</code> și instalează în el <code>reportlab</code>, <code>openpyxl</code>, <code>flask</code>;</li>
+<li>creează scurtăturile <strong>TexFlow</strong> (fereastra programului) și <strong>TexFlow Web</strong> (browser);</li>
+<li>verifică pornirea și deschide programul.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Windows</th>
+<th>macOS</th>
+<th>Linux</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Program</td>
+<td><code>%LOCALAPPDATA%\Programs\TexFlow</code></td>
+<td><code>~/Applications/TexFlow</code></td>
+<td><code>~/.local/lib/texflow-app</code></td>
+</tr>
+<tr>
+<td>Scurtături</td>
+<td>meniul Start → TexFlow, desktop</td>
+<td><code>~/Applications/TexFlow.app</code>, desktop</td>
+<td>meniul de aplicații, desktop</td>
+</tr>
+<tr>
+<td>Date (baza)</td>
+<td><code>%APPDATA%\TexFlow</code></td>
+<td><code>~/Library/Application Support/TexFlow</code></td>
+<td><code>~/.local/share/texflow</code></td>
+</tr>
+</tbody>
+</table>
+<p>Datele sunt separate de program, de aceea reinstalarea și actualizarea nu le ating.</p>
+<h3 id="fara-instalare">Fără instalare</h3>
+<pre><code class="language-bash">python texflow_app.py          # fereastra programului
+python texflow_app.py --demo   # cu livrarea demo
+python texflow_app.py --web    # versiunea web în browser
+python texflow_app.py --check  # verificarea mediului
+</code></pre>
+<p>La prima pornire bibliotecile lipsă se instalează singure în dosarul de date (<code>pylibXY</code>).</p>
+<h3 id="program-gata-facut-fara-python-pyinstaller">Program gata făcut, fără Python (PyInstaller)</h3>
+<p><code>python install/build_exe.py</code> creează <code>dist/TexFlow-&lt;versiune&gt;-&lt;os&gt;-&lt;arch&gt;.zip</code>. În interior:
+<code>TexFlow.exe</code> (Windows), <code>TexFlow.app</code> (macOS) sau <code>TexFlow</code> (Linux), cu toate bibliotecile;
+pe calculatorul utilizatorului nu e nevoie de Python.</p>
+<p>Construcția se face pe sistemul-țintă. Pentru toate trei deodată există un șablon pentru GitHub
+Actions: <code>install/github-actions-texflow-desktop.yml</code>. Copiați-l în <code>.github/workflows/</code>, apoi
+Actions → TexFlow Desktop → Run workflow.</p>
+<h3 id="dezinstalare">Dezinstalare</h3>
+<p>Prin scurtătura „Uninstall TexFlow” (Windows) sau <code>uninstall-texflow</code> din dosarul programului, ori:
+<code>python install/install.py --uninstall</code>. Baza de date rămâne. Ca s-o ștergeți și pe ea, adăugați
+<code>--purge</code>.</p>
+<h2 id="2-fereastra-programului">2. Fereastra programului</h2>
+<p>Filele urmează ordinea de lucru.</p>
+<table>
+<thead>
+<tr>
+<th>Filă</th>
+<th>Ce faceți</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Livrări</strong></td>
+<td>livrare nouă; curs și cheltuieli; listă de colete (CSV <strong>sau Excel</strong>); saci; verificare</td>
+</tr>
+<tr>
+<td><strong>Sortare</strong></td>
+<td>livrarea și sacul → scaner (articol repetat +1) sau „Model nou” → clic pe culori → cantități în matrice → <strong>Ctrl+Enter</strong></td>
+</tr>
+<tr>
+<td><strong>Prețuri</strong></td>
+<td>propunere pe model; dublu clic — preț propriu; „Înregistrează prețurile în fișe”</td>
+</tr>
+<tr>
+<td><strong>Catalog</strong></td>
+<td>căutare în orice limbă, după articol, SKU, EAN; fișa cu traduceri RO/EN; blocarea prețului</td>
+</tr>
+<tr>
+<td><strong>Etichete</strong></td>
+<td>„Alege” — toate bucățile recepționate ale livrării sau sacului; șablon; format; fișier / imprimantă de rețea / imprimanta de sistem</td>
+</tr>
+<tr>
+<td><strong>Editor de etichete</strong></td>
+<td>șabloane proprii — vezi secțiunea 3</td>
+</tr>
+<tr>
+<td><strong>Excel / CSV</strong></td>
+<td>export și import — vezi secțiunea 4</td>
+</tr>
+<tr>
+<td><strong>Setări</strong></td>
+<td>limba interfeței și a etichetei, TVA și rotunjire, imprimante, coala A4</td>
+</tr>
+</tbody>
+</table>
+<p>Limba se schimbă cu butoanele <strong>RU / RO / EN</strong> din dreapta sus sau din meniul „Limba” și se
+memorează.</p>
+<p>Matricea de sortare funcționează de la tastatură:</p>
+<ul>
+<li><strong>Enter</strong> și <strong>→</strong> — celula următoare;</li>
+<li><strong>↑ ↓</strong> — rândul vecin;</li>
+<li><strong>Ctrl+Enter</strong> — înregistrează.</li>
+</ul>
+<h2 id="3-editorul-de-etichete">3. Editorul de etichete</h2>
+<p><img alt="Editorul de etichete" src="../img/desk_21_ro_editor.jpg" /></p>
+<ol>
+<li><strong>Șabloane</strong> (stânga): „Șablon nou”, „Copie”, „Implicit” (★ — cu el se tipărește dacă nu e ales
+   altul), „Șterge”, „Export / Import JSON” (mutarea șablonului pe alt calculator).</li>
+<li><strong>Dimensiunea</strong> etichetei — lățime și înălțime în mm; orice dimensiune de la 10 mm.</li>
+<li><strong>Elementele</strong> se adaugă cu butoanele de deasupra pânzei:
+   - <strong>Text</strong> — orice text cu câmpuri:
+     <code>{brand}</code>, <code>{name}</code>, <code>{color}</code>, <code>{size}</code>, <code>{price}</code>, <code>{price_value}</code>, <code>{currency}</code>, <code>{sku}</code>,
+     <code>{ean13}</code>, <code>{style}</code>, <code>{composition}</code>, <code>{origin}</code>. De exemplu <code>{color} · {size}</code>;
+   - <strong>Cod de bare</strong> — EAN-13 (după <code>{ean13}</code>) sau CODE128 (de obicei după <code>{sku}</code>);
+   - <strong>Chenar</strong> și <strong>Linie</strong> (orizontală, verticală, oblică).</li>
+<li><strong>Cu mouse-ul</strong>:
+   - clicul selectează elementul; chenarul se selectează cu clic pe contur, ca să nu blocheze ce e
+     înăuntru;
+   - tragerea mută elementul cu pasul 0.5 mm;
+   - pătratul albastru din colț schimbă dimensiunea.</li>
+</ol>
+<p><strong>Săgețile</strong> mută elementul selectat cu 0.5 mm, <strong>Shift+săgeți</strong> — cu 0.1 mm, <strong>Delete</strong> îl
+   șterge.
+5. <strong>Proprietăți</strong> (dreapta): text, X/Y/lățime/înălțime în mm, font, aldin, aliniere, grosimea
+   liniei, tipul codului de bare.
+6. <strong>Date pentru previzualizare</strong>: introduceți EAN sau SKU — pânza arată eticheta acelui articol.
+   „PDF de probă” și „Arată ZPL / TSPL”.
+7. <strong>Salvează șablonul</strong>. Șablonul devine disponibil în fila „Etichete” și în versiunea web.</p>
+<p>Același șablon se tipărește în ZPL (Zebra), TSPL (TSC), PDF rolă și pe coala A4. Pânza
+editorului desenează aceeași geometrie ca tipărirea.</p>
+<h2 id="4-excel-si-csv">4. Excel și CSV</h2>
+<p><strong>Export</strong> (fila „Excel / CSV” → setul de date → Excel sau CSV):</p>
+<ul>
+<li><strong>Raport complet</strong> — o singură carte Excel cu toate foile;</li>
+<li><strong>Catalog</strong> — un rând pe variantă;</li>
+<li><strong>Prețuri</strong> — pentru editare în Excel;</li>
+<li><strong>Livrări</strong>;</li>
+<li><strong>Recepție</strong>;</li>
+<li><strong>Listă de colete</strong>;</li>
+<li><strong>Verificare</strong>;</li>
+<li><strong>Propunere de prețuri</strong>.</li>
+</ul>
+<p>Se poate alege o livrare sau toate.</p>
+<p>Cum arată fișierele:</p>
+<ul>
+<li><strong>Excel:</strong> antete aldine, primul rând fixat, autofiltru. EAN, SKU și articolul sunt salvate ca
+  text, ca Excel să nu transforme <code>2000000000015</code> în <code>2E+12</code>.</li>
+<li><strong>CSV:</strong> separator <code>;</code>, UTF-8 cu BOM.</li>
+<li><strong>Antetele</strong> sunt în limba interfeței.</li>
+</ul>
+<p><strong>Import</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Ce</th>
+<th>Rezultat</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Listă de colete</td>
+<td>rândurile listei furnizorului și sacii livrării</td>
+</tr>
+<tr>
+<td>Catalog</td>
+<td>modele și variante noi; dacă e aleasă livrarea și există „Cantitate” — direct în recepție. O mărime nouă se adaugă în grilă</td>
+</tr>
+<tr>
+<td>Prețuri</td>
+<td>articol + preț (și/sau blocare, achiziție) → fișele se actualizează</td>
+</tr>
+<tr>
+<td>Rezultatele recepției</td>
+<td>SKU sau EAN-13, cantitate, sac — de exemplu de la al doilea post de lucru</td>
+</tr>
+</tbody>
+</table>
+<p>Antetele sunt înțelese în rusă, română, engleză și după numele tehnic. Puteți exporta „Prețuri”
+în română, corecta în Excel și importa înapoi.</p>
+<h2 id="5-probleme">5. Probleme</h2>
+<table>
+<thead>
+<tr>
+<th>Simptom</th>
+<th>Ce faceți</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>„Tkinter nu a fost găsit”</td>
+<td>Windows/macOS — Python de pe python.org; Linux — <code>sudo apt install python3-tk python3-venv</code></td>
+</tr>
+<tr>
+<td>Windows: „Windows a protejat calculatorul”</td>
+<td>„Mai multe informații” → „Rulează oricum”</td>
+</tr>
+<tr>
+<td>macOS: „dezvoltatorul nu poate fi verificat”</td>
+<td>clic dreapta → „Deschide”</td>
+</tr>
+<tr>
+<td>Chirilica pe Zebra/TSC apare cu litere latine</td>
+<td>puneți limba etichetei <strong>Română</strong> sau încărcați un font TTF în imprimantă</td>
+</tr>
+</tbody>
+</table></main></div></body></html>

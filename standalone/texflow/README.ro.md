@@ -32,6 +32,17 @@ Nu e nevoie de server sau internet: un singur fișier de bază de date
 
 ---
 
+## 0. Aplicația nativă (1.2): Windows · macOS · Linux
+
+Pe lângă versiunea web există un **program obișnuit cu fereastră**, pe același nucleu: [docs/DESKTOP.ro.md](docs/DESKTOP.ro.md).
+
+- **Instalare:** dublu clic pe `Install-TexFlow-Windows.bat` / `Install-TexFlow-macOS.command` /
+  `sh install-texflow-linux.sh` — Python, bibliotecile și scurtăturile se instalează singure.
+- **Fără instalare:** `python texflow_app.py` (`--web` — versiunea web).
+- **Program gata fără Python:** `python install/build_exe.py`.
+- **Editor de etichete integrat:** șabloane proprii cu mouse-ul, EAN-13 / CODE128, orice dimensiune.
+- **Excel și CSV:** export și import (raport complet, catalog, prețuri, recepție).
+
 ## 1. Instalare și pornire
 
 Este nevoie de Python 3.10 sau mai nou (verificat pe 3.13).
@@ -65,7 +76,7 @@ cd standalone/texflow
 python -m pytest -q
 ```
 
-63 de teste, fără wallet Oracle și fără imprimantă. Ele verifică:
+86 de teste, fără wallet Oracle și fără imprimantă. Ele verifică:
 
 - reguli: EAN-13, SKU, rotunjirea, adaosul cu TVA, repartizarea cheltuielilor, verificarea;
 - etichete: ZPL, TSPL, PDF;
