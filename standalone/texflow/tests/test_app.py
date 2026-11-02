@@ -96,6 +96,19 @@ def test_full_flow(app, client):
     assert ean in csv_text
 
 
+def test_shipment_page_shows_landed_cost_without_recalc(app, client):
+    """Найдено по скриншоту e2e: себестоимость была 0.00, пока не нажать «Сохранить и пересчитать»."""
+    from texflow.demo import load_demo
+    with app.app_context():
+        con = app.get_db()
+        load_demo(con)
+        con.execute("UPDATE intake_items SET landed_unit_cost = NULL")
+        con.commit()
+    html = client.get("/shipments/1").get_data(as_text=True)
+    total = html.split("Себестоимость всего / средняя за шт.")[1].split("</tr>")[0]
+    assert "0.00 / 0.00" not in total
+
+
 def test_settings_and_refs_forms(app, client):
     client.post("/settings", data={"brand": "TEST", "round_step": "5", "label_dpi": "300"})
     with app.app_context():

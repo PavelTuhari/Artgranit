@@ -84,6 +84,7 @@ def shipment(sid):
         store.compute_landed(c, sid)
         flash(_("Затраты сохранены, себестоимость пересчитана"), "ok")
         return redirect(url_for("tf.shipment", sid=sid))
+    store.compute_landed(c, sid)          # себестоимость всегда актуальна, без кнопки «пересчитать»
     return render_template("shipment.html", sh=sh, bags=store.bags(c, sid),
                            packing=store.packing_lines(c, sid), rec=store.reconciliation(c, sid),
                            totals=store.shipment_totals(c, sid))

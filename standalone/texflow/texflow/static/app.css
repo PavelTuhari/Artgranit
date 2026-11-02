@@ -34,4 +34,5 @@ label input,label select{display:block;width:100%;margin-top:3px;color:var(--ink
 .pc .nm{text-transform:uppercase;font-size:12px;letter-spacing:.04em}.pc .pr{font-weight:700;margin-top:4px}
 .sizes span{display:inline-block;min-width:34px;text-align:center;border:1px solid #111;margin:2px;padding:3px 4px}.sizes span.na{border-color:#ccc;color:#bbb;text-decoration:line-through}
 pre{background:#111;color:#e6e6e6;padding:10px;overflow:auto;font-size:12px;max-height:340px}
+pre.mermaid{background:#fff;color:#111;max-height:none;text-align:center;border:1px solid var(--line)}
 @media print{header,.noprint,.flash{display:none!important}main{max-width:none;padding:0}.card{border:none}}
