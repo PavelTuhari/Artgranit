@@ -96,7 +96,7 @@ TTF-шрифт для PDF.</p>
 <pre><code class="language-bash">cd standalone/texflow
 python -m pytest -q
 </code></pre>
-<p>Всего 60 тестов, файл Oracle wallet и принтер не нужны:</p>
+<p>Всего 63 теста, файл Oracle wallet и принтер не нужны:</p>
 <table>
 <thead>
 <tr>
@@ -166,6 +166,43 @@ python -m pytest -q
 </tr>
 </tbody>
 </table>
+<h2 id="2b-html-">2b. HTML-материалы: документация, акт тестирования, презентация</h2>
+<p>Готовые HTML-материалы лежат в <code>docs/html/</code> и открываются без интернета, прямо из папки или из приложения по адресу
+<code>http://127.0.0.1:5077/docs/</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Файл</th>
+<th>Что это</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docs/html/index.html</code></td>
+<td>все материалы</td>
+</tr>
+<tr>
+<td><code>docs/html/{ru,ro,en}/*.html</code></td>
+<td>документация на трёх языках (схемы Mermaid встроены как SVG) и галереи экранов</td>
+</tr>
+<tr>
+<td><code>docs/html/test_act.html</code>, <code>test_act.pdf</code></td>
+<td>акт тестирования со скриншотами каждого шага</td>
+</tr>
+<tr>
+<td><code>docs/html/presentation.html</code>, <code>presentation.pdf</code></td>
+<td>презентация (стрелки ← →)</td>
+</tr>
+<tr>
+<td><code>docs/html/img/</code></td>
+<td>скриншоты сквозного прогона и изображения этикеток</td>
+</tr>
+</tbody>
+</table>
+<p>Пересобрать всё одной командой: тесты, прогон в браузере со скриншотами, HTML и PDF.</p>
+<pre><code class="language-bash">tools/run_all.sh          # нужны node + playwright (Chromium) и pdftoppm
+tools/make_archive.sh     # zip ровно с тем, что лежит в git: dist/texflow-&lt;версия&gt;-&lt;коммит&gt;.zip
+</code></pre>
 <h2 id="3">3. Как работать (кратко)</h2>
 <p>Полная инструкция — <a href="OPERATOR_GUIDE.html">docs/OPERATOR_GUIDE.md</a>.</p>
 <ol>

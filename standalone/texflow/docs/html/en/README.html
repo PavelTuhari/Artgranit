@@ -97,7 +97,7 @@ safer: <code>sqlite3 instance/texflow.db ".backup backup.db"</code>.</p>
 <pre><code class="language-bash">cd standalone/texflow
 python -m pytest -q
 </code></pre>
-<p>60 tests, no Oracle wallet and no printer needed. They cover:</p>
+<p>63 tests, no Oracle wallet and no printer needed. They cover:</p>
 <ul>
 <li>rules: EAN-13, SKU, rounding, markup with VAT, cost allocation, reconciliation;</li>
 <li>labels: ZPL, TSPL, PDF;</li>
@@ -105,6 +105,16 @@ python -m pytest -q
 <li>the full HTTP scenario;</li>
 <li>translations: every UI string has RO and EN, and the RO/EN pages contain no Cyrillic.</li>
 </ul>
+<h2 id="2b-html-materials-documentation-test-report-presentation">2b. HTML materials: documentation, test report, presentation</h2>
+<p>The HTML materials are in <code>docs/html/</code> and open offline, straight from the folder or in the app at
+<code>http://127.0.0.1:5077/docs/</code>:</p>
+<ul>
+<li><code>index.html</code> — all materials;</li>
+<li><code>{ru,ro,en}/*.html</code> — documentation and screen galleries;</li>
+<li><code>test_act.html</code> / <code>.pdf</code> — test report with screenshots;</li>
+<li><code>presentation.html</code> / <code>.pdf</code> — slides.</li>
+</ul>
+<p>Rebuild: <code>tools/run_all.sh</code>; archive identical to git: <code>tools/make_archive.sh</code>.</p>
 <h2 id="3-how-to-work-short">3. How to work (short)</h2>
 <p>Full guide — <a href="OPERATOR_GUIDE.html">docs/OPERATOR_GUIDE.en.md</a>.</p>
 <ol>

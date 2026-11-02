@@ -96,7 +96,7 @@ rulează, e mai sigur așa: <code>sqlite3 instance/texflow.db ".backup backup.db
 <pre><code class="language-bash">cd standalone/texflow
 python -m pytest -q
 </code></pre>
-<p>60 de teste, fără wallet Oracle și fără imprimantă. Ele verifică:</p>
+<p>63 de teste, fără wallet Oracle și fără imprimantă. Ele verifică:</p>
 <ul>
 <li>reguli: EAN-13, SKU, rotunjirea, adaosul cu TVA, repartizarea cheltuielilor, verificarea;</li>
 <li>etichete: ZPL, TSPL, PDF;</li>
@@ -104,6 +104,16 @@ python -m pytest -q
 <li>scenariul HTTP complet;</li>
 <li>traducerile: fiecare șir al interfeței are RO și EN, iar paginile RO/EN nu au chirilică.</li>
 </ul>
+<h2 id="2b-materiale-html-documentatie-act-de-testare-prezentare">2b. Materiale HTML: documentație, act de testare, prezentare</h2>
+<p>Materialele HTML sunt în <code>docs/html/</code> și se deschid fără internet, direct din dosar sau din aplicație la
+<code>http://127.0.0.1:5077/docs/</code>:</p>
+<ul>
+<li><code>index.html</code> — toate materialele;</li>
+<li><code>{ru,ro,en}/*.html</code> — documentația și galeriile de ecrane;</li>
+<li><code>test_act.html</code> / <code>.pdf</code> — actul de testare cu capturi;</li>
+<li><code>presentation.html</code> / <code>.pdf</code> — prezentarea.</li>
+</ul>
+<p>Regenerare: <code>tools/run_all.sh</code>; arhivă identică cu git: <code>tools/make_archive.sh</code>.</p>
 <h2 id="3-cum-se-lucreaza-pe-scurt">3. Cum se lucrează (pe scurt)</h2>
 <p>Instrucțiunea completă — <a href="OPERATOR_GUIDE.html">docs/OPERATOR_GUIDE.ro.md</a>.</p>
 <ol>
