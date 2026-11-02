@@ -43,6 +43,7 @@ RU / RO / EN стоит в шапке. Названия цветов, катег
 | Готовая программа без Python | `python install/build_exe.py` → TexFlow.exe / TexFlow.app / TexFlow |
 | Редактор этикеток | вкладка «Редактор этикеток»: свои шаблоны мышью, EAN-13 / CODE128, любой размер; печать ZPL / TSPL / PDF |
 | Excel и CSV | вкладка «Excel / CSV» (и `/exchange` в веб-версии): полный отчёт, каталог, цены, приёмка — выгрузка и загрузка обратно |
+| Сборка и подпись | на каждый push GitHub Actions проверяет, запускает из скриптов и собирает .exe / .app / Linux на трёх ОС, подписывает SHA256SUMS ключом **unisim-soft** (Ed25519); программа сама проверяет свою подпись: `python texflow_app.py --verify` — [DESKTOP.md, раздел 6](docs/DESKTOP.md) |
 
 ## 1. Установка и запуск
 

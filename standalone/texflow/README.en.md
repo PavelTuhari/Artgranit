@@ -43,6 +43,7 @@ Besides the web version there is a **regular windowed program** on the same core
 - **Ready-made program without Python:** `python install/build_exe.py`.
 - **Built-in label editor:** your own templates with the mouse, EAN-13 / CODE128, any size.
 - **Excel and CSV:** export and import back (full report, catalogue, prices, intake).
+- **Build and signature:** on every push GitHub Actions tests, runs from scripts and builds .exe / .app / Linux, signs SHA256SUMS with the **unisim-soft** key; the program verifies its own signature: `python texflow_app.py --verify`.
 
 ## 1. Install and run
 

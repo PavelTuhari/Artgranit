@@ -101,9 +101,8 @@ python texflow_app.py --check  # check the environment
 <p><code>python install/build_exe.py</code> builds <code>dist/TexFlow-&lt;version&gt;-&lt;os&gt;-&lt;arch&gt;.zip</code>. Inside:
 <code>TexFlow.exe</code> (Windows), <code>TexFlow.app</code> (macOS) or <code>TexFlow</code> (Linux), with every library bundled;
 the user's computer needs no Python.</p>
-<p>Build on the target system. To get all three at once, there is a GitHub Actions template:
-<code>install/github-actions-texflow-desktop.yml</code>. Copy it into <code>.github/workflows/</code>, then
-Actions → TexFlow Desktop → Run workflow.</p>
+<p>Builds must run on the target system, so GitHub Actions makes all three — <strong>on every push</strong> that
+changes TexFlow (section 6).</p>
 <h3 id="uninstall">Uninstall</h3>
 <p>Use the “Uninstall TexFlow” shortcut (Windows), <code>uninstall-texflow</code> in the program folder, or
 <code>python install/install.py --uninstall</code>. The database stays. To delete it too, add <code>--purge</code>.</p>
@@ -261,4 +260,31 @@ canvas draws the same geometry as the printout.</p>
 <td>set the label language to <strong>English</strong> or load a TTF font into the printer</td>
 </tr>
 </tbody>
-</table></main></div></body></html>
+</table>
+<h2 id="6-build-on-every-push-unisim-soft-signature-and-verification">6. Build on every push, unisim-soft signature and verification</h2>
+<p><code>.github/workflows/texflow-desktop.yml</code> runs on <strong>every push</strong> to any branch that changes
+<code>standalone/texflow/</code>, and on <code>texflow-v*</code> tags. The stages:</p>
+<ol>
+<li><strong>tests</strong> (pytest, including the window under Xvfb);</li>
+<li><strong>scripts edition</strong> <code>TexFlow-&lt;version&gt;-scripts.zip</code> with <code>MANIFEST.sha256</code> and the unisim-soft
+   signature <code>MANIFEST.sha256.sig</code>;</li>
+<li><strong>run from scripts</strong> on Windows, macOS and Linux: <code>--verify</code>, <code>--check</code>, <code>--smoke</code>, the
+   installer;</li>
+<li><strong>executables</strong>: <code>TexFlow.exe</code>, <code>TexFlow.app</code> (ad-hoc signed), Linux binary — each one
+   <strong>launched</strong> without Python;</li>
+<li><strong><code>SHA256SUMS</code> + <code>SHA256SUMS.sig</code></strong> (Ed25519, <strong>unisim-soft</strong> key) plus a GitHub provenance
+   attestation (Sigstore);</li>
+<li><strong>publishing</strong>: push to <code>main</code> → <strong>texflow-nightly</strong> pre-release; tag <code>texflow-v1.2.0</code> →
+   versioned release.</li>
+</ol>
+<p><strong>The unisim-soft key.</strong></p>
+<ul>
+<li>The private key is in the <code>UNISIM_SOFT_SIGNING_KEY</code> secret.</li>
+<li>The public key is built into the program and stored in <code>install/signing/unisim-soft.pub</code>.
+  Fingerprint: <code>c5173c9670d69b5d</code>.</li>
+</ul>
+<p><strong>Verification:</strong></p>
+<pre><code class="language-bash">python texflow_app.py --verify                 # integrity of its own files
+python texflow_app.py --verify-sums SHA256SUMS # downloaded archives
+TEXFLOW_STRICT_INTEGRITY=1 python texflow_app.py   # refuse to start if files were modified
+</code></pre></main></div></body></html>
