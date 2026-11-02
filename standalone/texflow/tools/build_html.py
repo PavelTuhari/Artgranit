@@ -417,6 +417,26 @@ def build_act(e2e: dict, unit: list[dict]) -> str:
     def thumbs(imgs):
         return "".join(f'<a href="img/{i}"><img loading="lazy" src="img/{i}" alt="{i}"></a>' for i in imgs)
 
+    def ci_html():
+        ci = load_json("ci_results.json")
+        from texflow import integrity as INT
+        key = INT.known_key()
+        head_ = (f'<p>Подписант <b>{INT.SIGNER}</b> · Ed25519 · отпечаток открытого ключа <code>{INT.fingerprint(key)}</code> '
+                 f'(<code>install/signing/unisim-soft.pub</code>). Сборка: <code>.github/workflows/texflow-desktop.yml</code> — на '
+                 f'каждый push с изменениями TexFlow и на теги <code>texflow-v*</code>.</p>')
+        if not ci.get("jobs"):
+            return head_ + '<p class="mut">Результаты запуска GitHub Actions не приложены.</p>'
+        rows = "".join(
+            f'<tr><td>{html.escape(j["name"])}</td><td>{html.escape(j.get("runner", ""))}</td>'
+            f'<td class="{"pass" if j["conclusion"] == "success" else "fail"}">{j["conclusion"]}</td>'
+            f'<td>{j.get("seconds", 0) // 60} мин {j.get("seconds", 0) % 60} с</td></tr>' for j in ci["jobs"])
+        sums = f'<h3>SHA256SUMS запуска</h3><pre>{html.escape(ci["sums"])}</pre>' if ci.get("sums") else ""
+        notes = "".join(f"<li>{html.escape(n)}</li>" for n in ci.get("notes", []))
+        return (head_ + f'<p>Запуск <a href="{ci["url"]}">#{ci["run_number"]}</a> · коммит <code>{ci["sha"][:12]}</code> · '
+                f'итог: <b class="{"pass" if ci["conclusion"] == "success" else "fail"}">{ci["conclusion"]}</b></p>'
+                f'<table><tr><th>Задание</th><th>ОС</th><th>Итог</th><th>Время</th></tr>{rows}</table>'
+                + (f"<ul>{notes}</ul>" if notes else "") + sums)
+
     def rows_of(rows):
         return "".join(
             f'<tr><td>{r["id"]}</td><td>{r["lang"].upper()}</td><td><b>{html.escape(r["title"])}</b><br>'
@@ -491,6 +511,9 @@ def build_act(e2e: dict, unit: list[dict]) -> str:
 <p class="mut">{inst["meta"].get("os", "")} · Python {inst["meta"].get("python", "")}</p>
 <table><tr><th>№</th><th>Проверка</th><th>Фактический результат</th><th>Итог</th><th>Время</th></tr>
 {"".join(f'<tr><td>{r["id"]}</td><td><b>{html.escape(r["title"])}</b><br><span class="mut">Ожидается: {html.escape(r["expected"])}</span></td><td>{html.escape(r["actual"])}</td><td class="{"pass" if r["status"] == "PASS" else "fail"}">{r["status"]}</td><td>{r["ms"] / 1000:.1f} с</td></tr>' for r in inst["results"])}</table>
+
+<h2 id="ci">3c. Сборка на каждый push и подпись unisim-soft</h2>
+{ci_html()}
 
 <h2 id="unit">4. Модульные и интеграционные тесты ({up}/{ut})</h2>
 <table><tr><th>Файл</th><th>Тестов</th><th>Пройдено</th><th>Не пройдено</th><th>Время</th></tr>{unit_summary}</table>
@@ -623,6 +646,12 @@ def build_presentation(e2e: dict, unit: list[dict]) -> str:
 <li>Без установки: <code>python texflow_app.py</code> сам доставит библиотеки</li>
 <li>Готовая программа без Python: PyInstaller → TexFlow.exe / .app / бинарник</li>
 <li>Удаление одной командой; база данных сохраняется</li></ul>""",
+        """<h2>Сборка на каждый push · подпись unisim-soft</h2><div class="flow">
+<div><b>1</b>Тесты: pytest + окно в Xvfb</div><div><b>2</b>Скрипты: запуск на Windows · macOS · Linux</div>
+<div><b>3</b>Сборка .exe · .app · Linux — и запуск без Python</div><div><b>4</b>SHA256SUMS + подпись Ed25519 unisim-soft + аттестация GitHub</div></div>
+<ul><li>Скриптовая версия при каждом запуске сама сверяет свои файлы с подписанным манифестом</li>
+<li><code>python texflow_app.py --verify-sums SHA256SUMS</code> — проверка скачанных архивов</li>
+<li>push в main → выпуск <b>texflow-nightly</b>; тег <code>texflow-v1.2.0</code> → выпуск версии</li></ul>""",
         f"""<h2>Тестирование</h2><div class="kpis"><div><b>{up}/{ut}</b>модульных тестов</div><div><b>{ep}/{et}</b>браузер</div>
 <div><b>{dp}/{dt_}</b>нативное приложение</div><div><b>{ip}/{it}</b>установка и сборка</div></div>
 <ul><li>Браузер и окно программы проходят весь путь оператора на чистой базе и печатают на сетевой «принтер»</li>

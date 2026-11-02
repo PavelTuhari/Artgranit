@@ -10,7 +10,7 @@
    "expected": "Копия программы, venv с reportlab/openpyxl/flask, ярлыки, проверка --check проходит",
    "status": "PASS",
    "actual": "3 ярлыка; TexFlow 1.2.0 · Python 3.12.3 · Linux 6.18.44-fc-v185",
-   "ms": 22712
+   "ms": 11806
   },
   {
    "id": "I02",
@@ -34,7 +34,7 @@
    "expected": "Окно работает, база с демо-поставкой создана в папке данных",
    "status": "PASS",
    "actual": "окно открыто 7 с, база: ~/.local/share/texflow/texflow.db (4096 байт)",
-   "ms": 7005
+   "ms": 7004
   },
   {
    "id": "I05",
@@ -42,15 +42,23 @@
    "expected": "Программа и ярлыки удалены; база остаётся (без --purge)",
    "status": "PASS",
    "actual": "программа и ярлыки удалены, данные сохранены",
-   "ms": 138
+   "ms": 120
   },
   {
    "id": "I06",
    "title": "Сборка PyInstaller и запуск бинарника без Python",
    "expected": "Архив собран; бинарник отвечает --check с библиотеками внутри",
    "status": "PASS",
-   "actual": "TexFlow-1.2.0-linux-x86_64.zip (35.7 МБ); бинарник без системного Python: tkinter: ok · reportlab: 5.1.0 · openpyxl: 3.1.5 · flask: 3.1.3",
-   "ms": 26593
+   "actual": "TexFlow-1.2.0-linux-x86_64.zip (30.3 МБ); бинарник без системного Python: целостность: собранная программа — проверяйте архив по SHA256SUMS + подписи unisim-soft · tkinter: ok · reportlab: 5.1.0 · openpyxl: 3.1.5",
+   "ms": 27592
+  },
+  {
+   "id": "I07",
+   "title": "Подписанный выпуск unisim-soft: манифест скриптов, SHA256SUMS, самопроверка и подмена",
+   "expected": "Скрипты из архива сами подтверждают подпись unisim-soft; изменённый файл и подменённый архив обнаруживаются",
+   "status": "PASS",
+   "actual": "целостность: ok · 202 файлов · подпись unisim-soft (c5173c9670d69b5d) · подмена файла → «ИЗМЕНЕНЫ» и отказ в строгом режиме (код 3) · подмена архива → MISMATCH · файлы: SHA256SUMS, SHA256SUMS.sig, SIGNER-unisim-soft.txt, TexFlow-1.2.0-linux-x86_64.zip, TexFlow-1.2.0-scripts.zip",
+   "ms": 1857
   }
  ]
 }
