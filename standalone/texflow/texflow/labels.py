@@ -243,7 +243,7 @@ def _draw_label(c, x, y, w, h, lb: LabelData, fonts, border: bool):
     c.setFont(reg, fs_small)
     c.drawString(x + pad, cy, T(f"{_clip(lb.color, 22)}   {lb.sku}"))
     # размер в рамке + цена
-    cy -= fs_big + 1
+    cy -= fs_big + 4
     box_w = max(c.stringWidth(lb.size, bold, fs_big) + 3 * mm, 10 * mm)
     c.rect(x + pad, cy - 1.2 * mm, box_w, fs_big + 1.6 * mm)
     c.setFont(bold, fs_big)
