@@ -262,7 +262,11 @@ def product(pid):
     if request.method == "POST":
         rp = request.form.get("retail_price", "").replace(",", ".").strip()
         store.update_product(c, pid, name=request.form.get("name", ""),
+                             name_ro=request.form.get("name_ro", "").strip(),
+                             name_en=request.form.get("name_en", "").strip(),
                              composition=request.form.get("composition", ""),
+                             composition_ro=request.form.get("composition_ro", "").strip(),
+                             composition_en=request.form.get("composition_en", "").strip(),
                              description=request.form.get("description", ""),
                              season=request.form.get("season", ""), gender=request.form.get("gender", ""),
                              base_cost_fx=_f("base_cost_fx"),
@@ -284,7 +288,7 @@ def export_catalog():
 @bp.route("/api/products")
 def api_products():
     rows = store.products(con(), request.args.get("q", ""))[:30]
-    return jsonify([{"id": r["id"], "style_code": r["style_code"], "name": r["name"],
+    return jsonify([{"id": r["id"], "style_code": r["style_code"], "name": r["title"],
                      "category": r["category"], "stock": r["stock"]} for r in rows])
 
 

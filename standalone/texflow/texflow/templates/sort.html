@@ -21,13 +21,13 @@
 <label>{{ _('Категория') }}<select name="category_id" required>{% for c in categories %}<option value="{{ c.id }}">{{ c.title }} ({{ c.code }})</option>{% endfor %}</select></label></div>
 <div class="row"><label>{{ _('Артикул (пусто — авто)') }}<input name="style_code"></label><label>{{ _('Закупка за шт.') }}, {{ sh.currency }}<input name="base_cost_fx" placeholder="{{ _('из листа') }}"></label><label>{{ _('Состав') }}<input name="composition" placeholder="{{ _('100% хлопок') }}"></label></div>
 <button>{{ _('Создать и открыть матрицу') }}</button></form>
-{% if recent %}<p class="mut" style="margin-top:10px">{{ _('Недавние модели:') }}</p><div class="chips">{% for p in recent %}<a class="chip" href="{{ url_for('tf.sort', sid=sh.id, bag=bag_id or '', product=p.id) }}">{{ p.style_code }} · {{ p.name }}</a>{% endfor %}</div>
+{% if recent %}<p class="mut" style="margin-top:10px">{{ _('Недавние модели:') }}</p><div class="chips">{% for p in recent %}<a class="chip" href="{{ url_for('tf.sort', sid=sh.id, bag=bag_id or '', product=p.id) }}">{{ p.style_code }} · {{ p.title }}</a>{% endfor %}</div>
 <p><input id="psearch" placeholder="{{ _('поиск модели…') }}" style="width:100%"></p><div id="presults" class="chips"></div>{% endif %}
 </div></div>
 
 {% if matrix %}{% set p = matrix.product %}
 <form class="card" method="post" action="{{ url_for('tf.sort_intake', sid=sh.id) }}" id="mform">
-<h2>{{ _('3. Матрица') }}: {{ p.style_code }} · {{ p.name }} <span class="mut">({{ p.category }})</span></h2>
+<h2>{{ _('3. Матрица') }}: {{ p.style_code }} · {{ p.title }} <span class="mut">({{ p.category }})</span></h2>
 <input type="hidden" name="product_id" value="{{ p.id }}"><input type="hidden" name="bag_id" value="{{ bag_id or '' }}">
 <div class="fam"><b>{{ _('Цвета') }}</b> <span class="mut">{{ _('нажмите, чтобы добавить строку') }}</span></div>
 {% for f in families %}<div class="fam"><b><span class="sw" style="background:{{ f.hex }}"></span>{{ f.title }}</b>

@@ -118,7 +118,13 @@ CATEGORIES = [
 ]
 
 # колонки переводов, которых могло не быть в базе, созданной до версии 1.1
-I18N_TABLES = ("size_scales", "color_families", "colors", "categories")
+I18N_COLUMNS = {
+    "size_scales": ("name_ro", "name_en"),
+    "color_families": ("name_ro", "name_en"),
+    "colors": ("name_ro", "name_en"),
+    "categories": ("name_ro", "name_en"),
+    "products": ("name_ro", "name_en", "composition_ro", "composition_en"),
+}
 
 
 def connect(path: str) -> sqlite3.Connection:
@@ -144,9 +150,11 @@ def init_db(con: sqlite3.Connection, seed: bool = True) -> None:
 
 def migrate(con: sqlite3.Connection) -> None:
     """Добавить колонки name_ro / name_en в базу, созданную до версии 1.1."""
-    for table in I18N_TABLES:
+    for table, new_cols in I18N_COLUMNS.items():
         cols = {r[1] for r in con.execute(f"PRAGMA table_info({table})")}
-        for col in ("name_ro", "name_en"):
+        if not cols:
+            continue
+        for col in new_cols:
             if col not in cols:
                 con.execute(f"ALTER TABLE {table} ADD COLUMN {col} TEXT NOT NULL DEFAULT ''")
 

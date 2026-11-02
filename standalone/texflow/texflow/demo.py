@@ -35,6 +35,11 @@ def load_demo(con) -> str:
     store.add_intake(con, sid, bag2, j, {(col["400"], sz("JNS", w)): q for w, q in
                                          [("26", 8), ("27", 10), ("28", 12), ("29", 10), ("30", 8)]})
     store.add_intake(con, sid, bag2, j, {(col["800"], sz("JNS", "27")): 6, (col["800"], sz("JNS", "28")): 6})
+    tr = {t: ("Tricou basic oversize", "Basic oversize T-shirt", "100% bumbac", "100% cotton"),
+          b: ("Bluză din șifon", "Chiffon blouse", "100% poliester", "100% polyester"),
+          j: ("Blugi mom fit", "Mom fit jeans", "98% bumbac, 2% elastan", "98% cotton, 2% elastane")}
+    for pid, (ro, en, cro, cen) in tr.items():
+        store.update_product(con, pid, name_ro=ro, name_en=en, composition_ro=cro, composition_en=cen)
     store.set_bag_status(con, bag1, "done")
     n = store.apply_prices(con, sid)
     return f"демо: поставка DEMO-TR-01, {n} моделей с ценами"

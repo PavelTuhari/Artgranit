@@ -309,7 +309,8 @@ def create_product(con, name: str, category_id: int, style_code: str = "", suppl
 
 
 def update_product(con, pid: int, **f) -> None:
-    allowed = ["name", "category_id", "composition", "description", "season", "gender",
+    allowed = ["name", "name_ro", "name_en", "category_id", "composition", "composition_ro", "composition_en",
+               "description", "season", "gender",
                "base_cost_fx", "retail_price", "price_locked"]
     sets = {k: v for k, v in f.items() if k in allowed}
     if sets:
@@ -319,14 +320,15 @@ def update_product(con, pid: int, **f) -> None:
 
 
 def product(con, pid: int):
-    return con.execute(f"""SELECT p.*, {N('c')} AS category, c.code AS category_code, c.size_scale_id,
+    return con.execute(f"""SELECT p.*, {N('p')} AS title, {N('p', col='composition')} AS composition_t,
+                                 {N('c')} AS category, c.code AS category_code, c.size_scale_id,
                                  c.markup_pct, s.name AS supplier
                           FROM products p JOIN categories c ON c.id = p.category_id
                           LEFT JOIN suppliers s ON s.id = p.supplier_id WHERE p.id = ?""", (pid,)).fetchone()
 
 
 def products(con, q: str = "", category_id: int | None = None):
-    sql = f"""SELECT p.*, {N('c')} AS category,
+    sql = f"""SELECT p.*, {N('p')} AS title, {N('c')} AS category,
                     (SELECT COUNT(*) FROM variants v WHERE v.product_id = p.id) AS variants,
                     (SELECT COALESCE(SUM(i.qty), 0) FROM intake_items i JOIN variants v ON v.id = i.variant_id
                       WHERE v.product_id = p.id) AS stock,
@@ -335,9 +337,9 @@ def products(con, q: str = "", category_id: int | None = None):
              FROM products p JOIN categories c ON c.id = p.category_id WHERE 1 = 1"""
     args = []
     if q:
-        sql += " AND (p.name LIKE ? OR p.style_code LIKE ? OR EXISTS (SELECT 1 FROM variants v WHERE " \
-               "v.product_id = p.id AND (v.ean13 = ? OR v.sku LIKE ?)))"
-        args += [f"%{q}%", f"%{q}%", q, f"%{q}%"]
+        sql += " AND (p.name LIKE ? OR p.name_ro LIKE ? OR p.name_en LIKE ? OR p.style_code LIKE ? OR EXISTS " \
+               "(SELECT 1 FROM variants v WHERE v.product_id = p.id AND (v.ean13 = ? OR v.sku LIKE ?)))"
+        args += [f"%{q}%", f"%{q}%", f"%{q}%", f"%{q}%", q, f"%{q}%"]
     if category_id:
         sql += " AND p.category_id = ?"
         args.append(category_id)
@@ -381,7 +383,7 @@ def variants(con, pid: int):
 
 
 def variant_by_ean(con, code: str):
-    return con.execute("""SELECT v.*, p.name, p.style_code, p.base_cost_fx FROM variants v
+    return con.execute(f"""SELECT v.*, {N('p')} AS name, p.style_code, p.base_cost_fx FROM variants v
                           JOIN products p ON p.id = v.product_id WHERE v.ean13 = ? OR v.sku = ?""",
                        (code.strip(), code.strip().upper())).fetchone()
 
@@ -438,7 +440,7 @@ def add_scan(con, sid: int, bag_id: int | None, code: str, qty: int = 1) -> dict
 
 
 def intake_log(con, sid: int, bag_id: int | None = None, limit: int = 200):
-    sql = f"""SELECT i.*, v.sku, v.ean13, p.name, p.id AS product_id, {N('co')} AS color, sz.code AS size,
+    sql = f"""SELECT i.*, v.sku, v.ean13, {N('p')} AS name, p.id AS product_id, {N('co')} AS color, sz.code AS size,
                     b.bag_no FROM intake_items i JOIN variants v ON v.id = i.variant_id
              JOIN products p ON p.id = v.product_id JOIN colors co ON co.id = v.color_id
              JOIN sizes sz ON sz.id = v.size_id LEFT JOIN bags b ON b.id = i.bag_id
@@ -485,7 +487,7 @@ def price_proposal(con, sid: int) -> list[dict]:
     st = settings(con)
     vat = float(st.get("vat_pct", 0)) if st.get("prices_include_vat", "1") == "1" else 0.0
     rows = con.execute(f"""
-        SELECT p.id, p.style_code, p.name, p.retail_price, p.price_locked, {N('c')} AS category, c.markup_pct,
+        SELECT p.id, p.style_code, {N('p')} AS name, p.retail_price, p.price_locked, {N('c')} AS category, c.markup_pct,
                SUM(i.qty) AS qty, SUM(i.qty * i.landed_unit_cost) / SUM(i.qty) AS landed,
                SUM(i.qty * i.unit_cost_fx) / SUM(i.qty) AS cost_fx
         FROM intake_items i JOIN variants v ON v.id = i.variant_id JOIN products p ON p.id = v.product_id
@@ -537,7 +539,8 @@ def label_rows(con, variant_qty: dict) -> list[LabelData]:
     for vid, qty in variant_qty.items():
         if int(qty or 0) <= 0:
             continue
-        r = con.execute(f"""SELECT v.ean13, v.sku, p.name, p.style_code, p.composition, p.retail_price,
+        r = con.execute(f"""SELECT v.ean13, v.sku, {N('p', label_lang)} AS name, p.style_code,
+                                   {N('p', label_lang, 'composition')} AS composition, p.retail_price,
                                    {N('co', label_lang)} AS color, sz.code AS size, s.country
                            FROM variants v JOIN products p ON p.id = v.product_id
                            JOIN colors co ON co.id = v.color_id JOIN sizes sz ON sz.id = v.size_id
@@ -584,8 +587,8 @@ def export_catalog_csv(con) -> str:
     w.writerow(["style_code", "name", "category", "color_family", "color_code", "color", "size", "sku",
                 "ean13", "price", "stock", "composition"])
     for r in con.execute(f"""
-        SELECT p.style_code, p.name, {N('c')} AS cat, {N('cf')} AS fam, co.code AS ccode, {N('co')} AS color,
-               sz.code AS size, v.sku, v.ean13, p.retail_price, p.composition,
+        SELECT p.style_code, {N('p')} AS name, {N('c')} AS cat, {N('cf')} AS fam, co.code AS ccode, {N('co')} AS color,
+               sz.code AS size, v.sku, v.ean13, p.retail_price, {N('p', col='composition')} AS composition,
                (SELECT COALESCE(SUM(qty), 0) FROM intake_items i WHERE i.variant_id = v.id) AS stock
         FROM variants v JOIN products p ON p.id = v.product_id JOIN categories c ON c.id = p.category_id
         JOIN colors co ON co.id = v.color_id JOIN color_families cf ON cf.id = co.family_id

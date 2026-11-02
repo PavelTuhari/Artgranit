@@ -66,7 +66,7 @@ cd standalone/texflow
 python -m pytest -q
 ```
 
-58 tests, no Oracle wallet and no printer needed. They cover:
+60 tests, no Oracle wallet and no printer needed. They cover:
 
 - rules: EAN-13, SKU, rounding, markup with VAT, cost allocation, reconciliation;
 - labels: ZPL, TSPL, PDF;
@@ -103,7 +103,8 @@ Full guide — [docs/OPERATOR_GUIDE.en.md](docs/OPERATOR_GUIDE.en.md).
 |---|---|
 | Interface | the **RU / RO / EN** switch in the header; remembered in the browser. Default language — “Settings → Default interface language” |
 | Reference data | colour, colour group, category and scale have `name` (RU), `name_ro`, `name_en`; empty translation → Russian name |
-| Label | “Settings → Language of colour names on labels”: “Black” instead of “Чёрный”. Model name and composition are printed as entered |
+| Model | on the model card — name and composition in RO and EN (empty → the main one). Catalogue, sorting and pricing show the name in the interface language; search works in any language |
+| Label | “Settings → Language of colour names on labels”: colour, model name and composition are printed in that language (“Black”, “Basic oversize T-shirt”) |
 | Packing list | Romanian headers are understood too; a category can be given by its Romanian or English name |
 | New UI string | in the template — `{{ _('Russian text') }}`, translation — in `texflow/i18n_catalog.py`; without it `test_every_ui_string_translated` fails |
 

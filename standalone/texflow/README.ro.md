@@ -65,7 +65,7 @@ cd standalone/texflow
 python -m pytest -q
 ```
 
-58 de teste, fără wallet Oracle și fără imprimantă. Ele verifică:
+60 de teste, fără wallet Oracle și fără imprimantă. Ele verifică:
 
 - reguli: EAN-13, SKU, rotunjirea, adaosul cu TVA, repartizarea cheltuielilor, verificarea;
 - etichete: ZPL, TSPL, PDF;
@@ -103,7 +103,8 @@ Instrucțiunea completă — [docs/OPERATOR_GUIDE.ro.md](docs/OPERATOR_GUIDE.ro.
 |---|---|
 | Interfață | comutatorul **RU / RO / EN** din antet; se memorează în browser. Limba implicită — „Setări → Limba implicită a interfeței” |
 | Nomenclatoare | culoarea, grupa de culori, categoria și grila au `name` (RU), `name_ro`, `name_en`; traducere goală → denumirea rusă |
-| Etichetă | „Setări → Limba denumirilor culorilor pe etichetă”: „Negru” în loc de „Чёрный”. Denumirea modelului și compoziția se tipăresc așa cum au fost introduse |
+| Model | în fișa modelului — denumirea și compoziția în RO și EN (gol → cea principală). Catalogul, sortarea și prețurile arată denumirea în limba interfeței; căutarea — în orice limbă |
+| Etichetă | „Setări → Limba denumirilor culorilor pe etichetă”: culoarea, denumirea modelului și compoziția se tipăresc în această limbă („Negru”, „Tricou basic”) |
 | Lista de colete | antetele sunt înțelese și în română; categoria se poate indica în română sau engleză |
 
 ## 5. Modelul de date (SQLite, normalizat)

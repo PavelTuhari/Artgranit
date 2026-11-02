@@ -227,6 +227,11 @@ _T = [
     ("Закупка за шт. (валюта поставки)", "Achiziție pe buc. (valuta livrării)", "Purchase per pc (shipment currency)"),
     ("Цена розничная", "Preț cu amănuntul", "Retail price"),
     ("Зафиксировать цену", "Blochează prețul", "Lock price"),
+    ("основное", "principală", "main"),
+    ("основной", "principală", "main"),
+    ("Пустой перевод — показывается основное название. На этикетке — язык из настроек.",
+     "Traducere goală — se afișează denumirea principală. Pe etichetă — limba din setări.",
+     "Empty translation — the main name is shown. On the label — the language from settings."),
     ("Варианты (SKU / EAN-13)", "Variante (SKU / EAN-13)", "Variants (SKU / EAN-13)"),
     ("этикетка", "etichetă", "label"),
 

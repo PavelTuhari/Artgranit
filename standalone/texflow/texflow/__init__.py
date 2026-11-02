@@ -66,6 +66,10 @@ def create_app(db_path: str | None = None, testing: bool = False) -> Flask:
             lang = r[0] if r else "ru"
         i18n.set_lang(lang)
 
+    @app.teardown_request
+    def _reset_lang(_exc):
+        i18n.set_lang("ru")          # язык не «протекает» в код вне запроса (CLI, демо, тесты)
+
     def lang_url(code):
         args = {k: v for k, v in request.args.items() if k != "lang"}
         args["lang"] = code

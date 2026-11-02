@@ -66,8 +66,8 @@ def test_pages_have_no_cyrillic(client, lang, app):
         html = html.replace("Русский", "")                       # название языка в переключателе
         html = re.sub(r'title="[^"]*"', "", html)               # подсказка со всеми тремя названиями цвета
         # пользовательские данные демо (названия моделей, состав) — на русском, их не переводим
-        for user_text in ("Футболка базовая оверсайз", "Блуза шифоновая", "Джинсы mom fit", "100% хлопок",
-                          "100% полиэстер", "98% хлопок, 2% эластан", "Футболки женские базовые, микс цветов",
+        # названия и состав моделей демо переведены; описания из листа поставщика — нет
+        for user_text in ("Футболки женские базовые, микс цветов",
                           "Блузы шифон", "Джинсы мом-фит женские", "Платья миди трикотаж", "Свитеры оверсайз",
                           "Куртки демисезон", "Шарфы"):
             html = html.replace(user_text, "")
@@ -124,6 +124,39 @@ def test_label_colour_language(con):
     assert store.label_rows(con, sel)[0].color == "Negru"
     store.save_settings(con, {"label_lang": "en"})
     assert store.label_rows(con, sel)[0].color == "Black"
+
+
+def test_product_name_translations(con, app, client):
+    cat = con.execute("SELECT id FROM categories WHERE code = 'TSH'").fetchone()[0]
+    pid = store.create_product(con, "Футболка", cat, composition="хлопок")
+    store.update_product(con, pid, name_ro="Tricou", name_en="T-shirt", composition_en="cotton")
+    i18n.set_lang("ro")
+    try:
+        p = store.product(con, pid)
+        assert (p["title"], p["composition_t"]) == ("Tricou", "хлопок")          # пустой RO-состав → основной
+        assert [r["title"] for r in store.products(con, "T-shirt")] == ["Tricou"]  # поиск по любому языку
+    finally:
+        i18n.set_lang("ru")
+    assert store.product(con, pid)["title"] == "Футболка"
+    sid = store.create_shipment(con, "L", fx_rate=1)
+    blk = con.execute("SELECT id FROM colors WHERE code = '800'").fetchone()[0]
+    m = con.execute("SELECT s.id FROM sizes s JOIN categories c ON c.size_scale_id = s.scale_id "
+                    "WHERE c.code = 'TSH' AND s.code = 'M'").fetchone()[0]
+    store.add_intake(con, sid, None, pid, {(blk, m): 1})
+    store.save_settings(con, {"label_lang": "en"})
+    lb = store.label_rows(con, store.labels_for_shipment(con, sid))[0]
+    assert (lb.name, lb.color, lb.composition) == ("T-shirt", "Black", "cotton")
+
+
+def test_product_card_form_saves_translations(app, client):
+    from texflow.demo import load_demo
+    with app.app_context():
+        load_demo(app.get_db())
+    client.post("/product/1", data={"name": "Футболка", "name_ro": "Tricou nou", "name_en": "New tee",
+                                    "composition": "хлопок", "composition_ro": "bumbac", "composition_en": ""})
+    assert "Tricou nou" in client.get("/product/1?lang=ro").get_data(as_text=True)
+    assert "New tee" in client.get("/catalog?lang=en").get_data(as_text=True)
+    assert client.get("/api/products?q=New").get_json()[0]["name"] == "New tee"
 
 
 def test_romanian_packing_headers(con):

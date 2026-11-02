@@ -7,7 +7,7 @@
 <div class="pc">{% for p in products %}<a class="it" href="{{ url_for('tf.product', pid=p.id) }}">
 <div class="ph">{{ p.style_code[:3] }}</div>
 <div>{% for h in (p.swatches or '').split(',') if h %}<span class="sw" style="background:{{ h }}"></span>{% endfor %}</div>
-<div class="nm">{{ p.name }}</div><div class="mut">{{ p.style_code }} · {{ p.category }} · {{ p.stock }} {{ _('шт') }}</div>
+<div class="nm">{{ p.title }}</div><div class="mut">{{ p.style_code }} · {{ p.category }} · {{ p.stock }} {{ _('шт') }}</div>
 <div class="pr">{{ '%.2f'|format(p.retail_price) ~ ' ' ~ st.currency if p.retail_price is not none else _('без цены') }}</div></a>
 {% else %}<p class="mut">{{ _('Пусто. Модели создаются при разборе мешков.') }}</p>{% endfor %}</div>
 {% endblock %}
