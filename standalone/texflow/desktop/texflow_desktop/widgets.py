@@ -66,10 +66,10 @@ class Form(ttk.Frame):
                 w = ttk.Checkbutton(self, variable=var)
             elif kind == "combo":
                 var = tk.StringVar()
-                w = ttk.Combobox(self, textvariable=var, values=f[3] if len(f) > 3 else [], state="readonly", width=24)
+                w = ttk.Combobox(self, textvariable=var, values=f[3] if len(f) > 3 else [], state="readonly", width=20)
             else:
                 var = tk.StringVar()
-                w = ttk.Entry(self, textvariable=var, width=26)
+                w = ttk.Entry(self, textvariable=var, width=18)
             w.grid(row=r, column=c * 2 + 1, sticky="we", padx=(0, 14), pady=2)
             self.vars[key], self.widgets[key] = var, w
         for c in range(cols):

@@ -64,7 +64,7 @@ class ShipmentsTab(ttk.Frame):
         self.costs.pack(fill="x")
         self.btn_save = ttk.Button(costs, text=_("Сохранить и пересчитать"), command=self.save_costs)
         self.btn_save.pack(anchor="e", pady=(6, 0))
-        self.totals = ttk.Label(costs, text="", style="Muted.TLabel", justify="left")
+        self.totals = ttk.Label(costs, text="", style="Muted.TLabel", justify="left", wraplength=470)
         self.totals.pack(anchor="w")
 
         side = ttk.LabelFrame(top, text=_("Упаковочный лист (примерный)"), padding=8)
