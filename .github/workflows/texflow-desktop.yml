@@ -92,7 +92,9 @@ jobs:
       matrix:
         include:
           - { os: windows-latest, name: windows }
-          - { os: macos-latest,   name: macos }
+          # Intel-раннер: на arm64 у GitHub нехватка мощностей (задания снимаются из очереди);
+          # сборка x86_64 работает и на Mac с Apple Silicon через Rosetta 2
+          - { os: macos-15-intel, name: macos }
           - { os: ubuntu-22.04,   name: linux }
     runs-on: ${{ matrix.os }}
     defaults:

@@ -187,7 +187,7 @@ def test_workflow_builds_runs_and_signs_on_every_push():
     if not os.path.exists(path):
         pytest.skip("нет .github в этой копии")
     text = open(path, encoding="utf-8").read()
-    for needle in ("branches: [\"**\"]", "texflow-v*", "windows-latest", "macos-latest", "ubuntu",
+    for needle in ("branches: [\"**\"]", "texflow-v*", "windows-latest", "macos-15-intel", "ubuntu",
                    "--smoke", "--verify", "build_exe.py", "release.py scripts", "release.py sums",
                    "UNISIM_SOFT_SIGNING_KEY", "attest-build-provenance", "texflow-nightly"):
         assert needle in text, needle
