@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Этикетки: Zebra (ZPL), TSC (TSPL), PDF A4 и PDF-рулон · TexFlow</title><link rel="stylesheet" href="../assets/docs.css"></head>
+<body><header class="top"><span class="logo">TEXFLOW</span><a href="../index.html">Все материалы</a>
+<a href="../test_act.html">Акт тестирования</a><a href="../presentation.html">Презентация</a><span class="langs"><a class="on" href="../ru/LABELS.html">RU</a><a class="" href="../ro/LABELS.html">RO</a><a class="" href="../en/LABELS.html">EN</a></span></header>
+<div class="wrap"><nav class="side"><b>Документация</b><a href="../ru/README.html">Обзор и установка</a><a href="../ru/OPERATOR_GUIDE.html">Инструкция оператора</a><a class="on" href="../ru/LABELS.html">Этикетки и принтеры</a><a href="../ru/ARCHITECTURE.html">Блок-схемы</a><a href="../ru/gallery.html">Галерея экранов</a><b>Акт тестирования · Презентация</b><a href="../test_act.html">Акт тестирования (RU)</a><a href="../presentation.html">Презентация (RU)</a><a href="../index.html">Все материалы</a></nav><main class="doc"><h1 id="zebra-zpl-tsc-tspl-pdf-a4-pdf-">Этикетки: Zebra (ZPL), TSC (TSPL), PDF A4 и PDF-рулон</h1>
+<p><strong>Русский</strong> · <a href="../ro/LABELS.html">Română</a> · <a href="../en/LABELS.html">English</a></p>
+<p>Есть одна запись этикетки (<code>LabelData</code>) и четыре выхода из неё. Содержание везде
+одинаковое:</p>
+<pre><code>┌──────────────────────────────────────┐
+│ MY STORE                             │  бренд (Настройки → Бренд)
+│ Футболка базовая оверсайз            │  название модели
+│ Белый   TSH0001-001-S                │  цвет + SKU
+│ ┌───┐                                │
+│ │ S │                     179.90 MDL │  размер в рамке, цена
+│ └───┘                                │
+│        ▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌          │  EAN-13
+│        2 000000 000015               │
+│ 100% хлопок                          │  состав
+└──────────────────────────────────────┘
+</code></pre>
+<p>Язык названия цвета (Чёрный / Negru / Black) выбирается в «Настройки → Язык
+названий цветов на этикетке». На том же языке печатаются название модели и
+состав, если в карточке есть их перевод; иначе — основное название.</p>
+<h2 id="_1">Какой формат выбрать</h2>
+<table>
+<thead>
+<tr>
+<th>Формат</th>
+<th>Принтер</th>
+<th>Как печатать</th>
+<th>Когда</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ZPL</strong></td>
+<td>Zebra GK420t/d, ZD220, ZD230, ZD421, ZT230/ZT410, а также принтеры с ZPL-эмуляцией (Godex, Xprinter, TSC в режиме ZPL)</td>
+<td><code>tcp://IP:9100</code>, <code>cups://ОЧЕРЕДЬ</code> или скачать <code>.zpl</code></td>
+<td>основной поток, быстрее всего</td>
+</tr>
+<tr>
+<td><strong>TSPL</strong></td>
+<td>TSC TE200/TE210/TE300, TTP-244 Pro, DA200/DA210, Alpha-3R; многие недорогие китайские принтеры (Xprinter XP-360B и похожие)</td>
+<td>то же</td>
+<td>если принтер не понимает ZPL</td>
+</tr>
+<tr>
+<td><strong>PDF A4</strong></td>
+<td>любой лазерный или струйный принтер</td>
+<td>открыть PDF → печать в масштабе <strong>100%</strong> («Фактический размер»)</td>
+<td>нет термопринтера, есть листы самоклеящихся этикеток</td>
+</tr>
+<tr>
+<td><strong>PDF рулон</strong></td>
+<td>любой принтер с драйвером, в том числе Zebra/TSC через драйвер Windows (Seagull), а также виртуальный «Microsoft Print to PDF»</td>
+<td>одна страница = одна этикетка, размер страницы равен размеру этикетки</td>
+<td>печать через драйвер, архив, отправка по почте</td>
+</tr>
+</tbody>
+</table>
+<h2 id="_2">Адрес принтера</h2>
+<p>Адрес задаётся в «Настройках» (<code>printer_zpl</code>, <code>printer_tspl</code>) или прямо в поле
+«Принтер» на странице этикеток.</p>
+<table>
+<thead>
+<tr>
+<th>Адрес</th>
+<th>Что происходит</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tcp://192.168.1.50:9100</code></td>
+<td>сырые байты уходят на порт 9100 (RAW / JetDirect). Так работают Zebra и TSC с Ethernet или Wi-Fi</td>
+</tr>
+<tr>
+<td><code>cups://Zebra_ZD220</code></td>
+<td><code>lp -d Zebra_ZD220 -o raw</code> — для USB-принтера на Linux или macOS</td>
+</tr>
+<tr>
+<td><code>dir:///home/shop/spool</code></td>
+<td>файл задания сохраняется в папку, откуда его заберёт другой скрипт или драйвер</td>
+</tr>
+</tbody>
+</table>
+<h3 id="usb-linuxmacos-cups">USB-принтер на Linux/macOS (CUPS)</h3>
+<pre><code class="language-bash">lpinfo -v | grep -i usb                       # найти URI принтера
+sudo lpadmin -p Zebra_ZD220 -E -v &quot;usb://Zebra%20Technologies/ZTC%20ZD220-203dpi%20ZPL&quot; -m raw
+# в TexFlow: cups://Zebra_ZD220
+</code></pre>
+<h3 id="usb-windows">USB-принтер на Windows</h3>
+<p>Подходят два способа:</p>
+<ol>
+<li><strong>PDF рулон</strong> через установленный драйвер принтера: в настройках драйвера
+   задать размер бумаги 58×40 мм, при печати масштаб 100%.</li>
+<li><strong>Сырой ZPL/TSPL.</strong> Открыть общий доступ к принтеру (например, имя <code>ZEBRA</code>),
+   скачать <code>.zpl</code> и выполнить <code>copy /b labels.zpl \\localhost\ZEBRA</code>.</li>
+</ol>
+<p>Если у принтера есть сетевой порт, проще всего <code>tcp://IP:9100</code>.</p>
+<h2 id="_3">Размеры и разрешение</h2>
+<p>Настраиваются в «Настройках»:</p>
+<table>
+<thead>
+<tr>
+<th>Параметр</th>
+<th>По умолчанию</th>
+<th>Комментарий</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Ширина × высота</td>
+<td>58 × 40 мм</td>
+<td>популярные размеры: 58×40, 58×30, 40×30, 50×30, 43×25</td>
+</tr>
+<tr>
+<td>Зазор</td>
+<td>2 мм</td>
+<td>для TSPL (<code>GAP</code>)</td>
+</tr>
+<tr>
+<td>DPI</td>
+<td>203</td>
+<td>203 / 300 / 600. Для ZPL модуль штрихкода 2 точки при 203 dpi и 3 точки при 300 dpi</td>
+</tr>
+</tbody>
+</table>
+<p>Размеры в ZPL пересчитываются в точки: при 203 dpi 58 мм дают <code>^PW463</code>, 40 мм —
+<code>^LL319</code>.</p>
+<h2 id="_4">Кириллица на термопринтере</h2>
+<p>Встроенные шрифты Zebra (<code>^A0</code>) и TSC (<code>"1"</code>…<code>"8"</code>) <strong>не содержат кириллицы</strong>.
+Поэтому по умолчанию текст на ZPL/TSPL-этикетке транслитерируется: «Футболка» →
+«Futbolka». Цифры, цена, SKU и штрихкод от этого не меняются.</p>
+<p>Чтобы печатать кириллицу:</p>
+<ol>
+<li>Загрузить TTF-шрифт в принтер: Zebra Setup Utilities → Download Fonts,
+   у TSC — Diagnostic Tool → Font.</li>
+<li>В «Настройках» указать имя шрифта на принтере:
+   - ZPL: <code>E:ARIAL.TTF</code> (тогда используется <code>^A@N,h,w,E:ARIAL.TTF</code>; кодировка UTF-8 уже включена через <code>^CI28</code>);
+   - TSPL: <code>ARIAL.TTF</code> (используется <code>CODEPAGE UTF-8</code> и <code>TEXT x,y,"ARIAL.TTF",...</code>).</li>
+</ol>
+<p>В PDF кириллица печатается всегда: подключается системный шрифт DejaVu,
+Liberation или Arial. Свой шрифт можно указать переменной <code>TEXFLOW_PDF_FONT</code>.</p>
+<h2 id="a4">Лист A4 — калибровка</h2>
+<p>По умолчанию лист 3×8 = 24 этикетки 70×37 мм (самый распространённый формат).
+Другие форматы:</p>
+<table>
+<thead>
+<tr>
+<th>Лист</th>
+<th>Колонок × строк</th>
+<th>Этикетка, мм</th>
+<th>Отступ сверху, мм</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>24 шт</td>
+<td>3 × 8</td>
+<td>70 × 37</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>21 шт</td>
+<td>3 × 7</td>
+<td>70 × 42.3</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>40 шт</td>
+<td>4 × 10</td>
+<td>52.5 × 29.7</td>
+<td>0</td>
+</tr>
+<tr>
+<td>14 шт</td>
+<td>2 × 7</td>
+<td>105 × 42.3</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>65 шт</td>
+<td>5 × 13</td>
+<td>38.1 × 21.2</td>
+<td>10.7 (и слева 4.7)</td>
+</tr>
+</tbody>
+</table>
+<p>Порядок калибровки:</p>
+<ol>
+<li>Напечатать на обычной бумаге с рамкой (Настройки → «Рамка»).</li>
+<li>Положить лист поверх листа этикеток на просвет.</li>
+<li>Сдвиг исправить отступами.</li>
+</ol>
+<p>Поле <strong>«Начать с ячейки»</strong> позволяет допечатать начатый лист: например, <code>5</code>
+пропустит первые пять занятых этикеток.</p>
+<h2 id="_5">Проверка без принтера</h2>
+<ul>
+<li><strong>ZPL</strong>: страница этикеток показывает ZPL первой этикетки. Его можно вставить
+  в https://labelary.com/viewer.html (8 dpmm = 203 dpi, 2.28×1.57 дюйма = 58×40 мм).</li>
+<li><strong>TSPL</strong>: скачать <code>.tspl</code> и открыть в TSC Console / Diagnostic Tool, либо
+  отправить на принтер командой
+  <code>nc 192.168.1.50 9100 &lt; labels.tspl</code>.</li>
+<li><strong>PDF</strong>: открыть в браузере и отсканировать штрихкод с экрана телефоном.</li>
+</ul>
+<h2 id="zpl-5840-203-dpi">Пример ZPL (58×40, 203 dpi)</h2>
+<pre><code>^XA
+^CI28
+^PW463
+^LL319
+^LH0,0
+^FO15,15^A0N,23,23^FH^FDMY STORE^FS
+^FO15,45^A0N,31,31^FB433,1,0,L^FH^FDFutbolka bazovaya oversayz^FS
+^FO15,83^A0N,23,23^FH^FDBelyy  TSH0001-001-S^FS
+^FO15,117^GB86,60,2^FS
+^FO19,121^A0N,54,54^FB78,1,0,C^FH^FDS^FS
+^FO112,121^A0N,54,54^FB336,1,0,R^FH^FD179.90 MDL^FS
+^BY2,3,63^FO114,190^BEN,63,Y,N^FD200000000001^FS
+^FO15,281^A0N,23,23^FB433,1,0,L^FH^FD100% hlopok^FS
+^PQ1,0,1,N
+^XZ
+</code></pre>
+<h2 id="tspl">Пример TSPL</h2>
+<pre><code>SIZE 58 mm,40 mm
+GAP 2 mm,0 mm
+DIRECTION 1
+REFERENCE 0,0
+CODEPAGE UTF-8
+SET TEAR ON
+CLS
+TEXT 15,15,&quot;2&quot;,0,1,1,&quot;MY STORE&quot;
+TEXT 15,42,&quot;3&quot;,0,1,1,&quot;Futbolka bazovaya oversayz&quot;
+TEXT 15,77,&quot;2&quot;,0,1,1,&quot;Belyy  TSH0001-001-S&quot;
+BOX 15,108,102,163,2
+TEXT 26,115,&quot;5&quot;,0,1,1,&quot;S&quot;
+TEXT 125,115,&quot;5&quot;,0,1,1,&quot;179.90 MDL&quot;
+BARCODE 46,179,&quot;EAN13&quot;,76,1,0,2,2,&quot;200000000001&quot;
+TEXT 15,288,&quot;2&quot;,0,1,1,&quot;100% hlopok&quot;
+PRINT 1,1
+</code></pre>
+<p>Количество копий задаётся одной командой: <code>^PQn</code> в ZPL и <code>PRINT 1,n</code> в TSPL.
+Поэтому 18 одинаковых этикеток — это одно задание, а не 18.</p></main></div></body></html>

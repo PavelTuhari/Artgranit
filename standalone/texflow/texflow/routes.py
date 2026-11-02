@@ -1,10 +1,11 @@
 """HTTP-маршруты TexFlow."""
 from __future__ import annotations
 
+import os
 import re
 
 from flask import (Blueprint, Response, current_app, flash, jsonify, redirect, render_template,
-                   request, url_for)
+                   request, send_from_directory, url_for)
 
 from . import labels as L
 from . import printing, store
@@ -84,6 +85,7 @@ def shipment(sid):
         store.compute_landed(c, sid)
         flash(_("Затраты сохранены, себестоимость пересчитана"), "ok")
         return redirect(url_for("tf.shipment", sid=sid))
+    store.compute_landed(c, sid)          # себестоимость всегда актуальна, без кнопки «пересчитать»
     return render_template("shipment.html", sh=sh, bags=store.bags(c, sid),
                            packing=store.packing_lines(c, sid), rec=store.reconciliation(c, sid),
                            totals=store.shipment_totals(c, sid))
@@ -351,7 +353,7 @@ def labels():
             target = request.values.get("target") or st.get("printer_zpl" if fmt == "zpl" else "printer_tspl", "")
             try:
                 msg = printing.dispatch(target, data, ext)
-                store.log_label_job(c, fmt, target, n, "ok", msg)
+                store.log_label_job(c, fmt, target, n, "ok", f"{len(data)} B → {target}")  # без языка: журнал читают на любом
                 flash(_("Печать: {n} этикеток — {msg}", n=n, msg=msg), "ok")
             except Exception as e:  # noqa: BLE001
                 store.log_label_job(c, fmt, target, n, "error", str(e))
@@ -416,3 +418,15 @@ def refs():
 @bp.route("/help")
 def help_page():
     return render_template("help.html")
+
+
+DOCS_HTML = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "docs", "html")
+
+
+@bp.route("/docs/")
+@bp.route("/docs/<path:name>")
+def docs_html(name="index.html"):
+    """HTML-документация, акт тестирования и презентация (собираются tools/run_all.sh)."""
+    if not os.path.exists(os.path.join(DOCS_HTML, "index.html")):
+        return _("HTML-документация не собрана: запустите tools/run_all.sh"), 404
+    return send_from_directory(DOCS_HTML, name)

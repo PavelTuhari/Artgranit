@@ -352,6 +352,8 @@ _T = [
     ("отправлено {n} байт на {host}:{port}", "trimis {n} octeți la {host}:{port}", "sent {n} bytes to {host}:{port}"),
     ("сохранено: ", "salvat: ", "saved: "),
     ("отправлено в CUPS", "trimis în CUPS", "sent to CUPS"),
+    ("HTML-документация не собрана: запустите tools/run_all.sh", "Documentația HTML nu este generată: rulați tools/run_all.sh",
+     "HTML documentation is not built: run tools/run_all.sh"),
     ("адрес принтера: tcp://IP:9100, cups://ОЧЕРЕДЬ или dir:///папка",
      "adresa imprimantei: tcp://IP:9100, cups://COADĂ sau dir:///dosar",
      "printer address: tcp://IP:9100, cups://QUEUE or dir:///folder"),

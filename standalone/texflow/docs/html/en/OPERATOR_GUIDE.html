@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Intake operator guide · TexFlow</title><link rel="stylesheet" href="../assets/docs.css"></head>
+<body><header class="top"><span class="logo">TEXFLOW</span><a href="../index.html">All materials</a>
+<a href="../test_act.html">Test report</a><a href="../presentation.html">Presentation</a><span class="langs"><a class="" href="../ru/OPERATOR_GUIDE.html">RU</a><a class="" href="../ro/OPERATOR_GUIDE.html">RO</a><a class="on" href="../en/OPERATOR_GUIDE.html">EN</a></span></header>
+<div class="wrap"><nav class="side"><b>Documentation</b><a href="../en/README.html">Overview & install</a><a class="on" href="../en/OPERATOR_GUIDE.html">Operator guide</a><a href="../en/LABELS.html">Labels & printers</a><a href="../en/ARCHITECTURE.html">Flowcharts</a><a href="../en/gallery.html">Screen gallery</a><b>Test report · Presentation</b><a href="../test_act.html">Test report (RU)</a><a href="../presentation.html">Presentation (RU)</a><a href="../index.html">All materials</a></nav><main class="doc"><h1 id="intake-operator-guide">Intake operator guide</h1>
+<p><a href="../ru/OPERATOR_GUIDE.html">Русский</a> · <a href="../ro/OPERATOR_GUIDE.html">Română</a> · <strong>English</strong></p>
+<p>The goal is to sort a bag in minutes, not hours. Every item must be recorded
+as a “model · colour · size” variant with a barcode and a price.</p>
+<h2 id="workstation-setup">Workstation setup</h2>
+<ul>
+<li>A laptop or PC running TexFlow (<code>python run.py</code>). For several workstations:
+  <code>python run.py --host 0.0.0.0</code>, and the others open
+  <code>http://laptop-IP:5077</code>.</li>
+<li>A barcode scanner in keyboard mode with an Enter suffix. Most scanners use
+  this mode by default.</li>
+<li>A Zebra or TSC thermal printer with a 58×40 mm roll, or an office printer
+  with A4 sheets.</li>
+<li>A large table and boxes labelled by category: T-shirts, jeans, dresses…</li>
+<li>Interface language: the <strong>RU / RO / EN</strong> switch in the header.</li>
+</ul>
+<h2 id="step-1-create-the-shipment">Step 1. Create the shipment</h2>
+<p>“Shipments” → “New shipment”.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Example</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Number</td>
+<td><code>TR-2026-11-01</code></td>
+<td>reference in documents</td>
+</tr>
+<tr>
+<td>Supplier</td>
+<td><code>Istanbul Tekstil</code></td>
+<td>product cards</td>
+</tr>
+<tr>
+<td>Country</td>
+<td>Turkey / China</td>
+<td>country of origin</td>
+</tr>
+<tr>
+<td>Currency, rate</td>
+<td>USD × 17.8</td>
+<td>converting purchase prices to local currency</td>
+</tr>
+<tr>
+<td>Freight, Customs, Broker, Other</td>
+<td>4500, 1200, 800, 0</td>
+<td>in local currency, go into landed cost</td>
+</tr>
+<tr>
+<td>Allocate costs</td>
+<td>by value</td>
+<td>expensive items carry more. “By weight” — if you paid per kg</td>
+</tr>
+<tr>
+<td>Bags</td>
+<td>4</td>
+<td>create bags 1..4 right away (if there is no list)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="step-2-upload-the-packing-list">Step 2. Upload the packing list</h2>
+<p>The supplier's list usually comes in Excel. Save it as CSV:
+“File → Save as → CSV (semicolon-separated)”.</p>
+<p>Required columns (any order, extra columns are ignored):</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Header variants</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>bag</td>
+<td><code>bag_no</code>, <code>bag</code>, <code>sac</code>, <code>мешок</code>, <code>çuval</code>, <code>包</code></td>
+</tr>
+<tr>
+<td>category</td>
+<td><code>category</code>, <code>categorie</code>, <code>категория</code>, <code>kategori</code>, <code>类别</code> — code (<code>TSH</code>, <code>JNS</code>) or a reference name (Russian, Romanian or English)</td>
+</tr>
+<tr>
+<td>description</td>
+<td><code>description</code>, <code>descriere</code>, <code>описание</code>, <code>açıklama</code>, <code>品名</code></td>
+</tr>
+<tr>
+<td>quantity (<strong>required</strong>)</td>
+<td><code>qty</code>, <code>cantitate</code>, <code>pcs</code>, <code>кол-во</code>, <code>adet</code>, <code>数量</code></td>
+</tr>
+<tr>
+<td>price per pc</td>
+<td><code>unit_price</code>, <code>price</code>, <code>preț</code>, <code>цена</code>, <code>fiyat</code>, <code>单价</code></td>
+</tr>
+<tr>
+<td>weight, kg</td>
+<td><code>weight_kg</code>, <code>weight</code>, <code>greutate</code>, <code>вес</code>, <code>ağırlık</code>, <code>重量</code></td>
+</tr>
+</tbody>
+</table>
+<p>The list is called rough: “T-shirts — 120 pcs” with no colours or sizes.
+That is enough. Colours and sizes appear during sorting, and the quantities
+are checked in step 4.</p>
+<p>If a category is not recognised, you get a warning. Add such a category in
+“Reference data” and upload the list again.</p>
+<h2 id="step-3-sort-the-bag">Step 3. Sort the bag</h2>
+<p>Shipment page → “Sort” next to the bag.</p>
+<p><strong>The item already exists</strong> (e.g. a second batch of the same model): scan its
+label or barcode — +1 pc is added. The result appears under the scanner field:
+✓ — received, ✗ — no such code.</p>
+<p><strong>New model:</strong></p>
+<ol>
+<li>Lay the bag's contents out on the table by model. Within a model — by
+   colour, within a colour — by size. This is the key technique: lay out
+   first, then enter quantities, instead of entering items one by one.</li>
+<li>Fill in “New model”: the name (as it will appear on the label), the
+   category (it determines the size scale and the markup) and, if known, the
+   composition. The style number is generated (<code>TSH0007</code>). The purchase price
+   is taken from the packing list by category and can be corrected.</li>
+<li>The matrix opens. Click the colours you need — each becomes a row. Colours
+   are grouped as on the Zara website: White (white, off-white, ecru), Beige
+   (beige, sand, camel), Blue (blue, navy, denim)…</li>
+<li>Enter quantities into the “colour × size” cells. <strong>Enter</strong> moves to the
+   next cell, arrows move the cursor. Row and column totals update instantly.</li>
+<li><strong>Ctrl+Enter</strong> or “Save”. The “Save and print labels” button opens printing
+   for exactly this batch.</li>
+</ol>
+<p><strong>Mistake:</strong> in the intake log press × on the line, or enter a negative number
+(−2) in the matrix.</p>
+<p>When the bag is empty — “Bag done”.</p>
+<h2 id="step-4-reconcile-with-the-list">Step 4. Reconcile with the list</h2>
+<p>Shipment page, blocks “Reconciliation by category” and “Reconciliation by bag”:</p>
+<ul>
+<li><strong>match</strong> — all good;</li>
+<li><strong>shortage</strong> (red) — less arrived than listed: grounds for a claim to the
+  supplier;</li>
+<li><strong>surplus</strong> — more arrived;</li>
+<li><strong>not in list</strong> — the category was not declared.</li>
+</ul>
+<p>The list is rough, so a 2–5 % difference is usually normal.</p>
+<h2 id="step-5-prices">Step 5. Prices</h2>
+<p>“Prices” on the shipment. For every model you see:</p>
+<ul>
+<li>the purchase price in currency;</li>
+<li>the landed cost in local currency, with duty and a share of freight,
+  customs and broker;</li>
+<li>the category markup;</li>
+<li>the proposed price (already rounded: 189.90, 249.90…);</li>
+<li>the actual markup after rounding.</li>
+</ul>
+<p>You can type your own price in “Own price”. Then “Write prices to product
+cards”.</p>
+<p>If a model's price must not change (promotion, negotiated price), lock it on
+the model card with “Lock price”. Recalculation does not touch a locked price.</p>
+<p>Category markups are changed in “Reference data”. Rounding (step, .90/.99
+ending) and VAT — in “Settings”.</p>
+<h2 id="step-6-labels">Step 6. Labels</h2>
+<ul>
+<li><strong>For the whole shipment or a bag</strong> — from the shipment page. As many labels
+  as pieces received.</li>
+<li><strong>For a model</strong> — from the model card.</li>
+<li><strong>A single label</strong> — the “label” button next to a variant (e.g. to replace a
+  damaged one).</li>
+</ul>
+<p>Before printing you can adjust the number of copies on each line.</p>
+<p>Choosing a format:</p>
+<ul>
+<li><strong>ZPL</strong> — for Zebra;</li>
+<li><strong>TSPL</strong> — for TSC;</li>
+<li><strong>PDF A4</strong> — for sheets of self-adhesive labels. Print at 100% scale.
+  “Start at cell” lets you finish a partly used sheet;</li>
+<li><strong>PDF roll</strong> — for printing through a driver or to a virtual printer.</li>
+</ul>
+<p>Buttons: “Open / download”, “Download file”, “Print to printer” (to the
+address from settings).</p>
+<p>The colour language on the label (Black / Negru / Чёрный) is chosen in
+“Settings”. Printer details — <a href="LABELS.html">LABELS.en.md</a>.</p>
+<h2 id="step-7-catalogue">Step 7. Catalogue</h2>
+<p>“Catalogue” — model cards with colours, price and stock. Inside a card:</p>
+<ul>
+<li>colours with codes and groups;</li>
+<li>the size grid (struck through — out of stock);</li>
+<li>the SKU and EAN table;</li>
+<li>a print-card button.</li>
+</ul>
+<p><strong>Export CSV</strong> — the full list of variants (style no., colour, size, SKU, EAN,
+price, stock) for uploading to an online shop or POS. Colour and category
+names are in the current interface language.</p>
+<h2 id="sorting-screen-shortcuts">Sorting screen shortcuts</h2>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enter in the scanner field</td>
+<td>accept the scanned code</td>
+</tr>
+<tr>
+<td>Enter in the matrix</td>
+<td>next cell</td>
+</tr>
+<tr>
+<td>← → ↑ ↓</td>
+<td>move around the matrix</td>
+</tr>
+<tr>
+<td>Ctrl+Enter</td>
+<td>save the matrix</td>
+</tr>
+</tbody>
+</table></main></div></body></html>
