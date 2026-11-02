@@ -76,7 +76,7 @@ class LabelEditor(ttk.Frame):
         mid.columnconfigure(0, weight=1)
         zb = ttk.Frame(mid)
         zb.grid(row=0, column=0, sticky="ew")
-        for text, cmd in (("Text", lambda: self.add("text")), (_("Штрихкод"), lambda: self.add("barcode")),
+        for text, cmd in ((_("Текст"), lambda: self.add("text")), (_("Штрихкод"), lambda: self.add("barcode")),
                           (_("Рамка"), lambda: self.add("box")), (_("Линия"), lambda: self.add("line"))):
             ttk.Button(zb, text="+ " + text, command=cmd).pack(side="left", padx=1)
         ttk.Button(zb, text="−", width=3, command=lambda: self.zoom(0.8)).pack(side="right")
@@ -463,11 +463,19 @@ class LabelEditor(ttk.Frame):
         """Индекс верхнего элемента под точкой (мм)."""
         if not self.tpl:
             return None
+        pad = 0.8
         for i in range(len(self.tpl.elements) - 1, -1, -1):
             e = self.tpl.elements[i]
-            pad = 0.8
-            if e.x_mm - pad <= mx <= e.x_mm + max(e.w_mm, 0.5) + pad and e.y_mm - pad <= my <= e.y_mm + max(e.h_mm, 0.5) + pad:
-                return i
+            x1, y1 = e.x_mm + max(e.w_mm, 0.5), e.y_mm + max(e.h_mm, 0.5)
+            inside = e.x_mm - pad <= mx <= x1 + pad and e.y_mm - pad <= my <= y1 + pad
+            if not inside:
+                continue
+            if e.kind == "box":
+                # рамку выбираем только по контуру — иначе рамка вокруг всей этикетки закрывает элементы внутри
+                near_edge = min(abs(mx - e.x_mm), abs(mx - x1), abs(my - e.y_mm), abs(my - y1)) <= pad
+                if not near_edge:
+                    continue
+            return i
         return None
 
     def _press(self, ev):

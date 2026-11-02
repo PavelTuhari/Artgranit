@@ -98,10 +98,15 @@ def main(argv=None) -> int:
         from importlib import metadata
         for m in ("reportlab", "openpyxl", "flask"):
             try:
-                importlib.import_module(m)
-                print(f"{m}: {metadata.version(m)}")
-            except (ImportError, metadata.PackageNotFoundError):
+                mod = importlib.import_module(m)
+            except ImportError:
                 print(f"{m}: нет")
+                continue
+            try:
+                v = metadata.version(m)
+            except metadata.PackageNotFoundError:          # в сборке PyInstaller нет dist-info
+                v = getattr(mod, "Version", None) or getattr(mod, "__version__", "ok")
+            print(f"{m}: {v}")
         return 0 if not tk_err else 1
     if web:
         argv.remove("--web")

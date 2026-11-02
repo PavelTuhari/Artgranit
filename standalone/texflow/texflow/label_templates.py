@@ -71,10 +71,13 @@ def fill(text: str, lb: LabelData) -> str:
 
 
 def sample_label() -> LabelData:
-    """Образец данных для предпросмотра в редакторе."""
-    return LabelData(ean13="2000000000015", sku="TSH0001-800-M", name="Футболка базовая оверсайз",
-                     color="Чёрный", size="M", price=189.9, currency="MDL", brand="MY STORE",
-                     style="TSH0001", composition="100% хлопок", origin="TR")
+    """Образец данных для предпросмотра в редакторе (на языке интерфейса)."""
+    from .i18n import current_lang
+    name, color, comp = {"ro": ("Tricou basic oversize", "Negru", "100% bumbac"),
+                         "en": ("Basic oversize T-shirt", "Black", "100% cotton")}.get(
+        current_lang(), ("Футболка базовая оверсайз", "Чёрный", "100% хлопок"))
+    return LabelData(ean13="2000000000015", sku="TSH0001-800-M", name=name, color=color, size="M", price=189.9,
+                     currency="MDL", brand="MY STORE", style="TSH0001", composition=comp, origin="TR")
 
 
 # ======================================================================= стандартные шаблоны
