@@ -93,10 +93,21 @@ server. Nucleul este același ca la versiunea web:</p>
 <h3 id="fara-instalare">Fără instalare</h3>
 <pre><code class="language-bash">python texflow_app.py          # fereastra programului
 python texflow_app.py --demo   # cu livrarea demo
+python texflow_app.py --sample # baza de test integrată (totul completat)
 python texflow_app.py --web    # versiunea web în browser
 python texflow_app.py --check  # verificarea mediului
 </code></pre>
 <p>La prima pornire bibliotecile lipsă se instalează singure în dosarul de date (<code>pylibXY</code>).</p>
+<h3 id="baza-de-test-integrata">Baza de test integrată</h3>
+<p>Ca să vedeți toate ecranele cu date, nu goale: <code>python texflow_app.py --sample</code> (versiunea web —
+<code>--web --sample</code>) sau meniul <strong>„Fișier → Deschide baza de test (totul completat)”</strong>. Conține
+5 livrări în toate stările, 4 furnizori din Turcia și China, 14 saci, 17 modele în toate cele 12
+categorii cu traduceri RO/EN, 94 de variante și 735 de bucăți; verificare cu toate stările
+(potrivire, lipsă, surplus, „nu e în listă”), toate trei metodele de repartizare a cheltuielilor,
+preț manual și preț blocat, corecție de numărare, culoare proprie și mărimea 4XL, 5 șabloane de
+etichete și jurnalul de tipărire.</p>
+<p>Baza de lucru nu e atinsă: baza de test e un fișier separat <code>texflow_sample.db</code> în dosarul de date.
+Înapoi — <strong>„Fișier → Înapoi la baza de lucru”</strong>. Fișierul separat: <code>python -m texflow.sample_db cale.db</code>.</p>
 <h3 id="program-gata-facut-fara-python-pyinstaller">Program gata făcut, fără Python (PyInstaller)</h3>
 <p><code>python install/build_exe.py</code> creează <code>dist/TexFlow-&lt;versiune&gt;-&lt;os&gt;-&lt;arch&gt;.zip</code>. În interior:
 <code>TexFlow.exe</code> (Windows), <code>TexFlow.app</code> (macOS) sau <code>TexFlow</code> (Linux), cu toate bibliotecile;
@@ -269,12 +280,16 @@ schimbat fișiere din <code>standalone/texflow/</code>, și la tagurile <code>te
 <li><strong>teste</strong> (pytest, inclusiv fereastra în Xvfb);</li>
 <li><strong>versiunea din scripturi</strong> <code>TexFlow-&lt;versiune&gt;-scripts.zip</code> cu <code>MANIFEST.sha256</code> și semnătura
    unisim-soft <code>MANIFEST.sha256.sig</code>;</li>
-<li><strong>pornire din scripturi</strong> pe Windows, macOS și Linux: <code>--verify</code>, <code>--check</code>, <code>--smoke</code>,
+<li><strong>pornire din scripturi</strong> pe Windows, macOS Intel, macOS Apple Silicon (arm64) și Linux: <code>--verify</code>, <code>--check</code>, <code>--smoke</code>,
    instalatorul;</li>
-<li><strong>executabile</strong>: <code>TexFlow.exe</code>, <code>TexFlow.app</code> (semnătură ad-hoc), binar Linux — fiecare
+<li><strong>executabile</strong>: <code>TexFlow.exe</code>, <strong>două construcții separate</strong> <code>TexFlow.app</code> — <code>macos-x86_64</code>
+   (Intel) și <code>macos-arm64</code> (Apple Silicon M1–M4), semnătură ad-hoc — și binar Linux — fiecare
    <strong>pornit</strong> fără Python;</li>
 <li><strong><code>SHA256SUMS</code> + <code>SHA256SUMS.sig</code></strong> (Ed25519, cheia <strong>unisim-soft</strong>) și atestarea GitHub
    (Sigstore) — aceasta doar pentru depozite publice sau GitHub Enterprise;</li>
+<li><strong>sursele ca fișiere obișnuite</strong>: push în <code>main</code> → ramura <strong><code>texflow-dist</code></strong> conține versiunea din
+   scripturi semnată, dezarhivată (aceleași fișiere plus <code>MANIFEST.sha256</code> și semnătura); o clonă
+   se verifică cu <code>python texflow_app.py --verify</code>;</li>
 <li><strong>publicare</strong>: push în <code>main</code> → pre-lansarea <strong>texflow-nightly</strong>; tagul <code>texflow-v1.2.0</code> →
    lansarea versiunii.</li>
 </ol>

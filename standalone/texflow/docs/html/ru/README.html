@@ -81,8 +81,20 @@ RU / RO / EN стоит в шапке. Названия цветов, катег
 <td>вкладка «Excel / CSV» (и <code>/exchange</code> в веб-версии): полный отчёт, каталог, цены, приёмка — выгрузка и загрузка обратно</td>
 </tr>
 <tr>
+<td>Тестовая база</td>
+<td><code>python texflow_app.py --sample</code> (или <code>--web --sample</code>, или меню «Файл → Открыть тестовую базу»): 5 поставок во всех статусах, 17 моделей во всех категориях, 735 шт., сверка, цены, шаблоны, журнал печати — рабочая база не трогается</td>
+</tr>
+<tr>
 <td>Сборка и подпись</td>
-<td>на каждый push GitHub Actions проверяет, запускает из скриптов и собирает .exe / .app / Linux на трёх ОС, подписывает SHA256SUMS ключом <strong>unisim-soft</strong> (Ed25519); программа сама проверяет свою подпись: <code>python texflow_app.py --verify</code> — <a href="DESKTOP.html">DESKTOP.md, раздел 6</a></td>
+<td>на каждый push GitHub Actions проверяет, запускает из скриптов и собирает .exe / .app (отдельно Intel и Apple Silicon arm64) / Linux, подписывает SHA256SUMS ключом <strong>unisim-soft</strong> (Ed25519); программа сама проверяет свою подпись: <code>python texflow_app.py --verify</code> — <a href="DESKTOP.html">DESKTOP.md, раздел 6</a></td>
+</tr>
+<tr>
+<td>Исходники без архива</td>
+<td>ветка <code>texflow-dist</code> — подписанная версия обычными файлами (обновляется с каждым push в <code>main</code>)</td>
+</tr>
+<tr>
+<td>Статья</td>
+<td><a href="../../ARTICLE.md">docs/ARTICLE.md</a> — «Автоматизация „с коленок“: от мешка до ценника»</td>
 </tr>
 </tbody>
 </table>
@@ -132,7 +144,7 @@ TTF-шрифт для PDF.</p>
 <pre><code class="language-bash">cd standalone/texflow
 python -m pytest -q
 </code></pre>
-<p>Всего 86 тестов, файл Oracle wallet и принтер не нужны:</p>
+<p>Всего 104 теста, файл Oracle wallet и принтер не нужны:</p>
 <table>
 <thead>
 <tr>

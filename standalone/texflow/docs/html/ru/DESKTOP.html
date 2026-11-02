@@ -92,17 +92,74 @@
 <h3 id="_2">Без установки</h3>
 <pre><code class="language-bash">python texflow_app.py          # окно программы
 python texflow_app.py --demo   # с демо-поставкой
+python texflow_app.py --sample # встроенная тестовая база (заполнено всё)
 python texflow_app.py --web    # веб-версия в браузере
 python texflow_app.py --check  # проверить окружение
 </code></pre>
 <p>При первом запуске недостающие библиотеки ставятся сами в папку данных (<code>pylibXY</code>).</p>
+<h3 id="_3">Встроенная тестовая база</h3>
+<p>Чтобы посмотреть все экраны с данными, а не пустыми: <code>python texflow_app.py --sample</code>
+(веб-версия — <code>--web --sample</code>) или меню <strong>«Файл → Открыть тестовую базу (заполнено всё)»</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Что в ней</th>
+<th>Сколько</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Поставки во всех статусах: пришла, в разборе, разобрана, оценена, закрыта</td>
+<td>5 (TR-2026-09 … CN-2026-11)</td>
+</tr>
+<tr>
+<td>Поставщики из Турции и Китая</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Мешки во всех статусах: закрыт, в разборе, разобран</td>
+<td>14</td>
+</tr>
+<tr>
+<td>Модели во всех 12 категориях, с переводами RO/EN, сезоном и полом</td>
+<td>17</td>
+</tr>
+<tr>
+<td>Варианты «цвет × размер» / принято штук</td>
+<td>94 / 735</td>
+</tr>
+<tr>
+<td>Сверка: совпало, недостача, излишек, «нет в листе»</td>
+<td>все четыре статуса</td>
+</tr>
+<tr>
+<td>Распределение расходов: по стоимости, по штукам, по весу</td>
+<td>все три</td>
+</tr>
+<tr>
+<td>Ручная цена, зафиксированная цена, исправление пересчёта (−2)</td>
+<td>есть</td>
+</tr>
+<tr>
+<td>Свой цвет (TF1 «Терракотовый меланж»), свой размер 4XL</td>
+<td>есть</td>
+</tr>
+<tr>
+<td>Шаблоны этикеток (3 стандартных + «Sale 50×30» + «Kids 40×25») / записи журнала печати</td>
+<td>5 / 6</td>
+</tr>
+</tbody>
+</table>
+<p>Рабочую базу тестовая не трогает: она пишется в отдельный файл <code>texflow_sample.db</code> в папке данных.
+Вернуться — <strong>«Файл → Вернуться к рабочей базе»</strong>. Собрать файл отдельно:
+<code>python -m texflow.sample_db путь.db</code>. Код — <code>texflow/sample_db.py</code>, тесты — <code>tests/test_sample_db.py</code>.</p>
 <h3 id="python-pyinstaller">Готовая программа без Python (PyInstaller)</h3>
 <p><code>python install/build_exe.py</code> собирает <code>dist/TexFlow-&lt;версия&gt;-&lt;ос&gt;-&lt;arch&gt;.zip</code>. Внутри
 <code>TexFlow.exe</code> (Windows), <code>TexFlow.app</code> (macOS) или <code>TexFlow</code> (Linux) со всеми библиотеками;
 Python на компьютере пользователя не нужен.</p>
 <p>Собирать нужно на той системе, для которой программа. Поэтому все три сборки делает GitHub
 Actions — <strong>на каждый push</strong> с изменениями TexFlow (раздел 6).</p>
-<h3 id="_3">Удаление</h3>
+<h3 id="_4">Удаление</h3>
 <p>Через ярлык «Uninstall TexFlow» (Windows) или <code>uninstall-texflow</code> в папке программы, либо:
 <code>python install/install.py --uninstall</code>. База при этом остаётся. Чтобы удалить и её, добавьте
 <code>--purge</code>.</p>
@@ -324,15 +381,19 @@ Actions — <strong>на каждый push</strong> с изменениями Te
 </tr>
 <tr>
 <td>Запуск из скриптов</td>
-<td>на Windows, macOS и Linux: проверка подписи (<code>--verify</code>), самоустановка библиотек (<code>--check</code>), окно со всеми вкладками на 3 языках (<code>--smoke</code>), установщик и запуск установленной программы</td>
+<td>на Windows, macOS Intel, macOS Apple Silicon (arm64) и Linux: проверка подписи (<code>--verify</code>), самоустановка библиотек (<code>--check</code>), окно со всеми вкладками на 3 языках (<code>--smoke</code>), установщик и запуск установленной программы</td>
 </tr>
 <tr>
 <td>Сборка исполняемых файлов</td>
-<td><code>TexFlow.exe</code> (Windows), <code>TexFlow.app</code> (macOS, ad-hoc подпись <code>codesign</code>), бинарник Linux. Каждый <strong>запускается</strong> без Python (<code>--smoke</code>)</td>
+<td><code>TexFlow.exe</code> (Windows), <strong>две отдельные</strong> <code>TexFlow.app</code> — <code>macos-x86_64</code> (Intel) и <code>macos-arm64</code> (Apple Silicon M1–M4), ad-hoc подпись <code>codesign</code>; бинарник Linux. Каждый <strong>запускается</strong> без Python (<code>--smoke</code>)</td>
 </tr>
 <tr>
 <td>Подпись выпуска</td>
 <td><code>SHA256SUMS</code> всех архивов + <code>SHA256SUMS.sig</code> (Ed25519, ключ <strong>unisim-soft</strong>) + аттестация происхождения GitHub (Sigstore)</td>
+</tr>
+<tr>
+<td>Исходники обычными файлами</td>
+<td>push в <code>main</code> → ветка <strong><code>texflow-dist</code></strong>: подписанная скриптовая версия не архивом, а распакованной — те же файлы плюс <code>MANIFEST.sha256</code> и подпись. Клон ветки сразу проверяется: <code>python texflow_app.py --verify</code></td>
 </tr>
 <tr>
 <td>Выпуск</td>

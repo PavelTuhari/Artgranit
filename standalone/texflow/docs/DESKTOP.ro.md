@@ -53,11 +53,25 @@ Datele sunt separate de program, de aceea reinstalarea și actualizarea nu le at
 ```bash
 python texflow_app.py          # fereastra programului
 python texflow_app.py --demo   # cu livrarea demo
+python texflow_app.py --sample # baza de test integrată (totul completat)
 python texflow_app.py --web    # versiunea web în browser
 python texflow_app.py --check  # verificarea mediului
 ```
 
 La prima pornire bibliotecile lipsă se instalează singure în dosarul de date (`pylibXY`).
+
+### Baza de test integrată
+
+Ca să vedeți toate ecranele cu date, nu goale: `python texflow_app.py --sample` (versiunea web —
+`--web --sample`) sau meniul **„Fișier → Deschide baza de test (totul completat)”**. Conține
+5 livrări în toate stările, 4 furnizori din Turcia și China, 14 saci, 17 modele în toate cele 12
+categorii cu traduceri RO/EN, 94 de variante și 735 de bucăți; verificare cu toate stările
+(potrivire, lipsă, surplus, „nu e în listă”), toate trei metodele de repartizare a cheltuielilor,
+preț manual și preț blocat, corecție de numărare, culoare proprie și mărimea 4XL, 5 șabloane de
+etichete și jurnalul de tipărire.
+
+Baza de lucru nu e atinsă: baza de test e un fișier separat `texflow_sample.db` în dosarul de date.
+Înapoi — **„Fișier → Înapoi la baza de lucru”**. Fișierul separat: `python -m texflow.sample_db cale.db`.
 
 ### Program gata făcut, fără Python (PyInstaller)
 
@@ -179,13 +193,17 @@ schimbat fișiere din `standalone/texflow/`, și la tagurile `texflow-v*`. Etape
 1. **teste** (pytest, inclusiv fereastra în Xvfb);
 2. **versiunea din scripturi** `TexFlow-<versiune>-scripts.zip` cu `MANIFEST.sha256` și semnătura
    unisim-soft `MANIFEST.sha256.sig`;
-3. **pornire din scripturi** pe Windows, macOS și Linux: `--verify`, `--check`, `--smoke`,
+3. **pornire din scripturi** pe Windows, macOS Intel, macOS Apple Silicon (arm64) și Linux: `--verify`, `--check`, `--smoke`,
    instalatorul;
-4. **executabile**: `TexFlow.exe`, `TexFlow.app` (semnătură ad-hoc), binar Linux — fiecare
+4. **executabile**: `TexFlow.exe`, **două construcții separate** `TexFlow.app` — `macos-x86_64`
+   (Intel) și `macos-arm64` (Apple Silicon M1–M4), semnătură ad-hoc — și binar Linux — fiecare
    **pornit** fără Python;
 5. **`SHA256SUMS` + `SHA256SUMS.sig`** (Ed25519, cheia **unisim-soft**) și atestarea GitHub
    (Sigstore) — aceasta doar pentru depozite publice sau GitHub Enterprise;
-6. **publicare**: push în `main` → pre-lansarea **texflow-nightly**; tagul `texflow-v1.2.0` →
+6. **sursele ca fișiere obișnuite**: push în `main` → ramura **`texflow-dist`** conține versiunea din
+   scripturi semnată, dezarhivată (aceleași fișiere plus `MANIFEST.sha256` și semnătura); o clonă
+   se verifică cu `python texflow_app.py --verify`;
+7. **publicare**: push în `main` → pre-lansarea **texflow-nightly**; tagul `texflow-v1.2.0` →
    lansarea versiunii.
 
 **Cheia unisim-soft.**

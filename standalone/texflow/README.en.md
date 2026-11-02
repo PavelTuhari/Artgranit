@@ -43,7 +43,8 @@ Besides the web version there is a **regular windowed program** on the same core
 - **Ready-made program without Python:** `python install/build_exe.py`.
 - **Built-in label editor:** your own templates with the mouse, EAN-13 / CODE128, any size.
 - **Excel and CSV:** export and import back (full report, catalogue, prices, intake).
-- **Build and signature:** on every push GitHub Actions tests, runs from scripts and builds .exe / .app / Linux, signs SHA256SUMS with the **unisim-soft** key; the program verifies its own signature: `python texflow_app.py --verify`.
+- **Sample database:** `python texflow_app.py --sample` (or `--web --sample`, or File → Open the sample database): 5 shipments in every status, 17 models in all categories, 735 pieces — your working database is not touched.
+- **Build and signature:** on every push GitHub Actions tests, runs from scripts and builds .exe / .app (separate Intel and Apple Silicon arm64) / Linux, signs SHA256SUMS with the **unisim-soft** key; the program verifies its own signature: `python texflow_app.py --verify`. Branch `texflow-dist` holds the signed edition as plain files, not an archive.
 
 ## 1. Install and run
 
@@ -78,7 +79,7 @@ cd standalone/texflow
 python -m pytest -q
 ```
 
-86 tests, no Oracle wallet and no printer needed. They cover:
+104 tests, no Oracle wallet and no printer needed. They cover:
 
 - rules: EAN-13, SKU, rounding, markup with VAT, cost allocation, reconciliation;
 - labels: ZPL, TSPL, PDF;
