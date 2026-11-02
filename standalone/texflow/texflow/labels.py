@@ -27,6 +27,7 @@ class LabelData:
     composition: str = ""
     origin: str = ""
     copies: int = 1
+    ref: int = 0                   # id варианта в базе (для UI)
 
     def price_text(self) -> str:
         if self.price is None:
@@ -76,7 +77,7 @@ def to_zpl(labels: list[LabelData], layout: LabelLayout | None = None,
     m = int(2 * k)                                  # поле 2 мм
     small, mid, big = int(H * .075), int(H * .10), int(H * .17)
     mod = 2 if lay.dpi < 300 else 3                 # ширина модуля штрихкода
-    bar_h = int(H * .26)
+    bar_h = int(H * .20)
     out = []
     for lb in labels:
         if not is_valid_ean13(lb.ean13):

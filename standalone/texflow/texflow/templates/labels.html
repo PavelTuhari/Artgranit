@@ -1,0 +1,25 @@
+{% extends "base.html" %}{% block title %}Этикетки{% endblock %}
+{% block body %}
+<h1>Этикетки</h1>
+<form class="card row noprint" method="get"><label>Поставка<select name="shipment"><option value="">—</option>{% for s in shipments %}<option value="{{ s.id }}" {{ 'selected' if args.get('shipment')|string==s.id|string }}>{{ s.code }}</option>{% endfor %}</select></label>
+<label>Мешок (id)<input name="bag" value="{{ args.get('bag','') }}"></label><label>Модель (id)<input name="product" value="{{ args.get('product','') }}"></label>
+<label>Копий на вариант (пусто = по остатку)<input name="copies" value="{{ args.get('copies','') }}"></label><button>Выбрать</button></form>
+
+<form class="card" method="post">
+{% for k in ['shipment','bag','product','variant'] %}{% if args.get(k) %}<input type="hidden" name="{{ k }}" value="{{ args.get(k) }}">{% endif %}{% endfor %}
+<h2>Выбрано: {{ items|length }} вариантов, {{ items|sum(attribute='copies') }} этикеток</h2>
+<table><tr><th>SKU</th><th>Модель</th><th>Цвет</th><th>Размер</th><th class="n">Цена</th><th>EAN-13</th><th>Копий</th></tr>
+{% for it in items %}{% set vid = it.ref %}<tr><td>{{ it.sku }}</td><td>{{ it.name }}</td><td>{{ it.color }}</td><td>{{ it.size }}</td><td class="n">{{ it.price_text() or '—' }}</td><td>{{ it.ean13 }}</td>
+<td><input type="number" min="0" name="v_{{ vid }}" value="{{ it.copies }}" style="width:70px"></td></tr>
+{% else %}<tr><td colspan="7" class="mut">Выберите поставку, мешок, модель или вариант.</td></tr>{% endfor %}</table>
+<div class="row" style="margin-top:12px">
+<label>Формат<select name="fmt">{% for v,t in [('pdf_a4','PDF A4 — лист '+st.sheet_cols+'×'+st.sheet_rows+' (обычный принтер)'),('pdf_roll','PDF рулон '+st.label_width_mm+'×'+st.label_height_mm+' мм (виртуальный/любой драйвер)'),('zpl','ZPL — Zebra'),('tspl','TSPL — TSC')] %}<option value="{{ v }}" {{ 'selected' if fmt==v }}>{{ t }}</option>{% endfor %}</select></label>
+<label>Начать с ячейки листа A4 (0 = первая)<input type="number" name="start_cell" value="0" min="0"></label>
+<label>Принтер (для «Печать»)<input name="target" placeholder="{{ st.printer_zpl or 'tcp://192.168.1.50:9100' }}"></label></div>
+<p><button name="action" value="view">Открыть / скачать</button> <button name="action" value="download" class="sec">Скачать файлом</button> <button name="action" value="print" class="sec">Печать на принтер</button></p>
+<p class="mut">Принтер: <code>tcp://IP:9100</code> — сетевой Zebra/TSC; <code>cups://ОЧЕРЕДЬ</code> — USB через CUPS (raw); <code>dir:///папка</code> — сохранить файл задания. Пусто — из настроек.</p>
+</form>
+{% if preview %}<div class="card"><h2>ZPL первой этикетки (проверить в labelary.com/viewer.html)</h2><pre>{{ preview }}</pre></div>{% endif %}
+{% if jobs %}<div class="card"><h2>Журнал печати</h2><table><tr><th>Время</th><th>Формат</th><th>Куда</th><th class="n">Этикеток</th><th>Статус</th><th>Сообщение</th></tr>
+{% for j in jobs %}<tr><td>{{ j.created_at }}</td><td>{{ j.format }}</td><td>{{ j.target }}</td><td class="n">{{ j.labels }}</td><td class="st-{{ 'ok' if j.status=='ok' else 'short' }}">{{ j.status }}</td><td class="mut">{{ j.message }}</td></tr>{% endfor %}</table></div>{% endif %}
+{% endblock %}

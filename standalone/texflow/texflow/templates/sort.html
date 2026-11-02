@@ -1,0 +1,58 @@
+{% extends "base.html" %}{% block title %}Разбор {{ sh.code }}{% endblock %}
+{% block body %}
+<h1>Разбор: {{ sh.code }}</h1>
+<div class="card"><div class="chips">
+<a class="chip {{ 'on' if not bag_id }}" href="{{ url_for('tf.sort', sid=sh.id, product=request.args.get('product','')) }}">без мешка</a>
+{% for b in bags %}<a class="chip {{ 'on' if bag_id==b.id }}" href="{{ url_for('tf.sort', sid=sh.id, bag=b.id, product=request.args.get('product','')) }}">№ {{ b.bag_no }} · {{ b.counted }}/{{ b.declared }}{% if b.status=='done' %} ✓{% endif %}</a>{% endfor %}
+</div>
+{% if bag_id %}<form method="post" action="{{ url_for('tf.bag_status', bag_id=bag_id) }}" style="margin-top:8px"><input type="hidden" name="status" value="done"><input type="hidden" name="next" value="{{ request.full_path }}"><button class="sm sec">Мешок разобран</button></form>{% endif %}
+</div>
+
+<div class="grid g2">
+<div class="card"><h2>1. Сканер (повторный товар)</h2>
+<p class="mut">Сканируйте EAN или SKU уже заведённого варианта — +1 шт. в мешок.</p>
+<input id="scan" class="scan" autofocus placeholder="EAN-13 / SKU и Enter">
+<div id="scanlog" class="mut" style="margin-top:6px"></div></div>
+
+<div class="card"><h2>2. Новая модель</h2>
+<form method="post" action="{{ url_for('tf.sort_quick_product', sid=sh.id) }}">
+<input type="hidden" name="bag_id" value="{{ bag_id or '' }}">
+<div class="row"><label>Название<input name="name" required placeholder="Футболка оверсайз"></label>
+<label>Категория<select name="category_id" required>{% for c in categories %}<option value="{{ c.id }}">{{ c.name }} ({{ c.code }})</option>{% endfor %}</select></label></div>
+<div class="row"><label>Артикул (пусто — авто)<input name="style_code"></label><label>Закупка за шт., {{ sh.currency }}<input name="base_cost_fx" placeholder="из листа"></label><label>Состав<input name="composition" placeholder="100% хлопок"></label></div>
+<button>Создать и открыть матрицу</button></form>
+{% if recent %}<p class="mut" style="margin-top:10px">Недавние модели:</p><div class="chips">{% for p in recent %}<a class="chip" href="{{ url_for('tf.sort', sid=sh.id, bag=bag_id or '', product=p.id) }}">{{ p.style_code }} · {{ p.name }}</a>{% endfor %}</div>
+<p><input id="psearch" placeholder="поиск модели…" style="width:100%"></p><div id="presults" class="chips"></div>{% endif %}
+</div></div>
+
+{% if matrix %}{% set p = matrix.product %}
+<form class="card" method="post" action="{{ url_for('tf.sort_intake', sid=sh.id) }}" id="mform">
+<h2>3. Матрица: {{ p.style_code }} · {{ p.name }} <span class="mut">({{ p.category }})</span></h2>
+<input type="hidden" name="product_id" value="{{ p.id }}"><input type="hidden" name="bag_id" value="{{ bag_id or '' }}">
+<div class="fam"><b>Цвета</b> <span class="mut">нажмите, чтобы добавить строку</span></div>
+{% for f in families %}<div class="fam"><b><span class="sw" style="background:{{ f.hex }}"></span>{{ f.name }}</b>
+{% for c in f.colors %}<span class="chip colorpick" data-id="{{ c.id }}" data-name="{{ c.code }} {{ c.name }}" data-hex="{{ c.hex }}"><span class="sw" style="background:{{ c.hex }}"></span>{{ c.code }} {{ c.name }}</span>{% endfor %}</div>{% endfor %}
+<table class="matrix" style="margin-top:10px"><thead><tr><th>Цвет \ размер</th>{% for s in matrix.sizes %}<th>{{ s.code }}</th>{% endfor %}<th>Σ</th></tr></thead>
+<tbody id="mbody">{% for c in matrix.colors %}<tr data-color="{{ c.id }}"><td class="cn"><span class="sw" style="background:{{ c.hex }}"></span>{{ c.code }} {{ c.name }}</td>
+{% for s in matrix.sizes %}<td><input inputmode="numeric" name="q_{{ c.id }}_{{ s.id }}" title="{{ c.name }} / {{ s.code }}"></td>{% endfor %}<td class="sum">0</td></tr>{% endfor %}</tbody>
+<tfoot><tr><th>Σ</th>{% for s in matrix.sizes %}<th class="csum" data-s="{{ s.id }}">0</th>{% endfor %}<th id="tsum">0</th></tr></tfoot></table>
+<div class="row" style="margin-top:10px"><label>Закупка за шт., {{ sh.currency }}<input name="unit_cost_fx" value="{{ cost_hint or '' }}"></label>
+<div><button>Записать (Ctrl+Enter)</button> <button class="sec" name="print" value="1">Записать и печатать этикетки</button></div></div>
+<p class="mut">Enter — следующая ячейка, стрелки — навигация, «-2» — исправить пересчёт.</p>
+</form>
+<template id="rowtpl"><tr data-color="__C__"><td class="cn"><span class="sw" style="background:__H__"></span>__N__</td>{% for s in matrix.sizes %}<td><input inputmode="numeric" name="q___C___{{ s.id }}"></td>{% endfor %}<td class="sum">0</td></tr></template>
+{% endif %}
+
+<div class="card"><h2>Журнал приёмки{% if bag_id %} мешка{% endif %}</h2>
+<table><tr><th>Время</th><th>Мешок</th><th>SKU</th><th>Модель</th><th>Цвет</th><th>Размер</th><th class="n">Шт</th><th class="n">Цена {{ sh.currency }}</th><th></th></tr>
+{% for r in log %}<tr><td class="mut">{{ r.created_at[11:] }}</td><td>{{ r.bag_no or '—' }}</td><td>{{ r.sku }}</td><td><a href="{{ url_for('tf.sort', sid=sh.id, bag=bag_id or '', product=r.product_id) }}">{{ r.name }}</a></td><td>{{ r.color }}</td><td>{{ r.size }}</td><td class="n">{{ r.qty }}</td><td class="n">{{ r.unit_cost_fx }}</td>
+<td><form method="post" action="{{ url_for('tf.intake_delete', item_id=r.id) }}"><input type="hidden" name="next" value="{{ request.full_path }}"><button class="sm sec" title="удалить строку">×</button></form></td></tr>
+{% else %}<tr><td colspan="9" class="mut">пока пусто</td></tr>{% endfor %}</table></div>
+{% endblock %}
+{% block scripts %}
+<script>
+const SCAN_URL = "{{ url_for('tf.sort_scan', sid=sh.id) }}", BAG = "{{ bag_id or '' }}";
+const API = "{{ url_for('tf.api_products') }}", SORT = "{{ url_for('tf.sort', sid=sh.id) }}";
+</script>
+<script src="{{ url_for('static', filename='sort.js') }}"></script>
+{% endblock %}

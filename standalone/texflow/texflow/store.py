@@ -541,7 +541,8 @@ def label_rows(con, variant_qty: dict) -> list[LabelData]:
             out.append(LabelData(ean13=r["ean13"], sku=r["sku"], name=r["name"], color=r["color"],
                                  size=r["size"], price=r["retail_price"], currency=st.get("currency", ""),
                                  brand=st.get("brand", ""), style=r["style_code"],
-                                 composition=r["composition"], origin=r["country"] or "", copies=int(qty)))
+                                 composition=r["composition"], origin=r["country"] or "", copies=int(qty),
+                                 ref=int(vid)))
     return out
 
 

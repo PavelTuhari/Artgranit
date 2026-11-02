@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block title %}Поставки{% endblock %}
+{% block body %}
+<h1>Поставки</h1>
+<form class="card" method="post"><h2>Новая поставка</h2>
+<div class="row"><label>Номер<input name="code" required placeholder="TR-2026-11-01"></label>
+<label>Поставщик<input name="supplier" placeholder="Istanbul Tekstil"></label>
+<label>Страна<select name="country"><option value="TR">Турция</option><option value="CN">Китай</option><option value="OTHER">Другая</option></select></label>
+<label>Валюта<select name="currency"><option>USD</option><option>EUR</option><option>TRY</option><option>CNY</option><option>MDL</option></select></label>
+<label>Курс к местной<input name="fx_rate" value="17.8"></label><label>Дата<input type="date" name="arrival_date"></label></div>
+<div class="row"><label>Фрахт (местн.)<input name="freight" value="0"></label><label>Таможня (сборы)<input name="customs" value="0"></label>
+<label>Брокер<input name="broker" value="0"></label><label>Прочее<input name="other_costs" value="0"></label>
+<label>Распределять затраты<select name="alloc_method"><option value="value">по стоимости</option><option value="qty">по штукам</option><option value="weight">по весу мешков</option></select></label>
+<label>Мешков (создать 1..N)<input name="bags_count" type="number" min="0" value="0"></label></div>
+<button>Создать</button></form>
+<div class="card">{% include "_shipments_table.html" %}</div>
+{% endblock %}

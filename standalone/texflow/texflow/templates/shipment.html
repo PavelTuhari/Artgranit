@@ -1,0 +1,45 @@
+{% extends "base.html" %}{% block title %}{{ sh.code }}{% endblock %}
+{% block body %}
+<h1>Поставка {{ sh.code }} <span class="tag">{{ sh.status }}</span></h1>
+<p><a class="btn" href="{{ url_for('tf.sort', sid=sh.id) }}">Разбор мешков</a>
+<a class="btn sec" href="{{ url_for('tf.pricing', sid=sh.id) }}">Цены</a>
+<a class="btn sec" href="{{ url_for('tf.labels', shipment=sh.id) }}">Этикетки на всю поставку</a></p>
+<div class="grid g2">
+<form class="card" method="post"><h2>Импортные затраты</h2>
+<p class="mut">Поставщик: {{ sh.supplier or '—' }} · страна {{ sh.country }}</p>
+<div class="row"><label>Валюта<input name="currency" value="{{ sh.currency }}"></label><label>Курс к местной<input name="fx_rate" value="{{ sh.fx_rate }}"></label>
+<label>Дата<input type="date" name="arrival_date" value="{{ sh.arrival_date }}"></label></div>
+<div class="row"><label>Фрахт<input name="freight" value="{{ sh.freight }}"></label><label>Таможня<input name="customs" value="{{ sh.customs }}"></label>
+<label>Брокер<input name="broker" value="{{ sh.broker }}"></label><label>Прочее<input name="other_costs" value="{{ sh.other_costs }}"></label></div>
+<label>Распределение<select name="alloc_method">{% for v,t in [('value','по стоимости товара'),('qty','поровну на штуку'),('weight','по весу мешков')] %}<option value="{{ v }}" {{ 'selected' if sh.alloc_method==v }}>{{ t }}</option>{% endfor %}</select></label>
+<label>Заметка<input name="note" value="{{ sh.note }}"></label>
+<button>Сохранить и пересчитать</button>
+<table style="margin-top:12px"><tr><td>Принято штук</td><td class="n">{{ totals.pcs }}</td></tr>
+<tr><td>Товар в валюте {{ sh.currency }}</td><td class="n">{{ '%.2f'|format(totals.goods_fx) }}</td></tr>
+<tr><td>Товар в местной</td><td class="n">{{ '%.2f'|format(totals.goods_local) }}</td></tr>
+<tr><td>Общие затраты</td><td class="n">{{ '%.2f'|format(totals.lump) }}</td></tr>
+<tr><td><b>Себестоимость всего / средняя за шт.</b></td><td class="n"><b>{{ '%.2f'|format(totals.landed) }} / {{ '%.2f'|format(totals.avg_landed) }}</b></td></tr></table>
+</form>
+<div class="card"><h2>Упаковочный лист (примерный)</h2>
+<form method="post" enctype="multipart/form-data" action="{{ url_for('tf.packing_import', sid=sh.id) }}">
+<p class="mut">CSV: <code>мешок;категория;описание;кол-во;цена;вес</code>. Заголовки — рус/англ/тур/кит. Категория — код (TSH, JNS…) или название.</p>
+<input type="file" name="file" accept=".csv,.txt,.tsv">
+<textarea name="text" rows="5" placeholder="bag_no;category;description;qty;unit_price;weight_kg&#10;1;TSH;футболки женские;120;2.10;18"></textarea>
+<label style="display:inline"><input type="checkbox" name="append" value="1" style="display:inline;width:auto"> добавить к существующим строкам</label>
+<p><button>Загрузить</button></p></form>
+{% if packing %}<table><tr><th>Мешок</th><th>Категория</th><th>Описание</th><th class="n">Шт</th><th class="n">Цена</th><th class="n">Вес</th></tr>
+{% for p in packing %}<tr><td>{{ p.bag_no }}</td><td>{{ p.category or '?' }}</td><td>{{ p.description }}</td><td class="n">{{ p.qty }}</td><td class="n">{{ p.unit_price_fx }}</td><td class="n">{{ p.weight_kg }}</td></tr>{% endfor %}</table>{% endif %}
+</div></div>
+
+<div class="card"><h2>Мешки</h2>
+<form class="row" method="post" action="{{ url_for('tf.bag_add', sid=sh.id) }}"><label>№ мешка<input name="bag_no" required></label><label>Вес, кг<input name="weight_kg"></label><label>Описание<input name="desc"></label><button>Добавить мешок</button></form>
+<table><tr><th>Мешок</th><th class="n">Вес</th><th class="n">По листу</th><th class="n">Принято</th><th>Статус</th><th></th></tr>
+{% for b in bags %}<tr><td><b>№ {{ b.bag_no }}</b> <span class="mut">{{ b.declared_desc }}</span></td><td class="n">{{ b.weight_kg }}</td><td class="n">{{ b.declared }}</td><td class="n">{{ b.counted }}</td><td><span class="tag">{{ b.status }}</span></td>
+<td><a class="btn sm" href="{{ url_for('tf.sort', sid=sh.id, bag=b.id) }}">Разобрать</a>
+<a class="btn sm sec" href="{{ url_for('tf.labels', shipment=sh.id, bag=b.id) }}">Этикетки</a></td></tr>{% endfor %}</table></div>
+
+<div class="grid g2">
+<div class="card"><h2>Сверка по категориям</h2>{% with rows=rec.by_category %}{% include "_rec.html" %}{% endwith %}
+<p class="mut">Итого: по листу {{ rec.declared_total }}, принято {{ rec.counted_total }}</p></div>
+<div class="card"><h2>Сверка по мешкам</h2>{% with rows=rec.by_bag %}{% include "_rec.html" %}{% endwith %}</div></div>
+{% endblock %}

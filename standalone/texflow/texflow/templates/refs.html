@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block title %}Справочники{% endblock %}
+{% block body %}
+<h1>Справочники</h1>
+<div class="card" id="category"><h2>Категории — наценка и пошлина</h2>
+<table><tr><th>Код</th><th>Категория</th><th>Размерная шкала</th><th>ТН ВЭД</th><th>Наценка %</th><th>Пошлина %</th><th></th></tr>
+{% for c in categories %}<tr>
+<td>{{ c.code }}</td><td>{{ c.name }}</td><td><select form="cat{{ c.id }}" name="scale_id">{% for s in scales %}<option value="{{ s.id }}" {{ 'selected' if s.id==c.size_scale_id }}>{{ s.name }}</option>{% endfor %}</select></td><td>{{ c.hs_code }}</td>
+<td><input form="cat{{ c.id }}" name="markup_pct" value="{{ c.markup_pct }}"></td><td><input form="cat{{ c.id }}" name="duty_pct" value="{{ c.duty_pct }}"></td>
+<td><form method="post" id="cat{{ c.id }}"><input type="hidden" name="kind" value="category_update"><input type="hidden" name="id" value="{{ c.id }}"><button class="sm">ok</button></form></td></tr>{% endfor %}</table>
+<form method="post" class="row" style="margin-top:10px"><input type="hidden" name="kind" value="category"><label>Код<input name="code" required></label><label>Название<input name="name" required></label>
+<label>Шкала<select name="scale_id">{% for s in scales %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></label><label>Наценка %<input name="markup_pct" value="100"></label><label>Пошлина %<input name="duty_pct" value="12"></label><label>ТН ВЭД<input name="hs_code"></label><button>Добавить</button></form></div>
+<div class="grid g2">
+<div class="card" id="color"><h2>Группы цветов</h2>
+{% for f in families %}<div class="fam"><b><span class="sw" style="background:{{ f.hex }}"></span>{{ f.name }}</b> {% for c in f.colors %}<span class="tag"><span class="sw" style="background:{{ c.hex }}"></span>{{ c.code }} {{ c.name }}</span> {% endfor %}</div>{% endfor %}
+<form method="post" class="row"><input type="hidden" name="kind" value="color"><label>Группа<select name="family_id">{% for f in families %}<option value="{{ f.id }}">{{ f.name }}</option>{% endfor %}</select></label>
+<label>Код<input name="code" required placeholder="411"></label><label>Название<input name="name" required></label><label>Цвет<input type="color" name="hex" value="#888888"></label><button>Добавить</button></form></div>
+<div class="card" id="size"><h2>Размерные шкалы</h2>
+{% for s in scales %}<div class="fam"><b>{{ s.name }}</b> {% for z in s.sizes %}<span class="tag">{{ z.code }}</span> {% endfor %}</div>{% endfor %}
+<form method="post" class="row"><input type="hidden" name="kind" value="size"><label>Шкала<select name="scale_id">{% for s in scales %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></label>
+<label>Размер<input name="code" required></label><button>Добавить</button></form></div></div>
+{% endblock %}

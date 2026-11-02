@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block title %}Главная{% endblock %}
+{% block body %}
+<h1>Приёмка одежды из мешков</h1>
+<div class="grid g3">
+<div class="card"><div class="mut">Модели в каталоге</div><div class="kpi">{{ d.products }}</div></div>
+<div class="card"><div class="mut">Вариантов (цвет×размер)</div><div class="kpi">{{ d.variants }}</div></div>
+<div class="card"><div class="mut">Принято штук</div><div class="kpi">{{ d.pcs }}</div></div>
+<div class="card"><div class="mut">Открытых поставок</div><div class="kpi">{{ d.open_shipments }}</div></div>
+<div class="card"><div class="mut">Мешков не разобрано</div><div class="kpi">{{ d.bags_open }}</div></div>
+<div class="card"><div class="mut">Моделей без цены</div><div class="kpi">{{ d.unpriced }}</div></div>
+</div>
+<div class="card"><h2>Порядок работы</h2>
+<ol><li><a href="{{ url_for('tf.shipments') }}">Создать поставку</a>, указать курс и затраты (фрахт, таможня, брокер).</li>
+<li>Загрузить примерный упаковочный лист (CSV) — мешки создадутся сами.</li>
+<li>Открыть мешок → «Разбор»: модель, цвета, размеры, количество матрицей или сканером.</li>
+<li>Сверить факт с листом, затем «Цены»: себестоимость → наценка → красивая цена.</li>
+<li><a href="{{ url_for('tf.labels') }}">Этикетки</a>: Zebra (ZPL), TSC (TSPL) или PDF A4 / рулон.</li></ol>
+<a class="btn" href="{{ url_for('tf.shipments') }}">Новая поставка</a> <a class="btn sec" href="{{ url_for('tf.help_page') }}">Инструкция</a></div>
+{% if shipments %}<div class="card"><h2>Последние поставки</h2>{% include "_shipments_table.html" %}</div>{% endif %}
+{% endblock %}
