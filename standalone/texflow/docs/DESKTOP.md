@@ -214,5 +214,6 @@ TEXFLOW_STRICT_INTEGRITY=1 python texflow_app.py   # отказаться зап
 - Изменённый `SHA256SUMS` — `подпись: INVALID`.
 - Подпись проверяется кодом на чистом Python (Ed25519, RFC 8032), поэтому проверка работает
   везде, где работает сама программа.
-- Аттестацию GitHub можно проверить отдельно:
-  `gh attestation verify TexFlow-…zip --repo PavelTuhari/Artgranit`.
+- Аттестация происхождения GitHub (Sigstore) — дополнительно к подписи. GitHub даёт её только
+  публичным репозиториям и на тарифе Enterprise; в приватном репозитории шаг пропускается с
+  предупреждением. Проверка: `gh attestation verify TexFlow-…zip --repo PavelTuhari/Artgranit`.

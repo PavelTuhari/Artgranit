@@ -200,8 +200,11 @@ jobs:
           if [ -f ../../out/SHA256SUMS.sig ]; then python tools/release.py verify ../../out; else echo "::warning::SHA256SUMS не подписан — добавьте секрет UNISIM_SOFT_SIGNING_KEY"; fi
           echo "## TexFlow — выпуск $(python -c 'import texflow;print(texflow.__version__)') · ${GITHUB_SHA::12}" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY; cat ../../out/SHA256SUMS >> $GITHUB_STEP_SUMMARY; echo '```' >> $GITHUB_STEP_SUMMARY
-      - name: Аттестация происхождения (GitHub, Sigstore)
+      - name: Аттестация происхождения (GitHub, Sigstore) — дополнительно к подписи unisim-soft
+        # доступна для публичных репозиториев и на тарифе GitHub Enterprise; в остальных случаях
+        # GitHub не выдаёт токен — шаг пропускается с предупреждением, подпись unisim-soft остаётся
         if: github.event_name != 'pull_request'
+        continue-on-error: true
         uses: actions/attest-build-provenance@v2
         with: { subject-path: "out/*.zip" }
       - uses: actions/upload-artifact@v4

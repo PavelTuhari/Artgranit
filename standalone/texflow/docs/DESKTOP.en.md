@@ -183,7 +183,7 @@ Headers are understood in Russian, Romanian, English and by technical name. So y
 4. **executables**: `TexFlow.exe`, `TexFlow.app` (ad-hoc signed), Linux binary — each one
    **launched** without Python;
 5. **`SHA256SUMS` + `SHA256SUMS.sig`** (Ed25519, **unisim-soft** key) plus a GitHub provenance
-   attestation (Sigstore);
+   attestation (Sigstore) — the latter only for public repositories or GitHub Enterprise;
 6. **publishing**: push to `main` → **texflow-nightly** pre-release; tag `texflow-v1.2.0` →
    versioned release.
 

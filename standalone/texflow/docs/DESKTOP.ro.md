@@ -184,7 +184,7 @@ schimbat fișiere din `standalone/texflow/`, și la tagurile `texflow-v*`. Etape
 4. **executabile**: `TexFlow.exe`, `TexFlow.app` (semnătură ad-hoc), binar Linux — fiecare
    **pornit** fără Python;
 5. **`SHA256SUMS` + `SHA256SUMS.sig`** (Ed25519, cheia **unisim-soft**) și atestarea GitHub
-   (Sigstore);
+   (Sigstore) — aceasta doar pentru depozite publice sau GitHub Enterprise;
 6. **publicare**: push în `main` → pre-lansarea **texflow-nightly**; tagul `texflow-v1.2.0` →
    lansarea versiunii.
 
