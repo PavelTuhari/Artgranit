@@ -59,6 +59,9 @@ def main() -> int:
                     z.writestr(info, fh.read(), zipfile.ZIP_DEFLATED)   # сохраняет права (исполняемый файл)
     print("✓", zpath, f"{os.path.getsize(zpath) / 1e6:.1f} MB")
     shutil.rmtree(os.path.join(ROOT, "build", "pyinstaller"), ignore_errors=True)
+    for leftover in (os.path.join(ROOT, "TexFlow.spec"),):
+        if os.path.exists(leftover):
+            os.remove(leftover)
     return 0
 
 
