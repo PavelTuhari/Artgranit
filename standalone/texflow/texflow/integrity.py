@@ -224,7 +224,8 @@ def verify_text(text: str, sig_b64: str, pub: bytes | None = None) -> bool:
 def check_tree(root: str, pub: bytes | None = None) -> dict:
     """Проверить установленные скрипты по подписанному манифесту.
 
-    status: dev (манифеста нет — рабочая копия из git) | ok | bad-signature | modified | no-key
+    status: dev (манифеста нет — рабочая копия из git) | ok | unsigned (суммы сходятся, подписи нет) |
+            bad-signature | modified | no-key
     """
     mpath, spath = os.path.join(root, MANIFEST), os.path.join(root, SIGNATURE)
     if not os.path.exists(mpath):
@@ -234,12 +235,13 @@ def check_tree(root: str, pub: bytes | None = None) -> dict:
     if not pub:
         return {"status": "no-key", "signer": SIGNER, "files": 0}
     sig = open(spath, encoding="utf-8").read().strip() if os.path.exists(spath) else ""
-    if not sig or not verify_text(text, sig, pub):
+    if sig and not verify_text(text, sig, pub):
         return {"status": "bad-signature", "signer": SIGNER, "files": 0, "key": fingerprint(pub)}
     sums = parse_sums(text)
     changed = [rel for rel, dg in sums.items()
                if not os.path.exists(os.path.join(root, rel)) or sha256_file(os.path.join(root, rel)) != dg]
-    return {"status": "modified" if changed else "ok", "signer": SIGNER, "files": len(sums), "changed": changed,
+    status = "modified" if changed else ("ok" if sig else "unsigned")
+    return {"status": status, "signer": SIGNER, "files": len(sums), "changed": changed, "signed": bool(sig),
             "key": fingerprint(pub), "title": text.splitlines()[0].lstrip("# ").strip()}
 
 
@@ -261,6 +263,9 @@ def describe(res: dict) -> str:
     st = res["status"]
     if st == "ok":
         return f"целостность: ok · {res['files']} файлов · подпись {res['signer']} ({res['key']})"
+    if st == "unsigned":
+        return (f"целостность: контрольные суммы ok · {res['files']} файлов · ПОДПИСИ НЕТ "
+                f"(собрано без ключа {res['signer']})")
     if st == "dev":
         return "целостность: рабочая копия (манифеста нет — сборка не подписана)"
     if st == "modified":

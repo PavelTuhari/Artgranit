@@ -15,7 +15,8 @@
 
 Целостность: в подписанной поставке (архив «-scripts» со сборки GitHub) лежат MANIFEST.sha256 и
 MANIFEST.sha256.sig; при каждом запуске программа сверяет свои файлы и подпись unisim-soft.
-Изменённые файлы — предупреждение; TEXFLOW_STRICT_INTEGRITY=1 — отказ запускаться.
+Изменённые файлы или отсутствие подписи — предупреждение; TEXFLOW_STRICT_INTEGRITY=1 — запускается
+только подписанная unisim-soft поставка (или собранная программа), иначе отказ (код 3).
 """
 from __future__ import annotations
 
@@ -142,13 +143,16 @@ def main(argv=None) -> int:
             print(f"  {st:9} {name}")
         return 0 if res["signature"] == "ok" and all(v == "ok" for v in res["files"].values()) else 1
     res = integrity_status()
+    strict = os.environ.get("TEXFLOW_STRICT_INTEGRITY") == "1"
     if "--verify" in argv:
         print(integrity_line(res))
-        return 0 if res["status"] in ("ok", "dev", "binary") else 1
-    if res["status"] in ("modified", "bad-signature", "no-key"):
+        good = ("ok", "binary") if strict else ("ok", "dev", "binary", "unsigned")
+        return 0 if res["status"] in good else 1
+    if res["status"] in ("modified", "bad-signature", "no-key", "unsigned"):
         print("TexFlow ВНИМАНИЕ:", integrity_line(res), file=sys.stderr)
-        if os.environ.get("TEXFLOW_STRICT_INTEGRITY") == "1":
-            return 3
+    if strict and res["status"] not in ("ok", "binary"):
+        print("TexFlow: строгий режим — запуск только подписанной unisim-soft поставки", file=sys.stderr)
+        return 3
     os.environ["TEXFLOW_INTEGRITY"] = integrity_line(res)
     web = "--web" in argv
     ensure_deps({**CORE_DEPS, **(WEB_DEPS if web or "--check" in argv else {})})

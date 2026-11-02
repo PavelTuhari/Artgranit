@@ -74,6 +74,14 @@ def test_manifest_ok_modified_badsig_nokey(tmp_path):
     assert r["status"] == "modified" and r["changed"] == ["pkg/a.py"]
     os.remove(root / "b.txt")
     assert set(I.check_tree(str(root), PUB)["changed"]) == {"pkg/a.py", "b.txt"}
+    (root / "b.txt").write_text("b\n")
+    (root / "pkg" / "a.py").write_text("print('a')\n")
+    os.remove(root / I.SIGNATURE)                                      # сборка без ключа
+    r = I.check_tree(str(root), PUB)
+    assert r["status"] == "unsigned" and "ПОДПИСИ НЕТ" in I.describe(r)
+    (root / "b.txt").write_text("evil\n")
+    assert I.check_tree(str(root), PUB)["status"] == "modified"
+    (root / I.SIGNATURE).write_text(I.sign_text(SEED, text))
     (root / I.MANIFEST).write_text(text.replace("b.txt", "c.txt"))
     assert I.check_tree(str(root), PUB)["status"] == "bad-signature"
     assert I.check_tree(str(root), I.public_key(os.urandom(32)))["status"] == "bad-signature"
@@ -160,6 +168,12 @@ def test_app_self_check_and_strict_mode(tmp_path, monkeypatch, capsys):
     assert "ИЗМЕНЕНЫ" in capsys.readouterr().out
     monkeypatch.setenv("TEXFLOW_STRICT_INTEGRITY", "1")
     assert app.main(["--check"]) == 3
+    monkeypatch.delenv("TEXFLOW_STRICT_INTEGRITY")
+    (app_dir / "texflow" / "rules.py").write_bytes(open(os.path.join(ROOT, "texflow", "rules.py"), "rb").read())
+    os.remove(app_dir / I.SIGNATURE)                                   # без подписи: суммы ок, предупреждение
+    assert app.integrity_status()["status"] == "unsigned" and app.main(["--verify"]) == 0
+    monkeypatch.setenv("TEXFLOW_STRICT_INTEGRITY", "1")
+    assert app.main(["--verify"]) == 1 and app.main(["--check"]) == 3   # строгий режим требует подпись
 
 
 def test_dev_checkout_reports_dev():

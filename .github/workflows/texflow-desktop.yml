@@ -2,9 +2,13 @@
 # файлов на трёх ОС и их запуск → контрольные суммы SHA-256 с подписью unisim-soft (Ed25519) и
 # аттестация происхождения GitHub (Sigstore) → выпуск.
 #
+# Выкачивается только standalone/texflow (sparse checkout): в общем репозитории есть файлы других
+# проектов с недопустимыми для Windows именами.
+#
 # Секрет репозитория UNISIM_SOFT_SIGNING_KEY — закрытый ключ unisim-soft (base64, 32 байта).
 # Открытый ключ: standalone/texflow/install/signing/unisim-soft.pub (отпечаток c5173c9670d69b5d).
-# Без секрета всё собирается, но SHA256SUMS и манифест скриптов НЕ подписываются (предупреждение);
+# Без секрета всё собирается и проверяется по контрольным суммам, но SHA256SUMS и манифест скриптов
+# НЕ подписываются (статус «не подписано», предупреждение в журнале);
 # для тегов texflow-v* подпись обязательна.
 #
 # Выпуски:  push в main → предварительный выпуск «texflow-nightly» (обновляется каждым push);
@@ -42,6 +46,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:   # только TexFlow: в репозитории есть чужие файлы с недопустимыми для Windows именами
+          sparse-checkout: |
+            standalone/texflow
+            .github
       - uses: actions/setup-python@v5
         with: { python-version: "${{ env.PY }}" }
       - name: Системные пакеты
@@ -57,6 +65,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:   # только TexFlow: в репозитории есть чужие файлы с недопустимыми для Windows именами
+          sparse-checkout: |
+            standalone/texflow
+            .github
       - uses: actions/setup-python@v5
         with: { python-version: "${{ env.PY }}" }
       - name: Собрать TexFlow-…-scripts.zip
@@ -119,6 +131,10 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:   # только TexFlow: в репозитории есть чужие файлы с недопустимыми для Windows именами
+          sparse-checkout: |
+            standalone/texflow
+            .github
       - uses: actions/setup-python@v5
         with: { python-version: "${{ env.PY }}" }
       - name: Tk и Xvfb (Linux)
@@ -161,6 +177,10 @@ jobs:
       attestations: write
     steps:
       - uses: actions/checkout@v4
+        with:   # только TexFlow: в репозитории есть чужие файлы с недопустимыми для Windows именами
+          sparse-checkout: |
+            standalone/texflow
+            .github
       - uses: actions/setup-python@v5
         with: { python-version: "${{ env.PY }}" }
       - uses: actions/download-artifact@v4
