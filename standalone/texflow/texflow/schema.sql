@@ -154,3 +154,32 @@ CREATE INDEX IF NOT EXISTS ix_intake_shipment ON intake_items(shipment_id);
 CREATE INDEX IF NOT EXISTS ix_intake_variant ON intake_items(variant_id);
 CREATE INDEX IF NOT EXISTS ix_variants_product ON variants(product_id);
 CREATE INDEX IF NOT EXISTS ix_packing_shipment ON packing_lines(shipment_id);
+
+-- шаблоны этикеток (редактор этикеток), элементы - отдельные строки
+CREATE TABLE IF NOT EXISTS label_templates (
+    id         INTEGER PRIMARY KEY,
+    name       TEXT NOT NULL UNIQUE,
+    width_mm   REAL NOT NULL DEFAULT 58,
+    height_mm  REAL NOT NULL DEFAULT 40,
+    is_default INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS label_template_elements (
+    id          INTEGER PRIMARY KEY,
+    template_id INTEGER NOT NULL REFERENCES label_templates(id) ON DELETE CASCADE,
+    sort        INTEGER NOT NULL DEFAULT 0,
+    kind        TEXT NOT NULL CHECK (kind IN ('text','barcode','box','line')),
+    text        TEXT NOT NULL DEFAULT '',
+    symbology   TEXT NOT NULL DEFAULT 'EAN13' CHECK (symbology IN ('EAN13','CODE128')),
+    x_mm        REAL NOT NULL DEFAULT 2,
+    y_mm        REAL NOT NULL DEFAULT 2,
+    w_mm        REAL NOT NULL DEFAULT 20,
+    h_mm        REAL NOT NULL DEFAULT 5,
+    font_mm     REAL NOT NULL DEFAULT 3,
+    bold        INTEGER NOT NULL DEFAULT 0,
+    align       TEXT NOT NULL DEFAULT 'L' CHECK (align IN ('L','C','R')),
+    thickness   REAL NOT NULL DEFAULT 0.3
+);
+
+CREATE INDEX IF NOT EXISTS ix_tpl_elements ON label_template_elements(template_id, sort);

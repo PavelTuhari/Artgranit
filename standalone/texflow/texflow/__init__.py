@@ -1,19 +1,20 @@
 """TexFlow — автономная приёмка и каталогизация одежды из мешков (Турция/Китай).
 
-Python + Flask + SQLite. Запуск: ``python run.py`` → http://127.0.0.1:5077
+Ядро (db, rules, store, labels, label_templates, exchange, printing, i18n) не зависит от Flask:
+его используют и веб-версия (``python run.py``), и нативное приложение (``python texflow_app.py``).
 """
 from __future__ import annotations
 
 import os
 
-from flask import Flask, g
-
 from . import db
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 
-def create_app(db_path: str | None = None, testing: bool = False) -> Flask:
+def create_app(db_path: str | None = None, testing: bool = False):
+    from flask import Flask, g          # Flask нужен только веб-версии
+
     app = Flask(__name__)
     base = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     app.config.update(

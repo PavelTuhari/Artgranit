@@ -145,6 +145,8 @@ def init_db(con: sqlite3.Connection, seed: bool = True) -> None:
     if seed:
         seed_reference(con)
         fill_translations(con)
+        from . import label_templates
+        label_templates.seed(con)
     con.commit()
 
 

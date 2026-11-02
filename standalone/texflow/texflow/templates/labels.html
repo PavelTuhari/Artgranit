@@ -14,6 +14,7 @@
 {% else %}<tr><td colspan="7" class="mut">{{ _('Выберите поставку, мешок, модель или вариант.') }}</td></tr>{% endfor %}</table>
 <div class="row" style="margin-top:12px">
 <label>{{ _('Формат') }}<select name="fmt">{% for v,t in [('pdf_a4',_('PDF A4 — лист {c}×{r} (обычный принтер)', c=st.sheet_cols, r=st.sheet_rows)),('pdf_roll',_('PDF рулон {w}×{h} мм (виртуальный/любой драйвер)', w=st.label_width_mm, h=st.label_height_mm)),('zpl',_('ZPL — Zebra')),('tspl',_('TSPL — TSC'))] %}<option value="{{ v }}" {{ 'selected' if fmt==v }}>{{ t }}</option>{% endfor %}</select></label>
+<label>{{ _('Шаблон этикетки') }}<select name="template">{% for t in templates %}<option value="{{ t.id }}" {{ 'selected' if args.get('template')|string==t.id|string or (not args.get('template') and t.is_default) }}>{{ t.name }} ({{ t.width_mm|round(1) }}×{{ t.height_mm|round(1) }})</option>{% endfor %}</select></label>
 <label>{{ _('Начать с ячейки листа A4 (0 = первая)') }}<input type="number" name="start_cell" value="0" min="0"></label>
 <label>{{ _('Принтер (для «Печать»)') }}<input name="target" placeholder="{{ st.printer_zpl or 'tcp://192.168.1.50:9100' }}"></label></div>
 <p><button name="action" value="view">{{ _('Открыть / скачать') }}</button> <button name="action" value="download" class="sec">{{ _('Скачать файлом') }}</button> <button name="action" value="print" class="sec">{{ _('Печать на принтер') }}</button></p>
