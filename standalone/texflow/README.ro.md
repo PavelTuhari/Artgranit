@@ -42,7 +42,8 @@ Pe lângă versiunea web există un **program obișnuit cu fereastră**, pe acel
 - **Program gata fără Python:** `python install/build_exe.py`.
 - **Editor de etichete integrat:** șabloane proprii cu mouse-ul, EAN-13 / CODE128, orice dimensiune.
 - **Excel și CSV:** export și import (raport complet, catalog, prețuri, recepție).
-- **Construire și semnătură:** la fiecare push GitHub Actions testează, pornește din scripturi și construiește .exe / .app / Linux, semnează SHA256SUMS cu cheia **unisim-soft**; programul își verifică singur semnătura: `python texflow_app.py --verify`.
+- **Baza de test:** `python texflow_app.py --sample` (sau `--web --sample`, sau Fișier → Deschide baza de test): 5 livrări în toate stările, 17 modele în toate categoriile, 735 buc. — baza de lucru nu e atinsă.
+- **Construire și semnătură:** la fiecare push GitHub Actions testează, pornește din scripturi și construiește .exe / .app (separat Intel și Apple Silicon arm64) / Linux, semnează SHA256SUMS cu cheia **unisim-soft**; programul își verifică singur semnătura: `python texflow_app.py --verify`. Ramura `texflow-dist` conține versiunea semnată ca fișiere obișnuite, nu arhivă.
 
 ## 1. Instalare și pornire
 
@@ -77,7 +78,7 @@ cd standalone/texflow
 python -m pytest -q
 ```
 
-86 de teste, fără wallet Oracle și fără imprimantă. Ele verifică:
+104 teste, fără wallet Oracle și fără imprimantă. Ele verifică:
 
 - reguli: EAN-13, SKU, rotunjirea, adaosul cu TVA, repartizarea cheltuielilor, verificarea;
 - etichete: ZPL, TSPL, PDF;

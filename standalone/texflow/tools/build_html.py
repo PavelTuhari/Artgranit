@@ -327,7 +327,8 @@ def build_index(e2e: dict, unit: list[dict]) -> str:
 <div><b>{passed_d}/{len(desk["results"])}</b>сквозных проверок нативного приложения</div><div><b>3</b>языка</div><div><b>{sum(len(r["images"]) for r in e2e["results"])}</b>скриншотов</div></div>
 <div class="tiles"><section><h3>Акт и презентация</h3><ul><li><a href="test_act.html">Акт тестирования со скриншотами</a></li>
 <li><a href="presentation.html">Презентация</a> (стрелки ← →) · <a href="presentation.pdf">PDF</a></li>
-<li><a href="test_act.pdf">Акт тестирования — PDF для печати и подписи</a></li></ul>
+<li><a href="test_act.pdf">Акт тестирования — PDF для печати и подписи</a></li>
+<li><a href="ru/ARTICLE.html">Статья «Автоматизация „с коленок“: от мешка до ценника»</a></li></ul>
 <p class="mut">Образцы выходных файлов: <a href="sample_label.zpl">ZPL</a> · <a href="sample_label.tspl">TSPL</a> ·
 <a href="sample_catalog.csv">CSV каталога</a> · <a href="img/e2e_label_a4.png">лист A4</a> · <a href="img/e2e_label_roll.png">этикетка 58×40</a></p></section>
 {''.join(tiles)}</div>
@@ -712,10 +713,22 @@ if(['ArrowLeft','PageUp'].includes(e.key)){{e.preventDefault();go(i-1)}}}});
     return out
 
 
+def build_article() -> str:
+    """Статья «Автоматизация с коленок» (только RU): docs/ARTICLE.md → docs/html/ru/ARTICLE.html."""
+    out = os.path.join(OUT, "ru", "ARTICLE.html")
+    title, body, toc = convert_md(os.path.join(ROOT, "docs", "ARTICLE.md"), out)
+    side = (f'<nav class="side"><b>Статья</b><div class="toc">{toc.replace("<!--cdn-->", "")}</div>'
+            f'<b>Материалы</b><a href="../index.html">Все материалы</a><a href="OPERATOR_GUIDE.html">Инструкция оператора</a>'
+            f'<a href="DESKTOP.html">Нативное приложение</a><a href="../test_act.html">Акт тестирования</a></nav>')
+    open(out, "w", encoding="utf-8").write(page(title, body, "ru", "../", side))
+    return out
+
+
 def main():
     os.makedirs(OUT, exist_ok=True)
     e2e, unit = load_e2e(), load_pytest()
     written = build_docs(e2e)
+    written.append(build_article())
     written.append(build_index(e2e, unit))
     written.append(build_act(e2e, unit))
     written.append(build_presentation(e2e, unit))

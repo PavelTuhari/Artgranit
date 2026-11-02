@@ -94,6 +94,8 @@ class App(tk.Tk):
         m = tk.Menu(self)
         f = tk.Menu(m, tearoff=0)
         f.add_command(label=_("Загрузить демо-поставку"), command=self.load_demo)
+        f.add_command(label=_("Открыть тестовую базу (заполнено всё)"), command=self.open_sample)
+        f.add_command(label=_("Вернуться к рабочей базе"), command=lambda: self.switch_db(paths.db_path()))
         f.add_command(label=_("Открыть папку данных"), command=lambda: paths.open_path(paths.data_dir()))
         f.add_separator()
         f.add_command(label=_("Выход"), command=self.destroy)
@@ -141,6 +143,25 @@ class App(tk.Tk):
         self.say(msg)
         self._on_tab()
 
+    def switch_db(self, path: str):
+        """Переключить окно на другой файл базы (рабочая ↔ тестовая)."""
+        try:
+            self.con.close()
+        except Exception:   # noqa: BLE001
+            pass
+        self.db_file = path
+        self.con = db.connect(path)
+        db.init_db(self.con)
+        self.shipment_id = self.bag_id = None
+        current = self.current_tab() or "shipments"
+        self.build()
+        self.show(current)
+        self.say(f"{_('База данных')}: {path}")
+
+    def open_sample(self):
+        from texflow import sample_db
+        self.switch_db(sample_db.ensure(sample_db.default_path()))
+
     def about(self):
         from .widgets import info
         info(f"TexFlow {__version__}\n{_('Приёмка одежды из мешков')}\n\n"
@@ -154,7 +175,11 @@ def main(argv=None):
     ap.add_argument("--db", default=None)
     ap.add_argument("--lang", choices=i18n.LANGS, default=None)
     ap.add_argument("--demo", action="store_true")
+    ap.add_argument("--sample", action="store_true")
     a = ap.parse_args(argv)
+    if a.sample and not a.db:
+        from texflow import sample_db
+        a.db = sample_db.ensure(sample_db.default_path())
     app = App(a.db, a.lang)
     if a.demo:
         app.load_demo()

@@ -93,10 +93,21 @@ It shares the core with the web version:</p>
 <h3 id="without-installing">Without installing</h3>
 <pre><code class="language-bash">python texflow_app.py          # app window
 python texflow_app.py --demo   # with the demo shipment
+python texflow_app.py --sample # built-in sample database (everything filled in)
 python texflow_app.py --web    # web version in the browser
 python texflow_app.py --check  # check the environment
 </code></pre>
 <p>On first run, missing libraries install themselves into the data folder (<code>pylibXY</code>).</p>
+<h3 id="built-in-sample-database">Built-in sample database</h3>
+<p>To see every screen with data instead of empty: <code>python texflow_app.py --sample</code> (web version —
+<code>--web --sample</code>) or the menu <strong>File → Open the sample database (everything filled in)</strong>. It holds
+5 shipments in every status, 4 suppliers from Turkey and China, 14 bags, 17 models in all 12
+categories with RO/EN translations, 94 variants and 735 pieces; reconciliation with every status
+(match, shortage, surplus, not in list), all three cost allocation methods, a manual and a locked
+price, a count correction, a custom colour and size 4XL, 5 label templates and a print log.</p>
+<p>Your working database is not touched: the sample is a separate file <code>texflow_sample.db</code> in the data
+folder. Go back with <strong>File → Back to the working database</strong>. Build the file on its own:
+<code>python -m texflow.sample_db path.db</code>.</p>
 <h3 id="ready-made-program-without-python-pyinstaller">Ready-made program without Python (PyInstaller)</h3>
 <p><code>python install/build_exe.py</code> builds <code>dist/TexFlow-&lt;version&gt;-&lt;os&gt;-&lt;arch&gt;.zip</code>. Inside:
 <code>TexFlow.exe</code> (Windows), <code>TexFlow.app</code> (macOS) or <code>TexFlow</code> (Linux), with every library bundled;
@@ -268,12 +279,16 @@ canvas draws the same geometry as the printout.</p>
 <li><strong>tests</strong> (pytest, including the window under Xvfb);</li>
 <li><strong>scripts edition</strong> <code>TexFlow-&lt;version&gt;-scripts.zip</code> with <code>MANIFEST.sha256</code> and the unisim-soft
    signature <code>MANIFEST.sha256.sig</code>;</li>
-<li><strong>run from scripts</strong> on Windows, macOS and Linux: <code>--verify</code>, <code>--check</code>, <code>--smoke</code>, the
+<li><strong>run from scripts</strong> on Windows, macOS Intel, macOS Apple Silicon (arm64) and Linux: <code>--verify</code>, <code>--check</code>, <code>--smoke</code>, the
    installer;</li>
-<li><strong>executables</strong>: <code>TexFlow.exe</code>, <code>TexFlow.app</code> (ad-hoc signed), Linux binary — each one
+<li><strong>executables</strong>: <code>TexFlow.exe</code>, <strong>two separate</strong> <code>TexFlow.app</code> builds — <code>macos-x86_64</code> (Intel)
+   and <code>macos-arm64</code> (Apple Silicon M1–M4), ad-hoc signed — and a Linux binary — each one
    <strong>launched</strong> without Python;</li>
 <li><strong><code>SHA256SUMS</code> + <code>SHA256SUMS.sig</code></strong> (Ed25519, <strong>unisim-soft</strong> key) plus a GitHub provenance
    attestation (Sigstore) — the latter only for public repositories or GitHub Enterprise;</li>
+<li><strong>sources as plain files</strong>: push to <code>main</code> → branch <strong><code>texflow-dist</code></strong> holds the signed scripts
+   edition unpacked (the same files plus <code>MANIFEST.sha256</code> and its signature); a clone of it
+   verifies with <code>python texflow_app.py --verify</code>;</li>
 <li><strong>publishing</strong>: push to <code>main</code> → <strong>texflow-nightly</strong> pre-release; tag <code>texflow-v1.2.0</code> →
    versioned release.</li>
 </ol>

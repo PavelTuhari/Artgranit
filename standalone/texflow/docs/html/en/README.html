@@ -60,7 +60,8 @@ run it from a laptop.</p>
 <li><strong>Ready-made program without Python:</strong> <code>python install/build_exe.py</code>.</li>
 <li><strong>Built-in label editor:</strong> your own templates with the mouse, EAN-13 / CODE128, any size.</li>
 <li><strong>Excel and CSV:</strong> export and import back (full report, catalogue, prices, intake).</li>
-<li><strong>Build and signature:</strong> on every push GitHub Actions tests, runs from scripts and builds .exe / .app / Linux, signs SHA256SUMS with the <strong>unisim-soft</strong> key; the program verifies its own signature: <code>python texflow_app.py --verify</code>.</li>
+<li><strong>Sample database:</strong> <code>python texflow_app.py --sample</code> (or <code>--web --sample</code>, or File → Open the sample database): 5 shipments in every status, 17 models in all categories, 735 pieces — your working database is not touched.</li>
+<li><strong>Build and signature:</strong> on every push GitHub Actions tests, runs from scripts and builds .exe / .app (separate Intel and Apple Silicon arm64) / Linux, signs SHA256SUMS with the <strong>unisim-soft</strong> key; the program verifies its own signature: <code>python texflow_app.py --verify</code>. Branch <code>texflow-dist</code> holds the signed edition as plain files, not an archive.</li>
 </ul>
 <h2 id="1-install-and-run">1. Install and run</h2>
 <p>Requires Python 3.10 or newer (tested on 3.13).</p>
@@ -108,7 +109,7 @@ safer: <code>sqlite3 instance/texflow.db ".backup backup.db"</code>.</p>
 <pre><code class="language-bash">cd standalone/texflow
 python -m pytest -q
 </code></pre>
-<p>86 tests, no Oracle wallet and no printer needed. They cover:</p>
+<p>104 tests, no Oracle wallet and no printer needed. They cover:</p>
 <ul>
 <li>rules: EAN-13, SKU, rounding, markup with VAT, cost allocation, reconciliation;</li>
 <li>labels: ZPL, TSPL, PDF;</li>

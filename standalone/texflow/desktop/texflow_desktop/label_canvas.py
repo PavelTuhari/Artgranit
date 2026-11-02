@@ -8,10 +8,17 @@ from texflow import label_templates as LT
 _fonts: dict = {}
 
 
-def _font(px: int, bold: bool):
-    key = (px, bold)
-    if key not in _fonts:
-        _fonts[key] = tkfont.Font(family="Helvetica", size=-max(4, px), weight="bold" if bold else "normal")
+def _font(px: int, bold: bool, root=None):
+    """Шрифты кэшируются на окно: после закрытия окна (новое окно в том же процессе) — создаются заново."""
+    key = (id(root), px, bold)
+    f = _fonts.get(key)
+    if f is not None:
+        try:
+            f.measure("x")
+            return f
+        except Exception:   # noqa: BLE001 — окно, которому принадлежал шрифт, уже закрыто
+            pass
+    _fonts[key] = tkfont.Font(root=root, family="Helvetica", size=-max(4, px), weight="bold" if bold else "normal")
     return _fonts[key]
 
 
@@ -34,7 +41,7 @@ def draw(canvas, tpl: LT.Template, lb, scale: float, ox: float = 10, oy: float =
     for idx, p in enumerate(LT.layout(tpl, lb)):
         tags = (tag, f"el{idx}") if element_tags else (tag,)
         if p["type"] == "text":
-            f = _font(int(round(p["font"] * scale)), p["bold"])
+            f = _font(int(round(p["font"] * scale)), p["bold"], canvas.winfo_toplevel())
             w = int(p["w"] * scale)
             txt = _clip(p["text"], f, w)
             anchor, x = {"L": ("nw", X(p["x"])), "C": ("n", X(p["x"] + p["w"] / 2)),
@@ -64,6 +71,6 @@ def draw(canvas, tpl: LT.Template, lb, scale: float, ox: float = 10, oy: float =
                     canvas.create_rectangle(x0, Y(p["y"]), x0 + run * mw, Y(p["y"] + p["h"]), fill="#111111",
                                             outline="", tags=tags)
                     run = 0
-            cf = _font(max(6, int(p["caption_h"] * scale * 0.95)), False)
+            cf = _font(max(6, int(p["caption_h"] * scale * 0.95)), False, canvas.winfo_toplevel())
             canvas.create_text(X(p["x"] + p["w"] / 2), Y(p["y"] + p["h"]), text=p["caption"], anchor="n",
                                font=cf, fill="#111111", tags=tags)

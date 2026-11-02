@@ -92,9 +92,11 @@ jobs:
       matrix:
         include:
           - { os: windows-latest, name: windows }
-          # Intel-раннер: на arm64 у GitHub нехватка мощностей (задания снимаются из очереди);
-          # сборка x86_64 работает и на Mac с Apple Silicon через Rosetta 2
-          - { os: macos-15-intel, name: macos }
+          # две отдельные сборки macOS: Intel (x86_64) и Apple Silicon (arm64, M1–M4) — каждая
+          # собирается и запускается на своём процессоре; если GitHub не выделил раннер одной из них,
+          # выпуск идёт без неё и это отмечается (x86_64 на Apple Silicon работает и через Rosetta 2)
+          - { os: macos-15-intel, name: macos-x86_64 }
+          - { os: macos-15,       name: macos-arm64 }
           - { os: ubuntu-22.04,   name: linux }
     runs-on: ${{ matrix.os }}
     defaults:
@@ -177,7 +179,7 @@ jobs:
         run: |
           mkdir -p ../../out && cp ../../dl/*.zip ../../out/
           MISSING=""
-          for os in windows macos linux; do ls ../../out/TexFlow-*-$os-*.zip >/dev/null 2>&1 || MISSING="$MISSING $os"; done
+          for os in windows-x86_64 macos-x86_64 macos-arm64 linux-x86_64; do ls ../../out/TexFlow-*-$os.zip >/dev/null 2>&1 || MISSING="$MISSING $os"; done
           if [ -n "$MISSING" ]; then echo "::warning::Нет сборки:$MISSING (раннер GitHub не выделен) — перезапустите задание этой ОС"; fi
           echo "MISSING=$MISSING" >> "$GITHUB_ENV"
           python tools/release.py sums ../../out ${{ startsWith(github.ref, 'refs/tags/texflow-v') && '--require-signature' || '' }}
@@ -205,11 +207,35 @@ jobs:
         run: |
           git -C "$GITHUB_WORKSPACE" tag -f texflow-nightly "$GITHUB_SHA"
           git -C "$GITHUB_WORKSPACE" push -f origin refs/tags/texflow-nightly
-          NOTES="TexFlow · сборка ${GITHUB_SHA::12} · Windows / macOS / Linux + скриптовая версия${MISSING:+ (нет сборки:$MISSING)}. Проверка: python texflow_app.py --verify-sums SHA256SUMS (подпись unisim-soft, отпечаток ключа c5173c9670d69b5d) или gh attestation verify <файл> --repo $GITHUB_REPOSITORY"
+          NOTES="TexFlow · сборка ${GITHUB_SHA::12} · Windows / macOS Intel / macOS Apple Silicon (arm64) / Linux + скриптовая версия (она же обычными файлами — ветка texflow-dist)${MISSING:+ (нет сборки:$MISSING)}. Проверка: python texflow_app.py --verify-sums SHA256SUMS (подпись unisim-soft, отпечаток ключа c5173c9670d69b5d) или gh attestation verify <файл> --repo $GITHUB_REPOSITORY"
           gh release view texflow-nightly -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create texflow-nightly -R "$GITHUB_REPOSITORY" --prerelease --title "TexFlow nightly" --notes "$NOTES"
           gh release edit texflow-nightly -R "$GITHUB_REPOSITORY" --notes "$NOTES"
           for a in $(gh release view texflow-nightly -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'); do gh release delete-asset texflow-nightly "$a" -R "$GITHUB_REPOSITORY" -y; done
           gh release upload texflow-nightly *.zip SHA256SUMS* SIGNER-unisim-soft.txt -R "$GITHUB_REPOSITORY" --clobber
+      - name: Исходники обычными файлами — ветка texflow-dist (push в main)
+        # подписанная скриптовая версия, распакованная: те же файлы, что в TexFlow-…-scripts.zip,
+        # плюс MANIFEST.sha256 и подпись unisim-soft; клон ветки проверяется командой --verify.
+        # История ветки — журнал выпусков (без force-push); push токеном GITHUB_TOKEN не запускает CI.
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        env: { GH_TOKEN: "${{ github.token }}" }
+        working-directory: .
+        run: |
+          set -e
+          D="$RUNNER_TEMP/dist" && rm -rf "$D" && mkdir -p "$D"
+          cd "$D"
+          git init -q -b texflow-dist .
+          git config user.name "texflow-ci" && git config user.email "texflow-ci@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git fetch -q --depth 1 origin texflow-dist; then git reset -q --soft FETCH_HEAD; fi
+          git rm -rq --cached . >/dev/null 2>&1 || true
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          python -m zipfile -e "$GITHUB_WORKSPACE"/out/TexFlow-*-scripts.zip "$RUNNER_TEMP/unz"
+          cp -a "$RUNNER_TEMP"/unz/TexFlow-*-scripts/. .
+          python texflow_app.py --verify || true
+          git add -A
+          git commit -qm "TexFlow $(python -c 'import texflow;print(texflow.__version__)') · ${GITHUB_SHA::12} · подписанная скриптовая версия" || { echo "без изменений"; exit 0; }
+          git push -q origin HEAD:texflow-dist
+          echo "Ветка texflow-dist: https://github.com/${GITHUB_REPOSITORY}/tree/texflow-dist" >> $GITHUB_STEP_SUMMARY
       - name: Выпуск версии (тег texflow-v*)
         if: startsWith(github.ref, 'refs/tags/texflow-v')
         env: { GH_TOKEN: "${{ github.token }}" }

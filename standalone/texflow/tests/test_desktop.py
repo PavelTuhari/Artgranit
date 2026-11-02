@@ -131,3 +131,24 @@ def test_desktop_window_core_flow(tmp_path, monkeypatch):
         assert app.nb.tab(app.nb.tabs()[0], "text") == "Livrări"
     finally:
         app.destroy()
+
+
+@pytest.mark.skipif(not HAS_TK, reason="нет Tkinter или дисплея")
+def test_desktop_sample_db_all_tabs(tmp_path, monkeypatch):
+    monkeypatch.setenv("TEXFLOW_HOME", str(tmp_path))
+    from texflow_desktop import app as app_mod, widgets
+    monkeypatch.setattr(widgets, "error", lambda *a, **k: None)
+    app = app_mod.App(str(tmp_path / "work.db"), "ro")
+    errors = []
+    app.report_callback_exception = lambda *a: errors.append(str(a[1]))
+    try:
+        app.open_sample()
+        assert app.db_file.endswith("texflow_sample.db")
+        for key in app_mod.TAB_KEYS:
+            app.show(key)
+            app.update()
+        assert not errors
+        app.switch_db(str(tmp_path / "work.db"))
+        assert app.con.execute("SELECT COUNT(*) FROM shipments").fetchone()[0] == 0
+    finally:
+        app.destroy()
