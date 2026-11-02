@@ -1,0 +1,4 @@
+<table><tr><th></th><th class="n">{{ _('По листу') }}</th><th class="n">{{ _('Факт') }}</th><th class="n">{{ _('Разница') }}</th><th>{{ _('Статус') }}</th></tr>
+{% for r in rows %}<tr><td>{{ r.key }}</td><td class="n">{{ r.declared }}</td><td class="n">{{ r.counted }}</td><td class="n">{{ r.diff }}{% if r.diff_pct is not none %} <span class="mut">({{ r.diff_pct }}%)</span>{% endif %}</td>
+<td class="st-{{ r.status }}">{{ {'ok':_('совпало'),'short':_('недостача'),'over':_('излишек'),'extra':_('нет в листе')}[r.status] }}</td></tr>
+{% else %}<tr><td colspan="5" class="mut">{{ _('нет данных') }}</td></tr>{% endfor %}</table>

@@ -1,0 +1,34 @@
+<div class="card"><h2>Process diagram</h2>
+<pre class="mermaid">
+flowchart TD
+  A[Shipment from Turkey / China<br>bags, everything mixed] --> B[Create shipment<br>currency, rate, freight, customs, broker]
+  B --> C[Upload the rough packing list CSV]
+  C --> D[Bags are created automatically]
+  D --> E{Open a bag}
+  E --> F{Model already exists?}
+  F -- yes --> G[Scanner EAN/SKU: +1 pc]
+  F -- no --> H[New model: name, category, purchase price]
+  H --> I[Colour × size matrix<br>enter quantities]
+  G --> J[Intake log]
+  I --> J
+  J --> K{Bag empty?}
+  K -- no --> E
+  K -- yes --> L[Check against the list<br>shortage / surplus]
+  L --> M[Landed cost: purchase×rate + duty + share of costs]
+  M --> N[Price: × category markup × VAT → charm rounding]
+  N --> O[Product cards and catalogue, CSV export]
+  N --> P{Labels}
+  P --> Q[ZPL → Zebra tcp:9100 / CUPS]
+  P --> R[TSPL → TSC tcp:9100 / CUPS]
+  P --> S[PDF A4 → office printer]
+  P --> T[PDF roll → virtual printer]
+</pre></div>
+<div class="card"><h2>In short</h2><ol>
+<li><b>Shipment.</b> “Shipments” menu → number, supplier, currency and rate to the local currency, costs in local currency. Allocation method: by value (expensive items carry more), per piece, or by bag weight.</li>
+<li><b>Packing list.</b> CSV/TSV from Excel: bag; category; description; qty; price; weight. Headers in Russian, Romanian, English, Turkish and Chinese are understood. Unknown categories are highlighted.</li>
+<li><b>Sorting.</b> “Sort” on a bag. Repeat items — with the scanner. New model — the “New model” form, then click colours (rows) and enter quantities per size (columns). Enter — next cell, Ctrl+Enter — save. Mistake — enter a negative number or delete the log line.</li>
+<li><b>Reconciliation.</b> On the shipment page: by category and by bag — “shortage”, “surplus”, “not in list”.</li>
+<li><b>Prices.</b> “Prices” → a proposal per model. You can type your own price; the price on the card can be locked (padlock), then recalculation leaves it alone.</li>
+<li><b>Labels.</b> For the whole shipment, a bag, a model or one variant; quantity — by pieces received. Formats: ZPL (Zebra), TSPL (TSC), PDF A4, PDF roll.</li>
+</ol>
+<p>Full documentation — <code>standalone/texflow/README.en.md</code> and <code>docs/</code> (RU / RO / EN).</p><p><a class="btn" href="{{ url_for('tf.docs_html') }}">HTML documentation, test report, presentation</a></p></div>

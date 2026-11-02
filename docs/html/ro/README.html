@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TexFlow — recepția îmbrăcămintei din saci, catalog, prețuri și etichete · TexFlow</title><link rel="stylesheet" href="../assets/docs.css"></head>
+<body><header class="top"><span class="logo">TEXFLOW</span><a href="../index.html">Toate materialele</a>
+<a href="../test_act.html">Act de testare</a><a href="../presentation.html">Prezentare</a><span class="langs"><a class="" href="../ru/README.html">RU</a><a class="on" href="../ro/README.html">RO</a><a class="" href="../en/README.html">EN</a></span></header>
+<div class="wrap"><nav class="side"><b>Documentație</b><a class="on" href="../ro/README.html">Prezentare și instalare</a><a href="../ro/DESKTOP.html">Aplicația nativă</a><a href="../ro/OPERATOR_GUIDE.html">Instrucțiuni operator</a><a href="../ro/LABELS.html">Etichete și imprimante</a><a href="../ro/ARCHITECTURE.html">Scheme bloc</a><a href="../ro/gallery.html">Galerie ecrane</a><b>Act de testare · Prezentare</b><a href="../test_act.html">Act de testare (RU)</a><a href="../presentation.html">Prezentare (RU)</a><a href="../index.html">Toate materialele</a></nav><main class="doc"><h1 id="texflow-receptia-imbracamintei-din-saci-catalog-preturi-si-etichete">TexFlow — recepția îmbrăcămintei din saci, catalog, prețuri și etichete</h1>
+<p><a href="../ru/README.html">Русский</a> · <strong>Română</strong> · <a href="../en/README.html">English</a></p>
+<p>Aplicație web autonomă pe <strong>Python + Flask + SQLite</strong>. Servește la prelucrarea
+rapidă a îmbrăcămintei care vine din Turcia și China în saci, unde totul e
+amestecat, iar la livrare există doar o listă de colete <strong>aproximativă</strong>.</p>
+<p>TexFlow duce marfa prin cinci pași:</p>
+<ol>
+<li>o recepționează pe saci, așezând fiecare model în matricea „culoare × mărime” (ca la Zara);</li>
+<li>compară faptul cu lista de colete;</li>
+<li>calculează costul ținând cont de cheltuielile de import;</li>
+<li>stabilește prețurile după adaosurile categoriilor;</li>
+<li>tipărește etichete pe <strong>Zebra (ZPL)</strong>, <strong>TSC (TSPL)</strong> sau în <strong>PDF</strong> —
+   coală A4 pentru imprimanta obișnuită sau rolă pentru imprimanta virtuală.</li>
+</ol>
+<p>Interfața este în trei limbi: <strong>rusă, română, engleză</strong>. Comutatorul
+RU / RO / EN este în antet. Denumirile culorilor, categoriilor și grilelor de
+mărimi sunt traduse, iar culoarea de pe etichetă se poate tipări în oricare
+dintre cele trei limbi.</p>
+<p>Nu e nevoie de server sau internet: un singur fișier de bază de date
+<code>instance/texflow.db</code>, pornire de pe laptop.</p>
+<table>
+<thead>
+<tr>
+<th>Document</th>
+<th>Despre ce</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="ARCHITECTURE.html">docs/ARCHITECTURE.ro.md</a></td>
+<td>scheme Mermaid: proces, date (ER), calculul prețului, tipărire</td>
+</tr>
+<tr>
+<td><a href="LABELS.html">docs/LABELS.ro.md</a></td>
+<td>imprimante Zebra/TSC, PDF, chirilică, calibrarea colii A4</td>
+</tr>
+<tr>
+<td><a href="OPERATOR_GUIDE.html">docs/OPERATOR_GUIDE.ro.md</a></td>
+<td>instrucțiune pas cu pas pentru operator / gestionar</td>
+</tr>
+<tr>
+<td><a href="../../../samples">samples/</a></td>
+<td>exemple de liste de colete: turcă și chineză</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="0-aplicatia-nativa-12-windows-macos-linux">0. Aplicația nativă (1.2): Windows · macOS · Linux</h2>
+<p>Pe lângă versiunea web există un <strong>program obișnuit cu fereastră</strong>, pe același nucleu: <a href="DESKTOP.html">docs/DESKTOP.ro.md</a>.</p>
+<ul>
+<li><strong>Instalare:</strong> dublu clic pe <code>Install-TexFlow-Windows.bat</code> / <code>Install-TexFlow-macOS.command</code> /
+  <code>sh install-texflow-linux.sh</code> — Python, bibliotecile și scurtăturile se instalează singure.</li>
+<li><strong>Fără instalare:</strong> <code>python texflow_app.py</code> (<code>--web</code> — versiunea web).</li>
+<li><strong>Program gata fără Python:</strong> <code>python install/build_exe.py</code>.</li>
+<li><strong>Editor de etichete integrat:</strong> șabloane proprii cu mouse-ul, EAN-13 / CODE128, orice dimensiune.</li>
+<li><strong>Excel și CSV:</strong> export și import (raport complet, catalog, prețuri, recepție).</li>
+<li><strong>Baza de test:</strong> <code>python texflow_app.py --sample</code> (sau <code>--web --sample</code>, sau Fișier → Deschide baza de test): 5 livrări în toate stările, 17 modele în toate categoriile, 735 buc. — baza de lucru nu e atinsă.</li>
+<li><strong>Construire și semnătură:</strong> la fiecare push GitHub Actions testează, pornește din scripturi și construiește .exe / .app (separat Intel și Apple Silicon arm64) / Linux, semnează SHA256SUMS cu cheia <strong>unisim-soft</strong>; programul își verifică singur semnătura: <code>python texflow_app.py --verify</code>. Ramura <code>texflow-dist</code> conține versiunea semnată ca fișiere obișnuite, nu arhivă.</li>
+</ul>
+<h2 id="1-instalare-si-pornire">1. Instalare și pornire</h2>
+<p>Este nevoie de Python 3.10 sau mai nou (verificat pe 3.13).</p>
+<pre><code class="language-bash">cd standalone/texflow
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python run.py --demo               # deschide http://127.0.0.1:5077/ cu o livrare demo
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Parametru</th>
+<th>Ce face</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--host 0.0.0.0</code></td>
+<td>acces de pe tablete și PC-uri din rețeaua locală, de exemplu scaner la al doilea post</td>
+</tr>
+<tr>
+<td><code>--port 5077</code></td>
+<td>portul</td>
+</tr>
+<tr>
+<td><code>--db cale.db</code></td>
+<td>alt fișier de bază, de exemplu o bază separată pe sezon</td>
+</tr>
+<tr>
+<td><code>--demo</code></td>
+<td>încarcă livrarea demo <code>DEMO-TR-01</code>: 3 modele, bucăți recepționate, prețuri</td>
+</tr>
+<tr>
+<td><code>--no-browser</code></td>
+<td>nu deschide browserul automat</td>
+</tr>
+</tbody>
+</table>
+<p>Variabile de mediu: <code>TEXFLOW_DB</code> — calea bazei, <code>TEXFLOW_PDF_FONT</code> — font TTF
+propriu pentru PDF.</p>
+<p><strong>Copie de rezervă</strong> — copiați fișierul <code>instance/texflow.db</code>. Dacă aplicația
+rulează, e mai sigur așa: <code>sqlite3 instance/texflow.db ".backup backup.db"</code>.</p>
+<h2 id="2-teste">2. Teste</h2>
+<pre><code class="language-bash">cd standalone/texflow
+python -m pytest -q
+</code></pre>
+<p>104 teste, fără wallet Oracle și fără imprimantă. Ele verifică:</p>
+<ul>
+<li>reguli: EAN-13, SKU, rotunjirea, adaosul cu TVA, repartizarea cheltuielilor, verificarea;</li>
+<li>etichete: ZPL, TSPL, PDF;</li>
+<li>trimiterea la o „imprimantă” TCP falsă;</li>
+<li>scenariul HTTP complet;</li>
+<li>traducerile: fiecare șir al interfeței are RO și EN, iar paginile RO/EN nu au chirilică.</li>
+</ul>
+<h2 id="2b-materiale-html-documentatie-act-de-testare-prezentare">2b. Materiale HTML: documentație, act de testare, prezentare</h2>
+<p>Materialele HTML sunt în <code>docs/html/</code> și se deschid fără internet, direct din dosar sau din aplicație la
+<code>http://127.0.0.1:5077/docs/</code>:</p>
+<ul>
+<li><code>index.html</code> — toate materialele;</li>
+<li><code>{ru,ro,en}/*.html</code> — documentația și galeriile de ecrane;</li>
+<li><code>test_act.html</code> / <code>.pdf</code> — actul de testare cu capturi;</li>
+<li><code>presentation.html</code> / <code>.pdf</code> — prezentarea.</li>
+</ul>
+<p>Regenerare: <code>tools/run_all.sh</code>; arhivă identică cu git: <code>tools/make_archive.sh</code>.</p>
+<h2 id="3-cum-se-lucreaza-pe-scurt">3. Cum se lucrează (pe scurt)</h2>
+<p>Instrucțiunea completă — <a href="OPERATOR_GUIDE.html">docs/OPERATOR_GUIDE.ro.md</a>.</p>
+<ol>
+<li><strong>Livrări → Livrare nouă.</strong> Număr, furnizor, țară, valută și curs față de
+   moneda locală. Cheltuieli în moneda locală: transport, taxe vamale, broker,
+   altele. Metoda de repartizare: după valoare, pe bucăți sau după greutatea
+   sacilor.</li>
+<li><strong>Lista de colete.</strong> CSV <code>sac;categorie;descriere;cantitate;preț;greutate</code>.
+   Antetele se pot scrie în rusă, română, engleză, turcă sau chineză.
+   Codificările UTF-8, cp1251, cp1254 și GB18030 sunt recunoscute automat.
+   Sacii se creează automat.</li>
+<li><strong>Sortarea sacului.</strong> O marfă deja înregistrată se scanează (EAN sau SKU):
+   +1 buc. Un model nou se creează în formularul „Model nou”: click pe culori,
+   apoi cantitățile în matricea de mărimi. Enter — celula următoare,
+   Ctrl+Enter — salvează. Prețul de achiziție se preia din lista de colete
+   după categorie.</li>
+<li><strong>Verificarea</strong> pe pagina livrării, pe categorii și pe saci: „corespunde”,
+   „lipsă”, „surplus”, „nu e în listă”.</li>
+<li><strong>Prețuri.</strong> Cost → adaosul categoriei → TVA → preț frumos (de exemplu,
+   189.90). Puteți scrie prețul propriu sau îl puteți bloca în fișă.</li>
+<li><strong>Etichete</strong> pentru toată livrarea, un sac, un model sau o variantă.
+   Numărul de etichete este egal cu bucățile recepționate.</li>
+</ol>
+<h2 id="4-limbi">4. Limbi</h2>
+<table>
+<thead>
+<tr>
+<th>Unde</th>
+<th>Cum</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Interfață</td>
+<td>comutatorul <strong>RU / RO / EN</strong> din antet; se memorează în browser. Limba implicită — „Setări → Limba implicită a interfeței”</td>
+</tr>
+<tr>
+<td>Nomenclatoare</td>
+<td>culoarea, grupa de culori, categoria și grila au <code>name</code> (RU), <code>name_ro</code>, <code>name_en</code>; traducere goală → denumirea rusă</td>
+</tr>
+<tr>
+<td>Model</td>
+<td>în fișa modelului — denumirea și compoziția în RO și EN (gol → cea principală). Catalogul, sortarea și prețurile arată denumirea în limba interfeței; căutarea — în orice limbă</td>
+</tr>
+<tr>
+<td>Etichetă</td>
+<td>„Setări → Limba denumirilor culorilor pe etichetă”: culoarea, denumirea modelului și compoziția se tipăresc în această limbă („Negru”, „Tricou basic”)</td>
+</tr>
+<tr>
+<td>Lista de colete</td>
+<td>antetele sunt înțelese și în română; categoria se poate indica în română sau engleză</td>
+</tr>
+</tbody>
+</table>
+<h2 id="5-modelul-de-date-sqlite-normalizat">5. Modelul de date (SQLite, normalizat)</h2>
+<table>
+<thead>
+<tr>
+<th>Tabel</th>
+<th>Entitate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>suppliers</code></td>
+<td>furnizori</td>
+</tr>
+<tr>
+<td><code>size_scales</code>, <code>sizes</code></td>
+<td>grile de mărimi: litere XXS–3XL, damă EU 32–48, bărbați 44–58, blugi W24–38, copii după înălțime 86–164, încălțăminte 35–46, ONE</td>
+</tr>
+<tr>
+<td><code>color_families</code>, <code>colors</code></td>
+<td>grupe de culori în stil Zara (Alb, Negru, Bej, Albastru…) și culori cu coduri <code>001</code>, <code>800</code>, <code>401</code>…</td>
+</tr>
+<tr>
+<td><code>categories</code></td>
+<td>categorie → grila de mărimi, adaos %, taxă vamală %, cod NC</td>
+</tr>
+<tr>
+<td><code>shipments</code></td>
+<td>livrare: valută, curs, transport/vamă/broker/altele, metoda de repartizare, stare</td>
+</tr>
+<tr>
+<td><code>bags</code></td>
+<td>sacii livrării: număr, greutate, stare (<code>closed</code> → <code>sorting</code> → <code>done</code>)</td>
+</tr>
+<tr>
+<td><code>packing_lines</code></td>
+<td>rândurile listei de colete aproximative</td>
+</tr>
+<tr>
+<td><code>products</code></td>
+<td>model: articol, denumire, categorie, compoziție, preț de achiziție, preț cu amănuntul, blocare</td>
+</tr>
+<tr>
+<td><code>variants</code></td>
+<td>varianta „culoare × mărime”: <code>sku</code> și <code>ean13</code> unice</td>
+</tr>
+<tr>
+<td><code>intake_items</code></td>
+<td>jurnalul recepției: câte bucăți din ce variantă, din ce sac; achiziție; cost</td>
+</tr>
+<tr>
+<td><code>label_jobs</code></td>
+<td>jurnalul tipăririi</td>
+</tr>
+<tr>
+<td><code>settings</code></td>
+<td>setări: brand, TVA, rotunjire, dimensiunile etichetelor, imprimante, limbi</td>
+</tr>
+</tbody>
+</table>
+<p>Stocul nu este o coloană separată: este <code>SUM(intake_items.qty)</code> pe variantă.
+O numărare greșită se corectează cu un rând cu cantitate negativă sau prin
+ștergerea rândului din jurnal.</p>
+<p><strong>SKU</strong> = <code>ARTICOL-CODCULOARE-MĂRIME</code>, de exemplu <code>TSH0001-800-M</code>.
+<strong>EAN-13</strong> — intern, cu prefixul <code>200</code> (intervalul 20–29 rezervat de GS1
+pentru uz intern în magazin) și cifra de control corectă.</p>
+<h2 id="6-formule">6. Formule</h2>
+<pre><code>achiziție_loc = achiziție_val × curs
+taxă_vamală   = achiziție_loc × taxa_categoriei %
+cota          = (transport + vamă + broker + altele) × baza_poziției / Σ baza
+                 baza: valoare | bucăți | greutate (greutatea sacului × cota bucăților din sac)
+cost          = achiziție_loc + taxă_vamală + cota / qty
+preț_calcul   = cost × (1 + max(adaos_categorie, adaos_minim) %) × (1 + TVA %)
+preț          = ⌈(preț_calcul + terminație) / pas⌉ × pas − terminație      (pas 10, terminație 0.1 → 189.90)
+</code></pre>
+<h2 id="7-lista-de-verificare-dupa-instalare">7. Listă de verificare după instalare</h2>
+<ol>
+<li><code>python -m pytest -q</code> — toate testele trec.</li>
+<li><code>python run.py --demo</code> deschide pagina principală; în „Catalog” sunt 3 modele cu prețuri.</li>
+<li>Comutați la <strong>RO</strong> în antet — toată interfața este în română.</li>
+<li>„Etichete” → livrarea <code>DEMO-TR-01</code> → „PDF A4” → „Deschide”: coală 3×8 cu coduri de bare.
+   Scanerul trebuie să citească EAN-ul de pe hârtie.</li>
+<li>Pentru Zebra/TSC: adresa imprimantei în „Setări”, apoi tipărirea unei etichete
+   (butonul „etichetă” la variantă) și verificarea că se scanează.</li>
+</ol></main></div></body></html>

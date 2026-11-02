@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Labels: Zebra (ZPL), TSC (TSPL), PDF A4 and PDF roll · TexFlow</title><link rel="stylesheet" href="../assets/docs.css"></head>
+<body><header class="top"><span class="logo">TEXFLOW</span><a href="../index.html">All materials</a>
+<a href="../test_act.html">Test report</a><a href="../presentation.html">Presentation</a><span class="langs"><a class="" href="../ru/LABELS.html">RU</a><a class="" href="../ro/LABELS.html">RO</a><a class="on" href="../en/LABELS.html">EN</a></span></header>
+<div class="wrap"><nav class="side"><b>Documentation</b><a href="../en/README.html">Overview & install</a><a href="../en/DESKTOP.html">Native app</a><a href="../en/OPERATOR_GUIDE.html">Operator guide</a><a class="on" href="../en/LABELS.html">Labels & printers</a><a href="../en/ARCHITECTURE.html">Flowcharts</a><a href="../en/gallery.html">Screen gallery</a><b>Test report · Presentation</b><a href="../test_act.html">Test report (RU)</a><a href="../presentation.html">Presentation (RU)</a><a href="../index.html">All materials</a></nav><main class="doc"><h1 id="labels-zebra-zpl-tsc-tspl-pdf-a4-and-pdf-roll">Labels: Zebra (ZPL), TSC (TSPL), PDF A4 and PDF roll</h1>
+<p><a href="../ru/LABELS.html">Русский</a> · <a href="../ro/LABELS.html">Română</a> · <strong>English</strong></p>
+<p>There is one label record (<code>LabelData</code>) and four outputs from it. The content
+is the same everywhere:</p>
+<pre><code>┌──────────────────────────────────────┐
+│ MY STORE                             │  brand (Settings → Brand)
+│ Oversize T-shirt                     │  model name
+│ Black   TSH0001-800-S                │  colour + SKU
+│ ┌───┐                                │
+│ │ S │                     179.90 MDL │  size in a box, price
+│ └───┘                                │
+│        ▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌          │  EAN-13
+│        2 000000 000015               │
+│ 100% cotton                          │  composition
+└──────────────────────────────────────┘
+</code></pre>
+<p>The language of the colour name (Black / Negru / Чёрный) is chosen in
+“Settings → Language of colour names on labels”. The model name and
+composition are printed in the same language when the card has a translation
+(otherwise the main one is used).</p>
+<h2 id="which-format-to-choose">Which format to choose</h2>
+<table>
+<thead>
+<tr>
+<th>Format</th>
+<th>Printer</th>
+<th>How to print</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>ZPL</strong></td>
+<td>Zebra GK420t/d, ZD220, ZD230, ZD421, ZT230/ZT410, and printers with ZPL emulation (Godex, Xprinter, TSC in ZPL mode)</td>
+<td><code>tcp://IP:9100</code>, <code>cups://QUEUE</code> or download <code>.zpl</code></td>
+<td>main flow, fastest</td>
+</tr>
+<tr>
+<td><strong>TSPL</strong></td>
+<td>TSC TE200/TE210/TE300, TTP-244 Pro, DA200/DA210, Alpha-3R; many low-cost Chinese printers (Xprinter XP-360B and similar)</td>
+<td>same</td>
+<td>if the printer does not speak ZPL</td>
+</tr>
+<tr>
+<td><strong>PDF A4</strong></td>
+<td>any laser or inkjet printer</td>
+<td>open the PDF → print at <strong>100%</strong> scale (“Actual size”)</td>
+<td>no thermal printer, but sheets of self-adhesive labels</td>
+</tr>
+<tr>
+<td><strong>PDF roll</strong></td>
+<td>any printer with a driver, including Zebra/TSC via the Windows driver (Seagull), and the virtual “Microsoft Print to PDF”</td>
+<td>one page = one label, page size equals label size</td>
+<td>printing via a driver, archiving, sending by e-mail</td>
+</tr>
+</tbody>
+</table>
+<h2 id="printer-address">Printer address</h2>
+<p>Set it in “Settings” (<code>printer_zpl</code>, <code>printer_tspl</code>) or directly in the
+“Printer” field on the labels page.</p>
+<table>
+<thead>
+<tr>
+<th>Address</th>
+<th>What happens</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tcp://192.168.1.50:9100</code></td>
+<td>raw bytes go to port 9100 (RAW / JetDirect). This is how Zebra and TSC printers with Ethernet or Wi-Fi work</td>
+</tr>
+<tr>
+<td><code>cups://Zebra_ZD220</code></td>
+<td><code>lp -d Zebra_ZD220 -o raw</code> — for a USB printer on Linux or macOS</td>
+</tr>
+<tr>
+<td><code>dir:///home/shop/spool</code></td>
+<td>the job file is saved to a folder for another script or driver to pick up</td>
+</tr>
+</tbody>
+</table>
+<h3 id="usb-printer-on-linuxmacos-cups">USB printer on Linux/macOS (CUPS)</h3>
+<pre><code class="language-bash">lpinfo -v | grep -i usb                       # find the printer URI
+sudo lpadmin -p Zebra_ZD220 -E -v &quot;usb://Zebra%20Technologies/ZTC%20ZD220-203dpi%20ZPL&quot; -m raw
+# in TexFlow: cups://Zebra_ZD220
+</code></pre>
+<h3 id="usb-printer-on-windows">USB printer on Windows</h3>
+<p>There are two ways:</p>
+<ol>
+<li><strong>PDF roll</strong> through the installed driver: in the driver settings set the
+   paper size to 58×40 mm, and print at 100% scale.</li>
+<li><strong>Raw ZPL/TSPL.</strong> Share the printer (e.g. as <code>ZEBRA</code>), download <code>.zpl</code> and
+   run <code>copy /b labels.zpl \\localhost\ZEBRA</code>.</li>
+</ol>
+<p>If the printer has a network port, <code>tcp://IP:9100</code> is the simplest.</p>
+<h2 id="size-and-resolution">Size and resolution</h2>
+<p>Configured in “Settings”:</p>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Default</th>
+<th>Comment</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Width × height</td>
+<td>58 × 40 mm</td>
+<td>common sizes: 58×40, 58×30, 40×30, 50×30, 43×25</td>
+</tr>
+<tr>
+<td>Gap</td>
+<td>2 mm</td>
+<td>for TSPL (<code>GAP</code>)</td>
+</tr>
+<tr>
+<td>DPI</td>
+<td>203</td>
+<td>203 / 300 / 600. For ZPL the barcode module is 2 dots at 203 dpi and 3 dots at 300 dpi</td>
+</tr>
+</tbody>
+</table>
+<h2 id="cyrillic-and-diacritics-on-a-thermal-printer">Cyrillic and diacritics on a thermal printer</h2>
+<p>The built-in Zebra (<code>^A0</code>) and TSC (<code>"1"</code>…<code>"8"</code>) fonts <strong>have no Cyrillic</strong>.
+So by default text on a ZPL/TSPL label is transliterated: “Футболка” →
+“Futbolka”, and “ș ț ă î â” → “s t a i a”. Digits, price, SKU and barcode are
+unchanged.</p>
+<p>For the original text:</p>
+<ol>
+<li>Download a TTF font to the printer: Zebra Setup Utilities → Download Fonts,
+   for TSC — Diagnostic Tool → Font.</li>
+<li>In “Settings” enter the font name on the printer:
+   - ZPL: <code>E:ARIAL.TTF</code> (uses <code>^A@N,h,w,E:ARIAL.TTF</code>; UTF-8 is already on via <code>^CI28</code>);
+   - TSPL: <code>ARIAL.TTF</code> (uses <code>CODEPAGE UTF-8</code> and <code>TEXT x,y,"ARIAL.TTF",...</code>).</li>
+</ol>
+<p>For labels without Cyrillic, set the colour language to <strong>English</strong> or
+<strong>Română</strong> and write model names in Latin letters.</p>
+<p>In PDF, Cyrillic and diacritics always print: the system font DejaVu,
+Liberation or Arial is used. Set your own font with the <code>TEXFLOW_PDF_FONT</code>
+variable.</p>
+<h2 id="a4-sheet-calibration">A4 sheet calibration</h2>
+<p>Default sheet 3×8 = 24 labels of 70×37 mm. Other formats:</p>
+<table>
+<thead>
+<tr>
+<th>Sheet</th>
+<th>Columns × rows</th>
+<th>Label, mm</th>
+<th>Top margin, mm</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>24 pcs</td>
+<td>3 × 8</td>
+<td>70 × 37</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>21 pcs</td>
+<td>3 × 7</td>
+<td>70 × 42.3</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>40 pcs</td>
+<td>4 × 10</td>
+<td>52.5 × 29.7</td>
+<td>0</td>
+</tr>
+<tr>
+<td>14 pcs</td>
+<td>2 × 7</td>
+<td>105 × 42.3</td>
+<td>0.5</td>
+</tr>
+<tr>
+<td>65 pcs</td>
+<td>5 × 13</td>
+<td>38.1 × 21.2</td>
+<td>10.7 (and left 4.7)</td>
+</tr>
+</tbody>
+</table>
+<p>Calibration steps:</p>
+<ol>
+<li>Print on plain paper with a border (Settings → “Border”).</li>
+<li>Lay it over a label sheet against the light.</li>
+<li>Fix any offset with the margins.</li>
+</ol>
+<p>The <strong>“Start at cell”</strong> field lets you finish a partly used sheet: e.g. <code>5</code>
+skips the first five used labels.</p>
+<h2 id="checking-without-a-printer">Checking without a printer</h2>
+<ul>
+<li><strong>ZPL</strong>: the labels page shows the ZPL of the first label. Paste it into
+  https://labelary.com/viewer.html (8 dpmm = 203 dpi, 2.28×1.57 in = 58×40 mm).</li>
+<li><strong>TSPL</strong>: download <code>.tspl</code> and open it in TSC Console / Diagnostic Tool, or
+  send it to the printer: <code>nc 192.168.1.50 9100 &lt; labels.tspl</code>.</li>
+<li><strong>PDF</strong>: open it in a browser and scan the barcode from the screen with a
+  phone.</li>
+</ul>
+<p>The copy count is a single command: <code>^PQn</code> in ZPL and <code>PRINT 1,n</code> in TSPL. So
+18 identical labels are one job, not 18. Full ZPL and TSPL examples are in
+<a href="../ru/LABELS.html">LABELS.md</a>.</p></main></div></body></html>

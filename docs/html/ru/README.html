@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TexFlow — приёмка одежды из мешков, каталог, цены и этикетки · TexFlow</title><link rel="stylesheet" href="../assets/docs.css"></head>
+<body><header class="top"><span class="logo">TEXFLOW</span><a href="../index.html">Все материалы</a>
+<a href="../test_act.html">Акт тестирования</a><a href="../presentation.html">Презентация</a><span class="langs"><a class="on" href="../ru/README.html">RU</a><a class="" href="../ro/README.html">RO</a><a class="" href="../en/README.html">EN</a></span></header>
+<div class="wrap"><nav class="side"><b>Документация</b><a class="on" href="../ru/README.html">Обзор и установка</a><a href="../ru/DESKTOP.html">Нативное приложение</a><a href="../ru/OPERATOR_GUIDE.html">Инструкция оператора</a><a href="../ru/LABELS.html">Этикетки и принтеры</a><a href="../ru/ARCHITECTURE.html">Блок-схемы</a><a href="../ru/gallery.html">Галерея экранов</a><b>Акт тестирования · Презентация</b><a href="../test_act.html">Акт тестирования (RU)</a><a href="../presentation.html">Презентация (RU)</a><a href="../index.html">Все материалы</a></nav><main class="doc"><h1 id="texflow">TexFlow — приёмка одежды из мешков, каталог, цены и этикетки</h1>
+<p><strong>Русский</strong> · <a href="../ro/README.html">Română</a> · <a href="../en/README.html">English</a></p>
+<p>Автономное веб-приложение на <strong>Python + Flask + SQLite</strong>. Нужен для быстрой
+обработки одежды, которая приходит из Турции и Китая в мешках, где всё лежит
+вперемешку, а к поставке есть только <strong>примерный</strong> сводный упаковочный лист.</p>
+<p>TexFlow ведёт товар через пять шагов:</p>
+<ol>
+<li>принимает его по мешкам, раскладывая каждую модель по матрице «цвет × размер» (как в Zara);</li>
+<li>сверяет факт с упаковочным листом;</li>
+<li>считает себестоимость с учётом импортных затрат;</li>
+<li>ставит цены по наценкам категорий;</li>
+<li>печатает этикетки на <strong>Zebra (ZPL)</strong>, <strong>TSC (TSPL)</strong> или в <strong>PDF</strong> —
+   листом A4 для обычного принтера или рулоном для виртуального принтера.</li>
+</ol>
+<p>Интерфейс на трёх языках: <strong>русский, румынский, английский</strong>. Переключатель
+RU / RO / EN стоит в шапке. Названия цветов, категорий и размерных шкал
+переведены, а цвет на этикетке можно печатать на любом из трёх языков.</p>
+<p>Сервер и интернет не нужны: один файл базы <code>instance/texflow.db</code>, запуск с
+ноутбука. Приложение не связано с порталом Artgranit/Oracle и не трогает его
+код. Всё лежит в <code>standalone/texflow/</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Документ</th>
+<th>О чём</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><a href="ARCHITECTURE.html">docs/ARCHITECTURE.md</a> · <a href="../ro/ARCHITECTURE.html">RO</a> · <a href="../en/ARCHITECTURE.html">EN</a></td>
+<td>блок-схемы Mermaid: процесс, данные (ER), расчёт цены, печать</td>
+</tr>
+<tr>
+<td><a href="LABELS.html">docs/LABELS.md</a> · <a href="../ro/LABELS.html">RO</a> · <a href="../en/LABELS.html">EN</a></td>
+<td>принтеры Zebra/TSC, PDF, кириллица, калибровка листа A4</td>
+</tr>
+<tr>
+<td><a href="OPERATOR_GUIDE.html">docs/OPERATOR_GUIDE.md</a> · <a href="../ro/OPERATOR_GUIDE.html">RO</a> · <a href="../en/OPERATOR_GUIDE.html">EN</a></td>
+<td>пошаговая инструкция для кладовщика / оператора</td>
+</tr>
+<tr>
+<td><a href="../../../samples">samples/</a></td>
+<td>примеры упаковочных листов: турецкий и китайский</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="0-12-windows-macos-linux">0. Нативное приложение (1.2): Windows · macOS · Linux</h2>
+<p>Кроме веб-версии есть <strong>обычная программа с окном</strong> на том же ядре: <a href="DESKTOP.html">docs/DESKTOP.md</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Что</th>
+<th>Как</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Установить</td>
+<td>двойной щелчок <code>Install-TexFlow-Windows.bat</code> / <code>Install-TexFlow-macOS.command</code> / <code>sh install-texflow-linux.sh</code> — Python, библиотеки, ярлыки ставятся сами</td>
+</tr>
+<tr>
+<td>Запустить без установки</td>
+<td><code>python texflow_app.py</code> (библиотеки доставятся при первом запуске) · <code>--web</code> — веб-версия</td>
+</tr>
+<tr>
+<td>Готовая программа без Python</td>
+<td><code>python install/build_exe.py</code> → TexFlow.exe / TexFlow.app / TexFlow</td>
+</tr>
+<tr>
+<td>Редактор этикеток</td>
+<td>вкладка «Редактор этикеток»: свои шаблоны мышью, EAN-13 / CODE128, любой размер; печать ZPL / TSPL / PDF</td>
+</tr>
+<tr>
+<td>Excel и CSV</td>
+<td>вкладка «Excel / CSV» (и <code>/exchange</code> в веб-версии): полный отчёт, каталог, цены, приёмка — выгрузка и загрузка обратно</td>
+</tr>
+<tr>
+<td>Тестовая база</td>
+<td><code>python texflow_app.py --sample</code> (или <code>--web --sample</code>, или меню «Файл → Открыть тестовую базу»): 5 поставок во всех статусах, 17 моделей во всех категориях, 735 шт., сверка, цены, шаблоны, журнал печати — рабочая база не трогается</td>
+</tr>
+<tr>
+<td>Сборка и подпись</td>
+<td>на каждый push GitHub Actions проверяет, запускает из скриптов и собирает .exe / .app (отдельно Intel и Apple Silicon arm64) / Linux, подписывает SHA256SUMS ключом <strong>unisim-soft</strong> (Ed25519); программа сама проверяет свою подпись: <code>python texflow_app.py --verify</code> — <a href="DESKTOP.html">DESKTOP.md, раздел 6</a></td>
+</tr>
+<tr>
+<td>Исходники без архива</td>
+<td>ветка <code>texflow-dist</code> — подписанная версия обычными файлами (обновляется с каждым push в <code>main</code>)</td>
+</tr>
+<tr>
+<td>Статья</td>
+<td><a href="../../ARTICLE.md">docs/ARTICLE.md</a> — «Автоматизация „с коленок“: от мешка до ценника»</td>
+</tr>
+</tbody>
+</table>
+<h2 id="1">1. Установка и запуск</h2>
+<p>Нужен Python 3.10 или новее (проверено на 3.13).</p>
+<pre><code class="language-bash">cd standalone/texflow
+python3 -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+python run.py --demo               # откроет http://127.0.0.1:5077/ с демо-поставкой
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Параметр</th>
+<th>Что делает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--host 0.0.0.0</code></td>
+<td>открыть доступ с планшетов и ПК в локальной сети, например для сканера на втором рабочем месте</td>
+</tr>
+<tr>
+<td><code>--port 5077</code></td>
+<td>порт</td>
+</tr>
+<tr>
+<td><code>--db путь.db</code></td>
+<td>другой файл базы, например отдельная база на сезон</td>
+</tr>
+<tr>
+<td><code>--demo</code></td>
+<td>загрузить демо-поставку <code>DEMO-TR-01</code>: 3 модели, принятые штуки, цены</td>
+</tr>
+<tr>
+<td><code>--no-browser</code></td>
+<td>не открывать браузер автоматически</td>
+</tr>
+</tbody>
+</table>
+<p>Переменные окружения: <code>TEXFLOW_DB</code> — путь к базе, <code>TEXFLOW_PDF_FONT</code> — свой
+TTF-шрифт для PDF.</p>
+<p><strong>Резервная копия</strong> — скопировать файл <code>instance/texflow.db</code>. Если приложение
+запущено, надёжнее так: <code>sqlite3 instance/texflow.db ".backup backup.db"</code>.</p>
+<h2 id="2">2. Тесты</h2>
+<pre><code class="language-bash">cd standalone/texflow
+python -m pytest -q
+</code></pre>
+<p>Всего 104 теста, файл Oracle wallet и принтер не нужны:</p>
+<table>
+<thead>
+<tr>
+<th>Файл</th>
+<th>Что проверяет</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tests/test_rules.py</code></td>
+<td>контрольная цифра EAN-13, SKU, транслитерацию, «красивое» округление, наценку с НДС, распределение затрат тремя способами, сверку</td>
+</tr>
+<tr>
+<td><code>tests/test_labels.py</code></td>
+<td>ZPL (структура, <code>^PQ</code>, экранирование <code>^ ~ _</code>, 203/300 dpi, кириллицу), TSPL (CRLF, <code>\["]</code>, EAN13), PDF (листы A4, пропуск ячеек, страницы рулона, размер 58×40 мм)</td>
+</tr>
+<tr>
+<td><code>tests/test_printing.py</code></td>
+<td>отправку на поддельный TCP-«принтер» (порт как 9100), папку-спул, ошибки адреса и CUPS</td>
+</tr>
+<tr>
+<td><code>tests/test_store.py</code></td>
+<td>импорт листа (рус/кит заголовки, cp1251, табуляция), создание вариантов, сканер, себестоимость, цены, сверку, экспорт</td>
+</tr>
+<tr>
+<td><code>tests/test_app.py</code></td>
+<td>сквозной HTTP-сценарий от поставки до печати на TCP-принтер; изоляцию от общего кода Artgranit</td>
+</tr>
+<tr>
+<td><code>tests/test_i18n.py</code></td>
+<td>что каждая строка интерфейса переведена на RO и EN, подстановки <code>{…}</code> совпадают, на страницах RO/EN нет кириллицы, язык запоминается, цвет на этикетке печатается на выбранном языке, старая база получает переводы при обновлении</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2a">2a. Языки</h2>
+<table>
+<thead>
+<tr>
+<th>Где</th>
+<th>Как</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Интерфейс</td>
+<td>переключатель <strong>RU / RO / EN</strong> в шапке; запоминается в браузере. Язык по умолчанию — «Настройки → Язык интерфейса»</td>
+</tr>
+<tr>
+<td>Справочники</td>
+<td>у цвета, группы цветов, категории и шкалы есть <code>name</code> (RU), <code>name_ro</code>, <code>name_en</code>; пустой перевод → русское название. При добавлении в «Справочниках» есть поля RU / RO / EN</td>
+</tr>
+<tr>
+<td>Модель</td>
+<td>в карточке модели — название и состав на RO и EN (пусто → основное). Каталог, разбор и цены показывают название на языке интерфейса; поиск — по любому языку</td>
+</tr>
+<tr>
+<td>Этикетка</td>
+<td>«Настройки → Язык названий цветов на этикетке»: цвет, название модели и состав печатаются на этом языке («Negru», «Tricou basic»)</td>
+</tr>
+<tr>
+<td>Упаковочный лист</td>
+<td>заголовки CSV понимаются и по-румынски: <code>sac;categorie;descriere;cantitate;preț;greutate</code>; категорию можно указать румынским или английским названием</td>
+</tr>
+<tr>
+<td>Новая строка интерфейса</td>
+<td>в шаблоне — <code>{{ _('Русский текст') }}</code>, перевод — в <code>texflow/i18n_catalog.py</code>; без перевода тест <code>test_every_ui_string_translated</code> падает</td>
+</tr>
+</tbody>
+</table>
+<h2 id="2b-html-">2b. HTML-материалы: документация, акт тестирования, презентация</h2>
+<p>Готовые HTML-материалы лежат в <code>docs/html/</code> и открываются без интернета, прямо из папки или из приложения по адресу
+<code>http://127.0.0.1:5077/docs/</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Файл</th>
+<th>Что это</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>docs/html/index.html</code></td>
+<td>все материалы</td>
+</tr>
+<tr>
+<td><code>docs/html/{ru,ro,en}/*.html</code></td>
+<td>документация на трёх языках (схемы Mermaid встроены как SVG) и галереи экранов</td>
+</tr>
+<tr>
+<td><code>docs/html/test_act.html</code>, <code>test_act.pdf</code></td>
+<td>акт тестирования со скриншотами каждого шага</td>
+</tr>
+<tr>
+<td><code>docs/html/presentation.html</code>, <code>presentation.pdf</code></td>
+<td>презентация (стрелки ← →)</td>
+</tr>
+<tr>
+<td><code>docs/html/img/</code></td>
+<td>скриншоты сквозного прогона и изображения этикеток</td>
+</tr>
+</tbody>
+</table>
+<p>Пересобрать всё одной командой: тесты, прогон в браузере со скриншотами, HTML и PDF.</p>
+<pre><code class="language-bash">tools/run_all.sh          # нужны node + playwright (Chromium) и pdftoppm
+tools/make_archive.sh     # zip ровно с тем, что лежит в git: dist/texflow-&lt;версия&gt;-&lt;коммит&gt;.zip
+</code></pre>
+<h2 id="3">3. Как работать (кратко)</h2>
+<p>Полная инструкция — <a href="OPERATOR_GUIDE.html">docs/OPERATOR_GUIDE.md</a>.</p>
+<ol>
+<li><strong>Поставки → Новая поставка.</strong> Указать номер, поставщика, страну, валюту и
+   курс к местной валюте. Затраты в местной валюте: фрахт, таможенные сборы,
+   брокер, прочее. Выбрать способ распределения затрат: по стоимости, по
+   штукам или по весу мешков.</li>
+<li><strong>Упаковочный лист.</strong> Загрузить CSV: <code>мешок;категория;описание;кол-во;цена;вес</code>.
+   Заголовки можно писать по-русски, по-английски, по-турецки или по-китайски.
+   Кодировки UTF-8, cp1251, cp1254 и GB18030 определяются сами. Мешки создаются
+   автоматически.</li>
+<li><strong>Разбор мешка.</strong> Если вещь уже заведена, достаточно отсканировать её EAN
+   или SKU — добавится +1 шт. Новую модель заводят в форме «Новая модель»:
+   кликнуть по нужным цветам, затем ввести количества в матрицу размеров.
+   Enter — следующая ячейка, Ctrl+Enter — записать. Закупочная цена
+   подставляется из упаковочного листа по категории.</li>
+<li><strong>Сверка</strong> на странице поставки, по категориям и по мешкам: «совпало»,
+   «недостача», «излишек», «нет в листе».</li>
+<li><strong>Цены.</strong> Себестоимость → наценка категории → НДС → красивая цена
+   (например, 189.90). Можно вписать свою цену или зафиксировать её в карточке.</li>
+<li><strong>Этикетки</strong> печатаются на всю поставку, на мешок, на модель или на один
+   вариант. Количество этикеток равно числу принятых штук.</li>
+</ol>
+<h2 id="4-sqlite">4. Модель данных (SQLite, нормализованная)</h2>
+<table>
+<thead>
+<tr>
+<th>Таблица</th>
+<th>Сущность</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>suppliers</code></td>
+<td>поставщики</td>
+</tr>
+<tr>
+<td><code>size_scales</code>, <code>sizes</code></td>
+<td>размерные шкалы: буквенная XXS–3XL, женская EU 32–48, мужская 44–58, джинсы W24–38, детская по росту 86–164, обувь 35–46, ONE</td>
+</tr>
+<tr>
+<td><code>color_families</code>, <code>colors</code></td>
+<td>группы цветов в стиле Zara (Белый, Чёрный, Бежевый, Синий…) и цвета с кодами <code>001</code>, <code>800</code>, <code>401</code>…</td>
+</tr>
+<tr>
+<td><code>categories</code></td>
+<td>категория → размерная шкала, наценка %, пошлина %, ТН ВЭД</td>
+</tr>
+<tr>
+<td><code>shipments</code></td>
+<td>поставка: валюта, курс, фрахт/таможня/брокер/прочее, способ распределения, статус</td>
+</tr>
+<tr>
+<td><code>bags</code></td>
+<td>мешки поставки: номер, вес, статус (<code>closed</code> → <code>sorting</code> → <code>done</code>)</td>
+</tr>
+<tr>
+<td><code>packing_lines</code></td>
+<td>строки примерного упаковочного листа</td>
+</tr>
+<tr>
+<td><code>products</code></td>
+<td>модель: артикул, название, категория, состав, закупка, розничная цена, флаг фиксации</td>
+</tr>
+<tr>
+<td><code>variants</code></td>
+<td>вариант «цвет × размер»: уникальные <code>sku</code> и <code>ean13</code></td>
+</tr>
+<tr>
+<td><code>intake_items</code></td>
+<td>журнал приёмки: сколько штук какого варианта достали из какого мешка; закупка; себестоимость</td>
+</tr>
+<tr>
+<td><code>label_jobs</code></td>
+<td>журнал печати</td>
+</tr>
+<tr>
+<td><code>settings</code></td>
+<td>настройки приложения: бренд, НДС, округление, размеры этикеток, адреса принтеров, языки</td>
+</tr>
+</tbody>
+</table>
+<p>Остаток не хранится отдельным полем: это <code>SUM(intake_items.qty)</code> по варианту.
+Исправление пересчёта — строка с отрицательным количеством или удаление строки
+журнала.</p>
+<p><strong>SKU</strong> = <code>АРТИКУЛ-КОДЦВЕТА-РАЗМЕР</code>, например <code>TSH0001-800-M</code>.
+<strong>EAN-13</strong> — внутренний, с префиксом <code>200</code> (диапазон 20–29 GS1 оставляет для
+внутреннего использования магазина) и правильной контрольной цифрой. Префикс
+меняется в настройках.</p>
+<h2 id="5">5. Формулы</h2>
+<pre><code>закупка_лок   = закупка_вал × курс
+пошлина       = закупка_лок × пошлина_категории %
+доля_затрат   = (фрахт + таможня + брокер + прочее) × база_позиции / Σ база
+                 база: стоимость (qty × закупка_лок) | штуки | вес (вес мешка × доля штук в мешке)
+себестоимость = закупка_лок + пошлина + доля_затрат / qty
+цена_расчёт   = себестоимость × (1 + max(наценка_категории, мин_наценка) %) × (1 + НДС %)
+цена          = ⌈(цена_расчёт + хвост) / шаг⌉ × шаг − хвост        (шаг 10, хвост 0.1 → 189.90)
+</code></pre>
+<h2 id="6">6. Структура файлов</h2>
+<pre><code>standalone/texflow/
+├── run.py                  запуск
+├── requirements.txt
+├── texflow/
+│   ├── __init__.py         create_app()
+│   ├── schema.sql          DDL SQLite
+│   ├── db.py               подключение, стартовые справочники
+│   ├── i18n.py             языки: gettext, локализованные названия в SQL
+│   ├── i18n_catalog.py     переводы RU → RO / EN
+│   ├── rules.py            чистые правила: EAN, SKU, затраты, цены, сверка (без БД)
+│   ├── store.py            операции над базой
+│   ├── labels.py           ZPL / TSPL / PDF A4 / PDF рулон
+│   ├── printing.py         TCP 9100, CUPS raw, папка-спул
+│   ├── routes.py           веб-маршруты
+│   ├── demo.py             демо-поставка
+│   ├── templates/          интерфейс (Jinja2)
+│   └── static/             app.css, sort.js
+├── samples/                упаковочные листы TR и CN
+├── docs/                   ARCHITECTURE, LABELS, OPERATOR_GUIDE
+└── tests/                  pytest
+</code></pre>
+<h2 id="7-">7. Чек-лист после установки</h2>
+<ol>
+<li><code>python -m pytest -q</code> — все тесты зелёные.</li>
+<li><code>python run.py --demo</code> открывает главную; в «Каталоге» 3 модели с ценами.</li>
+<li>«Этикетки» → поставка <code>DEMO-TR-01</code> → «PDF A4» → «Открыть»: лист 3×8 со
+   штрихкодами. Сканер должен читать EAN с бумаги.</li>
+<li>Для Zebra/TSC: адрес принтера в «Настройках», затем печать одной этикетки
+   (кнопка «этикетка» у варианта в карточке модели) и проверка, что она
+   сканируется.</li>
+</ol></main></div></body></html>

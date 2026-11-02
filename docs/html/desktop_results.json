@@ -1,0 +1,237 @@
+{
+ "meta": {
+  "python": "3.12.3",
+  "tk": "8.6",
+  "os": "Linux 6.18.44-fc-v185"
+ },
+ "results": [
+  {
+   "id": "D01",
+   "lang": "ru",
+   "title": "Запуск нативного приложения на пустой базе",
+   "expected": "Окно с 8 вкладками, меню, переключатель RU/RO/EN; база создана в папке данных пользователя",
+   "actual": "Вкладки: Поставки · Разбор · Цены · Каталог · Этикетки · Редактор этикеток · Excel / CSV · Настройки",
+   "status": "PASS",
+   "images": [
+    "desk_01_start.jpg"
+   ],
+   "ms": 302
+  },
+  {
+   "id": "D02",
+   "lang": "ru",
+   "title": "Новая поставка",
+   "expected": "Поставка TR-DESK-01 создана, 2 мешка, курс 17.8",
+   "actual": "Поставка TR-DESK-01 создана",
+   "status": "PASS",
+   "images": [
+    "desk_02_shipment_form.jpg"
+   ],
+   "ms": 297
+  },
+  {
+   "id": "D03",
+   "lang": "ru",
+   "title": "Упаковочный лист из Excel (.xlsx)",
+   "expected": "7 строк загружены из xlsx, мешков стало 4, сверка показывает недостачу по всем категориям",
+   "actual": "Затраты сохранены, себестоимость пересчитана",
+   "status": "PASS",
+   "images": [
+    "desk_03_shipment_loaded.jpg"
+   ],
+   "ms": 401
+  },
+  {
+   "id": "D04",
+   "lang": "ru",
+   "title": "Разбор мешка: новая модель и матрица цвет × размер",
+   "expected": "Модель создана, закупка 2.1 из листа, 3 цвета в матрице, итог 60, запись 60 шт. (8 вариантов) в мешок №1",
+   "actual": "Σ 0 → Принято 60 шт.",
+   "status": "PASS",
+   "images": [
+    "desk_04_matrix.jpg",
+    "desk_05_intake_log.jpg"
+   ],
+   "ms": 711
+  },
+  {
+   "id": "D05",
+   "lang": "ru",
+   "title": "Сканер: повторная вещь и неизвестный код",
+   "expected": "Известный EAN добавляет +1 шт. (✓, зелёный), неизвестный — ✗ и сигнал, без записи",
+   "actual": "✗ штрихкод 2999999999999 не найден / ✓ TSH0001-001-S — Футболка базовая оверсайз",
+   "status": "PASS",
+   "images": [
+    "desk_06_scanner.jpg"
+   ],
+   "ms": 311
+  },
+  {
+   "id": "D06",
+   "lang": "ru",
+   "title": "Цены: предложение, своя цена, запись в карточки",
+   "expected": "Цена предложена с окончанием .90; своя цена 199.90 записывается в карточку",
+   "actual": "предложено 449.90, записано 199.90",
+   "status": "PASS",
+   "images": [
+    "desk_07_pricing.jpg"
+   ],
+   "ms": 328
+  },
+  {
+   "id": "D07",
+   "lang": "ru",
+   "title": "Каталог: карточка, переводы RO/EN, фиксация цены",
+   "expected": "Название и состав сохранены на RO/EN, цена зафиксирована",
+   "actual": "Карточка сохранена",
+   "status": "PASS",
+   "images": [
+    "desk_08_catalog.jpg"
+   ],
+   "ms": 323
+  },
+  {
+   "id": "D08",
+   "lang": "ru",
+   "title": "Редактор этикеток: открыть стандартный шаблон",
+   "expected": "Холст показывает этикетку 58×40 с данными, 8 элементов в списке",
+   "actual": "Standard 58×40: 8 элементов",
+   "status": "PASS",
+   "images": [
+    "desk_09_editor_open.jpg"
+   ],
+   "ms": 385
+  },
+  {
+   "id": "D09",
+   "lang": "ru",
+   "title": "Редактор: новый шаблон, элементы, перетаскивание мышью, свойства",
+   "expected": "Создан шаблон «Бирка 50×30»; добавлены текст, CODE128, рамка; текст перетащен мышью на 5 мм; свойства (шрифт, жирный, выравнивание) применены; сохранено в базе",
+   "actual": "x,y текста после мыши и стрелок: 7, 6; сохранено 3 элемента",
+   "status": "PASS",
+   "images": [
+    "desk_10_editor_new.jpg"
+   ],
+   "ms": 457
+  },
+  {
+   "id": "D10",
+   "lang": "ru",
+   "title": "Редактор: экспорт и импорт шаблона JSON, пробный PDF, код ZPL/TSPL",
+   "expected": "JSON выгружен и загружен как копия; пробный PDF 50×30 мм; окно кода содержит ^BCN (CODE128) и BOX",
+   "actual": "JSON → копия шаблона; PDF 141.7×85.0 pt; ZPL+TSPL показаны",
+   "status": "PASS",
+   "images": [
+    "desk_11_editor_code.jpg"
+   ],
+   "ms": 419
+  },
+  {
+   "id": "D11",
+   "lang": "ru",
+   "title": "Этикетки: выбор принятых штук, шаблон, PDF, ZPL, TSPL в файл",
+   "expected": "Выбрано 61 этикетка; файлы PDF-рулон (шаблон «Бирка»), PDF A4, ZPL, TSPL сохранены и корректны",
+   "actual": "Выбрано: 8 вариантов, 61 этикеток; файлы: labels.pdf_a4, labels.pdf_roll, labels.zpl, labels.tspl",
+   "status": "PASS",
+   "images": [
+    "desk_12_labels.jpg",
+    "desk_label_custom.png"
+   ],
+   "ms": 482
+  },
+  {
+   "id": "D12",
+   "lang": "ru",
+   "title": "Этикетки: печать на сетевой принтер (TCP 9100)",
+   "expected": "Принтер получает ZPL-задание, в журнале печати статус ok",
+   "actual": "Печать: 61 этикеток — отправлено 1793 байт на 127.0.0.1:43963; принтер получил 1793 байт",
+   "status": "PASS",
+   "images": [],
+   "ms": 305
+  },
+  {
+   "id": "D13",
+   "lang": "ru",
+   "title": "Excel / CSV: выгрузка полного отчёта и CSV",
+   "expected": "Книга Excel со всеми листами и CSV каталога сохранены; EAN-13 в Excel — текст",
+   "actual": "Листы: Каталог, Цены, Поставки, Приёмка, Упаковочный лист, Сверка, Предложение цен",
+   "status": "PASS",
+   "images": [
+    "desk_13_exchange.jpg"
+   ],
+   "ms": 377
+  },
+  {
+   "id": "D14",
+   "lang": "ru",
+   "title": "Excel: правка цен в Excel и загрузка обратно, загрузка каталога",
+   "expected": "Цена из Excel записана (зафиксированная — тоже, по явному значению); каталог из Excel создал модель, варианты и приёмку",
+   "actual": "цены: {'products': 1, 'variants': 2, 'received': 10, 'errors': []}",
+   "status": "PASS",
+   "images": [
+    "desk_14_exchange_import.jpg"
+   ],
+   "ms": 334
+  },
+  {
+   "id": "D15",
+   "lang": "ru",
+   "title": "Настройки: язык этикетки румынский",
+   "expected": "Сохранено; на этикетке цвет «Alb», название «Tricou basic oversize»",
+   "actual": "Tricou basic oversize · Alb · 100% bumbac",
+   "status": "PASS",
+   "images": [
+    "desk_15_settings.jpg"
+   ],
+   "ms": 331
+  },
+  {
+   "id": "D16",
+   "lang": "ro",
+   "title": "Все вкладки на румынском",
+   "expected": "Переключение языка перестраивает окно; на 8 вкладках, в меню и заголовках таблиц нет кириллицы",
+   "actual": "Вкладки: Livrări · Sortare · Prețuri · Catalog · Etichete · Editor de etichete · Excel / CSV · Setări",
+   "status": "PASS",
+   "images": [
+    "desk_16_ro_shipments.jpg",
+    "desk_17_ro_sort.jpg",
+    "desk_18_ro_pricing.jpg",
+    "desk_19_ro_catalog.jpg",
+    "desk_20_ro_labels.jpg",
+    "desk_21_ro_editor.jpg",
+    "desk_22_ro_exchange.jpg",
+    "desk_23_ro_settings.jpg"
+   ],
+   "ms": 2761
+  },
+  {
+   "id": "D17",
+   "lang": "en",
+   "title": "Все вкладки на английском",
+   "expected": "Переключение языка перестраивает окно; на 8 вкладках, в меню и заголовках таблиц нет кириллицы",
+   "actual": "Вкладки: Shipments · Sort · Prices · Catalogue · Labels · Label editor · Excel / CSV · Settings",
+   "status": "PASS",
+   "images": [
+    "desk_24_en_shipments.jpg",
+    "desk_25_en_sort.jpg",
+    "desk_26_en_pricing.jpg",
+    "desk_27_en_catalog.jpg",
+    "desk_28_en_labels.jpg",
+    "desk_29_en_editor.jpg",
+    "desk_30_en_exchange.jpg",
+    "desk_31_en_settings.jpg"
+   ],
+   "ms": 2739
+  },
+  {
+   "id": "D18",
+   "lang": "ru",
+   "title": "Ошибки Tk за весь прогон",
+   "expected": "Необработанных исключений в обработчиках событий нет",
+   "actual": "Ошибок: 0",
+   "status": "PASS",
+   "images": [],
+   "ms": 99
+  }
+ ]
+}

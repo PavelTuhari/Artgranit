@@ -1,0 +1,121 @@
+{
+ "url": "https://github.com/PavelTuhari/Artgranit/actions/runs/41503078863",
+ "run_number": 8,
+ "sha": "bc2b942e3272f5848f9f1e001cc245f76e267c43",
+ "conclusion": "success",
+ "jobs": [
+  {
+   "name": "Тесты (pytest, окно в Xvfb)",
+   "runner": "ubuntu-latest",
+   "conclusion": "success",
+   "seconds": 164,
+   "steps": [
+    "Run actions/checkout@v4: success",
+    "Run actions/setup-python@v5: success",
+    "Системные пакеты: success",
+    "Библиотеки: success",
+    "pytest: success"
+   ]
+  },
+  {
+   "name": "Скриптовая версия + манифест с подписью",
+   "runner": "ubuntu-latest",
+   "conclusion": "success",
+   "seconds": 44,
+   "steps": [
+    "Run actions/checkout@v4: success",
+    "Run actions/setup-python@v5: success",
+    "Собрать TexFlow-…-scripts.zip: success",
+    "Run actions/upload-artifact@v4: success"
+   ]
+  },
+  {
+   "name": "windows — скрипты, установка, сборка",
+   "runner": "windows-latest",
+   "conclusion": "success",
+   "seconds": 94,
+   "steps": [
+    "Run actions/setup-python@v5: success",
+    "Run actions/download-artifact@v4: success",
+    "Распаковать подписанные скрипты: success",
+    "Tk и Xvfb (Linux): skipped",
+    "Скрипты: целостность — подпись unisim-soft и суммы своих файлов: success",
+    "Скрипты: окружение (библиотеки ставятся сами при первом запуске): success",
+    "Скрипты: окно программы — все вкладки на RU/RO/EN: success",
+    "Установщик (без ярлыков) + запуск установленной программы: success",
+    "Сборка: библиотеки: success",
+    "Сборка: PyInstaller: success",
+    "Сборка: запуск без Python (Windows) — все вкладки на RU/RO/EN: success",
+    "Сборка: запуск без Python (macOS / Linux) — все вкладки на RU/RO/EN: skipped",
+    "Run actions/upload-artifact@v4: success"
+   ]
+  },
+  {
+   "name": "macos — скрипты, установка, сборка",
+   "runner": "macos-15-intel",
+   "conclusion": "success",
+   "seconds": 182,
+   "steps": [
+    "Run actions/setup-python@v5: success",
+    "Run actions/download-artifact@v4: success",
+    "Распаковать подписанные скрипты: success",
+    "Tk и Xvfb (Linux): skipped",
+    "Скрипты: целостность — подпись unisim-soft и суммы своих файлов: success",
+    "Скрипты: окружение (библиотеки ставятся сами при первом запуске): success",
+    "Скрипты: окно программы — все вкладки на RU/RO/EN: success",
+    "Установщик (без ярлыков) + запуск установленной программы: success",
+    "Сборка: библиотеки: success",
+    "Сборка: PyInstaller: success",
+    "Сборка: запуск без Python (Windows) — все вкладки на RU/RO/EN: skipped",
+    "Сборка: запуск без Python (macOS / Linux) — все вкладки на RU/RO/EN: success",
+    "Run actions/upload-artifact@v4: success"
+   ]
+  },
+  {
+   "name": "linux — скрипты, установка, сборка",
+   "runner": "ubuntu-22.04",
+   "conclusion": "success",
+   "seconds": 97,
+   "steps": [
+    "Run actions/setup-python@v5: success",
+    "Run actions/download-artifact@v4: success",
+    "Распаковать подписанные скрипты: success",
+    "Tk и Xvfb (Linux): success",
+    "Скрипты: целостность — подпись unisim-soft и суммы своих файлов: success",
+    "Скрипты: окружение (библиотеки ставятся сами при первом запуске): success",
+    "Скрипты: окно программы — все вкладки на RU/RO/EN: success",
+    "Установщик (без ярлыков) + запуск установленной программы: success",
+    "Сборка: библиотеки: success",
+    "Сборка: PyInstaller: success",
+    "Сборка: запуск без Python (Windows) — все вкладки на RU/RO/EN: skipped",
+    "Сборка: запуск без Python (macOS / Linux) — все вкладки на RU/RO/EN: success",
+    "Run actions/upload-artifact@v4: success"
+   ]
+  },
+  {
+   "name": "SHA256SUMS + подпись unisim-soft + аттестация GitHub + выпуск",
+   "runner": "ubuntu-latest",
+   "conclusion": "success",
+   "seconds": 19,
+   "steps": [
+    "Run actions/checkout@v4: success",
+    "Run actions/setup-python@v5: success",
+    "Run actions/download-artifact@v4: success",
+    "Контрольные суммы и подпись: success",
+    "Аттестация происхождения (GitHub, Sigstore) — дополнительно к подписи unisim-soft: success",
+    "Run actions/upload-artifact@v4: success",
+    "Выпуск texflow-nightly (push в main): skipped",
+    "Выпуск версии (тег texflow-v*): skipped"
+   ]
+  }
+ ],
+ "sums": "# TexFlow 1.2.0 · commit bc2b942e3272 · signer unisim-soft\n7d36290fbe6a2f71519d141970d194f04cb046038f25165251241d41981e9cdc  TexFlow-1.2.0-linux-x86_64.zip\nb4cc45b41c64f2d64ae1d459df30ab29a85d8d4dbea55ee4573c43af83f9bd9b  TexFlow-1.2.0-macos-x86_64.zip\n4e103874c51465a641aa82eae67440cd579cfe46bfd75c4482491b84a265c7f3  TexFlow-1.2.0-scripts.zip\nb08e18616709ba842e1fbaaf35c84dd7ca9863a652f6b8435473923a925a4853  TexFlow-1.2.0-windows-x86_64.zip\n",
+ "notes": [
+  "Секрет UNISIM_SOFT_SIGNING_KEY в репозитории ещё не задан: CI собрал, проверил и посчитал суммы, но подпись поставил локально тем же ключом unisim-soft (комплект ниже); после добавления секрета подпись ставится в CI на каждый push.",
+  "Скриптовая версия на Windows, macOS и Linux: проверка целостности --verify (все суммы сошлись; без секрета статус «не подписано»), самоустановка библиотек, окно на 3 языках, установщик и запуск установленной программы.",
+  "Исполняемые файлы TexFlow.exe, TexFlow.app (Intel, ad-hoc codesign), Linux — собраны из подписанного архива скриптов и запущены без Python.",
+  "macOS собирается на Intel-раннере macos-15-intel: arm64-раннеры GitHub снимали задания из очереди («job was not acquired»).",
+  "Аттестация GitHub (Sigstore) недоступна в приватном репозитории — шаг необязательный; основная защита — подпись unisim-soft.",
+  "Проверено здесь: все 4 архива с GitHub совпали с SHA256SUMS; бинарник Linux и подписанные скрипты (в строгом режиме) запущены."
+ ]
+}

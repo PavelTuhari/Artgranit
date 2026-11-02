@@ -1,0 +1,28 @@
+{% extends "base.html" %}{% block title %}{{ p.title }}{% endblock %}
+{% block body %}
+<div class="grid g2">
+<div class="card"><div class="pc" style="grid-template-columns:1fr"><div class="ph" style="max-height:420px">{{ p.style_code }}</div></div></div>
+<div class="card">
+<div class="mut">{{ p.category }} · REF. {{ p.style_code }}</div>
+<h1 style="margin-top:4px">{{ p.title }}</h1>
+<div class="kpi">{{ '%.2f'|format(p.retail_price) ~ ' ' ~ st.currency if p.retail_price is not none else _('Цена не назначена') }}</div>
+{% for c in m.colors %}<h2><span class="sw" style="background:{{ c.hex }}"></span>{{ c.name }} <span class="mut">| {{ c.code }} · {{ c.family }}</span></h2>
+<div class="sizes">{% for s in m.sizes %}{% set v = m.cells.get((c.id, s.id)) %}<span class="{{ 'na' if not v or v.stock <= 0 }}" title="{{ v.sku if v }}">{{ s.code }}{% if v %}<br><small>{{ v.stock }}</small>{% endif %}</span>{% endfor %}</div>{% endfor %}
+<p>{{ p.composition_t }}</p><p class="mut">{{ p.description }}</p>
+<p class="noprint"><a class="btn" href="{{ url_for('tf.labels', product=p.id) }}">{{ _('Этикетки модели') }}</a> <button class="sec" onclick="print()">{{ _('Печать карточки') }}</button></p>
+</div></div>
+<form class="card noprint" method="post"><h2>{{ _('Редактировать карточку') }}</h2>
+<div class="row"><label>{{ _('Название') }} ({{ _('основное') }})<input name="name" value="{{ p.name }}"></label><label>{{ _('Название') }} RO<input name="name_ro" value="{{ p.name_ro }}"></label><label>{{ _('Название') }} EN<input name="name_en" value="{{ p.name_en }}"></label></div>
+<div class="row"><label>{{ _('Состав') }} ({{ _('основной') }})<input name="composition" value="{{ p.composition }}"></label><label>{{ _('Состав') }} RO<input name="composition_ro" value="{{ p.composition_ro }}"></label><label>{{ _('Состав') }} EN<input name="composition_en" value="{{ p.composition_en }}"></label></div>
+<p class="mut">{{ _('Пустой перевод — показывается основное название. На этикетке — язык из настроек.') }}</p>
+<div class="row"><label>{{ _('Сезон') }}<input name="season" value="{{ p.season }}"></label>
+<label>{{ _('Пол') }}<select name="gender">{% for g in ['', 'women', 'men', 'kids', 'unisex'] %}<option value="{{ g }}" {{ 'selected' if p.gender==g }}>{{ gender_name(g) }}</option>{% endfor %}</select></label></div>
+<div class="row"><label>{{ _('Описание') }}<input name="description" value="{{ p.description }}"></label><label>{{ _('Закупка за шт. (валюта поставки)') }}<input name="base_cost_fx" value="{{ p.base_cost_fx }}"></label>
+<label>{{ _('Цена розничная') }}<input name="retail_price" value="{{ p.retail_price if p.retail_price is not none }}"></label>
+<label>{{ _('Зафиксировать цену') }}<input type="checkbox" name="price_locked" value="1" {{ 'checked' if p.price_locked }} style="width:auto"></label></div>
+<button>{{ _('Сохранить') }}</button></form>
+<div class="card"><h2>{{ _('Варианты (SKU / EAN-13)') }}</h2>
+<table><tr><th>SKU</th><th>EAN-13</th><th>{{ _('Цвет') }}</th><th>{{ _('Размер') }}</th><th class="n">{{ _('Остаток') }}</th><th class="noprint"></th></tr>
+{% for v in variants %}<tr><td>{{ v.sku }}</td><td>{{ v.ean13 }}</td><td><span class="sw" style="background:{{ v.hex }}"></span>{{ v.color }}</td><td>{{ v.size }}</td><td class="n">{{ v.stock }}</td>
+<td class="noprint"><a class="btn sm sec" href="{{ url_for('tf.labels', variant=v.id, copies=1) }}">{{ _('этикетка') }}</a></td></tr>{% endfor %}</table></div>
+{% endblock %}

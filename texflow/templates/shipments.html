@@ -1,0 +1,16 @@
+{% extends "base.html" %}{% block title %}{{ _('Поставки') }}{% endblock %}
+{% block body %}
+<h1>{{ _('Поставки') }}</h1>
+<form class="card" method="post"><h2>{{ _('Новая поставка') }}</h2>
+<div class="row"><label>{{ _('Номер') }}<input name="code" required placeholder="TR-2026-11-01"></label>
+<label>{{ _('Поставщик') }}<input name="supplier" placeholder="Istanbul Tekstil"></label>
+<label>{{ _('Страна') }}<select name="country"><option value="TR">{{ _('Турция') }}</option><option value="CN">{{ _('Китай') }}</option><option value="OTHER">{{ _('Другая') }}</option></select></label>
+<label>{{ _('Валюта') }}<select name="currency"><option>USD</option><option>EUR</option><option>TRY</option><option>CNY</option><option>MDL</option></select></label>
+<label>{{ _('Курс к местной') }}<input name="fx_rate" value="17.8"></label><label>{{ _('Дата') }}<input type="date" name="arrival_date"></label></div>
+<div class="row"><label>{{ _('Фрахт (местн.)') }}<input name="freight" value="0"></label><label>{{ _('Таможня (сборы)') }}<input name="customs" value="0"></label>
+<label>{{ _('Брокер') }}<input name="broker" value="0"></label><label>{{ _('Прочее') }}<input name="other_costs" value="0"></label>
+<label>{{ _('Распределять затраты') }}<select name="alloc_method"><option value="value">{{ _('по стоимости') }}</option><option value="qty">{{ _('по штукам') }}</option><option value="weight">{{ _('по весу мешков') }}</option></select></label>
+<label>{{ _('Мешков (создать 1..N)') }}<input name="bags_count" type="number" min="0" value="0"></label></div>
+<button>{{ _('Создать') }}</button></form>
+<div class="card">{% include "_shipments_table.html" %}</div>
+{% endblock %}

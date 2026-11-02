@@ -1,0 +1,21 @@
+{% extends "base.html" %}{% block title %}{{ _('Справочники') }}{% endblock %}
+{% block body %}
+<h1>{{ _('Справочники') }}</h1>
+<div class="card" id="category"><h2>{{ _('Категории — наценка и пошлина') }}</h2>
+<table><tr><th>{{ _('Код') }}</th><th>{{ _('Категория') }}</th><th>{{ _('Размерная шкала') }}</th><th>{{ _('ТН ВЭД') }}</th><th>{{ _('Наценка %') }}</th><th>{{ _('Пошлина %') }}</th><th></th></tr>
+{% for c in categories %}<tr>
+<td>{{ c.code }}</td><td>{{ c.title }}</td><td><select form="cat{{ c.id }}" name="scale_id">{% for s in scales %}<option value="{{ s.id }}" {{ 'selected' if s.id==c.size_scale_id }}>{{ s.title }}</option>{% endfor %}</select></td><td>{{ c.hs_code }}</td>
+<td><input form="cat{{ c.id }}" name="markup_pct" value="{{ c.markup_pct }}"></td><td><input form="cat{{ c.id }}" name="duty_pct" value="{{ c.duty_pct }}"></td>
+<td><form method="post" id="cat{{ c.id }}"><input type="hidden" name="kind" value="category_update"><input type="hidden" name="id" value="{{ c.id }}"><button class="sm">ok</button></form></td></tr>{% endfor %}</table>
+<form method="post" class="row" style="margin-top:10px"><input type="hidden" name="kind" value="category"><label>{{ _('Код') }}<input name="code" required></label><label>{{ _('Название') }} RU<input name="name" required></label><label>{{ _('Название') }} RO<input name="name_ro"></label><label>{{ _('Название') }} EN<input name="name_en"></label>
+<label>{{ _('Шкала') }}<select name="scale_id">{% for s in scales %}<option value="{{ s.id }}">{{ s.title }}</option>{% endfor %}</select></label><label>{{ _('Наценка %') }}<input name="markup_pct" value="100"></label><label>{{ _('Пошлина %') }}<input name="duty_pct" value="12"></label><label>{{ _('ТН ВЭД') }}<input name="hs_code"></label><button>{{ _('Добавить') }}</button></form></div>
+<div class="grid g2">
+<div class="card" id="color"><h2>{{ _('Группы цветов') }}</h2>
+{% for f in families %}<div class="fam"><b><span class="sw" style="background:{{ f.hex }}"></span>{{ f.title }}</b> {% for c in f.colors %}<span class="tag" title="{{ c.name }} / {{ c.name_ro }} / {{ c.name_en }}"><span class="sw" style="background:{{ c.hex }}"></span>{{ c.code }} {{ c.title }}</span> {% endfor %}</div>{% endfor %}
+<form method="post" class="row"><input type="hidden" name="kind" value="color"><label>{{ _('Группа') }}<select name="family_id">{% for f in families %}<option value="{{ f.id }}">{{ f.title }}</option>{% endfor %}</select></label>
+<label>{{ _('Код') }}<input name="code" required placeholder="411"></label><label>{{ _('Название') }} RU<input name="name" required></label><label>RO<input name="name_ro"></label><label>EN<input name="name_en"></label><label>{{ _('Цвет') }}<input type="color" name="hex" value="#888888"></label><button>{{ _('Добавить') }}</button></form></div>
+<div class="card" id="size"><h2>{{ _('Размерные шкалы') }}</h2>
+{% for s in scales %}<div class="fam"><b>{{ s.title }}</b> {% for z in s.sizes %}<span class="tag">{{ z.code }}</span> {% endfor %}</div>{% endfor %}
+<form method="post" class="row"><input type="hidden" name="kind" value="size"><label>{{ _('Шкала') }}<select name="scale_id">{% for s in scales %}<option value="{{ s.id }}">{{ s.title }}</option>{% endfor %}</select></label>
+<label>{{ _('Размер') }}<input name="code" required></label><button>{{ _('Добавить') }}</button></form></div></div>
+{% endblock %}

@@ -1,0 +1,34 @@
+<div class="card"><h2>Schema procesului</h2>
+<pre class="mermaid">
+flowchart TD
+  A[Livrare din Turcia / China<br>saci, totul amestecat] --> B[Creează livrarea<br>valută, curs, transport, vamă, broker]
+  B --> C[Încarcă lista de colete aproximativă CSV]
+  C --> D[Sacii se creează automat]
+  D --> E{Deschide sacul}
+  E --> F{Modelul există deja?}
+  F -- da --> G[Scaner EAN/SKU: +1 buc]
+  F -- nu --> H[Model nou: denumire, categorie, preț de achiziție]
+  H --> I[Matrice culoare × mărime<br>introdu cantitățile]
+  G --> J[Jurnalul recepției]
+  I --> J
+  J --> K{Sacul e gol?}
+  K -- nu --> E
+  K -- da --> L[Verificare cu lista<br>lipsă / surplus]
+  L --> M[Cost: achiziție×curs + taxă vamală + cota cheltuielilor]
+  M --> N[Preț: × adaos categorie × TVA → rotunjire frumoasă]
+  N --> O[Fișe și catalog, export CSV]
+  N --> P{Etichete}
+  P --> Q[ZPL → Zebra tcp:9100 / CUPS]
+  P --> R[TSPL → TSC tcp:9100 / CUPS]
+  P --> S[PDF A4 → imprimantă obișnuită]
+  P --> T[PDF rolă → imprimantă virtuală]
+</pre></div>
+<div class="card"><h2>Pe scurt</h2><ol>
+<li><b>Livrare.</b> Meniul „Livrări” → număr, furnizor, valută și cursul față de moneda locală, cheltuieli în moneda locală. Metoda de repartizare: după valoare (articolele scumpe poartă mai mult), pe bucată sau după greutatea sacilor.</li>
+<li><b>Lista de colete.</b> CSV/TSV din Excel: sac; categorie; descriere; cantitate; preț; greutate. Înțelege antetele în rusă, română, engleză, turcă și chineză. Categoriile necunoscute sunt evidențiate.</li>
+<li><b>Sortare.</b> „Sortează” la sac. Marfa repetată — cu scanerul. Model nou — formularul „Model nou”, apoi click pe culori (rânduri) și cantitățile pe mărimi (coloane). Enter — celula următoare, Ctrl+Enter — salvează. Greșeală — introdu un număr negativ sau șterge rândul din jurnal.</li>
+<li><b>Verificare.</b> Pe pagina livrării: pe categorii și pe saci — „lipsă”, „surplus”, „nu e în listă”.</li>
+<li><b>Prețuri.</b> „Prețuri” → propunere pentru fiecare model. Poți scrie prețul tău; prețul din fișă poate fi blocat (lacăt), atunci recalcularea nu îl schimbă.</li>
+<li><b>Etichete.</b> Pentru toată livrarea, un sac, un model sau o variantă; cantitatea — după bucățile recepționate. Formate: ZPL (Zebra), TSPL (TSC), PDF A4, PDF rolă.</li>
+</ol>
+<p>Documentația completă — <code>standalone/texflow/README.ro.md</code> și <code>docs/</code> (RU / RO / EN).</p><p><a class="btn" href="{{ url_for('tf.docs_html') }}">Documentație HTML, act de testare, prezentare</a></p></div>

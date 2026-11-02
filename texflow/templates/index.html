@@ -1,0 +1,20 @@
+{% extends "base.html" %}{% block title %}{{ _('Главная') }}{% endblock %}
+{% block body %}
+<h1>{{ _('Приёмка одежды из мешков') }}</h1>
+<div class="grid g3">
+<div class="card"><div class="mut">{{ _('Модели в каталоге') }}</div><div class="kpi">{{ d.products }}</div></div>
+<div class="card"><div class="mut">{{ _('Вариантов (цвет×размер)') }}</div><div class="kpi">{{ d.variants }}</div></div>
+<div class="card"><div class="mut">{{ _('Принято штук') }}</div><div class="kpi">{{ d.pcs }}</div></div>
+<div class="card"><div class="mut">{{ _('Открытых поставок') }}</div><div class="kpi">{{ d.open_shipments }}</div></div>
+<div class="card"><div class="mut">{{ _('Мешков не разобрано') }}</div><div class="kpi">{{ d.bags_open }}</div></div>
+<div class="card"><div class="mut">{{ _('Моделей без цены') }}</div><div class="kpi">{{ d.unpriced }}</div></div>
+</div>
+<div class="card"><h2>{{ _('Порядок работы') }}</h2>
+<ol><li><a href="{{ url_for('tf.shipments') }}">{{ _('Создать поставку') }}</a>{{ _(', указать курс и затраты (фрахт, таможня, брокер).') }}</li>
+<li>{{ _('Загрузить примерный упаковочный лист (CSV) — мешки создадутся сами.') }}</li>
+<li>{{ _('Открыть мешок → «Разбор»: модель, цвета, размеры, количество матрицей или сканером.') }}</li>
+<li>{{ _('Сверить факт с листом, затем «Цены»: себестоимость → наценка → красивая цена.') }}</li>
+<li><a href="{{ url_for('tf.labels') }}">{{ _('Этикетки') }}</a>{{ _(': Zebra (ZPL), TSC (TSPL) или PDF A4 / рулон.') }}</li></ol>
+<a class="btn" href="{{ url_for('tf.shipments') }}">{{ _('Новая поставка') }}</a> <a class="btn sec" href="{{ url_for('tf.help_page') }}">{{ _('Инструкция') }}</a></div>
+{% if shipments %}<div class="card"><h2>{{ _('Последние поставки') }}</h2>{% include "_shipments_table.html" %}</div>{% endif %}
+{% endblock %}

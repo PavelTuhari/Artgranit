@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="ro"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Instrucțiuni pentru operatorul de recepție · TexFlow</title><link rel="stylesheet" href="../assets/docs.css"></head>
+<body><header class="top"><span class="logo">TEXFLOW</span><a href="../index.html">Toate materialele</a>
+<a href="../test_act.html">Act de testare</a><a href="../presentation.html">Prezentare</a><span class="langs"><a class="" href="../ru/OPERATOR_GUIDE.html">RU</a><a class="on" href="../ro/OPERATOR_GUIDE.html">RO</a><a class="" href="../en/OPERATOR_GUIDE.html">EN</a></span></header>
+<div class="wrap"><nav class="side"><b>Documentație</b><a href="../ro/README.html">Prezentare și instalare</a><a href="../ro/DESKTOP.html">Aplicația nativă</a><a class="on" href="../ro/OPERATOR_GUIDE.html">Instrucțiuni operator</a><a href="../ro/LABELS.html">Etichete și imprimante</a><a href="../ro/ARCHITECTURE.html">Scheme bloc</a><a href="../ro/gallery.html">Galerie ecrane</a><b>Act de testare · Prezentare</b><a href="../test_act.html">Act de testare (RU)</a><a href="../presentation.html">Prezentare (RU)</a><a href="../index.html">Toate materialele</a></nav><main class="doc"><h1 id="instructiuni-pentru-operatorul-de-receptie">Instrucțiuni pentru operatorul de recepție</h1>
+<p><a href="../ru/OPERATOR_GUIDE.html">Русский</a> · <strong>Română</strong> · <a href="../en/OPERATOR_GUIDE.html">English</a></p>
+<p>Scopul este să sortați un sac în câteva minute, nu în ore. Fiecare articol
+trebuie înregistrat ca variantă „model · culoare · mărime”, cu cod de bare și
+preț.</p>
+<h2 id="pregatirea-locului-de-munca">Pregătirea locului de muncă</h2>
+<ul>
+<li>Laptop sau PC cu TexFlow (<code>python run.py</code>). Pentru mai multe posturi:
+  <code>python run.py --host 0.0.0.0</code>, iar pe celelalte se deschide
+  <code>http://IP-laptop:5077</code>.</li>
+<li>Scaner de coduri de bare în regim tastatură, cu sufix Enter. Majoritatea
+  scanerelor au acest regim implicit.</li>
+<li>Imprimantă termică Zebra sau TSC cu rolă 58×40 mm, sau o imprimantă
+  obișnuită cu coli A4.</li>
+<li>O masă mare și cutii etichetate pe categorii: tricouri, blugi, rochii…</li>
+<li>Limba interfeței: comutatorul <strong>RU / RO / EN</strong> din antet.</li>
+</ul>
+<h2 id="pasul-1-creati-livrarea">Pasul 1. Creați livrarea</h2>
+<p>„Livrări” → „Livrare nouă”.</p>
+<table>
+<thead>
+<tr>
+<th>Câmp</th>
+<th>Exemplu</th>
+<th>De ce</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Număr</td>
+<td><code>TR-2026-11-01</code></td>
+<td>referință în documente</td>
+</tr>
+<tr>
+<td>Furnizor</td>
+<td><code>Istanbul Tekstil</code></td>
+<td>fișele produselor</td>
+</tr>
+<tr>
+<td>Țara</td>
+<td>Turcia / China</td>
+<td>țara de origine</td>
+</tr>
+<tr>
+<td>Valută, curs</td>
+<td>USD × 17.8</td>
+<td>conversia achiziției în moneda locală</td>
+</tr>
+<tr>
+<td>Transport, Vamă, Broker, Altele</td>
+<td>4500, 1200, 800, 0</td>
+<td>în moneda locală, intră în cost</td>
+</tr>
+<tr>
+<td>Repartizarea cheltuielilor</td>
+<td>după valoare</td>
+<td>articolele scumpe poartă mai mult. „După greutate” — dacă s-a plătit la kg</td>
+</tr>
+<tr>
+<td>Saci</td>
+<td>4</td>
+<td>creează imediat sacii 1..4 (dacă nu există listă)</td>
+</tr>
+</tbody>
+</table>
+<h2 id="pasul-2-incarcati-lista-de-colete">Pasul 2. Încărcați lista de colete</h2>
+<p>Lista de la furnizor vine de obicei în Excel. Ea se salvează ca CSV:
+„Fișier → Salvare ca → CSV (separator punct și virgulă)”.</p>
+<p>Coloanele necesare (în orice ordine, cele în plus sunt ignorate):</p>
+<table>
+<thead>
+<tr>
+<th>Coloană</th>
+<th>Variante de antet</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>sac</td>
+<td><code>bag_no</code>, <code>sac</code>, <code>мешок</code>, <code>çuval</code>, <code>包</code></td>
+</tr>
+<tr>
+<td>categorie</td>
+<td><code>category</code>, <code>categorie</code>, <code>категория</code>, <code>kategori</code>, <code>类别</code> — cod (<code>TSH</code>, <code>JNS</code>) sau denumire din nomenclator (în rusă, română sau engleză)</td>
+</tr>
+<tr>
+<td>descriere</td>
+<td><code>description</code>, <code>descriere</code>, <code>описание</code>, <code>açıklama</code>, <code>品名</code></td>
+</tr>
+<tr>
+<td>cantitate (<strong>obligatoriu</strong>)</td>
+<td><code>qty</code>, <code>cantitate</code>, <code>buc</code>, <code>кол-во</code>, <code>adet</code>, <code>数量</code></td>
+</tr>
+<tr>
+<td>preț pe buc</td>
+<td><code>unit_price</code>, <code>preț</code>, <code>цена</code>, <code>fiyat</code>, <code>单价</code></td>
+</tr>
+<tr>
+<td>greutate, kg</td>
+<td><code>weight_kg</code>, <code>greutate</code>, <code>вес</code>, <code>ağırlık</code>, <code>重量</code></td>
+</tr>
+</tbody>
+</table>
+<p>Lista se numește aproximativă: „tricouri — 120 buc”, fără culori și mărimi.
+Este suficient. Culorile și mărimile apar la sortare, iar cantitățile se
+verifică la pasul 4.</p>
+<p>Dacă o categorie nu este recunoscută, apare un avertisment. O astfel de
+categorie se adaugă în „Nomenclatoare”, apoi lista se încarcă din nou.</p>
+<h2 id="pasul-3-sortati-sacul">Pasul 3. Sortați sacul</h2>
+<p>Pagina livrării → „Sortează” la sac.</p>
+<p><strong>Articolul există deja</strong> (de exemplu, al doilea lot din același model):
+scanați eticheta sau codul de bare — se adaugă +1 buc. Răspunsul apare sub
+câmpul scanerului: ✓ — recepționat, ✗ — un astfel de cod nu există.</p>
+<p><strong>Model nou:</strong></p>
+<ol>
+<li>Așezați conținutul sacului pe masă pe modele. În cadrul modelului — pe
+   culori, în cadrul culorii — pe mărimi. Acesta este procedeul principal:
+   întâi așezați, apoi introduceți cantitatea, nu introduceți fiecare
+   articol separat.</li>
+<li>Completați „Model nou”: denumirea (cum va fi pe etichetă), categoria (de ea
+   depind grila de mărimi și adaosul) și, dacă se cunoaște, compoziția.
+   Articolul se creează singur (<code>TSH0007</code>). Prețul de achiziție se preia din
+   lista de colete după categorie și poate fi corectat.</li>
+<li>Se deschide matricea. Faceți click pe culorile necesare — fiecare devine un
+   rând. Culorile sunt grupate ca pe site-ul Zara: Alb (alb, lăptos, ecru),
+   Bej (bej, nisipiu, camel), Albastru (albastru, bleumarin, denim)…</li>
+<li>Introduceți cantitatea în celulele „culoare × mărime”. <strong>Enter</strong> trece la
+   celula următoare, săgețile mută cursorul. Totalurile pe rânduri și coloane
+   se calculează imediat.</li>
+<li><strong>Ctrl+Enter</strong> sau „Înregistrează”. Butonul „Înregistrează și tipărește
+   etichete” deschide direct tipărirea exact pentru acest lot.</li>
+</ol>
+<p><strong>Greșeală:</strong> în jurnalul recepției apăsați × la rând sau introduceți în
+matrice un număr negativ (−2).</p>
+<p>Când sacul e gol — „Sac sortat”.</p>
+<h2 id="pasul-4-verificarea-cu-lista">Pasul 4. Verificarea cu lista</h2>
+<p>Pagina livrării, blocurile „Verificare pe categorii” și „Verificare pe saci”:</p>
+<ul>
+<li><strong>corespunde</strong> — totul e bine;</li>
+<li><strong>lipsă</strong> (cu roșu) — a venit mai puțin decât în listă: temei de reclamație
+  către furnizor;</li>
+<li><strong>surplus</strong> — a venit mai mult;</li>
+<li><strong>nu e în listă</strong> — categoria nu a fost declarată.</li>
+</ul>
+<p>Lista este aproximativă, așa că o diferență de 2–5 % este de obicei normală.</p>
+<h2 id="pasul-5-preturi">Pasul 5. Prețuri</h2>
+<p>„Prețuri” la livrare. Pentru fiecare model se vede:</p>
+<ul>
+<li>achiziția în valută;</li>
+<li>costul în moneda locală, cu taxa vamală și cota de transport, vamă și broker;</li>
+<li>adaosul categoriei;</li>
+<li>prețul propus (deja rotunjit: 189.90, 249.90…);</li>
+<li>adaosul real după rotunjire.</li>
+</ul>
+<p>Puteți scrie un preț propriu în câmpul „Preț propriu”. Apoi „Înregistrează
+prețurile în fișe”.</p>
+<p>Dacă prețul unui model nu trebuie schimbat (promoție, preț negociat), el se
+blochează în fișa modelului cu bifa „Blochează prețul”. Recalcularea nu atinge
+un astfel de preț.</p>
+<p>Adaosurile categoriilor se schimbă în „Nomenclatoare”. Rotunjirea (pasul,
+terminația .90/.99) și TVA — în „Setări”.</p>
+<h2 id="pasul-6-etichete">Pasul 6. Etichete</h2>
+<ul>
+<li><strong>Pentru toată livrarea sau un sac</strong> — de pe pagina livrării. Etichete câte
+  bucăți au fost recepționate.</li>
+<li><strong>Pentru un model</strong> — din fișa modelului.</li>
+<li><strong>O singură etichetă</strong> — butonul „etichetă” la variantă (de exemplu, pentru
+  a înlocui una deteriorată).</li>
+</ul>
+<p>Înainte de tipărire puteți corecta numărul de copii pe fiecare rând.</p>
+<p>Alegerea formatului:</p>
+<ul>
+<li><strong>ZPL</strong> — pentru Zebra;</li>
+<li><strong>TSPL</strong> — pentru TSC;</li>
+<li><strong>PDF A4</strong> — pentru coli cu etichete autoadezive. Tipăriți la scara 100%.
+  „Începe de la celula” permite completarea unei coli începute;</li>
+<li><strong>PDF rolă</strong> — pentru tipărire prin driver sau la imprimanta virtuală.</li>
+</ul>
+<p>Butoane: „Deschide / descarcă”, „Descarcă fișier”, „Tipărire la imprimantă”
+(la adresa din setări).</p>
+<p>Limba culorii pe etichetă (Negru / Чёрный / Black) se alege în „Setări”.
+Detalii despre imprimante — <a href="LABELS.html">LABELS.ro.md</a>.</p>
+<h2 id="pasul-7-catalog">Pasul 7. Catalog</h2>
+<p>„Catalog” — fișele modelelor cu culori, preț și stoc. În fișă:</p>
+<ul>
+<li>culorile cu coduri și grupe;</li>
+<li>grila de mărimi (tăiată — nu e în stoc);</li>
+<li>tabelul SKU și EAN;</li>
+<li>butonul de tipărire a fișei.</li>
+</ul>
+<p><strong>Export CSV</strong> — lista completă a variantelor (articol, culoare, mărime, SKU,
+EAN, preț, stoc) pentru încărcare în magazinul online sau la casă. Denumirile
+culorilor și categoriilor sunt în limba curentă a interfeței.</p>
+<h2 id="taste-rapide-pe-ecranul-de-sortare">Taste rapide pe ecranul de sortare</h2>
+<table>
+<thead>
+<tr>
+<th>Tastă</th>
+<th>Acțiune</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enter în câmpul scanerului</td>
+<td>acceptă codul scanat</td>
+</tr>
+<tr>
+<td>Enter în matrice</td>
+<td>celula următoare</td>
+</tr>
+<tr>
+<td>← → ↑ ↓</td>
+<td>deplasare în matrice</td>
+</tr>
+<tr>
+<td>Ctrl+Enter</td>
+<td>înregistrează matricea</td>
+</tr>
+</tbody>
+</table></main></div></body></html>

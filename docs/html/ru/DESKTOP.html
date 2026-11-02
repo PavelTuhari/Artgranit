@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TexFlow Desktop — нативное приложение для Windows, macOS и Linux · TexFlow</title><link rel="stylesheet" href="../assets/docs.css"></head>
+<body><header class="top"><span class="logo">TEXFLOW</span><a href="../index.html">Все материалы</a>
+<a href="../test_act.html">Акт тестирования</a><a href="../presentation.html">Презентация</a><span class="langs"><a class="on" href="../ru/DESKTOP.html">RU</a><a class="" href="../ro/DESKTOP.html">RO</a><a class="" href="../en/DESKTOP.html">EN</a></span></header>
+<div class="wrap"><nav class="side"><b>Документация</b><a href="../ru/README.html">Обзор и установка</a><a class="on" href="../ru/DESKTOP.html">Нативное приложение</a><a href="../ru/OPERATOR_GUIDE.html">Инструкция оператора</a><a href="../ru/LABELS.html">Этикетки и принтеры</a><a href="../ru/ARCHITECTURE.html">Блок-схемы</a><a href="../ru/gallery.html">Галерея экранов</a><b>Акт тестирования · Презентация</b><a href="../test_act.html">Акт тестирования (RU)</a><a href="../presentation.html">Презентация (RU)</a><a href="../index.html">Все материалы</a></nav><main class="doc"><h1 id="texflow-desktop-windows-macos-linux">TexFlow Desktop — нативное приложение для Windows, macOS и Linux</h1>
+<p><strong>Русский</strong> · <a href="../ro/DESKTOP.html">Română</a> · <a href="../en/DESKTOP.html">English</a></p>
+<p>TexFlow Desktop — обычная программа с окном (Python + Tkinter), без браузера и без сервера.
+Ядро у неё то же, что у веб-версии:</p>
+<ul>
+<li>та же база SQLite;</li>
+<li>те же правила себестоимости и цен;</li>
+<li>те же этикетки ZPL / TSPL / PDF;</li>
+<li>те же переводы RU / RO / EN.</li>
+</ul>
+<p>Обе версии могут работать с одной и той же базой.</p>
+<p>Что есть в нативной версии:</p>
+<ul>
+<li>все шаги приёмки: поставки, разбор мешков матрицей и сканером, сверка, цены, каталог, этикетки;</li>
+<li><strong>встроенный редактор этикеток</strong> — своя раскладка, мышью, для любого размера этикетки;</li>
+<li><strong>выгрузка и загрузка Excel (.xlsx) и CSV</strong> — отчёты, цены, каталог, результаты приёмки;</li>
+<li><strong>самоустановка</strong>: двойной щелчок по файлу установки, остальное программа делает сама.</li>
+</ul>
+<h2 id="1">1. Установка</h2>
+<h3 id="_1">Самый простой способ — файл установки</h3>
+<p>Распакуйте архив TexFlow и запустите файл для своей системы:</p>
+<table>
+<thead>
+<tr>
+<th>Система</th>
+<th>Файл</th>
+<th>Что он делает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Windows 10/11</td>
+<td><code>Install-TexFlow-Windows.bat</code> (двойной щелчок)</td>
+<td>находит Python 3.10+; если его нет — ставит Python 3.12 через <code>winget</code> (или открывает python.org); затем запускает установщик</td>
+</tr>
+<tr>
+<td>macOS 12+</td>
+<td><code>Install-TexFlow-macOS.command</code> (двойной щелчок; при первом запуске — правый щелчок → «Открыть»)</td>
+<td>находит Python 3.10+ с Tk; если нет — открывает страницу загрузки python.org; затем запускает установщик</td>
+</tr>
+<tr>
+<td>Linux</td>
+<td><code>sh install-texflow-linux.sh</code></td>
+<td>находит Python 3.10+ с Tk и venv; если нет — пишет команду <code>apt</code>/<code>dnf</code>/<code>pacman</code> (с <code>--with-system-packages</code> выполнит её через <code>sudo</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>Установщик (<code>install/install.py</code>) делает пять шагов, права администратора ему не нужны:</p>
+<ol>
+<li>проверяет Python и Tkinter;</li>
+<li>копирует программу в папку пользователя;</li>
+<li>создаёт изолированное окружение <code>venv</code> и ставит туда <code>reportlab</code>, <code>openpyxl</code>, <code>flask</code>;</li>
+<li>создаёт ярлыки <strong>TexFlow</strong> (окно программы) и <strong>TexFlow Web</strong> (браузер);</li>
+<li>проверяет запуск и открывает программу.</li>
+</ol>
+<table>
+<thead>
+<tr>
+<th></th>
+<th>Windows</th>
+<th>macOS</th>
+<th>Linux</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Программа</td>
+<td><code>%LOCALAPPDATA%\Programs\TexFlow</code></td>
+<td><code>~/Applications/TexFlow</code></td>
+<td><code>~/.local/lib/texflow-app</code></td>
+</tr>
+<tr>
+<td>Ярлыки</td>
+<td>меню «Пуск» → TexFlow, рабочий стол</td>
+<td><code>~/Applications/TexFlow.app</code>, рабочий стол</td>
+<td>меню приложений, рабочий стол</td>
+</tr>
+<tr>
+<td>Данные (база)</td>
+<td><code>%APPDATA%\TexFlow</code></td>
+<td><code>~/Library/Application Support/TexFlow</code></td>
+<td><code>~/.local/share/texflow</code></td>
+</tr>
+</tbody>
+</table>
+<p>Данные хранятся отдельно от программы, поэтому переустановка и обновление их не трогают.</p>
+<h3 id="_2">Без установки</h3>
+<pre><code class="language-bash">python texflow_app.py          # окно программы
+python texflow_app.py --demo   # с демо-поставкой
+python texflow_app.py --sample # встроенная тестовая база (заполнено всё)
+python texflow_app.py --web    # веб-версия в браузере
+python texflow_app.py --check  # проверить окружение
+</code></pre>
+<p>При первом запуске недостающие библиотеки ставятся сами в папку данных (<code>pylibXY</code>).</p>
+<h3 id="_3">Встроенная тестовая база</h3>
+<p>Чтобы посмотреть все экраны с данными, а не пустыми: <code>python texflow_app.py --sample</code>
+(веб-версия — <code>--web --sample</code>) или меню <strong>«Файл → Открыть тестовую базу (заполнено всё)»</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Что в ней</th>
+<th>Сколько</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Поставки во всех статусах: пришла, в разборе, разобрана, оценена, закрыта</td>
+<td>5 (TR-2026-09 … CN-2026-11)</td>
+</tr>
+<tr>
+<td>Поставщики из Турции и Китая</td>
+<td>4</td>
+</tr>
+<tr>
+<td>Мешки во всех статусах: закрыт, в разборе, разобран</td>
+<td>14</td>
+</tr>
+<tr>
+<td>Модели во всех 12 категориях, с переводами RO/EN, сезоном и полом</td>
+<td>17</td>
+</tr>
+<tr>
+<td>Варианты «цвет × размер» / принято штук</td>
+<td>94 / 735</td>
+</tr>
+<tr>
+<td>Сверка: совпало, недостача, излишек, «нет в листе»</td>
+<td>все четыре статуса</td>
+</tr>
+<tr>
+<td>Распределение расходов: по стоимости, по штукам, по весу</td>
+<td>все три</td>
+</tr>
+<tr>
+<td>Ручная цена, зафиксированная цена, исправление пересчёта (−2)</td>
+<td>есть</td>
+</tr>
+<tr>
+<td>Свой цвет (TF1 «Терракотовый меланж»), свой размер 4XL</td>
+<td>есть</td>
+</tr>
+<tr>
+<td>Шаблоны этикеток (3 стандартных + «Sale 50×30» + «Kids 40×25») / записи журнала печати</td>
+<td>5 / 6</td>
+</tr>
+</tbody>
+</table>
+<p>Рабочую базу тестовая не трогает: она пишется в отдельный файл <code>texflow_sample.db</code> в папке данных.
+Вернуться — <strong>«Файл → Вернуться к рабочей базе»</strong>. Собрать файл отдельно:
+<code>python -m texflow.sample_db путь.db</code>. Код — <code>texflow/sample_db.py</code>, тесты — <code>tests/test_sample_db.py</code>.</p>
+<h3 id="python-pyinstaller">Готовая программа без Python (PyInstaller)</h3>
+<p><code>python install/build_exe.py</code> собирает <code>dist/TexFlow-&lt;версия&gt;-&lt;ос&gt;-&lt;arch&gt;.zip</code>. Внутри
+<code>TexFlow.exe</code> (Windows), <code>TexFlow.app</code> (macOS) или <code>TexFlow</code> (Linux) со всеми библиотеками;
+Python на компьютере пользователя не нужен.</p>
+<p>Собирать нужно на той системе, для которой программа. Поэтому все три сборки делает GitHub
+Actions — <strong>на каждый push</strong> с изменениями TexFlow (раздел 6).</p>
+<h3 id="_4">Удаление</h3>
+<p>Через ярлык «Uninstall TexFlow» (Windows) или <code>uninstall-texflow</code> в папке программы, либо:
+<code>python install/install.py --uninstall</code>. База при этом остаётся. Чтобы удалить и её, добавьте
+<code>--purge</code>.</p>
+<h2 id="2">2. Окно программы</h2>
+<p>Вкладки идут в порядке работы.</p>
+<table>
+<thead>
+<tr>
+<th>Вкладка</th>
+<th>Что делать</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Поставки</strong></td>
+<td>новая поставка; курс и затраты; загрузить упаковочный лист (CSV <strong>или Excel</strong>); мешки; сверка по категориям и мешкам</td>
+</tr>
+<tr>
+<td><strong>Разбор</strong></td>
+<td>выбрать поставку и мешок → сканер (повторная вещь +1) или «Новая модель» → клик по цветам → количества в матрице → <strong>Ctrl+Enter</strong></td>
+</tr>
+<tr>
+<td><strong>Цены</strong></td>
+<td>предложение по каждой модели; двойной щелчок — своя цена; «Записать цены в карточки»</td>
+</tr>
+<tr>
+<td><strong>Каталог</strong></td>
+<td>поиск по названию на любом языке, артикулу, SKU, EAN; карточка с переводами RO/EN; фиксация цены</td>
+</tr>
+<tr>
+<td><strong>Этикетки</strong></td>
+<td>«Выбрать» — все принятые штуки поставки или мешка; шаблон; формат; файл / сетевой принтер / системный принтер</td>
+</tr>
+<tr>
+<td><strong>Редактор этикеток</strong></td>
+<td>свои шаблоны — см. раздел 3</td>
+</tr>
+<tr>
+<td><strong>Excel / CSV</strong></td>
+<td>выгрузка и загрузка — см. раздел 4</td>
+</tr>
+<tr>
+<td><strong>Настройки</strong></td>
+<td>язык интерфейса и этикетки, НДС и округление, принтеры, лист A4</td>
+</tr>
+</tbody>
+</table>
+<p>Язык переключается кнопками <strong>RU / RO / EN</strong> вверху справа или в меню «Язык». Выбор запоминается.</p>
+<p>Матрица разбора работает с клавиатуры:</p>
+<ul>
+<li><strong>Enter</strong> и <strong>→</strong> — следующая ячейка;</li>
+<li><strong>↑ ↓</strong> — соседняя строка;</li>
+<li><strong>Ctrl+Enter</strong> — записать.</li>
+</ul>
+<p>Сканер работает в режиме клавиатуры: код вводится в поле «Сканер», и по Enter вещь принята.</p>
+<h2 id="3">3. Редактор этикеток</h2>
+<p><img alt="Редактор этикеток" src="../img/desk_09_editor_open.jpg" /></p>
+<ol>
+<li><strong>Шаблоны</strong> (слева): «Новый шаблон», «Копия», «По умолчанию» (★ — им печатают, если не выбран
+   другой), «Удалить», «Экспорт / Импорт JSON» (перенести шаблон на другой компьютер).</li>
+<li><strong>Размер</strong> этикетки — ширина и высота в мм; любой размер от 10 мм.</li>
+<li><strong>Элементы</strong> добавляются кнопками над холстом:
+   - <strong>Текст</strong> — любой текст с подстановками полей:
+     <code>{brand}</code>, <code>{name}</code>, <code>{color}</code>, <code>{size}</code>, <code>{price}</code>, <code>{price_value}</code>, <code>{currency}</code>, <code>{sku}</code>,
+     <code>{ean13}</code>, <code>{style}</code>, <code>{composition}</code>, <code>{origin}</code>. Например <code>{color} · {size}</code>;
+   - <strong>Штрихкод</strong> — EAN-13 (по <code>{ean13}</code>) или CODE128 (обычно по <code>{sku}</code>);
+   - <strong>Рамка</strong> и <strong>Линия</strong> (горизонтальная, вертикальная, наклонная).</li>
+<li><strong>Мышью</strong>:
+   - щелчок выделяет элемент; рамка выделяется щелчком по контуру, чтобы не мешать тому, что внутри;
+   - перетаскивание двигает элемент с шагом 0.5 мм;
+   - синий квадрат в углу меняет размер.</li>
+</ol>
+<p><strong>Стрелки</strong> двигают выделенный элемент на 0.5 мм, <strong>Shift+стрелки</strong> — на 0.1 мм, <strong>Delete</strong> удаляет его.
+5. <strong>Свойства</strong> (справа): текст, X/Y/ширина/высота в мм, размер шрифта, жирный, выравнивание,
+   толщина линии, тип штрихкода. Поле подставляется из списка «вставить поле в текст».
+6. <strong>Данные для предпросмотра</strong>: введите EAN или SKU вещи — холст покажет её этикетку.
+   «Пробный PDF» откроет этикетку в PDF, «Показать ZPL / TSPL» — код для принтера.
+7. <strong>Сохранить шаблон</strong>. После этого шаблон доступен на вкладке «Этикетки» и в веб-версии.</p>
+<p>Один и тот же шаблон печатается в ZPL (Zebra), TSPL (TSC), PDF-рулон и на лист A4: ячейки
+листа задаются в настройках, этикетка встаёт по центру ячейки. Холст редактора рисует ту же
+геометрию, что и печать.</p>
+<p>Стандартных шаблонов три: <code>Standard 58×40</code>, <code>Mini 40×30</code>, <code>SKU tag 58×30 (CODE128)</code>.</p>
+<h2 id="4-excel-csv">4. Excel и CSV</h2>
+<p><strong>Выгрузка</strong> (вкладка «Excel / CSV» → набор данных → Excel или CSV):</p>
+<table>
+<thead>
+<tr>
+<th>Набор</th>
+<th>Что внутри</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Полный отчёт</td>
+<td>одна книга Excel со всеми листами ниже</td>
+</tr>
+<tr>
+<td>Каталог</td>
+<td>вариант = строка: артикул, название RU/RO/EN, категория, цвет и группа, размер, SKU, EAN-13, цена, остаток, состав</td>
+</tr>
+<tr>
+<td>Цены</td>
+<td>артикул, название, категория, закупка, цена, фиксация — <strong>для правки в Excel</strong></td>
+</tr>
+<tr>
+<td>Поставки</td>
+<td>поставщик, валюта, курс, статус, штук, товар, затраты, себестоимость</td>
+</tr>
+<tr>
+<td>Приёмка</td>
+<td>время, поставка, мешок, SKU, EAN, модель, цвет, размер, шт, закупка, себестоимость</td>
+</tr>
+<tr>
+<td>Упаковочный лист</td>
+<td>строки листа поставщика</td>
+</tr>
+<tr>
+<td>Сверка</td>
+<td>по категориям и мешкам: по листу, факт, разница, статус</td>
+</tr>
+<tr>
+<td>Предложение цен</td>
+<td>себестоимость, наценка, предложенная цена, фактическая наценка</td>
+</tr>
+</tbody>
+</table>
+<p>Можно выбрать одну поставку или все сразу.</p>
+<p>Как устроены файлы:</p>
+<ul>
+<li><strong>Excel:</strong> заголовки жирные, первая строка закреплена, автофильтр. Колонки EAN, SKU и артикул
+  записаны как текст, поэтому Excel не превращает <code>2000000000015</code> в <code>2E+12</code>.</li>
+<li><strong>CSV:</strong> разделитель <code>;</code>, кодировка UTF-8 с BOM, открывается в Excel двойным щелчком.</li>
+<li><strong>Язык заголовков</strong> — язык интерфейса.</li>
+</ul>
+<p><strong>Загрузка</strong>:</p>
+<table>
+<thead>
+<tr>
+<th>Что</th>
+<th>Колонки</th>
+<th>Результат</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Упаковочный лист</td>
+<td>мешок, категория, описание, кол-во, цена, вес</td>
+<td>строки листа и мешки поставки</td>
+</tr>
+<tr>
+<td>Каталог</td>
+<td>артикул, название (RO/EN), категория, код цвета, размер, [кол-во, закупка, цена]</td>
+<td>новые модели и варианты; если выбрана поставка и есть «Кол-во» — сразу в приёмку. Нового размера нет в шкале — добавится. Ошибки строк перечисляются</td>
+</tr>
+<tr>
+<td>Цены</td>
+<td>артикул + цена (и/или фиксация, закупка)</td>
+<td>обновлены карточки; неизвестные артикулы перечислены</td>
+</tr>
+<tr>
+<td>Результаты приёмки</td>
+<td>SKU или EAN-13, кол-во, мешок</td>
+<td>штуки добавлены в поставку — например, со второго рабочего места</td>
+</tr>
+</tbody>
+</table>
+<p>Заголовки колонок понимаются на русском, румынском, английском и по техническому имени
+(<code>style_code</code>, <code>qty</code>…). Поэтому порядок такой: выгрузите «Цены» на румынском, поправьте в Excel,
+загрузите обратно на русском.</p>
+<h2 id="5-">5. Если что-то не так</h2>
+<table>
+<thead>
+<tr>
+<th>Симптом</th>
+<th>Что делать</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>«Tkinter не найден»</td>
+<td>Windows/macOS — поставить Python с python.org; Linux — <code>sudo apt install python3-tk python3-venv</code></td>
+</tr>
+<tr>
+<td>Windows: «Windows защитила компьютер» на .bat</td>
+<td>«Подробнее» → «Выполнить в любом случае» (файл не подписан)</td>
+</tr>
+<tr>
+<td>macOS: «невозможно проверить разработчика»</td>
+<td>правый щелчок → «Открыть»; установщик снимает карантин с папки</td>
+</tr>
+<tr>
+<td>Кириллица на Zebra/TSC печатается латиницей</td>
+<td>так задумано для встроенных шрифтов принтера; для кириллицы загрузите TTF в принтер и укажите его в «Настройках»</td>
+</tr>
+<tr>
+<td>Перенести данные на другой компьютер</td>
+<td>скопировать папку данных (таблица в разделе 1) или «Полный отчёт» Excel</td>
+</tr>
+</tbody>
+</table>
+<h2 id="6-push-unisim-soft">6. Сборка на каждый push, подпись unisim-soft и проверка</h2>
+<p>Сборку делает <code>.github/workflows/texflow-desktop.yml</code>. Он запускается на <strong>каждый push</strong> в любую
+ветку, если изменились файлы <code>standalone/texflow/</code>, и на теги <code>texflow-v*</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Этап</th>
+<th>Что делает</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Тесты</td>
+<td>pytest, включая окно программы в Xvfb</td>
+</tr>
+<tr>
+<td>Скриптовая версия</td>
+<td><code>TexFlow-&lt;версия&gt;-scripts.zip</code>: все файлы, <code>MANIFEST.sha256</code> (SHA-256 каждого файла) и <code>MANIFEST.sha256.sig</code> — подпись unisim-soft</td>
+</tr>
+<tr>
+<td>Запуск из скриптов</td>
+<td>на Windows, macOS Intel, macOS Apple Silicon (arm64) и Linux: проверка подписи (<code>--verify</code>), самоустановка библиотек (<code>--check</code>), окно со всеми вкладками на 3 языках (<code>--smoke</code>), установщик и запуск установленной программы</td>
+</tr>
+<tr>
+<td>Сборка исполняемых файлов</td>
+<td><code>TexFlow.exe</code> (Windows), <strong>две отдельные</strong> <code>TexFlow.app</code> — <code>macos-x86_64</code> (Intel) и <code>macos-arm64</code> (Apple Silicon M1–M4), ad-hoc подпись <code>codesign</code>; бинарник Linux. Каждый <strong>запускается</strong> без Python (<code>--smoke</code>)</td>
+</tr>
+<tr>
+<td>Подпись выпуска</td>
+<td><code>SHA256SUMS</code> всех архивов + <code>SHA256SUMS.sig</code> (Ed25519, ключ <strong>unisim-soft</strong>) + аттестация происхождения GitHub (Sigstore)</td>
+</tr>
+<tr>
+<td>Исходники обычными файлами</td>
+<td>push в <code>main</code> → ветка <strong><code>texflow-dist</code></strong>: подписанная скриптовая версия не архивом, а распакованной — те же файлы плюс <code>MANIFEST.sha256</code> и подпись. Клон ветки сразу проверяется: <code>python texflow_app.py --verify</code></td>
+</tr>
+<tr>
+<td>Выпуск</td>
+<td>push в <code>main</code> → предварительный выпуск <strong>texflow-nightly</strong> (обновляется); тег <code>texflow-v1.2.0</code> → выпуск версии; любая ветка → артефакты запуска</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Ключ unisim-soft.</strong></p>
+<ul>
+<li>Закрытый ключ хранится в секрете репозитория <code>UNISIM_SOFT_SIGNING_KEY</code>
+  (Settings → Secrets and variables → Actions).</li>
+<li>Открытый ключ зашит в программу (<code>texflow/integrity.py</code>) и лежит в
+  <code>install/signing/unisim-soft.pub</code>. Отпечаток: <code>c5173c9670d69b5d</code>.</li>
+<li>Без секрета сборка проходит, но не подписывается, и в журнале запуска появляется
+  предупреждение. Для тегов выпуска подпись обязательна.</li>
+<li>Новая пара ключей: <code>python tools/release.py keygen</code>.</li>
+</ul>
+<p><strong>Самопроверка программы.</strong> Скриптовая версия при каждом запуске сверяет свои файлы с
+подписанным манифестом:</p>
+<pre><code class="language-bash">python texflow_app.py --verify                 # целостность: ok · 202 файлов · подпись unisim-soft (c5173c9670d69b5d)
+python texflow_app.py --verify-sums SHA256SUMS # проверить скачанные архивы
+TEXFLOW_STRICT_INTEGRITY=1 python texflow_app.py   # отказаться запускаться, если файлы изменены
+</code></pre>
+<ul>
+<li>Изменённый файл — предупреждение при запуске (в строгом режиме программа не запустится).</li>
+<li>Подменённый архив — <code>MISMATCH</code>.</li>
+<li>Изменённый <code>SHA256SUMS</code> — <code>подпись: INVALID</code>.</li>
+<li>Подпись проверяется кодом на чистом Python (Ed25519, RFC 8032), поэтому проверка работает
+  везде, где работает сама программа.</li>
+<li>Аттестация происхождения GitHub (Sigstore) — дополнительно к подписи. GitHub даёт её только
+  публичным репозиториям и на тарифе Enterprise; в приватном репозитории шаг пропускается с
+  предупреждением. Проверка: <code>gh attestation verify TexFlow-…zip --repo PavelTuhari/Artgranit</code>.</li>
+</ul></main></div></body></html>
