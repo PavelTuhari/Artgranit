@@ -33,6 +33,17 @@ run it from a laptop.
 
 ---
 
+## 0. Native app (1.2): Windows · macOS · Linux
+
+Besides the web version there is a **regular windowed program** on the same core: [docs/DESKTOP.en.md](docs/DESKTOP.en.md).
+
+- **Install:** double-click `Install-TexFlow-Windows.bat` / `Install-TexFlow-macOS.command` /
+  `sh install-texflow-linux.sh` — Python, libraries and shortcuts install themselves.
+- **Without installing:** `python texflow_app.py` (`--web` — web version).
+- **Ready-made program without Python:** `python install/build_exe.py`.
+- **Built-in label editor:** your own templates with the mouse, EAN-13 / CODE128, any size.
+- **Excel and CSV:** export and import back (full report, catalogue, prices, intake).
+
 ## 1. Install and run
 
 Requires Python 3.10 or newer (tested on 3.13).
@@ -66,7 +77,7 @@ cd standalone/texflow
 python -m pytest -q
 ```
 
-63 tests, no Oracle wallet and no printer needed. They cover:
+86 tests, no Oracle wallet and no printer needed. They cover:
 
 - rules: EAN-13, SKU, rounding, markup with VAT, cost allocation, reconciliation;
 - labels: ZPL, TSPL, PDF;

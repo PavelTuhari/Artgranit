@@ -211,3 +211,32 @@ stateDiagram-v2
         sorting --> done: «Мешок разобран»
     }
 ```
+
+## 7. Одно ядро — две программы и установка
+
+```mermaid
+flowchart LR
+    subgraph CORE["Ядро texflow/"]
+      C1[db · rules · store]
+      C2[label_templates · labels]
+      C3[exchange · printing · i18n]
+    end
+    DB[(SQLite)]
+    CORE <--> DB
+    WEB[Веб-версия Flask<br/>браузер] --> CORE
+    DESK[Нативное приложение Tkinter<br/>окно Windows / macOS / Linux] --> CORE
+    DESK --> ED[Редактор этикеток]
+    DESK --> XL[Excel / CSV]
+    WEB --> XL
+```
+
+```mermaid
+flowchart TD
+    A([Двойной щелчок по файлу установки]) --> B{Python 3.10+ с Tk есть?}
+    B -- нет --> C[winget / python.org / apt] --> B
+    B -- да --> D[install.py: копия в папку пользователя]
+    D --> E[venv + reportlab, openpyxl, flask]
+    E --> F[Ярлыки: Пуск / TexFlow.app / .desktop]
+    F --> G([Проверка --check и запуск])
+```
+

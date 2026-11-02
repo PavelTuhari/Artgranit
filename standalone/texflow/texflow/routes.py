@@ -7,7 +7,7 @@ import re
 from flask import (Blueprint, Response, current_app, flash, jsonify, redirect, render_template,
                    request, send_from_directory, url_for)
 
-from . import labels as L
+from . import exchange, label_templates as LT
 from . import printing, store
 from .i18n import _
 
@@ -330,21 +330,15 @@ def labels():
     action = request.values.get("action", "")
     fmt = request.values.get("fmt", "pdf_a4")
     if action:
-        lay, sheet = store.layouts(c)
+        _lay, sheet = store.layouts(c)
         st = store.settings(c)
         sheet.start_cell = _i(request.values.get("start_cell")) or 0
         if not items:
             flash(_("Нет выбранных этикеток"), "warn")
             return redirect(url_for("tf.labels", **{k: v for k, v in request.values.items() if k != "action"}))
         try:
-            if fmt == "zpl":
-                data, ext, mime = L.to_zpl(items, lay, st.get("zpl_font", "")).encode("utf-8"), "zpl", "text/plain"
-            elif fmt == "tspl":
-                data, ext, mime = L.to_tspl(items, lay, st.get("tspl_font", "")).encode("utf-8"), "tspl", "text/plain"
-            elif fmt == "pdf_roll":
-                data, ext, mime = L.to_pdf_roll(items, lay), "pdf", "application/pdf"
-            else:
-                data, ext, mime = L.to_pdf_sheet(items, sheet), "pdf", "application/pdf"
+            data, ext, mime = store.render_labels(c, items, fmt, _i(request.values.get("template")),
+                                                  sheet.start_cell)
         except ValueError as e:
             flash(str(e), "err")
             return redirect(url_for("tf.labels"))
@@ -364,8 +358,10 @@ def labels():
         disp = "inline" if ext == "pdf" and action == "view" else "attachment"
         return Response(data, mimetype=mime,
                         headers={"Content-Disposition": f"{disp}; filename=labels.{ext}"})
-    preview = L.to_zpl(items[:1], store.layouts(c)[0], store.settings(c).get("zpl_font", "")) if items else ""
+    preview = store.render_labels(c, items[:1], "zpl", _i(request.values.get("template")))[0].decode() \
+        if items else ""
     return render_template("labels.html", items=items, sel=sel, fmt=fmt, args=request.values,
+                           templates=LT.list_templates(c),
                            shipments=store.shipments(c), st=store.settings(c), preview=preview,
                            jobs=c.execute("SELECT * FROM label_jobs ORDER BY id DESC LIMIT 10").fetchall())
 
@@ -413,6 +409,64 @@ def refs():
         return redirect(url_for("tf.refs") + "#" + (kind or ""))
     return render_template("refs.html", families=store.color_families(c), scales=store.size_scales(c),
                            categories=store.categories(c))
+
+
+# ---------------------------------------------------------------- Excel / CSV
+
+@bp.route("/exchange")
+def exchange_page():
+    c = con()
+    return render_template("exchange.html", shipments=store.shipments(c), datasets=exchange.DATASETS,
+                           title=exchange.dataset_title)
+
+
+@bp.route("/export/<ds>.<fmt>")
+def export_data(ds, fmt):
+    if (ds not in exchange.DATASETS and ds != "full") or fmt not in ("xlsx", "csv"):
+        return _("Неизвестный набор данных"), 404
+    try:
+        data, name, mime = exchange.export(con(), ds, fmt, _i(request.args.get("shipment")))
+    except ValueError as e:
+        return str(e), 400
+    return Response(data, mimetype=mime, headers={"Content-Disposition": f"attachment; filename={name}"})
+
+
+@bp.post("/import/<kind>")
+def import_data(kind):
+    c = con()
+    f = request.files.get("file")
+    if not f or not f.filename:
+        flash(_("Выберите файл CSV или Excel"), "err")
+        return redirect(url_for("tf.exchange_page"))
+    data, sid = f.read(), _i(request.form.get("shipment"))
+    try:
+        if kind == "packing":
+            if not sid:
+                raise ValueError(_("Выберите поставку"))
+            r = exchange.import_packing(c, sid, data, f.filename, request.form.get("append") != "1")
+            msg = _("Загружено строк: {lines}, мешков: {bags}", lines=r["lines"], bags=r["bags"])
+        elif kind == "prices":
+            r = exchange.import_prices(c, data, f.filename)
+            msg = _("Цены обновлены: {n}; неизвестные артикулы: {u}", n=r["updated"], u=", ".join(r["unknown"]) or "—")
+        elif kind == "catalog":
+            r = exchange.import_catalog(c, data, f.filename, sid)
+            msg = _("Моделей создано: {p}, вариантов: {v}, принято шт.: {q}", p=r["products"], v=r["variants"],
+                    q=r["received"])
+            if r["errors"]:
+                msg += " · " + _("Ошибки в строках: ") + "; ".join(r["errors"][:10])
+        elif kind == "intake":
+            if not sid:
+                raise ValueError(_("Выберите поставку"))
+            r = exchange.import_intake(c, sid, data, f.filename)
+            msg = _("Принято {n} шт.", n=r["pcs"]) + (" · " + _("Не найдены: ") + ", ".join(r["unknown"][:20])
+                                                      if r["unknown"] else "")
+        else:
+            return _("Неизвестный набор данных"), 404
+    except Exception as e:  # noqa: BLE001
+        flash(_("Не загружено: {e}", e=e), "err")
+        return redirect(url_for("tf.exchange_page"))
+    flash(msg, "ok")
+    return redirect(url_for("tf.exchange_page"))
 
 
 @bp.route("/help")

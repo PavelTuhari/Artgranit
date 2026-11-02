@@ -32,6 +32,18 @@ RU / RO / EN стоит в шапке. Названия цветов, катег
 
 ---
 
+## 0. Нативное приложение (1.2): Windows · macOS · Linux
+
+Кроме веб-версии есть **обычная программа с окном** на том же ядре: [docs/DESKTOP.md](docs/DESKTOP.md).
+
+| Что | Как |
+|---|---|
+| Установить | двойной щелчок `Install-TexFlow-Windows.bat` / `Install-TexFlow-macOS.command` / `sh install-texflow-linux.sh` — Python, библиотеки, ярлыки ставятся сами |
+| Запустить без установки | `python texflow_app.py` (библиотеки доставятся при первом запуске) · `--web` — веб-версия |
+| Готовая программа без Python | `python install/build_exe.py` → TexFlow.exe / TexFlow.app / TexFlow |
+| Редактор этикеток | вкладка «Редактор этикеток»: свои шаблоны мышью, EAN-13 / CODE128, любой размер; печать ZPL / TSPL / PDF |
+| Excel и CSV | вкладка «Excel / CSV» (и `/exchange` в веб-версии): полный отчёт, каталог, цены, приёмка — выгрузка и загрузка обратно |
+
 ## 1. Установка и запуск
 
 Нужен Python 3.10 или новее (проверено на 3.13).
@@ -65,7 +77,7 @@ cd standalone/texflow
 python -m pytest -q
 ```
 
-Всего 63 теста, файл Oracle wallet и принтер не нужны:
+Всего 86 тестов, файл Oracle wallet и принтер не нужны:
 
 | Файл | Что проверяет |
 |---|---|

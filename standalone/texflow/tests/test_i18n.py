@@ -19,11 +19,14 @@ def used_keys():
     for f in glob.glob(os.path.join(PKG, "templates", "*.html")):
         for m in re.finditer(r"_\('((?:[^'\\]|\\.)*)'", open(f, encoding="utf-8").read()):
             keys.add(m.group(1).replace("\\\\", "\\"))
-    for f in glob.glob(os.path.join(PKG, "*.py")):
+    desktop = glob.glob(os.path.join(os.path.dirname(PKG), "desktop", "texflow_desktop", "*.py"))
+    call = re.compile(r"""(?<![A-Za-z0-9_])_\(((?:\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')\s*)+)""")
+    part = re.compile(r""""((?:[^"\\]|\\.)*)"|'((?:[^'\\]|\\.)*)'""")
+    for f in glob.glob(os.path.join(PKG, "*.py")) + desktop:
         if f.endswith("i18n_catalog.py"):
             continue
-        for m in re.finditer(r'(?<![A-Za-z0-9_])_\("((?:[^"\\]|\\.)*)"', open(f, encoding="utf-8").read()):
-            keys.add(m.group(1))
+        for m in call.finditer(open(f, encoding="utf-8").read()):
+            keys.add("".join(a or b for a, b in part.findall(m.group(1))).replace("\\\\", "\\"))
     keys |= {v for d in i18n._STATUS.values() for v in d.values()}
     keys |= {v for v in i18n._GENDER.values() if v} | set(i18n.JS_KEYS)
     return keys

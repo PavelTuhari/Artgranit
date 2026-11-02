@@ -1,10 +1,10 @@
 {
  "meta": {
-  "started": "2026-11-02T13:29:17.563Z",
+  "started": "2026-11-02T17:02:15.841Z",
   "chromium": "153.0.8010.12",
   "playwright": "1.63.0",
   "node": "v22.23.4",
-  "base": "http://127.0.0.1:5752",
+  "base": "http://127.0.0.1:5296",
   "app_log_tail": []
  },
  "results": [
@@ -18,7 +18,7 @@
    "images": [
     "e2e_01_home_empty.jpg"
    ],
-   "ms": 138
+   "ms": 245
   },
   {
    "id": "T02",
@@ -30,7 +30,7 @@
    "images": [
     "e2e_02_shipment_validation.jpg"
    ],
-   "ms": 252
+   "ms": 305
   },
   {
    "id": "T03",
@@ -43,7 +43,7 @@
     "e2e_03_shipment_form.jpg",
     "e2e_04_shipment_created.jpg"
    ],
-   "ms": 321
+   "ms": 528
   },
   {
    "id": "T04",
@@ -55,7 +55,7 @@
    "images": [
     "e2e_05_packing_loaded.jpg"
    ],
-   "ms": 299
+   "ms": 375
   },
   {
    "id": "T05",
@@ -68,7 +68,7 @@
     "e2e_06_matrix_filled.jpg",
     "e2e_07_intake_logged.jpg"
    ],
-   "ms": 817
+   "ms": 763
   },
   {
    "id": "T06",
@@ -80,7 +80,7 @@
    "images": [
     "e2e_08_jeans_matrix.jpg"
    ],
-   "ms": 677
+   "ms": 601
   },
   {
    "id": "T07",
@@ -92,7 +92,7 @@
    "images": [
     "e2e_09_scanner.jpg"
    ],
-   "ms": 342
+   "ms": 386
   },
   {
    "id": "T08",
@@ -102,7 +102,7 @@
    "actual": "Строк журнала: 12 → 11",
    "status": "PASS",
    "images": [],
-   "ms": 210
+   "ms": 188
   },
   {
    "id": "T09",
@@ -114,7 +114,7 @@
    "images": [
     "e2e_10_reconciliation.jpg"
    ],
-   "ms": 298
+   "ms": 434
   },
   {
    "id": "T10",
@@ -126,7 +126,7 @@
    "images": [
     "e2e_11_costs_weight.jpg"
    ],
-   "ms": 382
+   "ms": 302
   },
   {
    "id": "T11",
@@ -138,7 +138,7 @@
    "images": [
     "e2e_12_pricing.jpg"
    ],
-   "ms": 333
+   "ms": 264
   },
   {
    "id": "T12",
@@ -150,7 +150,7 @@
    "images": [
     "e2e_13_product_card.jpg"
    ],
-   "ms": 674
+   "ms": 592
   },
   {
    "id": "T13",
@@ -162,20 +162,20 @@
    "images": [
     "e2e_14_catalog.jpg"
    ],
-   "ms": 260
+   "ms": 230
   },
   {
    "id": "T14",
    "lang": "ru",
    "title": "Этикетки: PDF A4 (лист 3×8)",
    "expected": "Скачивается PDF A4, количество этикеток = принятым штукам, штрихкоды и кириллица на месте",
-   "actual": "Выбрано: 18 вариантов, 180 этикеток; PDF 72633 байт",
+   "actual": "Выбрано: 18 вариантов, 180 этикеток; PDF 61286 байт",
    "status": "PASS",
    "images": [
     "e2e_15_labels_page.jpg",
     "e2e_label_a4.png"
    ],
-   "ms": 1402
+   "ms": 597
   },
   {
    "id": "T15",
@@ -187,7 +187,7 @@
    "images": [
     "e2e_label_roll.png"
    ],
-   "ms": 284
+   "ms": 207
   },
   {
    "id": "T16",
@@ -197,19 +197,19 @@
    "actual": "Файлы sample_label.zpl и sample_label.tspl сохранены рядом с актом",
    "status": "PASS",
    "images": [],
-   "ms": 325
+   "ms": 269
   },
   {
    "id": "T17",
    "lang": "ru",
    "title": "Печать на сетевой принтер (TCP, как порт 9100)",
    "expected": "Задание ZPL уходит на принтер, принтер получает байты, в журнале печати статус ok",
-   "actual": "Печать: 7 этикеток — отправлено 2468 байт на 127.0.0.1:40317; принтер получил 2468 байт",
+   "actual": "Печать: 7 этикеток — отправлено 4302 байт на 127.0.0.1:37223; принтер получил 4302 байт",
    "status": "PASS",
    "images": [
     "e2e_16_print_tcp.jpg"
    ],
-   "ms": 685
+   "ms": 756
   },
   {
    "id": "T18",
@@ -219,7 +219,7 @@
    "actual": "Принтер не ответил: [Errno 111] Connection refused",
    "status": "PASS",
    "images": [],
-   "ms": 252
+   "ms": 210
   },
   {
    "id": "T19",
@@ -231,7 +231,7 @@
    "images": [
     "e2e_label_roll_ro.png"
    ],
-   "ms": 627
+   "ms": 439
   },
   {
    "id": "T20",
@@ -243,7 +243,7 @@
    "images": [
     "e2e_17_refs.jpg"
    ],
-   "ms": 526
+   "ms": 517
   },
   {
    "id": "T21",
@@ -263,7 +263,7 @@
    "actual": "404 / 404: «Поставка не найдена»",
    "status": "PASS",
    "images": [],
-   "ms": 13
+   "ms": 12
   },
   {
    "id": "T23",
@@ -275,14 +275,14 @@
    "images": [
     "e2e_18_help_ru.jpg"
    ],
-   "ms": 1712
+   "ms": 1691
   },
   {
    "id": "T24",
    "lang": "ro",
    "title": "Все экраны на румынском",
    "expected": "Переключатель меняет язык и запоминает его; на 10 экранах нет кириллицы в интерфейсе",
-   "actual": "10 экранов, меню: Acasă Livrări Catalog Etichete Nomenclatoare Setări Instrucțiuni",
+   "actual": "10 экранов, меню: Acasă Livrări Catalog Etichete Excel / CSV Nomenclatoare Setări Instrucțiuni",
    "status": "PASS",
    "images": [
     "e2e_19_ro_home.jpg",
@@ -296,14 +296,14 @@
     "e2e_27_ro_refs.jpg",
     "e2e_28_ro_help.jpg"
    ],
-   "ms": 2706
+   "ms": 2520
   },
   {
    "id": "T25",
    "lang": "en",
    "title": "Все экраны на английском",
    "expected": "Переключатель меняет язык и запоминает его; на 10 экранах нет кириллицы в интерфейсе",
-   "actual": "10 экранов, меню: Home Shipments Catalogue Labels Reference data Settings Help",
+   "actual": "10 экранов, меню: Home Shipments Catalogue Labels Excel / CSV Reference data Settings Help",
    "status": "PASS",
    "images": [
     "e2e_29_en_home.jpg",
@@ -317,7 +317,7 @@
     "e2e_37_en_refs.jpg",
     "e2e_38_en_help.jpg"
    ],
-   "ms": 2721
+   "ms": 2477
   },
   {
    "id": "T26",
@@ -329,7 +329,7 @@
    "images": [
     "e2e_39_mobile_sort.jpg"
    ],
-   "ms": 137
+   "ms": 95
   },
   {
    "id": "T27",
@@ -339,7 +339,7 @@
    "actual": "Ошибок: 0",
    "status": "PASS",
    "images": [],
-   "ms": 0
+   "ms": 1
   }
  ]
 }

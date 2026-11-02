@@ -200,3 +200,32 @@ flowchart LR
     E --> H[SQL: COALESCE name_en, name]
     I[Settings: label_lang] --> J[Colour on label]
 ```
+
+## 7. One core — two programs and installation
+
+```mermaid
+flowchart LR
+    subgraph CORE["Core texflow/"]
+      C1[db · rules · store]
+      C2[label_templates · labels]
+      C3[exchange · printing · i18n]
+    end
+    DB[(SQLite)]
+    CORE <--> DB
+    WEB[Web version Flask<br/>browser] --> CORE
+    DESK[Native app Tkinter<br/>window Windows / macOS / Linux] --> CORE
+    DESK --> ED[Label editor]
+    DESK --> XL[Excel / CSV]
+    WEB --> XL
+```
+
+```mermaid
+flowchart TD
+    A([Double-click the setup file]) --> B{Python 3.10+ with Tk present?}
+    B -- no --> C[winget / python.org / apt] --> B
+    B -- yes --> D[install.py: copy into the user folder]
+    D --> E[venv + reportlab, openpyxl, flask]
+    E --> F[Shortcuts: Start / TexFlow.app / .desktop]
+    F --> G([Check --check and launch])
+```
+

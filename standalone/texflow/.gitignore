@@ -8,3 +8,5 @@ spool/
 dist/
 tools/.cache/
 docs/html/pytest_results.xml.tmp
+build/
+TexFlow.spec

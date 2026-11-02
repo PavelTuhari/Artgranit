@@ -607,3 +607,16 @@ def dashboard(con) -> dict:
             "open_shipments": one("SELECT COUNT(*) FROM shipments WHERE status <> 'closed'"),
             "unpriced": one("SELECT COUNT(*) FROM products WHERE retail_price IS NULL"),
             "bags_open": one("SELECT COUNT(*) FROM bags WHERE status <> 'done'")}
+
+
+# ---------------------------------------------------------------- шаблоны этикеток (общий вход для веб и desktop)
+
+def render_labels(con, items: list[LabelData], fmt: str, template_id: int | None = None,
+                  start_cell: int = 0) -> tuple[bytes, str, str]:
+    """Отрисовать этикетки по шаблону: (данные, расширение, mime)."""
+    from . import label_templates as LT
+    tpl = LT.load(con, template_id)
+    _lay, sheet = layouts(con)
+    sheet.start_cell = start_cell or 0
+    return LT.render(settings(con), tpl, items, fmt, sheet)
+

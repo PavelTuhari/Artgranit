@@ -3,7 +3,7 @@
 <title>TexFlow — приёмка одежды из мешков, каталог, цены и этикетки · TexFlow</title><link rel="stylesheet" href="../assets/docs.css"></head>
 <body><header class="top"><span class="logo">TEXFLOW</span><a href="../index.html">Все материалы</a>
 <a href="../test_act.html">Акт тестирования</a><a href="../presentation.html">Презентация</a><span class="langs"><a class="on" href="../ru/README.html">RU</a><a class="" href="../ro/README.html">RO</a><a class="" href="../en/README.html">EN</a></span></header>
-<div class="wrap"><nav class="side"><b>Документация</b><a class="on" href="../ru/README.html">Обзор и установка</a><a href="../ru/OPERATOR_GUIDE.html">Инструкция оператора</a><a href="../ru/LABELS.html">Этикетки и принтеры</a><a href="../ru/ARCHITECTURE.html">Блок-схемы</a><a href="../ru/gallery.html">Галерея экранов</a><b>Акт тестирования · Презентация</b><a href="../test_act.html">Акт тестирования (RU)</a><a href="../presentation.html">Презентация (RU)</a><a href="../index.html">Все материалы</a></nav><main class="doc"><h1 id="texflow">TexFlow — приёмка одежды из мешков, каталог, цены и этикетки</h1>
+<div class="wrap"><nav class="side"><b>Документация</b><a class="on" href="../ru/README.html">Обзор и установка</a><a href="../ru/DESKTOP.html">Нативное приложение</a><a href="../ru/OPERATOR_GUIDE.html">Инструкция оператора</a><a href="../ru/LABELS.html">Этикетки и принтеры</a><a href="../ru/ARCHITECTURE.html">Блок-схемы</a><a href="../ru/gallery.html">Галерея экранов</a><b>Акт тестирования · Презентация</b><a href="../test_act.html">Акт тестирования (RU)</a><a href="../presentation.html">Презентация (RU)</a><a href="../index.html">Все материалы</a></nav><main class="doc"><h1 id="texflow">TexFlow — приёмка одежды из мешков, каталог, цены и этикетки</h1>
 <p><strong>Русский</strong> · <a href="../ro/README.html">Română</a> · <a href="../en/README.html">English</a></p>
 <p>Автономное веб-приложение на <strong>Python + Flask + SQLite</strong>. Нужен для быстрой
 обработки одежды, которая приходит из Турции и Китая в мешках, где всё лежит
@@ -50,6 +50,38 @@ RU / RO / EN стоит в шапке. Названия цветов, катег
 </tbody>
 </table>
 <hr />
+<h2 id="0-12-windows-macos-linux">0. Нативное приложение (1.2): Windows · macOS · Linux</h2>
+<p>Кроме веб-версии есть <strong>обычная программа с окном</strong> на том же ядре: <a href="DESKTOP.html">docs/DESKTOP.md</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Что</th>
+<th>Как</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Установить</td>
+<td>двойной щелчок <code>Install-TexFlow-Windows.bat</code> / <code>Install-TexFlow-macOS.command</code> / <code>sh install-texflow-linux.sh</code> — Python, библиотеки, ярлыки ставятся сами</td>
+</tr>
+<tr>
+<td>Запустить без установки</td>
+<td><code>python texflow_app.py</code> (библиотеки доставятся при первом запуске) · <code>--web</code> — веб-версия</td>
+</tr>
+<tr>
+<td>Готовая программа без Python</td>
+<td><code>python install/build_exe.py</code> → TexFlow.exe / TexFlow.app / TexFlow</td>
+</tr>
+<tr>
+<td>Редактор этикеток</td>
+<td>вкладка «Редактор этикеток»: свои шаблоны мышью, EAN-13 / CODE128, любой размер; печать ZPL / TSPL / PDF</td>
+</tr>
+<tr>
+<td>Excel и CSV</td>
+<td>вкладка «Excel / CSV» (и <code>/exchange</code> в веб-версии): полный отчёт, каталог, цены, приёмка — выгрузка и загрузка обратно</td>
+</tr>
+</tbody>
+</table>
 <h2 id="1">1. Установка и запуск</h2>
 <p>Нужен Python 3.10 или новее (проверено на 3.13).</p>
 <pre><code class="language-bash">cd standalone/texflow
@@ -96,7 +128,7 @@ TTF-шрифт для PDF.</p>
 <pre><code class="language-bash">cd standalone/texflow
 python -m pytest -q
 </code></pre>
-<p>Всего 63 теста, файл Oracle wallet и принтер не нужны:</p>
+<p>Всего 86 тестов, файл Oracle wallet и принтер не нужны:</p>
 <table>
 <thead>
 <tr>

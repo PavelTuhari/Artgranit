@@ -9,6 +9,7 @@
 <a href="{{ url_for('tf.shipments') }}" class="{{ 'on' if 'shipment' in ep or 'sort' in ep or 'pricing' in ep }}">{{ _('Поставки') }}</a>
 <a href="{{ url_for('tf.catalog') }}" class="{{ 'on' if ep in ('tf.catalog','tf.product') }}">{{ _('Каталог') }}</a>
 <a href="{{ url_for('tf.labels') }}" class="{{ 'on' if ep=='tf.labels' }}">{{ _('Этикетки') }}</a>
+<a href="{{ url_for('tf.exchange_page') }}" class="{{ 'on' if ep=='tf.exchange_page' }}">Excel / CSV</a>
 <a href="{{ url_for('tf.refs') }}" class="{{ 'on' if ep=='tf.refs' }}">{{ _('Справочники') }}</a>
 <a href="{{ url_for('tf.settings') }}" class="{{ 'on' if ep=='tf.settings' }}">{{ _('Настройки') }}</a>
 <a href="{{ url_for('tf.help_page') }}" class="{{ 'on' if ep=='tf.help_page' }}">{{ _('Инструкция') }}</a>

@@ -1,0 +1,56 @@
+{
+ "meta": {
+  "os": "Linux 6.18.44-fc-v185",
+  "python": "3.12.3"
+ },
+ "results": [
+  {
+   "id": "I01",
+   "title": "Установка на Linux (install.py в чистую домашнюю папку)",
+   "expected": "Копия программы, venv с reportlab/openpyxl/flask, ярлыки, проверка --check проходит",
+   "status": "PASS",
+   "actual": "3 ярлыка; TexFlow 1.2.0 · Python 3.12.3 · Linux 6.18.44-fc-v185",
+   "ms": 22712
+  },
+  {
+   "id": "I02",
+   "title": "Состав установленной программы",
+   "expected": "Ядро, нативное приложение, иконка, скрипты запуска и удаления",
+   "status": "PASS",
+   "actual": "файлы на месте; ярлыки: 2",
+   "ms": 0
+  },
+  {
+   "id": "I03",
+   "title": "Ярлыки в меню приложений и на рабочем столе",
+   "expected": ".desktop-файлы с иконкой и подписями RU/RO/EN",
+   "status": "PASS",
+   "actual": "меню: texflow-web.desktop, texflow.desktop; рабочий стол: texflow.desktop",
+   "ms": 0
+  },
+  {
+   "id": "I04",
+   "title": "Запуск установленной программы ярлыком",
+   "expected": "Окно работает, база с демо-поставкой создана в папке данных",
+   "status": "PASS",
+   "actual": "окно открыто 7 с, база: ~/.local/share/texflow/texflow.db (4096 байт)",
+   "ms": 7005
+  },
+  {
+   "id": "I05",
+   "title": "Удаление",
+   "expected": "Программа и ярлыки удалены; база остаётся (без --purge)",
+   "status": "PASS",
+   "actual": "программа и ярлыки удалены, данные сохранены",
+   "ms": 138
+  },
+  {
+   "id": "I06",
+   "title": "Сборка PyInstaller и запуск бинарника без Python",
+   "expected": "Архив собран; бинарник отвечает --check с библиотеками внутри",
+   "status": "PASS",
+   "actual": "TexFlow-1.2.0-linux-x86_64.zip (35.7 МБ); бинарник без системного Python: tkinter: ok · reportlab: 5.1.0 · openpyxl: 3.1.5 · flask: 3.1.3",
+   "ms": 26593
+  }
+ ]
+}

@@ -28,9 +28,10 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "docs", "html")
 LANGS = ("ru", "ro", "en")
 LANG_NAMES = {"ru": "Русский", "ro": "Română", "en": "English"}
-DOCS = ["README", "OPERATOR_GUIDE", "LABELS", "ARCHITECTURE"]
+DOCS = ["README", "DESKTOP", "OPERATOR_GUIDE", "LABELS", "ARCHITECTURE"]
 DOC_TITLES = {
     "README": {"ru": "Обзор и установка", "ro": "Prezentare și instalare", "en": "Overview & install"},
+    "DESKTOP": {"ru": "Нативное приложение", "ro": "Aplicația nativă", "en": "Native app"},
     "OPERATOR_GUIDE": {"ru": "Инструкция оператора", "ro": "Instrucțiuni operator", "en": "Operator guide"},
     "LABELS": {"ru": "Этикетки и принтеры", "ro": "Etichete și imprimante", "en": "Labels & printers"},
     "ARCHITECTURE": {"ru": "Блок-схемы", "ro": "Scheme bloc", "en": "Flowcharts"},
@@ -155,7 +156,7 @@ def link_rewriter(src_file: str, out_file: str):
             return m.group(0)
         target, _, anchor = href.partition("#")
         base = os.path.basename(target)
-        mm = re.match(r"^(README|OPERATOR_GUIDE|LABELS|ARCHITECTURE)(?:\.(ro|en))?\.md$", base)
+        mm = re.match(r"^(README|DESKTOP|OPERATOR_GUIDE|LABELS|ARCHITECTURE)(?:\.(ro|en))?\.md$", base)
         if mm:
             new = os.path.relpath(os.path.join(OUT, mm.group(2) or "ru", mm.group(1) + ".html"),
                                   os.path.dirname(out_file))
@@ -176,7 +177,7 @@ def convert_md(src_file: str, out_file: str) -> tuple[str, str, str]:
     svgs = render_mermaid(blocks)
     for i, src in enumerate(blocks):
         body = body.replace(f"<p>MERMAIDBLOCK{i}</p>", mermaid_block(svgs[i], src))
-    body = re.sub(r'(href=)"([^"]+)"', link_rewriter(src_file, out_file), body)
+    body = re.sub(r'((?:href|src)=)"([^"]+)"', link_rewriter(src_file, out_file), body)
     title = re.search(r"<h1[^>]*>(.*?)</h1>", body)
     toc = "".join(f'<a href="#{t["id"]}">{t["name"]}</a>' for t in md.toc_tokens[0]["children"]) \
         if md.toc_tokens and md.toc_tokens[0].get("children") else ""
@@ -189,6 +190,11 @@ def convert_md(src_file: str, out_file: str) -> tuple[str, str, str]:
 
 def load_e2e() -> dict:
     p = os.path.join(OUT, "e2e_results.json")
+    return json.load(open(p, encoding="utf-8")) if os.path.exists(p) else {"meta": {}, "results": []}
+
+
+def load_json(name: str) -> dict:
+    p = os.path.join(OUT, name)
     return json.load(open(p, encoding="utf-8")) if os.path.exists(p) else {"meta": {}, "results": []}
 
 
@@ -245,6 +251,30 @@ def gallery_items(e2e: dict, lang: str) -> list[tuple[str, str]]:
     return items
 
 
+DESK_NAMES = {
+    "shipments": {"ro": "Livrări", "en": "Shipments"}, "sort": {"ro": "Sortare", "en": "Sort"},
+    "pricing": {"ro": "Prețuri", "en": "Prices"}, "catalog": {"ro": "Catalog", "en": "Catalogue"},
+    "labels": {"ro": "Etichete", "en": "Labels"}, "editor": {"ro": "Editor de etichete", "en": "Label editor"},
+    "exchange": {"ro": "Excel / CSV", "en": "Excel / CSV"}, "settings": {"ro": "Setări", "en": "Settings"},
+}
+
+
+def desktop_gallery(desk: dict, lang: str) -> list[tuple[str, str]]:
+    items = []
+    for r in desk.get("results", []):
+        for img in r["images"]:
+            if "_fail" in img:
+                continue
+            m = re.match(r"desk_\d+_(ro|en)_(\w+)\.jpg", img)
+            if lang == "ru" and r["lang"] == "ru":
+                items.append((img, f'{r["id"]}. {r["title"]}'))
+            elif m and m.group(1) == lang:
+                items.append((img, DESK_NAMES.get(m.group(2), {}).get(lang, m.group(2))))
+    if lang != "ru":
+        items += [(i, c) for i, c in desktop_gallery(desk, "ru") if i.endswith(".png")]
+    return items
+
+
 # ------------------------------------------------------------------ сборка документации
 
 def build_docs(e2e: dict) -> list[str]:
@@ -262,13 +292,18 @@ def build_docs(e2e: dict) -> list[str]:
                                                         links, needs_mermaid_cdn=cdn))
             written.append(out)
         # галерея экранов
-        items = gallery_items(e2e, lang)
-        figs = "".join(f'<figure><a href="../img/{i}"><img loading="lazy" src="../img/{i}" alt=""></a>'
-                       f'<figcaption>{html.escape(c)}</figcaption></figure>' for i, c in items)
+        def figs_of(items):
+            return "".join(f'<figure><a href="../img/{i}"><img loading="lazy" src="../img/{i}" alt=""></a>'
+                           f'<figcaption>{html.escape(c)}</figcaption></figure>' for i, c in items)
+        sec = {"ru": ("Нативное приложение (Windows · macOS · Linux)", "Веб-версия"),
+               "ro": ("Aplicația nativă (Windows · macOS · Linux)", "Versiunea web"),
+               "en": ("Native app (Windows · macOS · Linux)", "Web version")}[lang]
+        figs = (f'<h2>{sec[0]}</h2><div class="shots">{figs_of(desktop_gallery(load_json("desktop_results.json"), lang))}</div>'
+                f'<h2>{sec[1]}</h2><div class="shots">{figs_of(gallery_items(e2e, lang))}</div>')
         intro = {"ru": "Скриншоты сделаны автоматически при сквозном тестировании (tools/e2e.js) на чистой базе.",
                  "ro": "Capturile de ecran au fost făcute automat la testarea completă (tools/e2e.js) pe o bază curată.",
                  "en": "Screenshots were taken automatically during end-to-end testing (tools/e2e.js) on a clean database."}
-        body = f'<h1>{DOC_TITLES["gallery"][lang]}</h1><p class="mut">{intro[lang]}</p><div class="shots">{figs}</div>'
+        body = f'<h1>{DOC_TITLES["gallery"][lang]}</h1><p class="mut">{intro[lang]}</p>{figs}'
         out = os.path.join(OUT, lang, "gallery.html")
         open(out, "w", encoding="utf-8").write(page(DOC_TITLES["gallery"][lang], body, lang, "../", nav(lang, "gallery", "../"),
                                                     {l: f"../{l}/gallery.html" for l in LANGS}))
@@ -283,11 +318,13 @@ def build_index(e2e: dict, unit: list[dict]) -> str:
         tiles.append(f'<section><h3>{LANG_NAMES[lang]}</h3><ul>{links}</ul></section>')
     passed_u = sum(r["status"] == "PASS" for r in unit)
     passed_e = sum(r["status"] == "PASS" for r in e2e["results"])
+    desk = load_json("desktop_results.json")
+    passed_d = sum(r["status"] == "PASS" for r in desk["results"])
     body = f"""<h1>TexFlow — все материалы</h1>
 <p>Автономное приложение Python + Flask + SQLite для приёмки одежды из мешков (Турция / Китай), каталога,
 цен и этикеток Zebra / TSC / PDF. Интерфейс и документация — RU / RO / EN.</p>
 <div class="kpis"><div><b>{passed_u}/{len(unit)}</b>модульных тестов</div><div><b>{passed_e}/{len(e2e["results"])}</b>сквозных проверок в браузере</div>
-<div><b>3</b>языка</div><div><b>{sum(len(r["images"]) for r in e2e["results"])}</b>скриншотов</div></div>
+<div><b>{passed_d}/{len(desk["results"])}</b>сквозных проверок нативного приложения</div><div><b>3</b>языка</div><div><b>{sum(len(r["images"]) for r in e2e["results"])}</b>скриншотов</div></div>
 <div class="tiles"><section><h3>Акт и презентация</h3><ul><li><a href="test_act.html">Акт тестирования со скриншотами</a></li>
 <li><a href="presentation.html">Презентация</a> (стрелки ← →) · <a href="presentation.pdf">PDF</a></li>
 <li><a href="test_act.pdf">Акт тестирования — PDF для печати и подписи</a></li></ul>
@@ -311,7 +348,8 @@ def git(*args) -> str:
 
 def versions() -> list[tuple[str, str]]:
     import importlib.metadata as md
-    vers = [("ОС", f"{platform.system()} {platform.release()}"), ("Python", platform.python_version())]
+    vers = [("ОС", f"{platform.system()} {platform.release()}"),
+            ("Python (веб-версия, браузерный прогон, сборка отчёта)", platform.python_version())]
     for pkg in ("flask", "reportlab", "pytest", "markdown"):
         try:
             vers.append((pkg, md.version(pkg)))
@@ -331,6 +369,20 @@ DEFECTS = [
      "скриншот T23 (инструкция)", "Отдельный стиль pre.mermaid: белый фон, без ограничения высоты.", "FIX2"),
     ("Д-4", "Русская инструкция не упоминала румынские заголовки упаковочного листа (после перевода на 3 языка).",
      "скриншот T23", "Текст инструкции дополнен.", "FIX2"),
+    ("Д-5", "Редактор этикеток: рамка вокруг всей этикетки перехватывала щелчок — текст и штрихкод внутри нельзя "
+            "было выделить и перетащить мышью.",
+     "D09 (desktop e2e, перетаскивание мышью)", "Рамка выбирается только щелчком по контуру; повторный прогон D09.",
+     "GREP:рамка выбирается по контуру"),
+    ("Д-6", "Нативное приложение на RO/EN: меню «Файл», вкладка «Редактор этикеток» и ещё 39 строк оставались на русском.",
+     "скриншот сборки PyInstaller на RO", "Все строки desktop/ в каталоге переводов; тест test_every_ui_string_translated "
+     "теперь проверяет и desktop/, D16/D17 — ни одной кириллической подписи.", "GREP:перевод всех строк desktop"),
+    ("Д-7", "Собранная программа (PyInstaller) в --check писала «reportlab: нет», хотя библиотека внутри.",
+     "запуск бинарника --check", "Версия берётся из модуля, если в сборке нет метаданных пакета; I06.",
+     "GREP:перевод всех строк desktop"),
+    ("Д-8", "Установщик на Linux: скрипт запуска назывался как папка ядра «texflow» (ошибка IsADirectoryError); "
+            "в .bat для Windows переводы строк удваивались (\\r\\r\\n).",
+     "первый прогон установщика в чистой домашней папке", "Скрипт texflow-desktop; .bat пишется с одним CRLF; "
+     "тест test_installer_windows_and_mac_scripts проверяет отсутствие \\r\\r\\n.", "GREP:самоустановщик Windows/macOS/Linux"),
 ]
 
 
@@ -338,20 +390,39 @@ def build_act(e2e: dict, unit: list[dict]) -> str:
     now = dt.datetime.now().strftime("%d.%m.%Y %H:%M")
     head = git("rev-parse", "--short", "HEAD")
     fix2 = git("log", "--format=%h", "-1", "--grep=себестоимость на странице поставки") or "—"
+    desk, inst = load_json("desktop_results.json"), load_json("install_results.json")
+    dp, dt_ = sum(r["status"] == "PASS" for r in desk["results"]), len(desk["results"])
+    ip, it = sum(r["status"] == "PASS" for r in inst["results"]), len(inst["results"])
+
+    def commit(h):
+        if h == "FIX2":
+            return fix2
+        if h.startswith("GREP:"):
+            return git("log", "--format=%h", "-1", "--fixed-strings", f"--grep={h[5:]}") or "—"
+        return h
     branch = git("rev-parse", "--abbrev-ref", "HEAD")
     from importlib import import_module
     sys.path.insert(0, ROOT)
     version = import_module("texflow").__version__
     meta = e2e.get("meta", {})
     env = versions() + [("Chromium", meta.get("chromium", "")), ("Playwright", meta.get("playwright", "")),
-                        ("Node.js", meta.get("node", ""))]
+                        ("Node.js", meta.get("node", "")),
+                        ("Нативное приложение и pytest", f"Python {desk['meta'].get('python', '—')} · Tk {desk['meta'].get('tk', '—')}"
+                                                         f" · {desk['meta'].get('os', '')} · Xvfb 1360×860")]
     e2e_rows = e2e["results"]
     up, ut = sum(r["status"] == "PASS" for r in unit), len(unit)
     ep, et = sum(r["status"] == "PASS" for r in e2e_rows), len(e2e_rows)
-    verdict_ok = up == ut and ep == et and ut > 0 and et > 0
+    verdict_ok = up == ut and ep == et and dp == dt_ and ip == it and ut > 0 and et > 0
 
     def thumbs(imgs):
         return "".join(f'<a href="img/{i}"><img loading="lazy" src="img/{i}" alt="{i}"></a>' for i in imgs)
+
+    def rows_of(rows):
+        return "".join(
+            f'<tr><td>{r["id"]}</td><td>{r["lang"].upper()}</td><td><b>{html.escape(r["title"])}</b><br>'
+            f'<span class="mut">Ожидается: {html.escape(r["expected"])}</span></td>'
+            f'<td>{html.escape(r["actual"])}</td><td class="{"pass" if r["status"] == "PASS" else "fail"}">{r["status"]}</td>'
+            f'<td>{r["ms"] / 1000:.1f} с</td><td class="thumbs">{thumbs(r["images"])}</td></tr>' for r in rows)
 
     e2e_html = "".join(
         f'<tr><td>{r["id"]}</td><td>{r["lang"].upper()}</td><td><b>{html.escape(r["title"])}</b><br>'
@@ -370,7 +441,7 @@ def build_act(e2e: dict, unit: list[dict]) -> str:
         f'<td class="{"pass" if r["status"] == "PASS" else "fail"}">{r["status"]}</td><td>{r["time"]:.3f}</td></tr>'
         for r in unit)
     defects = "".join(f'<tr><td>{d}</td><td>{html.escape(a)}</td><td>{html.escape(b)}</td><td>{html.escape(c)}</td>'
-                      f'<td><code>{fix2 if h == "FIX2" else h}</code></td><td class="pass">исправлено</td></tr>'
+                      f'<td><code>{commit(h)}</code></td><td class="pass">исправлено</td></tr>'
                       for d, a, b, c, h in DEFECTS)
     zpl = open(os.path.join(OUT, "sample_label.zpl"), encoding="utf-8").read() if os.path.exists(os.path.join(OUT, "sample_label.zpl")) else ""
     tspl = open(os.path.join(OUT, "sample_label.tspl"), encoding="utf-8").read() if os.path.exists(os.path.join(OUT, "sample_label.tspl")) else ""
@@ -382,11 +453,12 @@ def build_act(e2e: dict, unit: list[dict]) -> str:
 <tr><th>Расположение</th><td><code>standalone/texflow/</code>, репозиторий PavelTuhari/Artgranit, ветка <code>{branch}</code>, коммит <code>{head}</code></td></tr>
 <tr><th>Дата и время</th><td>{now}</td></tr>
 <tr><th>Исполнитель</th><td>Claude Code (автоматизированное тестирование), по заданию владельца</td></tr>
-<tr><th>Вид испытаний</th><td>модульные и интеграционные (pytest), сквозные в браузере (Playwright + Chromium) на RU / RO / EN, визуальная проверка скриншотов и этикеток</td></tr>
+<tr><th>Вид испытаний</th><td>модульные и интеграционные (pytest); сквозные в браузере (Playwright + Chromium) и в нативном приложении (Tkinter, Xvfb) на RU / RO / EN; установка, запуск, удаление и сборка PyInstaller; визуальная проверка скриншотов и этикеток</td></tr>
 <tr><th>Итог</th><td class="{"pass" if verdict_ok else "fail"}">{"СООТВЕТСТВУЕТ — все проверки пройдены" if verdict_ok else "НЕ СООТВЕТСТВУЕТ — есть непройденные проверки"}</td></tr></table>
 
 <div class="kpis"><div><b>{up}/{ut}</b>модульных и интеграционных тестов</div><div><b>{ep}/{et}</b>сквозных проверок в браузере</div>
-<div><b>{sum(len(r["images"]) for r in e2e_rows)}</b>скриншотов</div><div><b>{len(DEFECTS)}</b>дефектов найдено и исправлено</div></div>
+<div><b>{dp}/{dt_}</b>сквозных проверок нативного приложения</div><div><b>{ip}/{it}</b>проверок установки и сборки</div>
+<div><b>{sum(len(r["images"]) for r in e2e_rows) + sum(len(r["images"]) for r in desk["results"])}</b>скриншотов</div><div><b>{len(DEFECTS)}</b>дефектов найдено и исправлено</div></div>
 
 <h2 id="env">1. Среда испытаний</h2>
 <table>{''.join(f"<tr><th style='width:240px'>{k}</th><td>{html.escape(str(v))}</td></tr>" for k, v in env)}
@@ -401,11 +473,24 @@ def build_act(e2e: dict, unit: list[dict]) -> str:
 весь процесс как оператор — поставка → упаковочный лист → разбор мешков → сканер → сверка → цены → карточки → каталог → этикетки
 всех форматов → печать на сетевой принтер → настройки и справочники; затем все экраны на румынском и английском и мобильная ширина.
 Каждый шаг проверяется утверждением и сохраняется скриншотом.</li>
+<li><b>Нативное приложение</b> (<code>tools/desktop_e2e.py</code>, {dt_} шагов, Xvfb): программа сама нажимает кнопки, заполняет
+поля, протаскивает мышью элементы в редакторе этикеток, выгружает и загружает Excel/CSV, печатает на сетевой «принтер»; затем
+обходит все 8 вкладок на румынском и английском и проверяет, что ни одна подпись интерфейса не осталась на русском.</li>
+<li><b>Установка</b> (<code>tools/install_check.py</code>, {it} шагов): установщик в чистую домашнюю папку, ярлыки, запуск
+установленной программы ярлыком, удаление; сборка PyInstaller и запуск бинарника без системного Python.</li>
 <li><b>Визуальная проверка</b>: скриншоты и изображения этикеток просмотрены; найденные по ним недочёты внесены в раздел 5.</li></ol>
 
 <h2 id="e2e">3. Сквозные проверки в браузере ({ep}/{et})</h2>
 <p class="mut">Нажмите на миниатюру, чтобы открыть скриншот целиком.</p>
 <table><tr><th>№</th><th>Язык</th><th>Проверка</th><th>Фактический результат</th><th>Итог</th><th>Время</th><th>Скриншоты</th></tr>{e2e_html}</table>
+
+<h2 id="desktop">3a. Нативное приложение ({dp}/{dt_})</h2>
+<table><tr><th>№</th><th>Язык</th><th>Проверка</th><th>Фактический результат</th><th>Итог</th><th>Время</th><th>Скриншоты</th></tr>{rows_of(desk["results"])}</table>
+
+<h2 id="install">3b. Установка, удаление, сборка ({ip}/{it})</h2>
+<p class="mut">{inst["meta"].get("os", "")} · Python {inst["meta"].get("python", "")}</p>
+<table><tr><th>№</th><th>Проверка</th><th>Фактический результат</th><th>Итог</th><th>Время</th></tr>
+{"".join(f'<tr><td>{r["id"]}</td><td><b>{html.escape(r["title"])}</b><br><span class="mut">Ожидается: {html.escape(r["expected"])}</span></td><td>{html.escape(r["actual"])}</td><td class="{"pass" if r["status"] == "PASS" else "fail"}">{r["status"]}</td><td>{r["ms"] / 1000:.1f} с</td></tr>' for r in inst["results"])}</table>
 
 <h2 id="unit">4. Модульные и интеграционные тесты ({up}/{ut})</h2>
 <table><tr><th>Файл</th><th>Тестов</th><th>Пройдено</th><th>Не пройдено</th><th>Время</th></tr>{unit_summary}</table>
@@ -422,20 +507,30 @@ def build_act(e2e: dict, unit: list[dict]) -> str:
 <figure><a href="img/e2e_label_a4.png"><img src="img/e2e_label_a4.png" alt=""></a><figcaption>Лист A4 3×8 (первая страница из 180 этикеток)</figcaption></figure></div>
 <h3>ZPL (Zebra), первая этикетка — <a href="sample_label.zpl">файл</a></h3><pre>{html.escape(zpl_first)}</pre>
 <h3>TSPL (TSC), первая этикетка — <a href="sample_label.tspl">файл</a></h3><pre>{html.escape(tspl_first)}</pre>
-<p>Экспорт каталога: <a href="sample_catalog.csv">sample_catalog.csv</a></p>
+<p>Экспорт каталога: <a href="sample_catalog.csv">sample_catalog.csv</a> · полный отчёт Excel из нативного приложения:
+<a href="sample_full_report.xlsx">sample_full_report.xlsx</a></p>
+<div class="shots"><figure><a href="img/desk_label_custom.png"><img src="img/desk_label_custom.png" alt=""></a>
+<figcaption>Этикетка по шаблону, нарисованному в редакторе мышью (D09–D11): 50×30 мм, CODE128, рамка</figcaption></figure></div>
 
 <h2 id="limits">7. Что не проверялось</h2>
 <ul><li>Печать на физических Zebra и TSC: принтеров в среде испытаний нет. Проверены структура ZPL/TSPL (тесты), доставка задания по TCP
 (поддельный принтер) и вид этикетки в PDF. Перед вводом в работу — пробная печать одной этикетки и её сканирование.</li>
 <li>Отрисовка ZPL в онлайн-просмотрщике labelary.com: отправка данных во внешний сервис в среде испытаний запрещена.</li>
-<li>Запуск на Windows и macOS: испытания проводились на Linux. Код не использует платформенно-зависимых вызовов, кроме печати через CUPS (<code>lp</code>).</li>
+<li>Запуск на Windows и macOS: испытания проводились на Linux (Ubuntu 24.04, Xvfb). Для Windows и macOS проверено,
+что установщик формирует правильные файлы (<code>.bat</code> с CRLF, <code>TexFlow.app</code> с Info.plist и иконкой) — тесты
+<code>test_installer_windows_and_mac_scripts</code>; ярлыки Windows (.lnk через PowerShell) и запуск на этих ОС не проверялись.
+Сборка PyInstaller выполнена только для Linux; для Windows (.exe) и macOS (.app) — шаблон GitHub Actions
+<code>install/github-actions-texflow-desktop.yml</code>, собирает на своих ОС.</li>
+<li>Системная печать PDF (кнопка «Печать на системный принтер») — вызывает <code>lp</code> / печать Windows; в среде испытаний
+системного принтера нет.</li>
 <li>Схема процесса на странице «Инструкция» в самом приложении рисуется библиотекой mermaid с CDN; без интернета показывается её текст.
 В HTML-документации схемы встроены готовыми SVG и работают без интернета.</li>
 <li>Нагрузочное тестирование не проводилось: приложение рассчитано на 1–5 рабочих мест одного склада.</li></ul>
 
 <h2 id="verdict">8. Заключение</h2>
-<p>TexFlow {version} на коммите <code>{head}</code> {"прошёл все" if verdict_ok else "прошёл не все"} модульные ({up}/{ut}) и сквозные ({ep}/{et})
-проверки на трёх языках. Найденные в ходе испытания дефекты ({len(DEFECTS)}) исправлены и закрыты тестами.
+<p>TexFlow {version} на коммите <code>{head}</code> {"прошёл все" if verdict_ok else "прошёл не все"} модульные ({up}/{ut}),
+сквозные в браузере ({ep}/{et}) и в нативном приложении ({dp}/{dt_}) проверки на трёх языках, а также проверки установки и
+сборки ({ip}/{it}). Найденные в ходе испытания дефекты ({len(DEFECTS)}) исправлены и закрыты тестами.
 Приложение {"рекомендуется к опытной эксплуатации" if verdict_ok else "требует доработки"} при условии пробной печати на конкретном
 модели термопринтера (раздел 7).</p>
 <table style="margin-top:40px"><tr><th style="width:50%">Испытания провёл</th><th>Принял</th></tr>
@@ -451,7 +546,15 @@ def build_act(e2e: dict, unit: list[dict]) -> str:
 def build_presentation(e2e: dict, unit: list[dict]) -> str:
     up, ut = sum(r["status"] == "PASS" for r in unit), len(unit)
     ep, et = sum(r["status"] == "PASS" for r in e2e["results"]), len(e2e["results"])
+    desk, inst = load_json("desktop_results.json"), load_json("install_results.json")
+    dp, dt_ = sum(r["status"] == "PASS" for r in desk["results"]), len(desk["results"])
+    ip, it = sum(r["status"] == "PASS" for r in inst["results"]), len(inst["results"])
     img = {re.sub(r"^e2e_\d+_", "", os.path.splitext(i)[0]): i for r in e2e["results"] for i in r["images"]}
+    dimg = {re.sub(r"^desk_\d+_", "", os.path.splitext(i)[0]): i for r in desk["results"] for i in r["images"]}
+
+    def dpic(key, cap=""):
+        f = dimg.get(key)
+        return f'<figure><img src="img/{f}" alt=""><figcaption>{cap}</figcaption></figure>' if f else ""
     def pic(key, cap=""):
         f = img.get(key)
         return f'<figure><img src="img/{f}" alt=""><figcaption>{cap}</figcaption></figure>' if f else ""
@@ -499,22 +602,49 @@ def build_presentation(e2e: dict, unit: list[dict]) -> str:
 Печать по сети (порт 9100), через CUPS или в папку; копии — одной командой.</p>""",
         f"""<h2>Три языка: русский · румынский · английский</h2><div class="three">{pic("ro_sort", "Разбор — RO")}{pic("en_pricing", "Цены — EN")}{pic("ro_product", "Карточка — RO")}</div>
 <p>Переключатель RU / RO / EN, переведены справочники, названия моделей и этикетки. Тест не даёт добавить строку без перевода.</p>""",
-        f"""<h2>Тестирование</h2><div class="kpis"><div><b>{up}/{ut}</b>модульных тестов</div><div><b>{ep}/{et}</b>сквозных проверок в браузере</div>
-<div><b>{len(DEFECTS)}</b>дефекта найдено и исправлено</div><div><b>{sum(len(r["images"]) for r in e2e["results"])}</b>скриншотов</div></div>
-<ul><li>Браузер проходит весь путь оператора на чистой базе и печатает на сетевой «принтер»</li>
-<li>Все экраны проверены на RO и EN — без единой русской строки интерфейса</li>
+        f"""<h2>Нативное приложение: Windows · macOS · Linux</h2><div class="two">{dpic("matrix", "Разбор мешка — матрица цвет × размер в окне программы")}
+<div><ul><li>Обычная программа с окном (Python + Tkinter), без браузера и сервера</li>
+<li>То же ядро и та же база SQLite, что у веб-версии</li><li>8 вкладок: поставки, разбор, цены, каталог, этикетки,
+<b>редактор этикеток</b>, <b>Excel / CSV</b>, настройки</li><li>RU / RO / EN — переключение кнопкой, без перезапуска</li></ul></div></div>""",
+        f"""<h2>Встроенный редактор этикеток</h2><div class="two">{dpic("editor_open", "Шаблон 58×40 с данными вещи")}
+<div>{dpic("editor_new", "Свой шаблон 50×30: текст, CODE128, рамка — мышью")}
+<ul><li>Любой размер; текст с полями <code>{{name}} {{size}} {{price}}</code>…</li><li>EAN-13 и CODE128, рамки, линии</li>
+<li>Перетаскивание мышью, стрелки, свойства справа</li><li>Печать ZPL · TSPL · PDF; экспорт JSON</li></ul></div></div>""",
+        f"""<h2>Excel и CSV: выгрузка и загрузка</h2><div class="two">{dpic("exchange", "Полный отчёт Excel — 7 листов")}
+<div><ul><li>Выгрузка: каталог, цены, поставки, приёмка, лист, сверка, предложение цен</li>
+<li>Загрузка: упаковочный лист, <b>цены после правки в Excel</b>, каталог (сразу в приёмку), результаты приёмки с другого места</li>
+<li>Заголовки — на RU / RO / EN, EAN хранится текстом</li></ul>{dpic("exchange_import", "Загрузка цен и каталога")}</div></div>""",
+        f"""<h2>Самоустановка</h2><table style="width:100%;border-collapse:collapse;font-size:18px">
+<tr><th style="text-align:left;border-bottom:2px solid #111">Windows</th><th style="text-align:left;border-bottom:2px solid #111">macOS</th><th style="text-align:left;border-bottom:2px solid #111">Linux</th></tr>
+<tr><td>Install-TexFlow-Windows.bat</td><td>Install-TexFlow-macOS.command</td><td>install-texflow-linux.sh</td></tr>
+<tr><td>Python через winget</td><td>python.org / brew</td><td>apt / dnf / pacman</td></tr>
+<tr><td>Ярлык «Пуск» и рабочий стол</td><td>TexFlow.app</td><td>меню и рабочий стол</td></tr></table>
+<ul style="margin-top:24px"><li>Двойной щелчок → Python, библиотеки в отдельном venv, ярлыки — без прав администратора</li>
+<li>Без установки: <code>python texflow_app.py</code> сам доставит библиотеки</li>
+<li>Готовая программа без Python: PyInstaller → TexFlow.exe / .app / бинарник</li>
+<li>Удаление одной командой; база данных сохраняется</li></ul>""",
+        f"""<h2>Тестирование</h2><div class="kpis"><div><b>{up}/{ut}</b>модульных тестов</div><div><b>{ep}/{et}</b>браузер</div>
+<div><b>{dp}/{dt_}</b>нативное приложение</div><div><b>{ip}/{it}</b>установка и сборка</div></div>
+<ul><li>Браузер и окно программы проходят весь путь оператора на чистой базе и печатают на сетевой «принтер»</li>
+<li>Все экраны на RO и EN — без единой русской строки интерфейса (веб и desktop)</li>
+<li>Установщик: установка в чистую папку, запуск ярлыком, удаление; бинарник PyInstaller без Python</li>
+<li>{len(DEFECTS)} дефектов найдено и исправлено</li>
 <li>Подробности, скриншоты каждого шага и найденные дефекты — в <a href="test_act.html">акте тестирования</a></li></ul>""",
         f"""<h2>Мобильный экран</h2><div class="two">{pic("mobile_sort", "Разбор мешка на телефоне / планшете кладовщика")}
 <div><p>Интерфейс адаптивный: на складе можно работать с планшета, подключившись к ноутбуку по локальной сети
 (<code>python run.py --host 0.0.0.0</code>).</p></div></div>""",
-        """<h2>Как запустить</h2><pre>git clone … && cd standalone/texflow
-pip install -r requirements.txt
-python run.py --demo        # http://127.0.0.1:5077/
-python -m pytest -q         # тесты
-tools/run_all.sh            # тесты + браузер + акт + документация + архив</pre>
+        """<h2>Как запустить</h2><pre># Windows / macOS: двойной щелчок
+Install-TexFlow-Windows.bat   ·   Install-TexFlow-macOS.command
+# Linux
+sh install-texflow-linux.sh
+# без установки
+python texflow_app.py --demo  # окно программы
+python texflow_app.py --web   # веб-версия
+tools/run_all.sh              # все тесты + скриншоты + акт</pre>
 <p>Документация: <a href="index.html">все материалы</a> · <a href="ru/OPERATOR_GUIDE.html">инструкция оператора</a> ·
-<a href="ru/LABELS.html">принтеры</a> · <a href="ru/ARCHITECTURE.html">схемы</a></p>""",
+<a href="ru/LABELS.html">принтеры</a> · <a href="ru/DESKTOP.html">нативное приложение</a> · <a href="ru/ARCHITECTURE.html">схемы</a></p>""",
         """<h2>Дальше</h2><ul><li>Пробная печать на вашем Zebra / TSC и сканирование этикетки</li>
+<li>Установка на Windows и macOS двойным щелчком; сборка TexFlow.exe / TexFlow.app через GitHub Actions</li>
 <li>Загрузка шрифта с кириллицей в принтер — для этикеток на русском</li>
 <li>Фото моделей в карточках и выгрузка каталога в интернет-магазин</li>
 <li>Опытная эксплуатация на одной реальной поставке</li></ul>
@@ -530,7 +660,7 @@ h2{{margin:0 0 20px;font-size:34px;letter-spacing:.02em;text-transform:uppercase
 .title{{display:flex;flex-direction:column;justify-content:center;height:100%}}.logo{{font-weight:800;letter-spacing:.3em;font-size:22px}}
 .two{{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start}}.three{{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:start}}
 figure{{margin:0}}figure img{{width:100%;max-height:400px;object-fit:contain;object-position:top left;border:1px solid #ddd}}
-.three figure img{{max-height:340px}}.slide>figure img{{max-height:500px}}figcaption{{font-size:15px;color:#555;margin-top:6px}}
+.three figure img{{max-height:340px}}.slide>figure img{{max-height:500px}}.two>div figure img{{max-height:200px}}figcaption{{font-size:15px;color:#555;margin-top:6px}}
 .diagram,.diagram *{{line-height:normal}}.diagram{{font-size:16px}}.diagram svg{{max-width:100%;height:auto;max-height:420px}}pre{{background:#111;color:#eee;padding:16px;font-size:17px}}
 .big{{font-size:64px;font-weight:800;text-align:center;align-self:center}}.big span{{display:block;font-size:22px;font-weight:400;color:#666}}
 .flow{{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin:10px 0 30px}}
