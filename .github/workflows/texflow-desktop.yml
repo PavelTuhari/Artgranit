@@ -150,7 +150,10 @@ jobs:
 
   sign:
     name: SHA256SUMS + подпись unisim-soft + аттестация GitHub + выпуск
-    needs: build
+    needs: [scripts, build]
+    # ошибка в любой ОС останавливает выпуск; а если GitHub не выделил раннер (задание снято из
+    # очереди — бывает с macOS), подписываются готовые сборки и в выпуске это отмечается
+    if: always() && needs.scripts.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'cancelled')
     runs-on: ubuntu-latest
     permissions:
       contents: write        # выпуск
@@ -171,6 +174,10 @@ jobs:
           UNISIM_SOFT_SIGNING_KEY: ${{ secrets.UNISIM_SOFT_SIGNING_KEY }}
         run: |
           mkdir -p ../../out && cp ../../dl/*.zip ../../out/
+          MISSING=""
+          for os in windows macos linux; do ls ../../out/TexFlow-*-$os-*.zip >/dev/null 2>&1 || MISSING="$MISSING $os"; done
+          if [ -n "$MISSING" ]; then echo "::warning::Нет сборки:$MISSING (раннер GitHub не выделен) — перезапустите задание этой ОС"; fi
+          echo "MISSING=$MISSING" >> "$GITHUB_ENV"
           python tools/release.py sums ../../out ${{ startsWith(github.ref, 'refs/tags/texflow-v') && '--require-signature' || '' }}
           if [ -f ../../out/SHA256SUMS.sig ]; then python tools/release.py verify ../../out; else echo "::warning::SHA256SUMS не подписан — добавьте секрет UNISIM_SOFT_SIGNING_KEY"; fi
           echo "## TexFlow — выпуск $(python -c 'import texflow;print(texflow.__version__)') · ${GITHUB_SHA::12}" >> $GITHUB_STEP_SUMMARY
@@ -196,7 +203,7 @@ jobs:
         run: |
           git -C "$GITHUB_WORKSPACE" tag -f texflow-nightly "$GITHUB_SHA"
           git -C "$GITHUB_WORKSPACE" push -f origin refs/tags/texflow-nightly
-          NOTES="TexFlow · сборка ${GITHUB_SHA::12} · Windows / macOS / Linux + скриптовая версия. Проверка: python texflow_app.py --verify-sums SHA256SUMS (подпись unisim-soft, отпечаток ключа c5173c9670d69b5d) или gh attestation verify <файл> --repo $GITHUB_REPOSITORY"
+          NOTES="TexFlow · сборка ${GITHUB_SHA::12} · Windows / macOS / Linux + скриптовая версия${MISSING:+ (нет сборки:$MISSING)}. Проверка: python texflow_app.py --verify-sums SHA256SUMS (подпись unisim-soft, отпечаток ключа c5173c9670d69b5d) или gh attestation verify <файл> --repo $GITHUB_REPOSITORY"
           gh release view texflow-nightly -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create texflow-nightly -R "$GITHUB_REPOSITORY" --prerelease --title "TexFlow nightly" --notes "$NOTES"
           gh release edit texflow-nightly -R "$GITHUB_REPOSITORY" --notes "$NOTES"
           for a in $(gh release view texflow-nightly -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name'); do gh release delete-asset texflow-nightly "$a" -R "$GITHUB_REPOSITORY" -y; done
