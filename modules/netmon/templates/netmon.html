@@ -1303,7 +1303,8 @@ function renderMikrotikUsers(){
 
 function credsHtml(r){
   return `<div class="card" style="margin-top:8px;padding:10px 12px;font-size:13px">
-    Учётка <b>${esc(r.name)}</b>, L2TP/IPsec, сервер <code>${esc(r.server)}</code>,
+    Учётка <b>${esc(r.name)}</b>, L2TP/IPsec, сервер <code>${esc(r.server)}</code>${r.server_backup ?
+      ` (если канал МТС лежит — <code>${esc(r.server_backup)}</code>)` : ''},
     пароль <code>${esc(r.password)}</code>
     <div class="note" style="margin-top:4px">Пароль показан один раз. Общий ключ IPsec в панели не
       показывается — он есть в ссылке для получателя.</div></div>`;
