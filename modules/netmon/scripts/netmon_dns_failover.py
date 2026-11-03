@@ -33,7 +33,13 @@ ZONE_FILE = "/etc/named/una.md"
 MTC_IP = "93.115.136.18"
 ORANGE_IP = "195.22.241.126"
 NAMES = ("@", "*", "www")
+# Резервный MX через Orange: порт 25 на нём с 03.11.2026 ведёт на тот же
+# фильтр почты, что и mx2 (ASSP 192.168.0.131:2525)
+MX_BACKUP = ("mx4", 40)
 MARK = "netmon failover"
+# Имена каналов: снаружи всё настраивается на них, а не на голые адреса
+# (владелец 03.11.2026). canal1 — МТС, canal2 — Orange.
+CANALS = (("canal1", MTC_IP, "kanal MTC"), ("canal2", ORANGE_IP, "kanal Orange"))
 
 
 def patch_zone(text: str, today: date) -> str:
@@ -48,6 +54,22 @@ def patch_zone(text: str, today: date) -> str:
             if not any(twin.match(x) for x in lines):
                 out.append(f"{m.group(1)}\t\tIN\tA\t\t{ORANGE_IP}   ; {MARK} {today:%Y%m%d}: vtoroy kanal Orange")
                 changed = True
+    for name, ip, what in reversed(CANALS):   # вставка в одно место — с конца
+        if not any(re.match(rf"^{name}\s+IN\s+A\b", x) for x in out):
+            at = next(i for i, x in enumerate(out) if re.match(r"^www\s+IN\s+A\b", x))
+            while at + 1 < len(out) and re.match(r"^www\s+IN\s+A\b", out[at + 1]):
+                at += 1
+            out.insert(at + 1, f"{name}\t\tIN\tA\t\t{ip}   ; {MARK} {today:%Y%m%d}: {what}")
+            changed = True
+    mx_name, mx_pref = MX_BACKUP
+    if not any(re.match(rf"^{mx_name}\s+IN\s+A\b", x) for x in out):
+        at = max(i for i, x in enumerate(out) if re.match(r"^mx\d\s+IN\s+A\b", x))
+        out.insert(at + 1, f"{mx_name}\tIN\tA\t\t{ORANGE_IP}   ; {MARK} {today:%Y%m%d}: priem pochty cherez Orange")
+        changed = True
+    if not any(re.search(rf"IN\s+MX\s+\d+\s+{mx_name}\.una\.md\.", x) for x in out):
+        at = max(i for i, x in enumerate(out) if re.match(r"^@\s+IN\s+MX\b", x))
+        out.insert(at + 1, f"@   \t\tIN  MX      {mx_pref}  {mx_name}.una.md.   ; {MARK} {today:%Y%m%d}")
+        changed = True
     for i, ln in enumerate(out):
         if "v=spf1" in ln and f"ip4:{ORANGE_IP}" not in ln:
             out[i] = ln.replace(" -all", f" ip4:{ORANGE_IP} -all").replace(" ~all", f" ip4:{ORANGE_IP} ~all")
@@ -105,12 +127,16 @@ def main() -> None:
         print("--dry-run: зона не изменена")
         return
     tmp = f"/tmp/una.md.netmon.{today:%Y%m%d}"
+    prev = f"{ZONE_FILE}.prev-failover"
     body = new.replace("'", "'\"'\"'")
     print(_ssh(
-        f"cp -p {ZONE_FILE} {bak} && printf '%s' '{body}' > {tmp} "
+        # {bak} — зона до первой правки за день (её возвращает --rollback),
+        # {prev} — до этого запуска (возвращается при ошибке проверки)
+        f"{{ test -f {bak} || cp -p {ZONE_FILE} {bak}; }} && cp -p {ZONE_FILE} {prev} "
+        f"&& printf '%s' '{body}' > {tmp} "
         f"&& named-checkzone una.md {tmp} && cat {tmp} > {ZONE_FILE} && rm -f {tmp} "
         f"&& rndc reload una.md && echo ГОТОВО, копия {bak} "
-        f"|| {{ cp -p {bak} {ZONE_FILE}; echo ОШИБКА, зона не изменена; }}", timeout=60))
+        f"|| {{ cp -p {prev} {ZONE_FILE}; echo ОШИБКА, зона не изменена; }}", timeout=60))
 
 
 if __name__ == "__main__":

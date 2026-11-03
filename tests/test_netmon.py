@@ -1788,7 +1788,7 @@ def test_openvpn_profile_has_both_channels():
     from modules.netmon import openvpn
     prof = openvpn.with_failover("client\ndev tun\nproto udp\nremote 93.115.136.18 1194\nresolv-retry infinite\n")
     remotes = [ln for ln in prof.splitlines() if ln.startswith("remote ")]
-    assert remotes == ["remote 93.115.136.18 1194", "remote 195.22.241.126 1194"]
+    assert remotes == ["remote canal1.una.md 1194", "remote canal2.una.md 1194", "remote 195.22.241.126 1194"]
     assert "server-poll-timeout 10" in prof
     assert openvpn.with_failover(prof) == prof          # повторная обработка ничего не дублирует
 
@@ -1800,7 +1800,10 @@ ZONE = """$TTL 600
 )
 @\t\tIN\tA\t\t93.115.136.18
 *\t\tIN \tA\t\t93.115.136.18
+www\t\tIN\tA\t\t93.115.136.18
 mail    IN\tA\t\t93.115.136.21
+mx2\tIN\tA\t\t93.115.136.21
+@   \t\tIN  MX      10  mx2.una.md.
 @               IN TXT "v=spf1 ip4:93.115.136.18 -all"
 """
 
@@ -1810,7 +1813,9 @@ def test_dns_failover_adds_orange_twins_and_bumps_serial():
     d = _load_script("netmon_dns_failover")
     new = d.patch_zone(ZONE, date(2026, 11, 3))
     assert "2026110300  ;Serial" in new
-    assert new.count("195.22.241.126   ;") == 2                # @ и *, но не mail
+    assert new.count("195.22.241.126   ;") == 5                # @, *, www, canal2, mx4 — но не mail
+    assert "canal1\t\tIN\tA\t\t93.115.136.18" in new
+    assert "IN  MX      40  mx4.una.md." in new
     assert "ip4:195.22.241.126 -all" in new
     assert d.patch_zone(new, date(2026, 11, 3)) == new        # повтор — без изменений
 
@@ -1819,3 +1824,12 @@ def test_dns_serial_grows_within_one_day():
     from datetime import date
     d = _load_script("netmon_dns_failover")
     assert "2026110306" in d.bump_serial("        2026110305  ;Serial", date(2026, 11, 3))
+
+
+def test_failover_frees_retired_orange_port_for_una_mail():
+    f = _load_script("netmon_wan_failover")
+    nat = [_nat(f.ORANGE_IP, "tcp", "25", "172.29.0.23"),
+           {**_nat("93.115.136.21", "tcp", "25", "192.168.0.131"), "to-ports": "2525"}]
+    add, conflict = f.plan(nat)
+    assert [(r["dst-port"], r["to-addresses"], r["to-ports"]) for r in add] == [("25", "192.168.0.131", "2525")]
+    assert conflict == []

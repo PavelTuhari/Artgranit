@@ -36,6 +36,11 @@ ORANGE_IP = "195.22.241.126"
 FAILOVER_TAG = "FAILOVER-ORANGE"
 # Не зеркалить: файловый ресурс и веб-консоль Proxmox в интернет не открывать
 NEVER = {("tcp", "445"), ("tcp", "8081")}
+# Пробросы на Orange, которые больше не нужны и освобождают порт для una.md.
+# Почта garileauto.md (25/143/587 → 172.29.0.23): владелец 03.11.2026 — «не
+# актуально, можно открыть для почты una.md». Выключаются, а не удаляются:
+# --rollback включает их обратно.
+RETIRED = {"172.29.0.23"}
 
 
 def ports(spec: str | None) -> set[str]:
@@ -51,7 +56,7 @@ def plan(nat: list[dict]) -> tuple[list[dict], list[dict]]:
     active = [r for r in nat if r.get("disabled") != "true"]
     busy: dict[tuple[str, str], dict] = {}
     for r in active:
-        if r.get("dst-address") == ORANGE_IP:
+        if r.get("dst-address") == ORANGE_IP and r.get("to-addresses") not in RETIRED:
             for port in ports(r.get("dst-port")):
                 busy[(r.get("protocol"), port)] = r
     add, conflict = [], []
@@ -86,10 +91,20 @@ def main() -> None:
             if not a.dry_run and n > 0:
                 s.run(f'/ip firewall nat remove [find comment~"{FAILOVER_TAG}"]')
                 print("удалены")
+            for to in RETIRED:
+                where = f'where dst-address="{ORANGE_IP}" and to-addresses="{to}" and disabled=yes'
+                print(f"выключенных пробросов на {to}: {s.count('/ip firewall nat', where)}")
+                if not a.dry_run:
+                    s.run(f"/ip firewall nat enable [find {where}]")
             return
         nat = s.rows("/ip firewall nat", ["dst-address", "protocol", "dst-port", "to-addresses", "to-ports",
                                           "disabled", "comment"], "action=dst-nat")
         add, conflict = plan(nat)
+        retire = [r for r in nat if r.get("dst-address") == ORANGE_IP and r.get("to-addresses") in RETIRED
+                  and r.get("disabled") != "true"]
+        for r in retire:
+            print(f"- {ORANGE_IP} {r['protocol']} {r['dst-port']} -> {r['to-addresses']}: выключить "
+                  f"({(r.get('comment') or '').strip()[:40]})")
         for r in add:
             print(f"+ {ORANGE_IP} {r['protocol']} {r['dst-port']} -> {r['to-addresses']}:{r['to-ports']}"
                   f"  ({(r.get('comment') or '').strip(' ;')[:50]})")
@@ -102,6 +117,8 @@ def main() -> None:
         stamp = datetime.now().strftime("%Y%m%d-%H%M")
         s.run(f"/export file=netmon-before-failover-{stamp}", timeout=120)
         print(f"выгрузка конфигурации: netmon-before-failover-{stamp}.rsc на маршрутизаторе")
+        for to in RETIRED:
+            s.run(f'/ip firewall nat disable [find where dst-address="{ORANGE_IP}" and to-addresses="{to}"]')
         for r in add:
             to_port = f" to-ports={r['to-ports']}" if r.get("to-ports") else ""
             comment = f"{FAILOVER_TAG} {datetime.now():%d.%m.%Y} mirror of {r['dst-address']} " \

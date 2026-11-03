@@ -23,7 +23,10 @@ PUBLIC_ENDPOINT = "93.115.136.18:1194"
 # МТС не ответил за SERVER_POLL секунд — уходит на Orange сам, без звонков
 # в офис (авария 03.11.2026: у профилей был один адрес, и VPN лёг у всех).
 BACKUP_ENDPOINT = "195.22.241.126:1194"
-ENDPOINTS = [PUBLIC_ENDPOINT, BACKUP_ENDPOINT]
+# Снаружи — по именам каналов (canal1 = МТС, canal2 = Orange). Последней
+# строкой голый адрес Orange: вторичный DNS ns2 (remsys) отвечает на любое
+# имя адресом МТС, и в аварию МТС, когда жив только он, canal2 ведёт не туда.
+ENDPOINTS = ["canal1.una.md:1194", "canal2.una.md:1194", BACKUP_ENDPOINT]
 SERVER_POLL = 10
 VM_ID = 139
 KEYCHAIN_SERVICE = "pve-openvpn"

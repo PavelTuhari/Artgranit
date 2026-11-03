@@ -34,11 +34,11 @@ from datetime import datetime
 
 HOST = "192.168.0.101"
 USER = "ptuhari"
-PUBLIC_ENDPOINT = "93.115.136.18"
+PUBLIC_ENDPOINT = "canal1.una.md"      # МТС, 93.115.136.18
 # Запасной вход через Orange: L2TP/IPsec на нём разрешён тем же фильтром.
 # Windows и Apple держат один адрес сервера, поэтому запасной показываем
 # рядом — при аварии МТС его вписывают в настройку вручную.
-BACKUP_ENDPOINT = "195.22.241.126"
+BACKUP_ENDPOINT = "canal2.una.md"      # Orange, 195.22.241.126
 DEFAULT_PROFILE = "l2tp-unisim"      # профиль, в котором уже живут L2TP-учётки офиса
 COMMENT_TAG = "netmon"
 
