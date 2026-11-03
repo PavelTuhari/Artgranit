@@ -1716,3 +1716,30 @@ def test_unify_sql_and_analytics_wired():
     assert 'data-p="analytics"' in page and '{% include "analytics_panel.html" %}' in page
     from modules.netmon.analytics import PSEUDO_OWNERS
     assert PSEUDO_OWNERS["ptclose"] == "ждут закрытия" and PSEUDO_OWNERS["doljniki"] == "должники"
+
+
+# ------------------------------------------------ каналы интернета офиса
+
+def test_wan_view_flags_dead_gateway_and_services_only_there():
+    from modules.netmon.mikrotik import wan_view, findings
+    routes = [{"gateway": "93.115.136.17", "gateway-status": "93.115.136.17 unreachable", "disabled": "false"},
+              {"gateway": "195.22.241.125", "gateway-status": "195.22.241.125 reachable via  ether7_orange",
+               "disabled": "false"}]
+    ifaces = [{"name": "ether3_MTC", "running": "true"}, {"name": "ether7_orange", "running": "true"}]
+    nat = [{"dst-address": "93.115.136.18", "protocol": "udp", "dst-port": "1194", "to-addresses": "192.168.0.200",
+            "comment": "openvpn"},
+           {"dst-address": "93.115.136.18", "protocol": "tcp", "dst-port": "443", "to-addresses": "192.168.0.148"},
+           {"dst-address": "195.22.241.126", "protocol": "tcp", "dst-port": "443", "to-addresses": "192.168.0.148"},
+           {"dst-address": "93.115.136.18", "protocol": "tcp", "dst-port": "22", "to-addresses": "x", "disabled": "true"}]
+    w = {x["name"]: x for x in wan_view(routes, ifaces, nat)}
+    assert w["МТС"]["link"] and not w["МТС"]["up"], "линк есть, шлюз не отвечает — канал лежит"
+    assert w["Orange"]["up"]
+    assert len(w["МТС"]["only_here"]) == 1 and "1194" in w["МТС"]["only_here"][0], \
+        "443 продублирован на Orange, OpenVPN — только на МТС"
+    f = findings({"wan": list(w.values()), "users": [], "active": [], "servers": {}, "version": "6.49"})
+    assert f[0]["level"] == "crit" and "МТС" in f[0]["title"] and "1194" in f[0]["text"]
+
+
+def test_zabbix_wan_watches_both_gateways():
+    src = _read("modules/netmon/scripts/netmon_zabbix_wan.py")
+    assert "93.115.136.17" in src and "195.22.241.125" in src and "otrs.una.md" in src

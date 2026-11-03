@@ -137,8 +137,48 @@ def _ros_date(s: str) -> str:
     return f"{m.group(3)}-{_MONTHS.get(m.group(1), 1):02d}-{m.group(2)}"
 
 
+# Каналы интернета офиса. 03.11.2026 у МТС перестал отвечать шлюз: кабель в
+# порту был, адрес на нём был, трафик офиса сам ушёл на Orange — а снаружи
+# пропало всё, что проброшено только на адреса МТС (OpenVPN, ns1, почта…).
+WANS = [
+    {"name": "МТС", "iface": "ether3_MTC", "gw": "93.115.136.17", "prefix": "93.115.136."},
+    {"name": "Orange", "iface": "ether7_orange", "gw": "195.22.241.125", "prefix": "195.22.241."},
+]
+
+
+def wan_view(routes: list[dict], ifaces: list[dict], nat: list[dict]) -> list[dict]:
+    """Каждый канал: жив ли шлюз, есть ли линк, какие сервисы проброшены
+    только на его адреса (снаружи пропадут, если канал ляжет)."""
+    running = {i["name"]: i.get("running") == "true" for i in ifaces}
+    rules = [r for r in nat if r.get("disabled") != "true" and r.get("dst-address")]
+
+    def svc(r: dict) -> str:
+        port = f"{r.get('protocol') or ''} {r.get('dst-port') or ''}".strip()
+        return f"{r['dst-address']}:{port} → {r.get('to-addresses')}" + (f" ({r['comment'].strip(' ;')})"
+                                                                          if r.get("comment") else "")
+    out = []
+    for w in WANS:
+        gw_routes = [r for r in routes if r.get("gateway") == w["gw"] and r.get("disabled") != "true"]
+        up = any("unreachable" not in (r.get("gateway-status") or "") and "reachable" in (r.get("gateway-status") or "")
+                 for r in gw_routes)
+        mine = [r for r in rules if r["dst-address"].startswith(w["prefix"])]
+        others = [r for r in rules if not r["dst-address"].startswith(w["prefix"])]
+        only_here = [r for r in mine if not any((o.get("protocol"), o.get("dst-port"), o.get("to-addresses")) ==
+                                                (r.get("protocol"), r.get("dst-port"), r.get("to-addresses"))
+                                                for o in others)]
+        out.append({**w, "link": running.get(w["iface"]), "up": up, "services": [svc(r) for r in mine],
+                    "only_here": [svc(r) for r in only_here]})
+    return out
+
+
 def status() -> dict:
     with Session() as s:
+        wan = wan_view(
+            s.rows("/ip route", ["gateway", "gateway-status", "active", "disabled", "routing-mark"],
+                   "dst-address=0.0.0.0/0"),
+            s.rows("/interface", ["name", "running"], 'name~"ether3_MTC|ether7_orange"'),
+            s.rows("/ip firewall nat", ["dst-address", "protocol", "dst-port", "to-addresses", "disabled",
+                                        "comment"], "action=dst-nat"))
         res = s.single("/system resource",
                        ["version", "uptime", "cpu-load", "free-memory", "total-memory",
                         "board-name", "architecture-name"])
@@ -167,7 +207,7 @@ def status() -> dict:
         "board": res.get("board-name", ""), "version": res.get("version", ""),
         "uptime": res.get("uptime", ""), "cpu_load": int(res.get("cpu-load") or 0),
         "memory_free_pct": _pct(res.get("free-memory"), res.get("total-memory")),
-        "servers": servers, "l2tp_auth": auth_l2tp.strip(),
+        "servers": servers, "l2tp_auth": auth_l2tp.strip(), "wan": wan,
         "users": users,
         "active": [{"name": a["name"], "service": a["service"], "from": a["caller-id"],
                     "address": a["address"], "uptime": a["uptime"]} for a in active],
@@ -205,6 +245,18 @@ def summary(d: dict) -> dict:
 def findings(d: dict) -> list[dict]:
     """Выводы словами — как у дисков и OpenVPN."""
     out = []
+    for w in d.get("wan", []):
+        if w["up"]:
+            continue
+        lost = w["only_here"]
+        out.append({"level": "crit",
+                    "title": f"Канал {w['name']} не работает — шлюз провайдера {w['gw']} не отвечает"
+                             + ("" if w.get("link") else ", линка в порту нет"),
+                    "text": "Трафик офиса идёт через оставшийся канал, внутри всё работает. Снаружи пропало "
+                            "проброшенное только на этот канал"
+                            + (f" ({len(lost)}): " + "; ".join(lost[:10]) + ("…" if len(lost) > 10 else "")
+                               if lost else "") + ". Звонить провайдеру; пока канал лежит — входить через "
+                            "адрес другого канала."})
     s = summary(d)
     if s["online_pptp"]:
         out.append({"level": "crit", "title": f"По PPTP сейчас подключено {s['online_pptp']} из {s['online']}",
