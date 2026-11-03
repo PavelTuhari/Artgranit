@@ -1743,3 +1743,79 @@ def test_wan_view_flags_dead_gateway_and_services_only_there():
 def test_zabbix_wan_watches_both_gateways():
     src = _read("modules/netmon/scripts/netmon_zabbix_wan.py")
     assert "93.115.136.17" in src and "195.22.241.125" in src and "otrs.una.md" in src
+
+
+# ---------------------------------------------------------- два канала: МТС + Orange (03.11.2026)
+def _load_script(name):
+    import importlib.util
+    path = os.path.join(ROOT, "modules", "netmon", "scripts", f"{name}.py")
+    spec = importlib.util.spec_from_file_location(name, path)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _nat(dst, proto, port, to, comment=""):
+    return {"dst-address": dst, "protocol": proto, "dst-port": port, "to-addresses": to,
+            "to-ports": port, "disabled": "false", "comment": comment}
+
+
+def test_failover_plan_mirrors_free_ports_and_reports_busy():
+    f = _load_script("netmon_wan_failover")
+    nat = [
+        _nat("93.115.136.18", "udp", "1194", "192.168.0.200"),
+        _nat("93.115.136.22", "udp", "1194", "192.168.0.231"),     # второй с тем же портом — конфликт
+        _nat("93.115.136.20", "tcp", "443", "192.168.0.146"),      # 443 на Orange уже nginx
+        _nat("93.115.136.18", "tcp", "8090,443", "192.168.0.149"),  # список портов задевает 443
+        _nat("93.115.136.18", "tcp", "445", "192.168.0.5"),        # файловый ресурс — никогда
+        _nat("93.115.136.18", "tcp", "", "192.168.0.9"),           # все порты — мимо
+        _nat(f.ORANGE_IP, "tcp", "443", "192.168.0.148"),
+        {**_nat("93.115.136.18", "tcp", "9999", "192.168.0.7"), "disabled": "true"},
+    ]
+    add, conflict = f.plan(nat)
+    assert [(r["protocol"], r["dst-port"]) for r in add] == [("udp", "1194")]
+    assert {(r["dst-port"], r["to-addresses"]) for r in conflict} == {
+        ("1194", "192.168.0.231"), ("443", "192.168.0.146"), ("8090,443", "192.168.0.149")}
+
+
+def test_failover_plan_skips_already_mirrored():
+    f = _load_script("netmon_wan_failover")
+    nat = [_nat("93.115.136.18", "udp", "53", "192.168.0.148"), _nat(f.ORANGE_IP, "udp", "53", "192.168.0.148")]
+    assert f.plan(nat) == ([], [])
+
+
+def test_openvpn_profile_has_both_channels():
+    from modules.netmon import openvpn
+    prof = openvpn.with_failover("client\ndev tun\nproto udp\nremote 93.115.136.18 1194\nresolv-retry infinite\n")
+    remotes = [ln for ln in prof.splitlines() if ln.startswith("remote ")]
+    assert remotes == ["remote 93.115.136.18 1194", "remote 195.22.241.126 1194"]
+    assert "server-poll-timeout 10" in prof
+    assert openvpn.with_failover(prof) == prof          # повторная обработка ничего не дублирует
+
+
+ZONE = """$TTL 600
+@   IN  SOA     ns1.una.md. techs.remsys.net. (
+        2026092009  ;Serial
+        3600        ;Refresh
+)
+@\t\tIN\tA\t\t93.115.136.18
+*\t\tIN \tA\t\t93.115.136.18
+mail    IN\tA\t\t93.115.136.21
+@               IN TXT "v=spf1 ip4:93.115.136.18 -all"
+"""
+
+
+def test_dns_failover_adds_orange_twins_and_bumps_serial():
+    from datetime import date
+    d = _load_script("netmon_dns_failover")
+    new = d.patch_zone(ZONE, date(2026, 11, 3))
+    assert "2026110300  ;Serial" in new
+    assert new.count("195.22.241.126   ;") == 2                # @ и *, но не mail
+    assert "ip4:195.22.241.126 -all" in new
+    assert d.patch_zone(new, date(2026, 11, 3)) == new        # повтор — без изменений
+
+
+def test_dns_serial_grows_within_one_day():
+    from datetime import date
+    d = _load_script("netmon_dns_failover")
+    assert "2026110306" in d.bump_serial("        2026110305  ;Serial", date(2026, 11, 3))

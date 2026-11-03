@@ -34,27 +34,42 @@ from modules.netmon import mikrotik as mt  # noqa: E402
 
 ORANGE_IP = "195.22.241.126"
 FAILOVER_TAG = "FAILOVER-ORANGE"
-# Не зеркалить: файловый ресурс в интернет и порты, занятые на Orange другим
-NEVER = {("tcp", "445")}
+# Не зеркалить: файловый ресурс и веб-консоль Proxmox в интернет не открывать
+NEVER = {("tcp", "445"), ("tcp", "8081")}
+
+
+def ports(spec: str | None) -> set[str]:
+    """«8081,443» или «1000-1010» → множество; диапазон берётся как одна метка."""
+    return {x.strip() for x in (spec or "").split(",") if x.strip()}
 
 
 def plan(nat: list[dict]) -> tuple[list[dict], list[dict]]:
-    """Пробросы МТС → что добавить на Orange и что не получится (порт занят)."""
+    """Пробросы МТС → что добавить на Orange и что не получится (порт занят).
+
+    Сверка по пересечению портов, а не по строке: правило «8081,443» на МТС
+    задело бы HTTPS, который на Orange уже ведёт на nginx 192.168.0.148."""
     active = [r for r in nat if r.get("disabled") != "true"]
-    on_orange = {(r.get("protocol"), r.get("dst-port")): r for r in active if r.get("dst-address") == ORANGE_IP}
-    add, conflict, seen = [], [], set()
+    busy: dict[tuple[str, str], dict] = {}
+    for r in active:
+        if r.get("dst-address") == ORANGE_IP:
+            for port in ports(r.get("dst-port")):
+                busy[(r.get("protocol"), port)] = r
+    add, conflict = [], []
     for r in active:
         if not (r.get("dst-address") or "").startswith("93.115.136."):
             continue
-        key = (r.get("protocol"), r.get("dst-port"))
-        if not key[1] or key in NEVER or key in seen:
+        want = {(r.get("protocol"), port) for port in ports(r.get("dst-port"))}
+        if not want or want & NEVER:
             continue            # проброс «всех портов» и запрещённое — мимо
-        seen.add(key)
-        other = on_orange.get(key)
-        if other:
-            if other.get("to-addresses") != r.get("to-addresses"):
-                conflict.append({**r, "busy_by": other.get("to-addresses"), "busy_comment": other.get("comment")})
+        taken = [busy[k] for k in sorted(want) if k in busy]
+        same = all(o.get("to-addresses") == r.get("to-addresses") for o in taken)
+        if taken and not same:
+            conflict.append({**r, "busy_by": taken[0].get("to-addresses"), "busy_comment": taken[0].get("comment")})
             continue
+        if taken:
+            continue            # уже есть на Orange
+        for k in want:
+            busy[k] = r         # второй такой же проброс с другого адреса МТС не добавлять
         add.append(r)
     return add, conflict
 

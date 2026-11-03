@@ -6,7 +6,8 @@
 выдано и какие из них давно не используются.
 
 Сервер — виртуальная машина 139 на PROXMOX3, Ubuntu 20.04, OpenVPN 2.4.12.
-Внутри сети `192.168.0.200`, снаружи `93.115.136.18:1194` (UDP).
+Внутри сети `192.168.0.200`, снаружи `93.115.136.18:1194` (UDP, МТС),
+запасной вход `195.22.241.126:1194` (Orange).
 Работаем по SSH: у OpenVPN нет сетевого API, состояние лежит в файлах.
 """
 from __future__ import annotations
@@ -18,6 +19,12 @@ from datetime import datetime, timezone
 
 HOST = "192.168.0.200"
 PUBLIC_ENDPOINT = "93.115.136.18:1194"
+# Второй канал офиса. Клиент OpenVPN перебирает строки remote по порядку:
+# МТС не ответил за SERVER_POLL секунд — уходит на Orange сам, без звонков
+# в офис (авария 03.11.2026: у профилей был один адрес, и VPN лёг у всех).
+BACKUP_ENDPOINT = "195.22.241.126:1194"
+ENDPOINTS = [PUBLIC_ENDPOINT, BACKUP_ENDPOINT]
+SERVER_POLL = 10
 VM_ID = 139
 KEYCHAIN_SERVICE = "pve-openvpn"
 SRV_DIR = "/etc/openvpn/server"
@@ -148,7 +155,7 @@ def status() -> dict:
     crl = _parse_crl(parts)
     svc = (parts.get("SERVICE") or [""])[0].strip()
     return {
-        "host": HOST, "vm_id": VM_ID, "endpoint": PUBLIC_ENDPOINT,
+        "host": HOST, "vm_id": VM_ID, "endpoint": " или ".join(ENDPOINTS),
         "service": svc, "running": svc == "active",
         "crl": crl, "service_started": (parts.get("SVCSTART") or [""])[0].strip(),
         "uptime": (parts.get("UPTIME") or [""])[0].strip(),
@@ -237,13 +244,25 @@ _PROFILE_CMD = (
     f"}}}} 2>/dev/null")
 
 
+def with_failover(profile: str) -> str:
+    """Строки remote для обоих каналов вместо одной из шаблона сервера.
+
+    Шаблон client-common.txt на сервере не трогаем: правим профиль при
+    выдаче, поэтому и уже выданным людям достаточно скачать файл заново."""
+    lines = [ln for ln in profile.splitlines()
+             if not re.match(r"\s*(remote|server-poll-timeout|remote-random)\b", ln)]
+    proto_at = next((i for i, ln in enumerate(lines) if re.match(r"\s*(proto|dev)\b", ln)), 0)
+    block = [f"remote {e.replace(':', ' ')}" for e in ENDPOINTS] + [f"server-poll-timeout {SERVER_POLL}"]
+    return "\n".join(lines[:proto_at + 1] + block + lines[proto_at + 1:])
+
+
 def _profile_result(name: str, profile: str, log: str = "") -> dict:
-    profile = profile.strip()
+    profile = with_failover(profile.strip())
     if "<key>" not in profile or "BEGIN PRIVATE KEY" not in profile \
             or "BEGIN CERTIFICATE" not in profile.split("<cert>")[-1]:
         raise RuntimeError(f"профиль собран неполностью: {log.strip()[:200]}")
     return {"name": name, "profile": profile, "size_kb": len(profile) // 1024 + 1,
-            "endpoint": PUBLIC_ENDPOINT,
+            "endpoint": " или ".join(ENDPOINTS),
             "hint": "Файл содержит закрытый ключ: передать владельцу лично, "
                     "в репозиторий и общие папки не класть."}
 

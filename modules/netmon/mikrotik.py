@@ -35,6 +35,10 @@ from datetime import datetime
 HOST = "192.168.0.101"
 USER = "ptuhari"
 PUBLIC_ENDPOINT = "93.115.136.18"
+# Запасной вход через Orange: L2TP/IPsec на нём разрешён тем же фильтром.
+# Windows и Apple держат один адрес сервера, поэтому запасной показываем
+# рядом — при аварии МТС его вписывают в настройку вручную.
+BACKUP_ENDPOINT = "195.22.241.126"
 DEFAULT_PROFILE = "l2tp-unisim"      # профиль, в котором уже живут L2TP-учётки офиса
 COMMENT_TAG = "netmon"
 
@@ -203,7 +207,7 @@ def status() -> dict:
         })
     users.sort(key=lambda x: (x["disabled"], not x["online"], x["name"].lower()))
     return {
-        "host": HOST, "endpoint": PUBLIC_ENDPOINT,
+        "host": HOST, "endpoint": f"{PUBLIC_ENDPOINT} (запасной {BACKUP_ENDPOINT})",
         "board": res.get("board-name", ""), "version": res.get("version", ""),
         "uptime": res.get("uptime", ""), "cpu_load": int(res.get("cpu-load") or 0),
         "memory_free_pct": _pct(res.get("free-memory"), res.get("total-memory")),
@@ -309,7 +313,7 @@ def create_user(name: str, by: str = "system") -> dict:
         if s.count("/ppp secret", f'where name="{name}"') != 1:
             raise RuntimeError("учётка не появилась после добавления")
     return {"name": name, "password": pw, "service": "l2tp", "server": PUBLIC_ENDPOINT,
-            "profile": DEFAULT_PROFILE,
+            "server_backup": BACKUP_ENDPOINT, "profile": DEFAULT_PROFILE,
             "hint": "Пароль показан один раз и на маршрутизаторе не читается панелью. "
                     "Передайте его получателю лично или ссылкой."}
 
@@ -360,4 +364,4 @@ def reset_password(name: str, by: str = "system") -> dict:
         if rows[0]["disabled"] == "true":
             s.run(f'/ppp secret set [find name="{name}"] disabled=no')
     return {"name": name, "password": pw, "service": "l2tp", "server": PUBLIC_ENDPOINT,
-            "was_disabled": rows[0]["disabled"] == "true"}
+            "server_backup": BACKUP_ENDPOINT, "was_disabled": rows[0]["disabled"] == "true"}
