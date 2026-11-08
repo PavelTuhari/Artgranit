@@ -1893,12 +1893,31 @@ function renderStorage(){
       <td class="dim">${esc(m.what)}</td></tr>`).join("");
 }
 
+// Каждый раздел — в своём try: 08.11.2026 легла база ADB, сводка упала, и
+// следом не загрузилось ничего, хотя Proxmox, Zabbix и VPN от базы не зависят.
+function dbBanner(text){
+  let b = document.getElementById("db-down");
+  if (!b) {
+    b = document.createElement("div");
+    b.id = "db-down"; b.className = "card crit";
+    b.style.cssText = "margin:0 0 12px;padding:10px 12px;font-size:13px";
+    const tiles = document.getElementById("dash-tiles");
+    tiles.parentNode.insertBefore(b, tiles);
+  }
+  b.innerHTML = text;
+}
 async function loadAll(){
-  const o = await get("/overview");
-  renderDash(o);
-  renderChannels(o.channels, o.alerts.by_day);
-  DEV = await get("/devices");            renderDevices();
-  FEED = await get("/alerts?limit=400");  renderFeed();
+  try {
+    const o = await get("/overview");
+    renderDash(o);
+    renderChannels(o.channels, o.alerts.by_day);
+    if (o.degraded) dbBanner(`<b>База ADB недоступна</b> (${esc(o.db_error)}). Сводка — прямо из Zabbix:
+      устройства на мониторинге и текущие проблемы. Устройства из сканов, лента Telegram, ссылки для
+      получателей и разделы на её данных заработают, когда базу включат (Oracle Cloud → Autonomous
+      Database → Start). Выдача VPN и ссылки для получателя работают и без неё.`);
+  } catch (e) { dbBanner(`Сводка не загрузилась: ${esc(e.message)}`); }
+  try { DEV = await get("/devices"); renderDevices(); } catch (e) { console.warn("devices:", e.message); }
+  try { FEED = await get("/alerts?limit=400"); renderFeed(); } catch (e) { console.warn("feed:", e.message); }
   try { PVE = await get("/pve"); renderPve(); } catch (e) { console.warn("proxmox:", e.message); }
   try { ZBX = await get("/zabbix"); renderZabbix(); } catch (e) { console.warn("zabbix:", e.message); }
   try { AS = await get("/assets"); renderAssets(); } catch (e) { console.warn("assets:", e.message); }
