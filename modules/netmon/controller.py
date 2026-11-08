@@ -30,6 +30,10 @@ class NetmonController:
     @staticmethod
     def overview():
         """Единая сводка для дашборда: устройства + каналы + лента."""
+        from modules.netmon import dbguard
+        db = dbguard.status()
+        if not db["ok"]:
+            return _overview_from_zabbix(db["reason"])
         try:
             dev = store.device_stats()
             al = store.alert_stats()
@@ -37,13 +41,16 @@ class NetmonController:
             pct = round(dev["in_zabbix"] * 100.0 / dev["total"], 1) if dev["total"] else 0.0
             return _ok({"devices": dev, "alerts": al, "channels": ch, "coverage_pct": pct})
         except Exception as e:  # noqa: BLE001
-            return _fail(e)
+            dbguard.mark_down(str(e).splitlines()[0] if str(e) else "ошибка")
+            return _overview_from_zabbix(str(e).splitlines()[0][:160] if str(e) else "ошибка")
 
     # ---------------------------------------------------------------- устройства
 
     @staticmethod
     def devices(kind=None, only_missing=False):
         try:
+            from modules.netmon import dbguard
+            dbguard.require()
             return _ok(store.devices(kind=kind, only_missing=only_missing))
         except Exception as e:  # noqa: BLE001
             return _fail(e)
@@ -107,6 +114,8 @@ class NetmonController:
     @staticmethod
     def alerts(limit=100, channel_id=None, severity=None):
         try:
+            from modules.netmon import dbguard
+            dbguard.require()
             return _ok(store.alerts(limit=limit, channel_id=channel_id, severity=severity))
         except Exception as e:  # noqa: BLE001
             return _fail(e)
@@ -448,6 +457,8 @@ class NetmonController:
     @staticmethod
     def vpn_shares():
         try:
+            from modules.netmon import dbguard
+            dbguard.require()
             from modules.vpnguide import store
             return _ok(store.list_shares())
         except Exception as e:  # noqa: BLE001
@@ -456,6 +467,8 @@ class NetmonController:
     @staticmethod
     def vpn_share_revoke(share_id, user="system"):
         try:
+            from modules.netmon import dbguard
+            dbguard.require()
             from modules.vpnguide import store
             if not store.revoke(int(share_id), f"отозвана вручную ({user})"):
                 return _fail("ссылка уже не действует", 404)
@@ -1137,3 +1150,40 @@ def _observe_state() -> dict:
             alive = False
     return {**ctl, "alive": alive, "settings": cfg, "store": st.stats(),
             "heartbeat_age": round(time.time() - ctl["heartbeat"], 1) if ctl["heartbeat"] else None}
+
+
+def _overview_from_zabbix(reason: str):
+    """Сводка без базы: устройства и текущие проблемы — прямо из Zabbix.
+
+    Форма ответа та же, что у обычной сводки, плюс degraded и db_error:
+    дашборд рисуется, а сверху висит предупреждение, что база лежит.
+    """
+    try:
+        z = sources.Zabbix()
+        hosts = z.call("host.get", {"output": ["hostid", "host", "available"],
+                                    "filter": {"status": 0}})
+        trig = z.call("trigger.get", {"output": ["priority", "description"], "only_true": 1,
+                                      "monitored": 1, "skipDependent": 1, "filter": {"value": 1},
+                                      "selectHosts": ["host"]})
+    except Exception as e:  # noqa: BLE001
+        return _fail(f"база ADB недоступна ({reason}), и Zabbix не ответил: {e}", 503)
+    names = {"0": "not classified", "1": "information", "2": "warning", "3": "average",
+             "4": "high", "5": "disaster"}
+    by_sev, by_host = {}, {}
+    for t in trig:
+        sev = names.get(str(t.get("priority")), str(t.get("priority")))
+        by_sev[sev] = by_sev.get(sev, 0) + 1
+        for h in t.get("hosts") or []:
+            by_host[h["host"]] = by_host.get(h["host"], 0) + 1
+    dev = {"total": len(hosts), "in_zabbix": len(hosts),
+           "up": sum(1 for h in hosts if str(h.get("available")) == "1"),
+           "critical": by_sev.get("high", 0) + by_sev.get("disaster", 0),
+           "by_kind": [], "last_scan": None}
+    al = {"total": len(trig), "failed": 0, "last_24h": len(trig),
+          "by_severity": [{"severity": k, "count": v} for k, v in sorted(by_sev.items(), key=lambda x: -x[1])],
+          "top_hosts": [{"host": k, "count": v} for k, v in sorted(by_host.items(), key=lambda x: -x[1])][:12],
+          "by_day": []}
+    return _ok({"devices": dev, "alerts": al, "channels": [], "coverage_pct": 100.0,
+                "degraded": True, "db_error": reason,
+                "source": "Zabbix (база ADB недоступна)"})
+

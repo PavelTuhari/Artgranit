@@ -1879,3 +1879,29 @@ def test_create_share_falls_back_without_db(monkeypatch):
     o = store.open_share(s["token"], "page")
     assert o["state"] == "active" and o["client_name"] == "DianaBS" and o["profile"].startswith("client")
     assert 28 <= o["minutes_left"] <= 30
+
+
+def test_dbguard_probe_uses_existing_connection_api():
+    """dbguard зовёт DatabaseConnection.get_connection — у DatabaseModel такого метода нет."""
+    import inspect
+    from models import database
+    from modules.netmon import dbguard
+    assert "DatabaseConnection.get_connection" in inspect.getsource(dbguard._probe)
+    assert hasattr(database.DatabaseConnection, "get_connection")
+
+
+def test_dbguard_remembers_down_state(monkeypatch):
+    from modules.netmon import dbguard
+    calls = []
+
+    def slow():
+        calls.append(1)
+        raise RuntimeError("DPY-6005: cannot connect")
+    monkeypatch.setattr(dbguard, "_probe", slow)
+    dbguard._state.update(at=0.0, ok=True, reason="")
+    assert not dbguard.status()["ok"] and not dbguard.status()["ok"]
+    assert len(calls) == 1                                   # второй раз — из памяти, без ожидания
+    import pytest
+    with pytest.raises(dbguard.DbDown):
+        dbguard.require()
+    dbguard._state.update(at=0.0, ok=True, reason="")
