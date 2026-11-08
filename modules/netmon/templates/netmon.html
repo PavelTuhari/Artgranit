@@ -1136,7 +1136,7 @@ function renderVpn(){
 // панели не хранится — после перезагрузки страницы его не достать, только
 // сделать новый. Так задумано: токен существует только у того, кому его дали.
 function shareHtml(s){
-  const id = "sh" + s.id;
+  const id = "sh" + (s.id || Math.random().toString(36).slice(2));
   return `<div class="card" style="margin-top:8px;padding:10px 12px">
     <div style="font-size:13px">Ссылка на <b>${s.ttl_min} мин</b>, до <b>${esc(s.expires_local)}</b>:</div>
     <div class="filters" style="margin:6px 0 0">
