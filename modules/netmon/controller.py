@@ -1084,7 +1084,8 @@ def _make_share(client_name: str, profile: str, minutes, lang: str, user: str,
     path = url_for("vpnguide.share_page", token=s["token"])
     return {"id": s["id"], "url": PUBLIC_BASE + path,
             "markdown_url": PUBLIC_BASE + url_for("vpnguide.share_markdown", token=s["token"]),
-            "ttl_min": s["ttl_min"], "expires_local": s["expires_local"]}
+            "ttl_min": s["ttl_min"], "expires_local": s["expires_local"],
+            "sealed": bool(s.get("sealed")), "db_error": s.get("db_error") or ""}
 
 
 def _attach_l2tp_share(res: dict, minutes, lang: str, user: str) -> None:

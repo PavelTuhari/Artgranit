@@ -17,8 +17,10 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
 import re
 import secrets
+import zlib
 
 from cryptography.fernet import Fernet, InvalidToken
 from cryptography.hazmat.primitives import hashes
@@ -68,6 +70,62 @@ def decrypt(token: str, payload: str) -> str | None:
         return _fernet(token).decrypt(payload.encode("ascii")).decode("utf-8")
     except (InvalidToken, ValueError):
         return None
+
+
+# ------------------------------------------------- самодостаточная ссылка без базы
+# Авария 08.11.2026: база ADB перестала отвечать, и выдать ссылку получателю
+# стало невозможно — сертификат выпущен, а ссылки нет. Запасной путь: всё,
+# что обычно лежит в VPNG_SHARES (имя, тип, язык, срок, профиль), сжимается
+# и шифруется В САМ АДРЕС. Ключ выводится из SECRET_KEY, который одинаков на
+# машине администратора и на публичном сервере, — расшифровать ссылку может
+# только сервер, база для этого не нужна.
+#
+# Чем платим: такую ссылку нельзя отозвать досрочно и нет журнала открытий в
+# базе. Срок жизни — тот же (не больше суток), а доступ всё равно закрывается
+# отзывом сертификата или выключением учётки — профиль без них бесполезен.
+
+SEALED_PREFIX = "z."
+SEALED_RE = re.compile(r"^z\.[A-Za-z0-9_-]{60,16000}$")
+
+
+def sealed_valid(token: str) -> bool:
+    return bool(SEALED_RE.match(token or ""))
+
+
+def _seal_fernet(secret: str) -> Fernet:
+    if not secret:
+        raise ValueError("нет секрета для ссылки без базы (SECRET_KEY)")
+    key = HKDF(algorithm=hashes.SHA256(), length=32,
+               salt=b"vpng-sealed-salt-v1", info=b"vpng-sealed-key").derive(secret.encode())
+    return Fernet(base64.urlsafe_b64encode(key))
+
+
+def seal(secret: str, client_name: str, kind: str, lang_: str, minutes: int, payload: str,
+         now: int) -> tuple[str, int]:
+    """Токен ссылки без базы и момент окончания (unix-время)."""
+    expires = now + minutes * 60
+    body = json.dumps({"n": client_name, "k": kind, "l": lang_, "e": expires, "p": payload},
+                      ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    token = _seal_fernet(secret).encrypt_at_time(zlib.compress(body, 9), now).decode("ascii")
+    return SEALED_PREFIX + token.rstrip("="), expires
+
+
+def unseal(secret: str, token: str, now: int) -> dict | None:
+    """{'client_name','kind','lang','expires','payload','expired'} или None — подделка."""
+    if not sealed_valid(token):
+        return None
+    raw = token[len(SEALED_PREFIX):]
+    raw += "=" * (-len(raw) % 4)
+    try:
+        # ttl Fernet — только верхняя граница; точный срок — поле «e»
+        body = _seal_fernet(secret).decrypt_at_time(raw.encode("ascii"), TTL_MAX * 60 + 120, now)
+        d = json.loads(zlib.decompress(body).decode("utf-8"))
+    except InvalidToken:
+        return {"expired": True}       # подпись верна, но старше суток — или ключ другой
+    except (ValueError, zlib.error):
+        return None
+    return {"client_name": d["n"], "kind": d["k"], "lang": d["l"], "expires": int(d["e"]),
+            "payload": d["p"], "expired": int(d["e"]) <= now}
 
 
 def ttl(value) -> int:

@@ -10,13 +10,21 @@ TIMESTAMP WITH TIME ZONE: ссылку создаёт машина админи�
 """
 from __future__ import annotations
 
+import logging
+import os
+import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from models.database import DatabaseModel
 from modules.vpnguide import rules
 
+log = logging.getLogger("vpnguide")
 LOCAL_TZ = ZoneInfo("Europe/Chisinau")
+# Сколько ждать базу при создании ссылки, прежде чем выдать ссылку без базы.
+# Недоступная ADB не отказывает, а молчит больше минуты (08.11.2026).
+DB_WAIT_SEC = 12
 _ISO = "YYYY-MM-DD\"T\"HH24:MI:SS"
 
 _STATE = ("CASE WHEN s.REVOKED_AT IS NOT NULL THEN 'revoked' "
@@ -51,16 +59,64 @@ def local_time(iso_utc: str) -> str:
     return dt.astimezone(LOCAL_TZ).strftime("%H:%M %d.%m.%Y")
 
 
+def _seal_secret() -> str:
+    return os.environ.get("VPNGUIDE_SEAL_KEY") or os.environ.get("SECRET_KEY") or ""
+
+
+def _iso_utc(ts: int) -> str:
+    return datetime.fromtimestamp(ts, timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")
+
+
 def create_share(client_name: str, profile: str, ttl_min, created_by: str,
                  lang: str = "ru", kind: str = "openvpn") -> dict:
     """Новая ссылка. Токен возвращается ОДИН раз — в базе его нет.
 
     kind: 'openvpn' — profile это текст .ovpn, 'l2tp' — JSON с настройками
     (rules.l2tp_payload). И то и другое шифруется одинаково.
+
+    База не ответила за DB_WAIT_SEC или ответила ошибкой — ссылка выдаётся
+    без базы (rules.seal): получатель её откроет так же.
     """
     if kind not in rules.KINDS:
         raise ValueError(f"неизвестный тип ссылки: {kind}")
     minutes = rules.ttl(ttl_min)
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        return pool.submit(_create_db, client_name, profile, minutes, created_by, lang, kind) \
+                   .result(timeout=DB_WAIT_SEC)
+    except Exception as e:  # noqa: BLE001 — любая беда с базой ведёт на запасной путь
+        reason = "база не ответила" if type(e).__name__ == "TimeoutError" else str(e).splitlines()[0][:160]
+        log.warning("vpnguide: ссылка без базы для %s (%s)", client_name, reason)
+        return create_sealed(client_name, profile, minutes, lang, kind, reason)
+    finally:
+        pool.shutdown(wait=False)
+
+
+def create_sealed(client_name: str, profile: str, minutes: int, lang: str, kind: str,
+                  reason: str = "") -> dict:
+    token, expires = rules.seal(_seal_secret(), client_name, kind, rules.lang(lang), minutes,
+                                profile, int(time.time()))
+    iso = _iso_utc(expires)
+    return {"id": None, "token": token, "ttl_min": minutes, "kind": kind, "sealed": True,
+            "db_error": reason, "expires_utc": iso, "expires_local": local_time(iso)}
+
+
+def _open_sealed(token: str, kind: str, ip: str) -> dict:
+    now = int(time.time())
+    d = rules.unseal(_seal_secret(), token, now)
+    if d is None:
+        return {"state": "unknown"}
+    log.info("vpnguide: ссылка без базы открыта (%s) %s %s", kind, d.get("client_name", "?"), ip)
+    if d["expired"]:
+        return {"state": "expired"}
+    iso = _iso_utc(d["expires"])
+    return {"state": "active", "id": None, "client_name": d["client_name"], "lang": d["lang"],
+            "kind": d["kind"], "expires_utc": iso, "expires_local": local_time(iso),
+            "minutes_left": max((d["expires"] - now) // 60, 0), "profile": d["payload"]}
+
+
+def _create_db(client_name: str, profile: str, minutes: int, created_by: str,
+               lang: str, kind: str) -> dict:
     token = rules.new_token()
     with DatabaseModel() as db:
         cur = _cursor(db)
@@ -88,6 +144,8 @@ def open_share(token: str, kind: str, ip: str = "", user_agent: str = "") -> dic
     Каждое открытие пишется в журнал, в том числе открытие уже мёртвой
     ссылки: попытка воспользоваться отозванной ссылкой — повод разобраться.
     """
+    if rules.sealed_valid(token):
+        return _open_sealed(token, kind, ip)
     if not rules.token_valid(token):
         return {"state": "unknown"}
     with DatabaseModel() as db:

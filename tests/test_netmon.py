@@ -1833,3 +1833,49 @@ def test_failover_frees_retired_orange_port_for_una_mail():
     add, conflict = f.plan(nat)
     assert [(r["dst-port"], r["to-addresses"], r["to-ports"]) for r in add] == [("25", "192.168.0.131", "2525")]
     assert conflict == []
+
+
+# ---------------------------------------------- ссылка для получателя без базы (08.11.2026)
+def _fake_profile():
+    import secrets as _s
+    b64 = lambda n: "\n".join(_s.token_urlsafe(n)[i:i + 64] for i in range(0, n, 64))
+    return ("client\ndev tun\nproto udp\nremote canal1.una.md 1194\n<ca>\n-----BEGIN CERTIFICATE-----\n"
+            + b64(1200) + "\n-----END CERTIFICATE-----\n</ca>\n<cert>\n" + b64(1200)
+            + "\n</cert>\n<key>\n-----BEGIN PRIVATE KEY-----\n" + b64(1700)
+            + "\n-----END PRIVATE KEY-----\n</key>\n<tls-crypt>\n" + b64(700) + "\n</tls-crypt>\n")
+
+
+def test_sealed_share_roundtrip_expiry_and_forgery():
+    from modules.vpnguide import rules
+    prof = _fake_profile()
+    tok, exp = rules.seal("k1", "DianaBS", "openvpn", "ro", 60, prof, 1_000_000)
+    assert rules.sealed_valid(tok) and not rules.token_valid(tok)
+    d = rules.unseal("k1", tok, 1_000_000 + 59 * 60)
+    assert d["payload"] == prof and d["client_name"] == "DianaBS" and d["lang"] == "ro" and not d["expired"]
+    assert rules.unseal("k1", tok, exp + 1)["expired"]
+    assert rules.unseal("k1", tok, 1_000_000 + 2 * 86400)["expired"]          # старше суток
+    assert rules.unseal("other-key", tok, 1_000_000)["expired"]               # чужой ключ — не открыть
+    assert rules.unseal("k1", tok[:-6] + "AAAAAA", 1_000_000) == {"expired": True}   # испорчен — не открыть
+    assert rules.unseal("k1", "z.short", 1_000_000) is None
+
+
+def test_sealed_share_url_fits_nginx_request_line():
+    """nginx по умолчанию держит строку запроса в 8 КБ (large_client_header_buffers)."""
+    from modules.vpnguide import rules
+    tok, _ = rules.seal("k1", "DianaBS", "openvpn", "ru", 1440, _fake_profile(), 1_000_000)
+    url = "https://nufarul.eminescu.md/UNA.md/orasldev/vpnguide/s/" + tok + "/instructions.md"
+    assert len(url) < 7800, len(url)
+
+
+def test_create_share_falls_back_without_db(monkeypatch):
+    from modules.vpnguide import store
+    monkeypatch.setenv("SECRET_KEY", "test-secret")
+
+    def boom(*a, **k):
+        raise RuntimeError("DPY-6005: cannot connect to database")
+    monkeypatch.setattr(store, "_create_db", boom)
+    s = store.create_share("DianaBS", "client\nremote x 1\n", 30, "pt", "ro")
+    assert s["sealed"] and s["id"] is None and "DPY-6005" in s["db_error"]
+    o = store.open_share(s["token"], "page")
+    assert o["state"] == "active" and o["client_name"] == "DianaBS" and o["profile"].startswith("client")
+    assert 28 <= o["minutes_left"] <= 30
