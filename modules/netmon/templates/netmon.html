@@ -1174,7 +1174,11 @@ const SHARE_STATE = {active: ["действует", "b-ok"], expired: ["исте
                      revoked: ["отозвана", "b-no"]};
 async function loadShares(){
   let rows = [];
-  try { rows = await get("/vpn/shares"); } catch (e) { console.warn("shares:", e.message); return; }
+  try { rows = await get("/vpn/shares"); } catch (e) {
+    document.querySelector("#vpn-shares tbody").innerHTML = `<tr><td colspan="7" class="warn">${esc(e.message)}.
+      Новые ссылки всё равно выдаются — без базы, в эту таблицу они не попадают.</td></tr>`;
+    return;
+  }
   document.querySelector("#vpn-shares tbody").innerHTML = rows.map(s => {
     const [label, cls] = SHARE_STATE[s.state] || [s.state, "b-dim"];
     return `<tr>
